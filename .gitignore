@@ -1,1 +1,4 @@
 /.venv/
+/.cmot/
+__pycache__/
+*.egg-info/

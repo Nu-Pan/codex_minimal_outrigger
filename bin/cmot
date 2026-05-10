@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CMOT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$CMOT_ROOT/.venv/bin/python" "$CMOT_ROOT/src/main.py" "$@"
