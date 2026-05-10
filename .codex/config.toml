@@ -1,0 +1,31 @@
+# ----
+# グローバル設定
+# ----
+
+# 基本設定
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "medium"
+personality = "pragmatic"
+project_root_markers = [".git"]
+
+# 権限関係
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Web検索モード
+sandbox_workspace_write.network_access = true
+web_search = "cached"
+tools.web_search.context_size = "high"
+
+# 参照リンクは vscode フレンドリーにする
+file_opener = "vscode"
+
+# 基本指示は使わない
+#developer_instructions = ...
+
+# 履歴関係
+history.persistence = "save-all"
+model_reasoning_summary = "detailed"
+model_verbosity = "high"
+hide_agent_reasoning = false
