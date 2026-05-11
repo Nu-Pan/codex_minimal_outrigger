@@ -12,7 +12,7 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
         repo_root: 操作対象 repository root。
 
     Returns:
-        ROUTING.md と git ignore 対象を除外したファイル一覧。
+        INDEX.md と git ignore 対象を除外したファイル一覧。
     """
     oracles_dir = repo_root / "oracles"
     if not oracles_dir.exists():
@@ -22,8 +22,8 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
     for path in sorted(oracles_dir.rglob("*")):
         relative_path = path.relative_to(repo_root)
 
-        # ファイル以外、ROUTING.md、git ignore 対象は除外する。
-        if not path.is_file() or path.name == "ROUTING.md":
+        # ファイル以外、INDEX.md、git ignore 対象は除外する。
+        if not path.is_file() or path.name == "INDEX.md":
             continue
         ignored = run_command(
             ["git", "check-ignore", "-q", relative_path.as_posix()],
