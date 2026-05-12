@@ -11,14 +11,15 @@
 
 ## 実行作業
 
-1. `<repo-root>/oracles` 配下の未コミット差分を自動コミット
-2. ループ（最大３回）
+1. `<repo-root>/.cmot` が git の追跡対象外であることを保証する
+2. `<repo-root>/oracles` 配下の未コミット差分を自動コミット
+3. ループ（最大５回）
     1. `oracles` と実装との明確なズレを調査
     2. ズレがなければこの時点でループ終了
     3. `<repo-root>` の実装を `<repo-root>/oracles` に追従させる作業を Codex CLI にやらせる
     4. 全ての未コミット差分を git にコミット（コミットメッセージは Codex CLI で適切なものを生成）
     5. ループ先頭に戻る
-3. 作業結果をレポートする
+4. 作業結果をレポートする
 
 ## ズレ調査の仕様
 
@@ -27,6 +28,76 @@
     - つまり `oracles` ファイルが N 件存在するのであれば `codex exec` を N 回呼び出す
     - `codex exec` で指定したファイルは以外のファイルも、必要にならば読むべきである（指定は「だけ」の意味ではない）
 - 調査結果は Structured Output で「ズレのリスト」として受け取る
+- Structured Output の schema は以下の通り
+    ```json
+    {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["discrepancies"],
+        "properties": {
+            "discrepancies": {
+                "type": "array",
+                "description": "oracles と実装との明確なズレのリスト。空配列の場合のみズレなしとみなす。",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "oracle_path",
+                        "oracle_line_start",
+                        "oracle_line_end",
+                        "implementation_paths",
+                        "title",
+                        "oracle_requirement",
+                        "observed_implementation",
+                        "reason",
+                        "suggested_fix"
+                    ],
+                    "properties": {
+                        "oracle_path": {
+                            "type": "string",
+                            "description": "ズレの根拠となる oracle ファイルの絶対パス。"
+                        },
+                        "oracle_line_start": {
+                            "type": ["integer", "null"],
+                            "description": "ズレの根拠となる oracle 記述の開始行。行番号を特定できない場合は null。"
+                        },
+                        "oracle_line_end": {
+                            "type": ["integer", "null"],
+                            "description": "ズレの根拠となる oracle 記述の終了行。行番号を特定できない場合は null。"
+                        },
+                        "implementation_paths": {
+                            "type": "array",
+                            "description": "ズレに関係する実装・テスト・設定ファイルの絶対パス。未実装などで該当ファイルを特定できない場合は空配列。",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "ズレの短い見出し。"
+                        },
+                        "oracle_requirement": {
+                            "type": "string",
+                            "description": "oracle が要求している仕様。"
+                        },
+                        "observed_implementation": {
+                            "type": "string",
+                            "description": "調査時点の実装が実際にどうなっているか。"
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "なぜ oracle と実装が明確にズレていると言えるのか。推測や未確認事項は含めない。"
+                        },
+                        "suggested_fix": {
+                            "type": "string",
+                            "description": "実装を oracle に追従させるための修正方針。"
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ```
 - 「ズレのリスト」は全て要修正項目として扱う
 - ズレのリストが空の場合のみ「ズレなし」とみなす
 
@@ -35,11 +106,19 @@
 - 実装の `oracles` への追従作業を Codex CLI に依頼する
 - 補足情報として「ズレのリスト」をプロンプトに注入する
 
+## 回数上限でループを抜けた場合
+
+- 正常系とみなして処理を続行する
+
 ## 作業レポートの仕様
 
-- レポートは「`<cmot-branch>` 上で行った全ての変更内容に対する要約」を書く
-    - この `cmot apply` で行った作業内容だけの要約ではない
-    - それ以前の作業内容も含めるということ
-- レポート本体は `<repo-root>/.cmot/reports/apply/<time-stamp>.md` にファイルに保存する
 - レポート執筆は Codex CLI に依頼する
+- レポートの内容
+    - ズレ件数の推移
+        - ループごとに何件のズレを見つけたかを書く
+        - 回数上限に引っかかった場合は、まだズレが残っている可能性を追記する
+    - `<cmot-branch>` 上の全ての変更内容に対する要約
+        - この `cmot apply` で行った作業内容だけの要約ではない（それ以前の作業内容も含めるということ）
+        - 変更内容の意味論に基づいたカテゴリ分けを行うこと
+- レポート本体は `<repo-root>/.cmot/reports/apply/<time-stamp>.md` にファイルに保存する
 - 作成したレポートのフルパスを標準出力に流す

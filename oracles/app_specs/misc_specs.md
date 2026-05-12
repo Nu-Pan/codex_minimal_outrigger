@@ -7,7 +7,6 @@
     - `<repo-root>/oracles` 配下の全てのファイルを glob する（拡張子で制限しない）
     - `<repo-root>/.gitignore` の対象は除外
     - `INDEX.md` は除外
-- これは列挙アルゴリズムの仕様を述べているものであり、
 
 ## `<repo-root>` に対する仮定
 
@@ -15,11 +14,11 @@ cmot による操作対象リポジトリである `<repo-root>` は以下の要
 
 - git で管理されている
 - `<repo-root>/oracles` 配下に断片的な正本情報が記載されている（`<cmot-root>` 配下がそうであるように）
-- そのリポジトリ上で必要な作業のノウハウは全てリポジトリ上で実装済みである
+- `<repo-root>` に固有の作業のノウハウは全てリポジトリ上で実装済みである
     - 言い換えれば cmot が無くても Codex CLI の直接利用でも作業を完遂出来るように `<repo-root>` がメンテナンスされている事を仮定する
     - e.g.
         - 「`<repo-root>/oracles` 配下のファイル別に `codex exec` セッションを起動する責任」は cmot が負う
-        - 「`oracles` を評価する際の観点をエージェントに説明する責任」は cmot ではなく `<repo-root>/.agents/skills` が担う
+        - 「開発必要な特定のツールの使用方法を説明する責任」は cmot ではなく `<repo-root>/.agents/skills` が担う
 
 ## cmot 実行時のカレントディレクトリ
 
@@ -27,12 +26,11 @@ cmot による操作対象リポジトリである `<repo-root>` は以下の要
 - 最初に見つかったディレクトリを `<repo-root>` とする
 - cmot 実行時のカレントは必ず `<repo-root>` に変更する
 
-## `<repo-root>/.cmot` ディレクトリの扱い
+## `<repo-root>/.cmot`
 
 - `<repo-root>/.cmot` は git の追跡対象外とする
-- 各サブコマンドの先頭で「`<repo-root>/.gitignore` の無視対象に `<repo-root>/.cmot` が含まれていること」を保証する
-- 保証のために発生した `<repo-root>/.gitignore` 編集差分は即時 git commit する
-- これらは `<repo-root>/.cmot` 配下のログファイルが未コミット差分として現れて、各サブコマンドの処理が狂ってしまう可能性を排除するための仕様である
+- このことは `cmot init` で保証される
+- `<repo-root>/.cmot` 配下のログファイルが未コミット差分として現れて、各サブコマンドの処理が狂ってしまう可能性を排除するための仕様である
 
 ## タイムスタンプのフォーマット
 

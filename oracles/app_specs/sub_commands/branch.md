@@ -13,9 +13,8 @@
 
 以下のような手順で処理を行う。
 
-```
-git checkout -b <cmot-branch>
-```
+1. git checkout -b <cmot-branch>
+2. `<repo-root>/.cmot` が git の追跡対象外であることを保証する
 
 ## `<cmot-branch>` の命名規則
 

@@ -14,6 +14,11 @@
 - eval-oracles サブコマンドの仕様を述べる
 - `<repo-root>/oracles` で述べた正本仕様断片の AI レビューを行う
 
+# `init.md`
+
+- init サブコマンドの仕様を述べる
+- `<repo-root>` を cmot による作業が可能な状態にする
+
 # `merge.md`
 
 - merge サブコマンドの仕様を述べる

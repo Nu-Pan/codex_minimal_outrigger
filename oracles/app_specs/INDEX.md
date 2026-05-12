@@ -1,5 +1,5 @@
 
-# `sub_coomands`
+# `sub_commands`
 
 - cmot の各サブコマンドの仕様を述べている
 - e.g. branch, eval-oracles, apply, merge
@@ -11,6 +11,10 @@
 # `console_output.md`
 
 - cmot のコンソール出力の仕様を述べている
+
+# `indexing.md`
+
+- `INDEX.md` の仕様・及びそのメンテナンス規則を述べている
 
 # `misc_specs.md`
 

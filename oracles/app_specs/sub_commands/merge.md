@@ -15,9 +15,9 @@
 概ね、以下のような手順で実行する。
 これはあくまで例示であり、実装においてはオプションを適切に設定する必要がある。
 
-1. `git merge <cmot-branch>`
-2. `git branch -d <cmot-branch>`
-
+1. `<repo-root>/.cmot` が git の追跡対象外であることを保証する
+2. `git merge <cmot-branch>`
+3. `git branch -d <cmot-branch>`
 
 ## マージ元の `<cmot-branch>` の自動解決
 
