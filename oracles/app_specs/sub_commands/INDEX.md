@@ -2,15 +2,19 @@
 # `apply.md`
 
 - apply サブコマンドの仕様を述べる
+- 実装を `<repo-root>/oracles` で記述された正本仕様断片へ追従させる
 
-# `eval-oracle.md`
+# `branch.md`
 
-- eval-oracle サブコマンドの仕様を述べる
+- branch サブコマンドの仕様を述べる
+- cmot による作業のコミット先である `<cmot-branch>` を作成する
 
-# `fork.md`
+# `eval-oracles.md`
 
-- fork サブコマンドの仕様を述べる
+- eval-oracles サブコマンドの仕様を述べる
+- `<repo-root>/oracles` で述べた正本仕様断片の AI レビューを行う
 
 # `merge.md`
 
 - merge サブコマンドの仕様を述べる
+- cmot による作業結果が詰まった `<cmot-branch>` ブランチを本流にマージする

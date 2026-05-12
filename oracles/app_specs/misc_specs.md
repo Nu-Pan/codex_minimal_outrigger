@@ -1,12 +1,13 @@
 
 # cmot の雑多な仕様
 
-## `<repo-root>/oracles` ファイルの列挙方法
+## `oracles` ファイルの列挙方法
 
-- `<repo-root>/oracles` 配下の全てのファイルを glob する（拡張子で制限しない）
-- `<repo-root>/.gitignore` の対象は除外
-- `INDEX.md` は除外
-- これは codex を使わずに機械的に行う
+- 「`oracles` ファイルを列挙」と言った場合、以下の方法で機械的に列挙する
+    - `<repo-root>/oracles` 配下の全てのファイルを glob する（拡張子で制限しない）
+    - `<repo-root>/.gitignore` の対象は除外
+    - `INDEX.md` は除外
+- これは列挙アルゴリズムの仕様を述べているものであり、
 
 ## `<repo-root>` に対する仮定
 
@@ -28,10 +29,13 @@ cmot による操作対象リポジトリである `<repo-root>` は以下の要
 
 ## `<repo-root>/.cmot` ディレクトリの扱い
 
-- git の追跡対象外とする
-- 各サブコマンドの先頭で「`<repo-root>/.gitignore` の無視対象に `<repo-root>/.cmot` が含まれている状態」にする
-- これは `<repo-root>/.cmot` 配下のログファイルが未コミット差分として現れて、各サブコマンドの処理が狂ってしまう可能性を排除するための仕様である
+- `<repo-root>/.cmot` は git の追跡対象外とする
+- 各サブコマンドの先頭で「`<repo-root>/.gitignore` の無視対象に `<repo-root>/.cmot` が含まれていること」を保証する
+- 保証のために発生した `<repo-root>/.gitignore` 編集差分は即時 git commit する
+- これらは `<repo-root>/.cmot` 配下のログファイルが未コミット差分として現れて、各サブコマンドの処理が狂ってしまう可能性を排除するための仕様である
 
 ## タイムスタンプのフォーマット
 
 - タイムスタンプ `<time-stamp>` はフォーマット `<year>-<month>-<day>_<hour>-<minute>_<sec>_<msec>` に従うものとする
+- month/day/hour/minute/sec/msec はゼロ埋めする
+- timezone はそのマシンのローカルとする

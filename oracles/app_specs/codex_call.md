@@ -38,3 +38,8 @@
 ## `codex exec` 呼び出しフルログ
 
 - `codex exec` 呼び出しのフルログは `<repo-root>/.cmot/logs/codex_exec/<time-stamp>.log` に保存する
+
+## `codex exec` が失敗した場合
+
+- 続行しようとせず、即時コマンド全体を失敗させる
+- これは、異常な状態に基づく無駄な作業によるトークンの浪費を避けるための仕様である

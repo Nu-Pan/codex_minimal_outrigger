@@ -2,7 +2,7 @@
 # `sub_coomands`
 
 - cmot の各サブコマンドの仕様を述べている
-- e.g. fork, eval-oracle, apply, merge
+- e.g. branch, eval-oracles, apply, merge
 
 # `codex_call.md`
 
