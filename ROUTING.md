@@ -1,14 +1,14 @@
-- `<cmot-root>/bin`
+- `<cmoc-root>/bin`
     - エンドユーザー公開用バイナリディレクトリ
-- `<cmot-root>/oracles/docs`
-    - cmot の断片的な正本仕様の文章
-- `<cmot-root>/oracles/docs/app_spec.md`
-    - cmot のアプリケーション仕様を述べている
-- `<cmot-root>/oracles/docs/code_design.md`
-    - cmot のソフトウェア的な抽象設計を述べている
-- `<cmot-root>/oracles/docs/coding_rule.md`
-    - cmot を実装する上での基本的なコーディング規約を述べている
-- `<cmot-root>/oracles/docs/development_environment.md`
-    - cmot を開発する環境について述べている
-- `<cmot-root>/src`
+- `<cmoc-root>/oracles/docs`
+    - cmoc の断片的な正本仕様の文章
+- `<cmoc-root>/oracles/docs/app_spec.md`
+    - cmoc のアプリケーション仕様を述べている
+- `<cmoc-root>/oracles/docs/code_design.md`
+    - cmoc のソフトウェア的な抽象設計を述べている
+- `<cmoc-root>/oracles/docs/coding_rule.md`
+    - cmoc を実装する上での基本的なコーディング規約を述べている
+- `<cmoc-root>/oracles/docs/development_environment.md`
+    - cmoc を開発する環境について述べている
+- `<cmoc-root>/src`
     - ソースファイルの配置先

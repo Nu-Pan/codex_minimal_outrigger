@@ -1,7 +1,7 @@
 
 # `sub_commands`
 
-- cmot の各サブコマンドの仕様を述べている
+- cmoc の各サブコマンドの仕様を述べている
 - e.g. branch, eval-oracles, apply, merge
 
 # `codex_call.md`
@@ -10,7 +10,7 @@
 
 # `console_output.md`
 
-- cmot のコンソール出力の仕様を述べている
+- cmoc のコンソール出力の仕様を述べている
 
 # `indexing.md`
 
@@ -23,5 +23,5 @@
 
 # `usage.md`
 
-- ユーザー視点での cmot の使い方を述べている
-- cmot を使用したソフトウェア開発の想定ワークフローを述べている
+- ユーザー視点での cmoc の使い方を述べている
+- cmoc を使用したソフトウェア開発の想定ワークフローを述べている

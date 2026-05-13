@@ -1,8 +1,8 @@
-# `cmot merge`
+# `cmoc merge`
 
 ## 概要
 
-- `<cmot-branch>` を `HEAD` に `git merge` する
+- `<cmoc-branch>` を `HEAD` に `git merge` する
 - コンフリクト発生時の解決まで面倒を見る
 
 ## 事前条件
@@ -15,37 +15,37 @@
 概ね、以下のような手順で実行する。
 これはあくまで例示であり、実装においてはオプションを適切に設定する必要がある。
 
-1. `<repo-root>/.cmot` が git の追跡対象外であることを保証する
-2. `git merge <cmot-branch>`
-3. `git branch -d <cmot-branch>`
+1. `<repo-root>/.cmoc` が git の追跡対象外であることを保証する
+2. `git merge <cmoc-branch>`
+3. `git branch -d <cmoc-branch>`
 
-## マージ元の `<cmot-branch>` の自動解決
+## マージ元の `<cmoc-branch>` の自動解決
 
 - 引数で指定された場合はそれに従い、指定が無い場合は自動解決を試みる
 - 自動解決のルールは以下の通り
     - 以下の条件でローカルのブランチを絞り込む
-        - `<cmot-branch>` の命名規則を満たしている
+        - `<cmoc-branch>` の命名規則を満たしている
         - マージ済みではない
     - 候補を１つに絞り込めたら、それをマージ本として採用する
     - 候補が１つ以外の場合は解決失敗とする
 
 ## `git merge` がコンフリクトした場合
 
-1. cmot は Codex CLI にマージ解決を依頼する
+1. cmoc は Codex CLI にマージ解決を依頼する
     - 具体的には「conflict marker を解消し、解決内容と未解決ファイルの有無を報告する」よう依頼する
-    - Codex CLI の責任範囲ではない余計なこと（e.g. `git add` は cmot の責任）を行わないようプロンプトで明示する
-2. cmot は conflict marker が残っていないことを確認した上で、コンフリクト対象ファイルを `git add` する
+    - Codex CLI の責任範囲ではない余計なこと（e.g. `git add` は cmoc の責任）を行わないようプロンプトで明示する
+2. cmoc は conflict marker が残っていないことを確認した上で、コンフリクト対象ファイルを `git add` する
     - `git add` 出来ない種類のコンフリクトがある場合は処理を打ち切る
-3. cmot は `git status` 等で unmerged path が存在しないことを確認し、unmerged path が...
+3. cmoc は `git status` 等で unmerged path が存在しないことを確認し、unmerged path が...
     - 存在する場合はその場で処理を打ち切り、ロールバック等はしない
-    - 存在しない場合は cmot が merge commit を作成する
+    - 存在しない場合は cmoc が merge commit を作成する
 
 ## その他、コマンドが想定外に失敗した場合
 
 - その時点で処理を打ち切り、ロールバック等はしない
 - 手動解決が必要な事を stderr 経由でユーザーに知らせる
 
-## `<cmot-branch>` 削除の条件
+## `<cmoc-branch>` 削除の条件
 
-- 安全であること（ブランチ削除により作業結果が失われないこと）の裏付けが取れた場合のみ `<cmot-branch>` の削除を実行する
-- 確認に失敗した場合 `<cmot-branch>` は削除せず、 warning 扱いでユーザーに通知して続行する
+- 安全であること（ブランチ削除により作業結果が失われないこと）の裏付けが取れた場合のみ `<cmoc-branch>` の削除を実行する
+- 確認に失敗した場合 `<cmoc-branch>` は削除せず、 warning 扱いでユーザーに通知して続行する

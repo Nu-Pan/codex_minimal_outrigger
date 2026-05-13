@@ -7,7 +7,7 @@
 # `branch.md`
 
 - branch サブコマンドの仕様を述べる
-- cmot による作業のコミット先である `<cmot-branch>` を作成する
+- cmoc による作業のコミット先である `<cmoc-branch>` を作成する
 
 # `eval-oracles.md`
 
@@ -17,9 +17,9 @@
 # `init.md`
 
 - init サブコマンドの仕様を述べる
-- `<repo-root>` を cmot による作業が可能な状態にする
+- `<repo-root>` を cmoc による作業が可能な状態にする
 
 # `merge.md`
 
 - merge サブコマンドの仕様を述べる
-- cmot による作業結果が詰まった `<cmot-branch>` ブランチを本流にマージする
+- cmoc による作業結果が詰まった `<cmoc-branch>` ブランチを本流にマージする

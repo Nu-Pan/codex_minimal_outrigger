@@ -1,4 +1,4 @@
-# `cmot eval-oracles`
+# `cmoc eval-oracles`
 
 ## 概要
 
@@ -6,11 +6,11 @@
 
 ## 事前条件
 
-- `<cmot-branch>` 上に居なければエラー終了とする
+- `<cmoc-branch>` 上に居なければエラー終了とする
 
 ## 実行手順
 
-1. `<repo-root>/.cmot` が git の追跡対象外であることを保証する
+1. `<repo-root>/.cmoc` が git の追跡対象外であることを保証する
 2. `oracles` ファイルを列挙
 3. ファイルごとに個別に評価を行う
     - １回の `codex exec` 呼び出しで、ファイル１つを評価する
@@ -25,11 +25,11 @@
 
 - 主要ワークフローが壊れる
 - 完了判定できない
-- cmot の中核目的を満たしたと判定できない
+- cmoc の中核目的を満たしたと判定できない
 
 この定義は `codex exec` のプロンプトに「リポジトリ固有の事情に依存しない汎用的な評価観点」として注入する。
 
 ## レポートの提示方法
 
-- 評価レポートは `<repo-root>/.cmot/reports/eval-oracles/<time-stamp>.md` にファイルに保存する
+- 評価レポートは `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md` にファイルに保存する
 - レポートファイルのフルパスを stdout に流す

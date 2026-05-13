@@ -1,10 +1,10 @@
 
-# `cmot` における `<repo-root>` 上の `INDEX.md` の扱い
+# `cmoc` における `<repo-root>` 上の `INDEX.md` の扱い
 
 ## 概要
 
-- `<repo-root>` 配下の大半のディレクトリ（後述）には `cmot` によって `INDEX.md` が配置される
-- この `INDEX.md` 配置は `cmot` によって自動的にメンテナンスされる（人間は書かなくて良い）
+- `<repo-root>` 配下の大半のディレクトリ（後述）には `cmoc` によって `INDEX.md` が配置される
+- この `INDEX.md` 配置は `cmoc` によって自動的にメンテナンスされる（人間は書かなくて良い）
 
 ## `INDEX.md` 配置対象ディレクトリ
 
@@ -82,7 +82,7 @@
 
 - Codex CLI に目次情報の生成を依頼する
 - `codex exec` の呼び出しは、目次ファイルの生成対象１つごとに独立に行う
-- 「ファイル・ディレクトリ名」「ハッシュ値」などの機械的に処理可能な部分は `cmot` が責任を持つ（Codex CLI にやらせない）
+- 「ファイル・ディレクトリ名」「ハッシュ値」などの機械的に処理可能な部分は `cmoc` が責任を持つ（Codex CLI にやらせない）
 - 目次情報は Structured Output で受け取る
 - Structured Output の schema は以下の通り
     ```json
