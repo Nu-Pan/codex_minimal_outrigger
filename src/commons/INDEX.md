@@ -80,54 +80,62 @@
 
 ## Summary
 
-- Maintains generated INDEX.md routing files for a target repository by scanning eligible directories, generating per-entry metadata through Codex structured JSON output, and optionally committing changes.
-- Defines index target selection, ignored-name and gitignore filtering, binary-file exclusion, stable hash generation, prompt construction, payload validation, and Markdown entry formatting for INDEX.md files.
+- INDEX.md 自動メンテナンス処理を実装するモジュール。
+- 配置対象ディレクトリの列挙、既存 INDEX.md エントリの再利用、Codex CLI による目次 JSON 生成、Markdown エントリ組み立て、必要時の書き込みと自動コミットを扱う。
+- 除外名、gitignore 判定、バイナリ判定、ファイル・ディレクトリ内容ハッシュ、Structured Output 検証、既存エントリからの hash 抽出など、INDEX.md 更新に必要な補助処理をまとめる。
 
 ## Read this when
 
-- You need to understand or modify how cmoc creates, updates, or commits INDEX.md files across a repository.
-- You are changing rules for which files or directories are excluded from indexing, including memo, build, tmp, __pycache__, hidden paths, gitignored paths, or binary-looking files.
-- You are debugging INDEX.md generation prompts, structured output validation, hash calculation, or Markdown formatting of summary/read-this-when/do-not-read-this-when sections.
+- cmoc の `INDEX.md` 自動生成・更新処理を実装、修正、調査するとき。
+- `maintain_indexes` の挙動、`commit_changes`、`.gitignore` 保守、`Maintain INDEX.md files` コミットの発生条件を確認したいとき。
+- INDEX.md 配置対象から除外されるディレクトリ・ファイル名、隠しファイル、gitignore 対象、バイナリファイルの扱いを確認するとき。
+- 既存 INDEX.md エントリの hash が一致する場合に Codex CLI 呼び出しを省略する再利用ロジックを調べるとき。
+- INDEX 目次生成用の Codex prompt、Structured Output JSON の schema 検証、`summary`・`read_this_when`・`do_not_read_this_when` の取り扱いを変更するとき。
+- ファイルまたはディレクトリ直下項目から内容ハッシュを計算する処理や、Markdown の Summary / Read this when / Do not read this when / hash ブロック生成を確認するとき。
 
 ## Do not read this when
 
-- You only need the high-level CLI command routing or user-facing behavior and do not need INDEX.md maintenance internals.
-- You are working on unrelated repository utilities, Codex execution wrappers, or git commit helpers except where they are called by index maintenance.
-- You are looking for the canonical specification fragments under oracles rather than the implementation of generated repository index maintenance.
+- cmoc の各サブコマンドのユーザー向け仕様や CLI ワークフローそのものを調べたいだけのとき。
+- Codex CLI の実行ラッパー、JSON パース、repo 操作、コミット処理の詳細実装を調べるときは、呼び出し先の `codex` や `repo` 系モジュールを読むべきとき。
+- 特定の `INDEX.md` に書かれたルーティング内容を確認したいだけで、自動生成・更新ロジックには関心がないとき。
+- README、AGENTS、oracles、memo などのリポジトリ運用ルールや編集可否だけを確認したいとき。
+- 一般的なハッシュ計算、正規表現、subprocess、pathlib の使い方だけを調べたいとき。
 
 ## hash
 
-- 602d58e535fe198c1e10c90f35fc3847c7b751507a8186778de8f99932ddb042
+- 819bf8e6a28ee1b2cbdd40b80746030ab465af1265b8b6a756f6b4008ce35310
 
 # `repo.py`
 
 ## Summary
 
-- Provides shared helpers for locating and entering a Git repository root, running Git commands with a fixed cwd, and reading current branch or HEAD commit information.
-- Defines cmoc branch recognition for `cmoc_<timestamp>` names and manages `.cmoc` ignore handling in `.gitignore`.
-- Checks working tree state, extracts changed paths from `git status --porcelain`, and raises `CmocError` for disallowed uncommitted changes.
-- Lists oracle files and changed oracle files while excluding `INDEX.md` and Git-ignored paths, including committed, staged, unstaged, and untracked oracle changes.
-- Reads and builds paths for cmoc branch base commit records under `.cmoc/branch`, with Git ignore detection backed by `git check-ignore` plus a simple `.gitignore` glob fallback.
+- git リポジトリルートの検出、cwd 移動、git コマンド実行、現在ブランチ名・HEAD commit hash 取得など、リポジトリ操作の共通関数を提供する。
+- cmoc ブランチ名の形式判定、`.cmoc` の gitignore 追記、未コミット差分の検出・パス列挙・エラー化、指定パスの差分 commit を扱う。
+- `oracles` 配下の仕様ファイル列挙、変更済み oracle ファイル抽出、cmoc ブランチ作成元 commit 記録ファイルのパス解決・読み取りを実装する。
+- gitignore 判定は `git check-ignore` を優先し、git 管理外の一時テスト向けに `.gitignore` の単純 glob fallback を持つ。
 
 ## Read this when
 
-- You need to understand how cmoc finds `<repo-root>` from the current directory or switches process cwd to the repository root.
-- You are changing Git command execution, branch detection, HEAD commit lookup, or cmoc branch naming rules.
-- You are working on commands that require a clean working tree or only allow uncommitted changes under `oracles/`.
-- You need to know how cmoc enumerates all oracle files or detects which oracle files changed since a branch base commit.
-- You are debugging `.cmoc` ignore insertion, Git-ignored oracle filtering, or `.cmoc/branch/<branch>.txt` base commit files.
+- `<repo-root>` の git リポジトリルート検出や、コマンド実行前に cwd をリポジトリルートへ移す処理を確認・修正するとき。
+- cmoc が git コマンドをどの cwd・stdout/stderr 捕捉・check 設定で実行するかを調べるとき。
+- 現在ブランチ、HEAD commit、cmoc ブランチ名形式、cmoc ブランチ作成元 commit ファイルの扱いを確認するとき。
+- 未コミット変更の有無、変更パス抽出、未コミット変更がある場合の `CmocError`、`oracles` 配下だけの差分制約を扱うとき。
+- `.cmoc` を git 追跡対象外にする `.gitignore` 更新処理を確認・修正するとき。
+- `oracles` 配下の評価対象ファイル列挙、`INDEX.md` 除外、gitignore 除外、base commit からの変更 oracle 抽出を扱うとき。
+- 指定パスに差分がある場合だけ `git add` と `git commit` を行う共通処理を確認するとき。
 
 ## Do not read this when
 
-- You are looking for CLI argument parsing, subcommand dispatch, or user-facing command definitions.
-- You need oracle specification content or routing metadata under `oracles`; this file only contains implementation helpers.
-- You are working on non-Git filesystem utilities that do not depend on repository root discovery, working tree status, or oracle file enumeration.
-- You need prompt construction, AI evaluation logic, or documentation generation behavior outside repository and Git plumbing.
-- You are investigating tests or fixtures unless the failure is specifically about Git state handling, oracle path collection, or cmoc branch base commit records.
+- CLI 引数の定義、サブコマンドの dispatch、ユーザー向けヘルプ表示だけを調べたいとき。
+- Codex CLI 呼び出し、プロンプト生成、Structured Output の解析、LLM 応答処理を調べたいとき。
+- `INDEX.md` の本文生成、目次 JSON の構造、ルーティング文書の更新ロジックそのものを調べたいとき。
+- 共通エラー型やエラー表示形式の実装だけを確認したいとき。
+- ファイル読み書き一般、タイムスタンプ生成、コンソール出力、テキスト整形など git リポジトリ操作以外の共通処理を探しているとき。
+- 自動テストの配置や Fake Codex CLI など、テスト支援コードの詳細だけを調べたいとき。
 
 ## hash
 
-- 9c20123a58e16b99ee798d60a654b08485c63bc69788a53c187ee14f7ceb99a5
+- 7105e24a87058244a02d2ea6b5cdddefa207f4f1d819f2039ca0f5b9c2d79818
 
 # `timestamps.py`
 

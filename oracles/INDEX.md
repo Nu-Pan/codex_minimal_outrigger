@@ -2,17 +2,17 @@
 
 ## Summary
 
-- cmoc のアプリケーション仕様断片を集約するディレクトリ。
-- Codex CLI 呼び出し、コンソール出力、共通エラーハンドリング、INDEX.md 自動メンテナンス、その他の共通挙動、ユーザー向け利用フロー、各サブコマンド仕様へのルーティング情報を扱う。
-- cmoc が対象リポジトリ `<repo-root>` に対して実行するランタイム挙動や CLI ワークフローの正本仕様を探す入口となる。
+- cmoc のアプリケーション仕様断片を集約するディレクトリのルーティング情報。
+- Codex CLI 呼び出し、コンソール出力、共通エラーハンドリング、INDEX.md 自動メンテナンス、その他の共通挙動、利用フロー、サブコマンド仕様への導線をまとめる。
+- cmoc が対象リポジトリ `<repo-root>` に対して実行するランタイム挙動や CLI ワークフローの正本仕様を探す入口。
 
 ## Read this when
 
 - cmoc のアプリケーション仕様のうち、どの個別仕様ファイルを読むべきか判断したいとき。
-- Codex CLI 連携、ログ、プロンプト、サンドボックス、Structured Output の失敗処理などを実装・確認するとき。
-- stdout への進捗出力、共通エラー報告、終了ステータスなど、コマンド実行時のユーザー可視挙動を調べるとき。
+- Codex CLI 連携、プロンプト生成、サンドボックス指定、Structured Output パース失敗時のリトライ、実行ログ保存などを実装・確認するとき。
+- stdout への進捗表示、共通エラー報告、終了ステータス、ステップ別・全体の実行時間レポートなど、コマンド実行時のユーザー可視挙動を調べるとき。
 - `<repo-root>` の発見、oracle ファイル列挙、`.cmoc`、タイムスタンプ、`INDEX.md` 自動生成・更新など、サブコマンド横断の共通仕様を調べるとき。
-- `cmoc init`、`branch`、`apply`、`merge`、`eval-oracles` の個別仕様ファイルへの導線を探すとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge`、`cmoc eval-oracles` の個別仕様ファイルへの導線を探すとき。
 - cmoc の利用者向けセットアップ手順や、初期化から branch/apply/eval-oracles/merge までの全体ワークフローを確認するとき。
 
 ## Do not read this when
@@ -25,7 +25,7 @@
 
 ## hash
 
-- 471c768a7ff4c78726a2304ca69bbb45079db0eb1e4056ef3f9c2ec3a1c999d9
+- f1b977b4ae5df54c9415e4f1f2cac48aad46ff54e6a06792c319f14eafeb86d4
 
 # `dev_rules`
 

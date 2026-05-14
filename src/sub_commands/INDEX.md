@@ -24,30 +24,29 @@
 
 ## Summary
 
-- Implements the core `cmoc apply` workflow that reconciles oracle specifications with repository implementation by delegating investigation, implementation, commit-message generation, and report writing to Codex CLI.
-- Validates that `cmoc apply` runs only on a cmoc branch, ensures only oracle files are initially uncommitted, updates `.gitignore` state, commits oracle changes, maintains oracle `INDEX.md` files, then runs up to five discrepancy-resolution loops.
-- For each oracle file, invokes Codex CLI in read-only JSON mode to collect discrepancy objects, applies accumulated discrepancies with write-enabled Codex CLI, rejects forbidden changes under `oracles/` or `.agents/`, commits implementation changes, and writes an apply report under `.cmoc/reports/apply/`.
-- Defines prompts used for discrepancy auditing, discrepancy application, commit-message generation, and reporting, including restrictions against reading or editing `memo` and against editing protected paths.
+- `cmoc apply` サブコマンドの本体処理を実装するファイル。
+- cmoc ブランチ上で oracle と実装のズレを調査し、Codex CLI に修正を依頼し、変更を commit し、apply レポートを書く一連の制御フローを扱う。
+- ズレ調査用 JSON schema の検証、ズレ追従プロンプト、commit message 生成プロンプト、編集禁止パス検査、未完了時の終了コードを定義する。
 
 ## Read this when
 
-- You need to understand or modify the behavior of the `cmoc apply` subcommand.
-- You are changing how cmoc detects discrepancies between oracle files and implementation.
-- You are changing how Codex CLI is invoked during apply, including read-only JSON investigation, write-enabled implementation, commit-message generation, or report generation.
-- You are debugging `cmoc apply` failures involving branch validation, dirty working trees, forbidden path edits, automatic commits, discrepancy loop limits, or exit code 2 for incomplete application.
-- You are changing report output for apply runs under `.cmoc/reports/apply/`.
+- `cmoc apply` の実行順序、進捗表示、最大ループ回数、完了・未完了判定、終了コードを確認したいとき。
+- oracle ファイルごとのズレ調査、Codex CLI 呼び出し、Structured Output の期待形式や検証ロジックを調べたいとき。
+- ズレ一覧をもとに実装変更を Codex CLI へ依頼するプロンプト内容や、Codex 作業後の禁止パス検査を確認したいとき。
+- `oracles` の自動 commit、`INDEX.md` メンテナンス、実装変更 commit、`.cmoc/reports/apply` へのレポート作成の流れを調べたいとき。
+- `cmoc apply` が `oracles/`、`.agents/`、`memo` をどのように扱うかを実装上確認したいとき。
 
 ## Do not read this when
 
-- You only need command-line argument parsing or subcommand registration, not the implementation body of `cmoc apply`.
-- You are working on unrelated cmoc subcommands such as branch creation or oracle editing workflows.
-- You only need generic Git helper behavior, repository state helpers, timestamp formatting, indexing internals, or Codex CLI wrapper implementation; read the corresponding `commons` modules instead.
-- You are looking for oracle specification text itself; use the routed files under `oracles/` instead of this implementation file.
-- You are documenting or changing files that are explicitly AI-edit-prohibited, such as `README.md`, `AGENTS.md`, or `oracles` contents.
+- `cmoc apply` ではないサブコマンドの CLI 引数定義やエントリーポイントだけを調べたいとき。
+- Codex CLI 実行の低レベル実装、git 操作ラッパー、INDEX.md メンテナンス処理、タイムスタンプ生成の内部詳細だけを調べたいとき。
+- oracle 正本仕様そのものや、`cmoc apply` のユーザー向け仕様だけを確認したいとき。
+- ズレ調査結果の個別内容や、特定の対象リポジトリで発生した実装差分の詳細を調べたいとき。
+- テストコードの構造や Fake Codex CLI を使った検証方法だけを調べたいとき。
 
 ## hash
 
-- d535afdfef0d21ef903bb741c6149fc7068b0c589bc76e522120f5ae65bcab97
+- c330ea2c619c508107a6322916f11c862520ee826c7089cf88ed232d381e4e6e
 
 # `branch.py`
 
@@ -83,25 +82,28 @@
 
 ## Summary
 
-- Implements the `cmoc eval-oracles` subcommand body that evaluates oracle specification fragments with Codex CLI and writes a report.
-- Ensures `.cmoc` is ignored, maintains oracle `INDEX.md` files, selects either changed oracle files on cmoc branches or all oracle files, runs read-only Codex evaluations, and saves results under `.cmoc/reports/eval-oracles/<timestamp>.md`.
-- Contains helper logic for constructing the oracle-review prompt and formatting the markdown report metadata and per-oracle evaluation output.
+- `cmoc eval-oracles` サブコマンドの本体処理を実装するファイル。
+- `.cmoc` の ignore 確認、`INDEX.md` メンテナンス、評価対象 oracle ファイルの選択、Codex CLI による評価実行、評価レポートの保存までの一連の処理を扱う。
+- cmoc ブランチでは既定で変更された oracle ファイルのみを評価し、`full` 指定時または cmoc ブランチ以外では全 oracle ファイルを評価する。
 
 ## Read this when
 
-- You need to understand or modify how `cmoc eval-oracles` chooses between partial and full oracle evaluation.
-- You are changing how oracle files are evaluated through `run_codex_exec`, including prompt content, read-only behavior, or report collection.
-- You are working on eval-oracles report generation, report path conventions, report front matter, or printed progress steps.
+- `cmoc eval-oracles` の実行フロー、進捗表示、評価対象ファイル選択、partial/full モードの分岐を確認したいとき。
+- oracle 評価時に Codex CLI へ渡すプロンプト内容、read-only 実行、JSON 出力を期待しない設定を確認したいとき。
+- 評価結果レポートの保存先、ファイル名、front matter、oracle ごとの出力記録形式を確認・変更したいとき。
+- `commons.repo`、`commons.indexing`、`commons.codex`、`commons.timestamps` と `eval-oracles` サブコマンド本体の接続部分を調べたいとき。
 
 ## Do not read this when
 
-- You are working on unrelated subcommands that do not invoke oracle evaluation or report writing.
-- You only need the low-level implementations of repository helpers such as branch detection, oracle file listing, or `.cmoc` ignore handling.
-- You are looking for the canonical oracle specifications themselves rather than the command that evaluates them.
+- `cmoc eval-oracles` の CLI 引数定義やサブコマンド登録だけを調べたいとき。
+- oracle ファイル列挙、ブランチ判定、base commit 読み取り、変更 oracle 検出などの共通 repo 処理そのものの詳細を調べたいとき。
+- `INDEX.md` メンテナンス処理の実装詳細だけを調べたいとき。
+- Codex CLI 実行ラッパーの低レベルなコマンド組み立て、サンドボックス設定、エラーハンドリングの詳細だけを調べたいとき。
+- 評価対象である oracle 仕様断片そのものの内容やルーティング情報を調べたいとき。
 
 ## hash
 
-- 750fe696b31e4fee63028a58f9dda853a4df77238eef1a4b0b402f0132e63330
+- 8d4e2184ab55dc533392787fc1d76f10c04efa45d0d055457265ba45a5f9b16f
 
 # `init.py`
 
@@ -134,27 +136,24 @@
 
 ## Summary
 
-- Implements the `cmoc merge` subcommand, merging a cmoc branch into the current HEAD with a no-fast-forward merge.
-- Validates repository state before merging by requiring no uncommitted changes and ensuring cmoc metadata is ignored.
-- Resolves the source branch from an explicit argument or by auto-selecting exactly one unmerged cmoc branch.
-- On merge conflicts, delegates conflict-marker resolution to Codex CLI, verifies markers and unmerged paths are gone, stages resolved files, and creates the merge commit.
-- Attempts safe deletion of the merged source branch with `git branch -d` and warns if Git refuses.
+- `cmoc merge` サブコマンドの本体処理を実装するファイル。
+- 対象リポジトリの作業ツリー検証、`.cmoc` ignore 確認、merge 元 cmoc ブランチの自動解決、`git merge --no-ff` 実行、merge 後のブランチ削除を扱う。
+- merge conflict 発生時に Codex CLI へ conflict marker 解消を依頼し、残存 marker や unmerged path を検査して merge commit を作成する処理を含む。
 
 ## Read this when
 
-- You need to understand or change `cmoc merge` behavior.
-- You are working on cmoc branch auto-detection for unmerged branches.
-- You are modifying how merge conflicts are delegated to Codex CLI or how conflict resolution is validated.
-- You are changing repository cleanliness checks, cmoc ignore enforcement, merge commit creation, or post-merge branch deletion.
-- You need to know which files Codex is instructed not to edit while resolving merge conflicts.
+- `cmoc merge` の実行手順、進捗表示、git merge 実行、merge 元ブランチ解決、merge 後のブランチ削除の実装を確認したいとき。
+- 未マージの cmoc ブランチ候補を `git branch --no-merged` から自動判定する挙動や、候補が一意でない場合のエラーを調べたいとき。
+- merge conflict 発生時に Codex CLI をどの prompt・権限で呼び出し、どのように conflict marker、unmerged path、`git add`、`git commit --no-edit` を処理するか確認したいとき。
+- `assert_no_uncommitted_changes`、`ensure_cmoc_ignored`、`run_git`、`run_codex_exec` と `cmoc merge` の連携箇所を追いたいとき。
 
 ## Do not read this when
 
-- You are working on unrelated subcommands such as init, branch creation, status, or command-line argument parsing without touching merge execution.
-- You only need the generic Git helper functions or repository utility behavior; read the commons modules instead.
-- You are looking for cmoc canonical specification fragments; use the routed files under `oracles` instead.
-- You are changing documentation or routing metadata only and do not need implementation details of merge conflict handling.
+- `cmoc merge` 以外のサブコマンド、CLI 引数定義、エントリーポイント、共通エラー表示だけを調べたいとき。
+- git コマンド実行ラッパー、リポジトリ検証、cmoc ブランチ判定、Codex CLI 呼び出しの共通実装そのものを調べたいとき。
+- `cmoc merge` の正本仕様、ユーザー向けワークフロー、コンソール出力仕様を実装コードではなく仕様断片から確認したいとき。
+- merge conflict の一般的な解消方法や Git の使い方だけを知りたいとき。
 
 ## hash
 
-- eab24f2fdfd113601cd7e858bed0e1eac8d89e9cb9c0dfacbfe8a6bc079f0909
+- e828cc7bef6bd07bb49e7f4095d6edc0a6c5f749abe2d69c63b6f0743b6445a3

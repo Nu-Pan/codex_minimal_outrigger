@@ -2,27 +2,33 @@
 
 ## Summary
 
-- Contains shared cmoc utility modules used across commands and workflows.
-- Provides common error reporting, Codex CLI invocation and JSON parsing, repository and Git helpers, timestamp generation, and INDEX.md maintenance logic.
-- The package-level INDEX.md routes to concrete modules such as codex.py, repo.py, errors.py, timestamps.py, indexing.py, and __init__.py.
+- cmoc の複数サブコマンドから共有される Python 共通実装を集めたパッケージ。
+- Codex CLI 呼び出し、Structured Output JSON の検証、Codex 実行ログ保存、共通エラー整形、INDEX.md 自動メンテナンス、git リポジトリ操作、oracle ファイル列挙、タイムスタンプ生成を扱う。
+- CLI 引数定義やサブコマンド固有の業務ロジックではなく、src/sub_commands などから再利用される横断的な補助処理の入口となる。
 
 ## Read this when
 
-- You need a package-level overview of common implementation helpers under src/commons.
-- You are deciding which shared module to inspect for Codex execution, Git repository handling, structured error reports, timestamps, or generated INDEX.md maintenance.
-- You are changing cross-cutting infrastructure that multiple cmoc commands rely on.
-- You are documenting or updating routing metadata for the commons package.
+- cmoc のサブコマンド間で共有する処理をどの commons モジュールに置くか、または既存の共通関数を再利用できるか判断したいとき。
+- Codex CLI を `codex exec` で呼び出す処理、read-only/workspace-write sandbox、リトライ、JSON パース、Structured Output 検証、`.cmoc/logs/codex_exec` のログ出力を調べるとき。
+- cmoc 全体で使う `CmocError`、復旧アクション付きエラー、stdout 向けエラーレポート形式を確認・修正するとき。
+- `INDEX.md` の自動生成・更新、既存エントリ再利用、hash 比較、除外対象、gitignore 判定、Codex prompt 生成、自動コミット処理を扱うとき。
+- git リポジトリルート検出、cwd 移動、git コマンド実行、現在ブランチや HEAD commit、未コミット差分検査、`.cmoc` の gitignore 追記、指定パス commit を扱うとき。
+- `oracles` 配下の仕様ファイル列挙、変更済み oracle ファイル抽出、cmoc ブランチ作成元 commit ファイルのパス解決・読み取りを調べるとき。
+- cmoc 仕様の `<time-stamp>` 形式でファイル名、ブランチ名、ログ名、成果物名を生成する処理を確認したいとき。
 
 ## Do not read this when
 
-- You need command-specific behavior, CLI argument parsing, or subcommand dispatch; inspect the relevant command or entrypoint modules instead.
-- You need canonical product specifications; use the routed files under oracles rather than shared implementation helpers.
-- You are looking for tests or fixtures; inspect tests instead.
-- You only need one concrete utility implementation and already know the target module, such as repo.py for Git helpers or codex.py for Codex CLI execution.
+- CLI エントリーポイント、typer 定義、引数解釈、サブコマンド dispatch だけを調べたいとき。
+- `init`、`branch`、`apply`、`merge`、`eval-oracles` など、特定サブコマンド固有のワークフロー実装やプロンプト本文を調べたいとき。
+- cmoc のユーザー向け仕様、正本仕様断片、出力仕様、ワークフロー仕様を確認したいだけのときは、まず `oracles` 配下の該当ルートを読むべきとき。
+- テストコード、pytest  fixtures、Fake Codex CLI、テストデータ配置だけを調べたいとき。
+- README、AGENTS、oracles、memo などのリポジトリ運用ルールや編集可否だけを確認したいとき。
+- 共通処理ではない画面表示文言、サブコマンド固有の入力検証、ドメイン固有のエラー条件だけを調べたいとき。
+- Python 標準ライブラリ、git、pathlib、subprocess、JSON の一般的な使い方だけを確認したいとき。
 
 ## hash
 
-- 958c0f4bf343c2160caadddcb71963e536a2fc1a1993410f57820d59e10eecf9
+- 977b735b8d1ea719a520551894d9307115297e8e00a2720aaac9003502958114
 
 # `main.py`
 
@@ -56,18 +62,20 @@
 ## Summary
 
 - cmoc の各サブコマンド本体を実装する Python パッケージ。
-- `cmoc init` は `.cmoc` の ignore 設定と初期化コミット、`cmoc branch` は cmoc 作業ブランチ作成と base commit 記録を担当する。
-- `cmoc apply` は oracle と実装の差分調査、Codex CLI による追従実装、禁止パス検査、コミット、apply レポート作成を担当する。
-- `cmoc eval-oracles` は oracle `INDEX.md` 保守、評価対象 oracle の選択、Codex CLI による read-only 評価、評価レポート作成を担当する。
-- `cmoc merge` は cmoc ブランチの no-fast-forward merge、未マージ cmoc ブランチの自動解決、Codex CLI による conflict marker 解消、merge commit、作業ブランチ削除を担当する。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実行時処理をファイルごとに分けて扱う。
+- `init.py` は `.cmoc` の ignore 設定と初期化コミット、`branch.py` は cmoc 作業ブランチ作成と base commit 記録を実装する。
+- `apply.py` は oracle と実装のズレ調査、Codex CLI による追従実装、禁止パス検査、コミット、apply レポート作成を実装する。
+- `eval_oracles.py` は oracle `INDEX.md` 保守、評価対象 oracle の選択、Codex CLI による read-only 評価、評価レポート作成を実装する。
+- `merge.py` は cmoc ブランチの no-fast-forward merge、未マージ cmoc ブランチの自動解決、Codex CLI による conflict 解消、merge commit、作業ブランチ削除を実装する。
 
 ## Read this when
 
 - `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実行時処理を理解または変更するとき。
 - サブコマンドが `commons.repo`、`commons.codex`、`commons.indexing`、`commons.timestamps` などの共通処理をどの順序で呼ぶか確認するとき。
 - cmoc ブランチ作成、base commit 記録、oracle 変更のコミット、oracle 評価、実装追従ループ、merge conflict 解消、`.cmoc/reports` 出力の挙動を調査するとき。
-- Codex CLI へ渡す prompt、read-only/write-enabled の使い分け、JSON 期待有無、禁止パス指定を変更または検証するとき。
+- Codex CLI へ渡す prompt、read-only と workspace-write の使い分け、JSON 期待有無、禁止パス指定を変更または検証するとき。
 - サブコマンド実装に起因するエラー、進捗表示、終了コード、git 操作、レポート生成の不具合をデバッグするとき。
+- このディレクトリ内のどのサブコマンド実装ファイルを読むべきか判断したいとき。
 
 ## Do not read this when
 
@@ -76,7 +84,8 @@
 - cmoc の正本仕様断片そのものを確認したいとき。
 - テストコードの期待値や fixture のみを調べたいとき。
 - README、AGENTS、oracles、memo など、閲覧または編集制限のある文書・仕様・メモを扱う作業をしているとき。
+- 個別サブコマンドの対象ファイルが既に明確で、このディレクトリ全体のルーティング情報が不要なとき。
 
 ## hash
 
-- 36df25dccb02d1869b01ec09775ca7ef4df4eb742a1be3c6e8a0c3d4651b791b
+- 71d3cb5320f2e3e5f30acb930898d9ca6e2a29a8d672da6080d3f7ab78aece98

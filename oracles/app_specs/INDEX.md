@@ -2,59 +2,61 @@
 
 ## Summary
 
-- cmoc から Codex CLI を呼び出す際は、すべて `codex exec` を使うことを定める仕様。
-- 読み取り専用で足りる作業では Codex CLI のサンドボックスを read-only にし、`.agents` 配下は `codex exec` から編集できない前提で扱う。
-- Codex CLI に渡すプロンプトは、ロール、作業概要、完了条件、任意の詳細作業内容の順で構成する。
-- Codex CLI に渡すプロンプトでは `<cmoc-root>` や `<repo-root>` などの cmoc 固有概念を使わず、具体的なパスを埋め込む必要がある。
-- 呼び出された AI エージェントがプロンプト単体で自走でき、特定リポジトリや cmoc 由来のメタ認知に依存しない汎用的な内容にする。
-- Codex CLI へのプロンプトには、実行時のサンドボックスに応じたファイルアクセス制限指示を含める。
-- `codex exec` のフルログは `<repo-root>/.cmoc/logs/codex_exec/<time-stamp>.log` に保存する。
-- `codex exec` の失敗時は、Structured Output の意味的失敗のみ最大3回リトライし、それ以外の想定外エラーや3回失敗後は即時にコマンド全体を失敗させる。
+- cmoc が外部の Codex CLI を呼び出す際の正本仕様を定める。
+- `codex exec` の使用、サンドボックス指定、`.agents` 配下を編集できない制約とその緩和方針を扱う。
+- Codex CLI に渡すプロンプトの構成、具体パスの埋め込み、ファイルシステム制約指示、汎用性、自走可能性の要件を定める。
+- `codex exec` 呼び出しログの保存先、Structured Output パース失敗時の最大3回リトライ、想定外エラー時の即時失敗を扱う。
+- Codex CLI で扱う自然言語部分は原則として日本語にする、という言語規約と例外を定める。
 
 ## Read this when
 
-- cmoc から Codex CLI をどのコマンド形式で起動するかを実装・確認するとき。
-- `codex exec` に渡すプロンプトの構成、禁止表現、必要な前提情報、完了条件の書き方を確認するとき。
-- 読み取り専用作業と書き込み可能作業で、Codex CLI に渡すサンドボックス設定やファイルアクセス制限指示を決めるとき。
-- `.agents` 配下を Codex CLI 経由で扱う際の制約や、プロンプト側での緩和方針を確認するとき。
-- `codex exec` 呼び出しログの保存先やログ出力仕様を実装・確認するとき。
-- Structured Output のパース失敗や Codex CLI 実行エラーに対するリトライ・失敗処理を実装・確認するとき。
+- cmoc から Codex CLI をどのコマンド・引数・サンドボックス設定で実行するか実装または確認するとき。
+- `codex exec` に渡すプロンプトの構成、ロール、作業内容、完了条件、詳細指示の書き方を決めるとき。
+- `<repo-root>` や `<cmoc-root>` などの抽象表記を Codex CLI プロンプトに含めてよいか判断するとき。
+- Codex CLI に渡すプロンプトへ読み書き禁止・編集禁止などのファイルアクセス制約をどう含めるか確認するとき。
+- `.agents` 配下が `codex exec` から編集できない制約を前提に、プロンプトや実装方針を決めるとき。
+- `codex exec` のフルログ保存先やログ出力実装を確認するとき。
+- Structured Output のパース失敗、Codex CLI の想定外エラー、リトライ上限、コマンド全体の失敗条件を実装または確認するとき。
+- Codex CLI への入力プロンプト、作業レポート、評価レポート、エラー説明などの自然言語を日本語にすべきか判断するとき。
 
 ## Do not read this when
 
-- cmoc のサブコマンド全体の一覧やユーザー向け CLI 仕様を調べたいだけのとき。
-- Codex CLI 呼び出しではなく、cmoc 内部の通常処理、データ構造、設定ファイル仕様を調べているとき。
-- `oracles` 配下の仕様断片のルーティング規則や INDEX の書き方を調べたいとき。
-- cmoc 自体のコーディング規約、テスト方針、開発環境ルールを調べたいとき。
-- Codex CLI を呼び出さない処理のログ保存先やエラーハンドリングだけを調べているとき。
+- cmoc の個別サブコマンドである `init`、`branch`、`apply`、`merge`、`eval-oracles` の詳細仕様だけを調べたいとき。
+- stdout の進捗表示、共通エラー表示、終了ステータスなど、Codex CLI 呼び出し以外のユーザー可視挙動だけを調べたいとき。
+- `INDEX.md` の自動生成・更新、oracle ファイル列挙、`.cmoc` ディレクトリ、タイムスタンプなどの共通アプリケーション仕様だけを調べたいとき。
+- cmoc 自体の Python コーディング規約、CLI 構成、テスト規約、開発環境などの開発ルールを調べたいとき。
+- Codex CLI や LLM そのものの外部仕様、モデル性能、一般的な使い方を調べたいとき。
+- README、AGENTS、memo、oracles などのリポジトリ運用上の編集可否やアクセス制約だけを確認したいとき。
 
 ## hash
 
-- 554bde700e2a8f4c8e8e86e649c33b18f0b675c05e4b7443e3ad42a3fca62f5e
+- 25cb6164140b1c8dd21d68c79b31bdbe8c7b095e50a7def66568177aff84250a
 
 # `console_output.md`
 
 ## Summary
 
-- Defines cmoc console output requirements for subcommands.
-- Subcommands should emit lightweight progress information to stdout so users can tell work is active, without requiring detailed logs.
-- Examples include step names and counts, prompts passed to `codex exec`, outputs collected from execution results, and elapsed-time reports per step and per subcommand.
+- cmoc の各サブコマンドが標準出力へ流す進捗表示の基本方針を定義する。
+- 出力は詳細ログではなく、コマンドが動いていることを確認できる程度の簡潔な情報とする。
+- ステップ名・ステップ数、codex exec に渡したプロンプトや回収した出力、ステップ別および全体の実行時間レポートを出力例として示す。
 
 ## Read this when
 
-- Designing or changing stdout/progress output behavior for cmoc subcommands.
-- Implementing reporting of subcommand steps, step counts, execution prompts, collected command output, or elapsed-time summaries.
-- Checking what level of console logging is expected during cmoc command execution.
+- サブコマンド実行中に stdout へ表示する進捗メッセージの粒度や内容を決めるとき。
+- cmoc apply などの処理ステップ名、ステップ番号、実行中表示を実装・調整するとき。
+- codex exec への入力プロンプトや実行結果から回収した出力を、コンソールへどの程度表示するか確認するとき。
+- ステップ別の経過時間やサブコマンド全体の経過時間レポートを実装・確認するとき。
 
 ## Do not read this when
 
-- Working on command routing, CLI argument parsing, or subcommand semantics unrelated to user-visible console output.
-- Investigating coding style, repository development rules, or test environment setup.
-- Looking for complete specifications of individual subcommands beyond their progress/output reporting behavior.
+- サブコマンドの詳細な処理順序、引数、終了ステータス、エラー条件などを調べたいとき。
+- Codex CLI 呼び出しそのものの仕様やプロンプト生成の詳細を調べたいとき。
+- 構造化データ、oracle、INDEX.md、.cmoc など、コンソール表示以外の入出力仕様を調べたいとき。
+- cmoc 自体の開発ルール、テスト規約、コード配置規約を確認したいとき。
 
 ## hash
 
-- aadad6359ed1b4af58ac47902b69675df12858a7ccc363aca173ca551052e80d
+- 4107a532f0a23299cb9c9733f55ee05fb43608415b1140fa226cd524c3123d8d
 
 # `error_handling.md`
 
