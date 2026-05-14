@@ -70,6 +70,22 @@ def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     assert names == ["committed.md", "working.md"]
 
 
+def test_changed_oracle_files_excludes_gitignored_files(tmp_path: Path) -> None:
+    """部分評価対象でも gitignore 対象の oracle ファイルは除外する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("oracles/ignored.md\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "kept.md").write_text("kept", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "ignored.md").write_text("ignored", encoding="utf-8")
+
+    assert changed_oracle_files(repo, base_commit) == []
+
+
 def test_assert_only_oracles_uncommitted_rejects_non_oracle_changes(
     tmp_path: Path,
 ) -> None:

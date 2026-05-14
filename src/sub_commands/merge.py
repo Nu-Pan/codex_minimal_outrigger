@@ -1,5 +1,6 @@
 """`cmoc merge` の本体処理。"""
 
+import sys
 from pathlib import Path
 
 from commons.codex import run_codex_exec
@@ -24,7 +25,14 @@ def cmoc_merge_impl(repo_root: Path, cmoc_branch: str | None) -> None:
     print("merge (3/4) run git merge")
     result = run_git(repo_root, ["merge", "--no-ff", source_branch], check=False)
     if result.returncode != 0:
-        _resolve_conflicts(repo_root)
+        try:
+            _resolve_conflicts(repo_root)
+        except Exception:
+            print(
+                "Manual conflict resolution is required. cmoc did not roll back the merge state.",
+                file=sys.stderr,
+            )
+            raise
 
     print("merge (4/4) delete source branch if safe")
     _delete_branch_if_safe(repo_root, source_branch)
@@ -113,11 +121,12 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
     """merge conflict 解消用 prompt を組み立てる。"""
     return "\n".join(
         [
-            "You are a merge conflict resolver.",
-            f"Resolve conflict markers in repository `{repo_root}` for these files: {unmerged}.",
-            "The task is complete when conflict markers are removed and unresolved files are reported.",
-            "Do not run git add or git commit.",
-            f"Do not edit `{repo_root / 'oracles'}` unless a conflict already exists there.",
-            f"Do not edit `{repo_root / '.agents'}`.",
+            "あなたは merge conflict の解消担当です。",
+            f"`{repo_root}` の以下のファイルについて conflict marker を解消してください: {unmerged}",
+            "完了条件は、conflict marker を削除し、未解決ファイルの有無を報告することです。",
+            "`git add` と `git commit` は実行禁止です。",
+            f"`{repo_root / 'oracles'}` は、既に conflict がある場合を除いて編集禁止です。",
+            f"`{repo_root / '.agents'}` は編集禁止です。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
         ]
     )

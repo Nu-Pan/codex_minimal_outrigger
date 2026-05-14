@@ -3,9 +3,11 @@
 import subprocess
 from pathlib import Path
 
+import pytest
 from pytest import MonkeyPatch
 
 from sub_commands.apply import cmoc_apply_impl
+from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.branch import cmoc_branch_impl
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
@@ -90,6 +92,21 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert exit_code == 0
     assert len(reports) == 1
     assert reports[0].read_text(encoding="utf-8") == "complete report"
+
+
+def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
+    """ズレ調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
+    with pytest.raises(ValueError):
+        _validate_discrepancy_payload(
+            {
+                "discrepancies": [
+                    {
+                        "oracle_path": "/repo/oracles/spec.md",
+                        "title": "missing fields",
+                    }
+                ]
+            }
+        )
 
 
 def test_merge_merges_explicit_cmoc_branch_and_deletes_it(tmp_path: Path) -> None:

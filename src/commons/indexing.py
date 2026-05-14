@@ -1,6 +1,7 @@
-"""`INDEX.md` メンテナンスの簡易実装。"""
+"""`INDEX.md` メンテナンス処理。"""
 
 import hashlib
+import re
 import subprocess
 from pathlib import Path
 
@@ -12,18 +13,19 @@ _EXCLUDED_NAMES = {"memo", "build", "tmp", "__pycache__"}
 
 def maintain_indexes(repo_root: Path, *, commit_changes: bool = True) -> bool:
     """配置対象ディレクトリへ `INDEX.md` を用意し、必要なら自動コミットする。"""
-    ensure_cmoc_ignored(repo_root)
+    changed_paths: list[str] = []
+    if ensure_cmoc_ignored(repo_root):
+        changed_paths.append(".gitignore")
     directories = _index_directories(repo_root)
-    changed = False
     for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
         if _write_index_if_needed(repo_root, directory):
-            changed = True
+            changed_paths.append((directory / "INDEX.md").relative_to(repo_root).as_posix())
 
-    if changed and commit_changes:
+    if changed_paths and commit_changes:
         from .repo import commit_if_changed
 
-        commit_if_changed(repo_root, ["."], "Maintain INDEX.md files")
-    return changed
+        commit_if_changed(repo_root, changed_paths, "Maintain INDEX.md files")
+    return bool(changed_paths)
 
 
 def _index_directories(repo_root: Path) -> list[Path]:
@@ -40,8 +42,12 @@ def _index_directories(repo_root: Path) -> list[Path]:
 
 
 def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
-    """現在の直下項目から INDEX.md を生成し、差分があれば書く。"""
-    entries = []
+    """現在の直下項目から INDEX.md を更新し、差分があれば書く。"""
+    index_path = directory / "INDEX.md"
+    old_content = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
+    existing_entries = _parse_index_entries(old_content)
+    entries: list[str] = []
+
     for child in sorted(directory.iterdir(), key=lambda path: path.name):
         if child.name == "INDEX.md" or child.name.startswith(".") or child.name in _EXCLUDED_NAMES:
             continue
@@ -49,26 +55,30 @@ def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
             continue
         if _looks_binary(child):
             continue
-        entries.append(_entry_for(repo_root, child))
+
+        digest = _hash_path(repo_root, child)
+        existing = existing_entries.get(child.name)
+        if existing is not None and _entry_hash(existing) == digest:
+            entries.append(existing)
+        else:
+            entries.append(_entry_for(repo_root, child, digest))
+
     new_content = "\n\n".join(entries)
     if new_content:
         new_content += "\n"
 
-    index_path = directory / "INDEX.md"
-    old_content = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
     if old_content == new_content:
         return False
     index_path.write_text(new_content, encoding="utf-8")
     return True
 
 
-def _entry_for(repo_root: Path, path: Path) -> str:
+def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
     """1 件分の目次情報を Codex CLI の Structured Output から作る。"""
-    digest = _hash_path(path)
     payload = parse_json_object(
         run_codex_exec(
             repo_root,
-            _index_prompt(path, digest),
+            _index_prompt(repo_root, path, digest),
             read_only=True,
             expect_json=True,
             json_validator=_validate_index_payload,
@@ -101,13 +111,14 @@ def _entry_for(repo_root: Path, path: Path) -> str:
     )
 
 
-def _index_prompt(path: Path, digest: str) -> str:
+def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
     """INDEX 目次情報生成用の Codex prompt を作る。"""
     return "\n".join(
         [
-            "You are a repository documentation assistant.",
-            f"Create routing metadata for `{path}`.",
-            "Return only JSON matching this schema:",
+            "あなたはリポジトリのルーティング文書を作るアシスタントです。",
+            f"`{path}` の `INDEX.md` 目次情報を作成してください。",
+            "完了条件は、summary、read_this_when、do_not_read_this_when を JSON だけで返すことです。",
+            "JSON はこの schema に一致させてください:",
             "{",
             '  "type": "object",',
             '  "additionalProperties": false,',
@@ -118,22 +129,29 @@ def _index_prompt(path: Path, digest: str) -> str:
             '    "do_not_read_this_when": { "type": "array", "items": { "type": "string" } }',
             "  }",
             "}",
-            "Do not return content_hash or any other extra property.",
-            "The task is complete when summary, read_this_when, and do_not_read_this_when are returned.",
-            f"The content hash is `{digest}` and must not be recalculated or returned.",
+            "content_hash などの余計なプロパティは返さないでください。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
+            f"内容ハッシュは `{digest}` です。再計算も返却もしないでください。",
         ]
     )
 
 
-def _hash_path(path: Path) -> str:
+def _hash_path(repo_root: Path, path: Path) -> str:
     """ファイルまたは直下項目ハッシュ連結から sha256 を計算する。"""
     if path.is_file():
         return hashlib.sha256(path.read_bytes()).hexdigest()
     child_hashes = []
     for child in sorted(path.iterdir(), key=lambda item: item.name):
-        if child.name == "INDEX.md" or child.name.startswith(".") or _looks_binary(child):
+        if (
+            child.name == "INDEX.md"
+            or child.name.startswith(".")
+            or child.name in _EXCLUDED_NAMES
+            or _is_gitignored(repo_root, child)
+            or _looks_binary(child)
+        ):
             continue
-        child_hashes.append(_hash_path(child))
+        child_hashes.append(_hash_path(repo_root, child))
     return hashlib.sha256("".join(child_hashes).encode("utf-8")).hexdigest()
 
 
@@ -186,3 +204,22 @@ def _validate_index_payload(value: object) -> None:
 def _bullet_lines(values: list[str]) -> list[str]:
     """Markdown 箇条書きへ変換する。"""
     return [f"- {value}" for value in values]
+
+
+def _parse_index_entries(content: str) -> dict[str, str]:
+    """既存 INDEX.md を項目名ごとのブロックへ分解する。"""
+    entries: dict[str, str] = {}
+    matches = list(re.finditer(r"(?m)^# `([^`]+)`\n", content))
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
+        entries[match.group(1)] = content[start:end].strip()
+    return entries
+
+
+def _entry_hash(entry: str) -> str | None:
+    """目次情報ブロックから hash 欄の値を読む。"""
+    match = re.search(r"(?m)^## hash\n\n- ([0-9a-f]{64})$", entry)
+    if match is None:
+        return None
+    return match.group(1)

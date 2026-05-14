@@ -207,7 +207,12 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
         collected.add(repo_root / line[3:])
 
     return sorted(
-        path for path in collected if path.exists() and path.is_file() and path.name != "INDEX.md"
+        path
+        for path in collected
+        if path.exists()
+        and path.is_file()
+        and path.name != "INDEX.md"
+        and not _is_gitignored(repo_root, path.relative_to(repo_root).as_posix())
     )
 
 

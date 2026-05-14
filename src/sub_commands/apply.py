@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 from commons.codex import parse_json_object, run_codex_exec
-from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
     assert_only_oracles_uncommitted,
@@ -69,18 +68,12 @@ def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
                 _investigation_prompt(repo_root, oracle_file),
                 read_only=True,
                 expect_json=True,
+                json_validator=_validate_discrepancy_payload,
             )
         )
         values = payload.get("discrepancies")
-        if not isinstance(values, list):
-            raise CmocError(
-                "Discrepancy investigation response is missing discrepancies.",
-                ["Fix the Codex CLI JSON output.", "Run `cmoc apply` again."],
-                json.dumps(payload, ensure_ascii=False),
-            )
         for value in values:
-            if isinstance(value, dict):
-                discrepancies.append(value)
+            discrepancies.append(value)
     return discrepancies
 
 
@@ -140,12 +133,14 @@ def _write_apply_report(
     report_path = report_dir / f"{make_timestamp()}.md"
     prompt = "\n".join(
         [
-            "You are a software work reporter.",
-            f"Write a concise report for branch `{branch_name}` in repository `{repo_root}`.",
-            "The task is complete when the report describes the work result, discrepancy count trend, and all branch changes.",
+            "あなたはソフトウェア作業レポートの作成担当です。",
+            f"`{repo_root}` のブランチ `{branch_name}` について簡潔な作業レポートを書いてください。",
+            "完了条件は、作業結果、ズレ件数の推移、ブランチ上の全変更内容を説明することです。",
             f"Result: {'complete' if completed else 'incomplete'}",
             f"Discrepancy counts: {discrepancy_counts}",
-            f"Do not edit `{repo_root / 'oracles'}` or `{repo_root / '.agents'}`.",
+            f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
         ]
     )
     report = run_codex_exec(repo_root, prompt, read_only=True, expect_json=False)
@@ -157,12 +152,12 @@ def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
     """ズレ調査用 prompt を組み立てる。"""
     return "\n".join(
         [
-            "You are a software implementation auditor.",
-            f"Investigate discrepancies between `{oracle_file}` and implementation in `{repo_root}`.",
-            "The task is complete when you return JSON with a discrepancies array.",
-            "Return an empty array only when there are no clear discrepancies.",
-            f"Do not read or edit `{repo_root / 'memo'}`.",
-            "Do not edit any files.",
+            "あなたはソフトウェア実装の監査担当です。",
+            f"`{oracle_file}` と `{repo_root}` の実装との明確なズレを調査してください。",
+            "完了条件は、discrepancies 配列を持つ JSON だけを返すことです。",
+            "明確なズレがない場合だけ空配列を返してください。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
         ]
     )
 
@@ -171,13 +166,13 @@ def _apply_prompt(repo_root: Path, discrepancies: list[dict[str, object]]) -> st
     """ズレ追従作業用 prompt を組み立てる。"""
     return "\n".join(
         [
-            "You are a software implementation agent.",
-            f"Update the implementation in `{repo_root}` to resolve the listed discrepancies.",
-            "The task is complete when the implementation follows the oracle requirements and tests are updated as needed.",
+            "あなたはソフトウェア実装担当です。",
+            f"`{repo_root}` の実装を、以下のズレ一覧が解消されるように更新してください。",
+            "完了条件は、実装が oracle 要求に追従し、必要なテスト更新も終わっていることです。",
             f"Discrepancies: {json.dumps(discrepancies, ensure_ascii=False)}",
-            f"Do not edit `{repo_root / 'oracles'}`.",
-            f"Do not edit `{repo_root / '.agents'}`.",
-            f"Do not read or edit `{repo_root / 'memo'}`.",
+            f"`{repo_root / 'oracles'}` は編集禁止です。",
+            f"`{repo_root / '.agents'}` は編集禁止です。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
         ]
     )
 
@@ -186,9 +181,64 @@ def _commit_message_prompt(repo_root: Path) -> str:
     """commit message 生成用 prompt を組み立てる。"""
     return "\n".join(
         [
-            "You are a commit message writer.",
-            f"Write one concise git commit message for the current changes in `{repo_root}`.",
-            "The task is complete when you output only the commit message.",
-            "Do not edit any files.",
+            "あなたは git commit message の作成担当です。",
+            f"`{repo_root}` の現在の変更に対する簡潔な commit message を 1 行で書いてください。",
+            "完了条件は、commit message だけを出力することです。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
         ]
     )
+
+
+def _validate_discrepancy_payload(value: object) -> None:
+    """ズレ調査 Structured Output の schema を検査する。"""
+    if not isinstance(value, dict):
+        raise ValueError("Expected JSON object.")
+    if set(value) != {"discrepancies"}:
+        raise ValueError("Expected only discrepancies key.")
+    discrepancies = value.get("discrepancies")
+    if not isinstance(discrepancies, list):
+        raise ValueError("discrepancies must be a list.")
+
+    required_keys = {
+        "oracle_path",
+        "oracle_line_start",
+        "oracle_line_end",
+        "implementation_paths",
+        "title",
+        "oracle_requirement",
+        "observed_implementation",
+        "reason",
+        "suggested_fix",
+    }
+    for index, item in enumerate(discrepancies):
+        if not isinstance(item, dict):
+            raise ValueError(f"discrepancies[{index}] must be an object.")
+        if set(item) != required_keys:
+            raise ValueError(f"discrepancies[{index}] keys do not match schema.")
+        _require_string(item, "oracle_path", index)
+        _require_nullable_int(item, "oracle_line_start", index)
+        _require_nullable_int(item, "oracle_line_end", index)
+        paths = item["implementation_paths"]
+        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+            raise ValueError(f"discrepancies[{index}].implementation_paths must be list[str].")
+        for key in [
+            "title",
+            "oracle_requirement",
+            "observed_implementation",
+            "reason",
+            "suggested_fix",
+        ]:
+            _require_string(item, key, index)
+
+
+def _require_string(item: dict[str, object], key: str, index: int) -> None:
+    """schema 上 string の項目を検査する。"""
+    if not isinstance(item[key], str):
+        raise ValueError(f"discrepancies[{index}].{key} must be a string.")
+
+
+def _require_nullable_int(item: dict[str, object], key: str, index: int) -> None:
+    """schema 上 integer|null の項目を検査する。"""
+    if item[key] is not None and not isinstance(item[key], int):
+        raise ValueError(f"discrepancies[{index}].{key} must be integer or null.")

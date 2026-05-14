@@ -1,5 +1,6 @@
 """INDEX.md メンテナンス処理のテスト。"""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -83,6 +84,105 @@ def test_maintain_indexes_retries_invalid_structured_output(
     assert changed is True
     assert "valid summary" in content
     assert int(state.read_text(encoding="utf-8").strip()) >= 2
+
+
+def test_maintain_indexes_does_not_call_codex_when_index_is_current(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX.md が最新なら機械的チェックだけで済ませ、Codex CLI を呼ばない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    readme_digest = hashlib.sha256((repo / "README.md").read_bytes()).hexdigest()
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `target.txt`",
+                "",
+                "## Summary",
+                "",
+                "- target summary",
+                "",
+                "## Read this when",
+                "",
+                "- read target",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip target",
+                "",
+                "## hash",
+                "",
+                f"- {digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "content")
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        raise AssertionError("codex exec should not be called for a fresh INDEX.md")
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    changed = maintain_indexes(repo, commit_changes=False)
+
+    assert changed is False
+
+
+def test_maintain_indexes_commits_only_maintenance_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """自動コミットは INDEX.md などメンテナンス差分だけを対象にする。"""
+    repo = _init_repo(tmp_path)
+    (repo / "target.txt").write_text("target\n", encoding="utf-8")
+    (repo / "user_work.txt").write_text("user work\n", encoding="utf-8")
+    _git(repo, "add", "target.txt")
+    _git(repo, "commit", "-m", "target")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo, commit_changes=True)
+    status = _git(repo, "status", "--porcelain").stdout
+    last_commit_paths = _git(repo, "show", "--name-only", "--pretty=format:", "HEAD").stdout
+
+    assert changed is True
+    assert "?? user_work.txt" in status
+    assert "INDEX.md" in last_commit_paths
+    assert "user_work.txt" not in last_commit_paths
 
 
 def _init_repo(tmp_path: Path) -> Path:
