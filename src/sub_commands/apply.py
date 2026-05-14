@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from commons.codex import parse_json_object, run_codex_exec
+from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
     assert_only_oracles_uncommitted,

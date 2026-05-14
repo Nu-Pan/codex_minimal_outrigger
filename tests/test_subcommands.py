@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
+from commons.errors import CmocError
 from sub_commands.apply import cmoc_apply_impl
 from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.branch import cmoc_branch_impl
@@ -92,6 +93,16 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert exit_code == 0
     assert len(reports) == 1
     assert reports[0].read_text(encoding="utf-8") == "complete report"
+
+
+def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
+    """`cmoc apply` は cmoc ブランチ外では仕様通り CmocError にする。"""
+    repo = _init_repo(tmp_path)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_apply_impl(repo)
+
+    assert "cmoc apply must be run on a cmoc branch." in error.value.message
 
 
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
