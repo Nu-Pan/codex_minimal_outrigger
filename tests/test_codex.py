@@ -1,5 +1,6 @@
 """Codex CLI 呼び出しラッパーのテスト。"""
 
+import json
 import os
 from pathlib import Path
 
@@ -47,6 +48,49 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     assert "attempt: 1" in log_content
     assert "attempt: 2" in log_content
     assert "attempt: 3" in log_content
+
+
+def test_run_codex_exec_passes_output_schema_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Structured Output schema はファイル化して codex exec に渡す。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    args_file = tmp_path / "args.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"printf '%s\\n' \"$@\" > {args_file}",
+                "echo '{\"ok\": true}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["ok"],
+        "properties": {"ok": {"type": "boolean"}},
+    }
+
+    output = run_codex_exec(repo, "prompt", read_only=True, expect_json=True, output_schema=schema)
+
+    args = args_file.read_text(encoding="utf-8").splitlines()
+    schema_path = Path(args[args.index("--output-schema") + 1])
+    log_content = next((repo / ".cmoc" / "logs" / "codex_exec").glob("*.log")).read_text(
+        encoding="utf-8"
+    )
+    assert output.strip() == '{"ok": true}'
+    assert "--output-schema" in args
+    assert json.loads(schema_path.read_text(encoding="utf-8")) == schema
+    assert f"output_schema: {schema_path}" in log_content
 
 
 def test_run_codex_exec_retries_json_semantic_validation_failure(

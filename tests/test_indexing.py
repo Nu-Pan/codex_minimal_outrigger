@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
+from commons.indexing import _INDEX_OUTPUT_SCHEMA
 from commons.indexing import maintain_indexes
 
 
@@ -22,9 +23,11 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     (repo / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "content")
+    codex_kwargs: list[dict[str, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """INDEX 生成用の Structured Output を返す fake Codex CLI。"""
+        codex_kwargs.append(kwargs)
         return json.dumps(
             {
                 "summary": ["kept summary"],
@@ -42,6 +45,8 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert "# `kept.txt`" in content
     assert "kept summary" in content
     assert "# `ignored.txt`" not in content
+    assert codex_kwargs
+    assert all(kwargs["output_schema"] == _INDEX_OUTPUT_SCHEMA for kwargs in codex_kwargs)
 
 
 def test_maintain_indexes_retries_invalid_structured_output(

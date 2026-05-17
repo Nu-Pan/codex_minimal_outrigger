@@ -8,6 +8,7 @@ from pytest import MonkeyPatch
 
 from commons.errors import CmocError
 from sub_commands.apply import cmoc_apply_impl
+from sub_commands.apply import _DISCREPANCY_OUTPUT_SCHEMA
 from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.branch import cmoc_branch_impl
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
@@ -78,9 +79,11 @@ def test_apply_returns_complete_when_no_discrepancies(
     _git(repo, "commit", "-m", "oracle")
 
     monkeypatch.setattr("sub_commands.apply.maintain_indexes", lambda repo_root: False)
+    codex_kwargs: list[dict[str, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        codex_kwargs.append(kwargs)
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
         return "complete report"
@@ -93,6 +96,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert exit_code == 0
     assert len(reports) == 1
     assert reports[0].read_text(encoding="utf-8") == "complete report"
+    assert codex_kwargs[0]["output_schema"] == _DISCREPANCY_OUTPUT_SCHEMA
 
 
 def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
@@ -114,6 +118,27 @@ def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
                     {
                         "oracle_path": "/repo/oracles/spec.md",
                         "title": "missing fields",
+                    }
+                ]
+            }
+        )
+
+
+def test_apply_discrepancy_schema_rejects_near_miss_keys() -> None:
+    """似た名前のキーでもズレ調査 schema と一致しなければ拒否する。"""
+    with pytest.raises(ValueError):
+        _validate_discrepancy_payload(
+            {
+                "discrepancies": [
+                    {
+                        "oracle_path": "/repo/oracles/spec.md",
+                        "oracle_lines": "10-12",
+                        "implementation_paths": ["/repo/src/app.py"],
+                        "title": "near miss",
+                        "expected_by_oracle": "requirement",
+                        "observed_implementation": "observed",
+                        "reason": "reason",
+                        "suggested_fix": "fix",
                     }
                 ]
             }

@@ -9,6 +9,25 @@ from .codex import parse_json_object, run_codex_exec
 from .repo import ensure_cmoc_ignored
 
 _EXCLUDED_NAMES = {"memo", "build", "tmp", "__pycache__"}
+_INDEX_OUTPUT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "read_this_when", "do_not_read_this_when"],
+    "properties": {
+        "summary": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "read_this_when": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "do_not_read_this_when": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+}
 
 
 def maintain_indexes(repo_root: Path, *, commit_changes: bool = True) -> bool:
@@ -81,6 +100,7 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
             _index_prompt(repo_root, path, digest),
             read_only=True,
             expect_json=True,
+            output_schema=_INDEX_OUTPUT_SCHEMA,
             json_validator=_validate_index_payload,
         )
     )
@@ -117,18 +137,8 @@ def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
         [
             "あなたはリポジトリのルーティング文書を作るアシスタントです。",
             f"`{path}` の `INDEX.md` 目次情報を作成してください。",
-            "完了条件は、summary、read_this_when、do_not_read_this_when を JSON だけで返すことです。",
-            "JSON はこの schema に一致させてください:",
-            "{",
-            '  "type": "object",',
-            '  "additionalProperties": false,',
-            '  "required": ["summary", "read_this_when", "do_not_read_this_when"],',
-            '  "properties": {',
-            '    "summary": { "type": "array", "items": { "type": "string" } },',
-            '    "read_this_when": { "type": "array", "items": { "type": "string" } },',
-            '    "do_not_read_this_when": { "type": "array", "items": { "type": "string" } }',
-            "  }",
-            "}",
+            "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
+            "summary、read_this_when、do_not_read_this_when はそれぞれ日本語の文字列配列にしてください。",
             "content_hash などの余計なプロパティは返さないでください。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
             "ファイル編集は禁止です。",

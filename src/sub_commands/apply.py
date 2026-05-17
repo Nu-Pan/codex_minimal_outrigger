@@ -19,6 +19,71 @@ from commons.repo import (
 from commons.timestamps import make_timestamp
 
 APPLY_INCOMPLETE_EXIT_CODE = 2
+_DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["discrepancies"],
+    "properties": {
+        "discrepancies": {
+            "type": "array",
+            "description": "oracles と実装との明確なズレのリスト。空配列の場合のみズレなしとみなす。",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "oracle_path",
+                    "oracle_line_start",
+                    "oracle_line_end",
+                    "implementation_paths",
+                    "title",
+                    "oracle_requirement",
+                    "observed_implementation",
+                    "reason",
+                    "suggested_fix",
+                ],
+                "properties": {
+                    "oracle_path": {
+                        "type": "string",
+                        "description": "ズレの根拠となる oracle ファイルの絶対パス。",
+                    },
+                    "oracle_line_start": {
+                        "type": ["integer", "null"],
+                        "description": "ズレの根拠となる oracle 記述の開始行。行番号を特定できない場合は null。",
+                    },
+                    "oracle_line_end": {
+                        "type": ["integer", "null"],
+                        "description": "ズレの根拠となる oracle 記述の終了行。行番号を特定できない場合は null。",
+                    },
+                    "implementation_paths": {
+                        "type": "array",
+                        "description": "ズレに関係する実装・テスト・設定ファイルの絶対パス。未実装などで該当ファイルを特定できない場合は空配列。",
+                        "items": {"type": "string"},
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "ズレの短い見出し。",
+                    },
+                    "oracle_requirement": {
+                        "type": "string",
+                        "description": "oracle が要求している仕様。",
+                    },
+                    "observed_implementation": {
+                        "type": "string",
+                        "description": "調査時点の実装が実際にどうなっているか。",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "なぜ oracle と実装が明確にズレていると言えるのか。推測や未確認事項は含めない。",
+                    },
+                    "suggested_fix": {
+                        "type": "string",
+                        "description": "実装を oracle に追従させるための修正方針。",
+                    },
+                },
+            },
+        }
+    },
+}
 
 
 def cmoc_apply_impl(repo_root: Path) -> int:
@@ -69,6 +134,7 @@ def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
                 _investigation_prompt(repo_root, oracle_file),
                 read_only=True,
                 expect_json=True,
+                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
                 json_validator=_validate_discrepancy_payload,
             )
         )
@@ -155,7 +221,8 @@ def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
         [
             "あなたはソフトウェア実装の監査担当です。",
             f"`{oracle_file}` と `{repo_root}` の実装との明確なズレを調査してください。",
-            "完了条件は、discrepancies 配列を持つ JSON だけを返すことです。",
+            "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
+            "各ズレには oracle_path、oracle_line_start、oracle_line_end、implementation_paths、title、oracle_requirement、observed_implementation、reason、suggested_fix を含めてください。",
             "明確なズレがない場合だけ空配列を返してください。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
             "ファイル編集は禁止です。",
