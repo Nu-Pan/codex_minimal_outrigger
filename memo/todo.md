@@ -59,8 +59,20 @@
 - 汚しても良いとこでトイプログラムで実行ということにする
 - パスとかトイプログラムの仕様とかを決めないといけない
 
-# Codex CLI 呼び出し時の
+# Codex CLI 呼び出し時のサンドボックスモード指定
 
 - サンドボックスモード指定を仕様化してなかったかも？
 - Strctured Output を使えって書いただけだと --structued-output を使ってくれてないかも
     - https://zenn.dev/explaza/articles/251023-vibecoding-with-specification
+
+# `eval-oracles` のレポートが読みづらい
+
+- フォーマットがバラバラなのが原因
+- `eval-oracles` のレポートも Structured Output にしたい
+- 含めるべき項目は 過去の実行結果を元に AI に提案させる
+
+# `eval-oracles` で読むべきファイルのリストをより正確にリストアップしたい
+
+- `INDEX.md` とは別の、依存関係グラフが必要
+- 依存関係情報を `INDEX.md` に書き込むのもアリかもしれない（see also として役に立つはず）
+- 「意味的に関係があるか？」の判断のコアは Codex CLI になるが、機械的に処理可能な部分の責任は cmoc が持ち、 Codex CLI が担う責任範囲は最小化する

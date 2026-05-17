@@ -32,10 +32,16 @@
     - e.g. cmoc の作業対象環境に特定のスキルが実装されていることを前提としたプロンプトは NG
 - ファイルシステムのアクセス制限指示を含める事
     - 読み取り専用 (i.e. `--sandbox read-only`) で実行する場合
-        - e.g. `<remo-root>/memo` などの読み書き禁止ルールを指示に含める
+        - e.g. `<repo-root>/memo` などの読み書き禁止ルールを指示に含める
     - 書き込み可能 (i.e. `--sandbox workspace-write`) で実行する場合
         - e.g. `<repo-root>/oracles` 編集禁止は必ず含める
         - e.g. `<repo-root>/.agents` 編集禁止は必ず含める
+
+## Structured Output
+
+- Codex CLI に Structued Output を要求する場合は、必ず `codex exec --output-schema <schema.json>` を使うこと
+- 「プロンプトで JSON を要求してそれをパースする」のは NG
+- Structued Output の結果は cmoc 側でも機械的検証を行うこと
 
 ## `codex exec` 呼び出しフルログ
 

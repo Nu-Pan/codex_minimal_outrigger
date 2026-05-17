@@ -2,7 +2,7 @@
 
 ## 概要
 
-- 現在の `<repo-root>/oracles` の内容に致命的な問題が無いか評価し、評価結果を人間にレポートする
+- 現在の `<repo-root>/oracles` のスナップショットに致命的な問題が無いか評価し、評価結果を人間にレポートする
 
 ## 引数
 
@@ -17,8 +17,10 @@
 
 - `cmoc eval-oracles` は部分評価・全体評価の２つのモードを持つ
 - `<cmoc-branch>` 上に居る場合
-    - `--full` が付いていなければ部分評価モードへ
-    - `--full` がついていれば全体評価モードへ
+    - `--full` がついている場合は全体評価モードへ
+    - `--full` が付いていない場合
+        - `<cmoc-branch>` 作成元 commit から `HEAD` までの間に `oracles` ファイルの削除が有る場合は全体評価モードへ
+        - そうでなければ部分評価へ
 - `<cmoc-branch>` に居ない場合 (e.g. `master` ブランチ上)
     - 全体評価モードへ
 
@@ -35,12 +37,17 @@
 ## 変更があった `oracles` ファイルの定義
 
 - 部分評価モードでは、以下の和集合を「変更があった oracles ファイル」とする
-    - `<cmoc-branch>` 作成元 commit から `HEAD` までに変更された `<repo-root>/oracles` 配下のファイル
+    - `<cmoc-branch>` 上で変更のあった `<repo-root>/oracles` 配下のファイル
     - working tree 上で未コミット変更がある `<repo-root>/oracles` 配下のファイル
     - staging area 上で未コミット変更がある `<repo-root>/oracles` 配下のファイル
-- `<cmoc-branch>` 作成元 commit は `<repo-root>/.cmoc/branch/<cmoc-branch>.txt` から読み取る
 - 削除済みファイルは評価対象から除外する
 - rename は rename 後のパスを評価対象とする
+
+
+## 「`<cmoc-branch>` 上で～」の定義
+
+- `<cmoc-branch>` 作成元 commit から `HEAD` までの間の cmmit 上で起きた～、という意味
+- `<cmoc-branch>` 作成元 commit は `<repo-root>/.cmoc/branch/<cmoc-branch>.txt` から読み取る
 
 ## 「致命的な問題」の定義
 
