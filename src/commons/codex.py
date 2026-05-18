@@ -17,11 +17,20 @@ def run_codex_exec(
     expect_json: bool = False,
     output_schema: dict[str, object] | None = None,
     json_validator: Callable[[object], None] | None = None,
+    skip_index_maintenance: bool = False,
 ) -> str:
     """`codex exec` を実行し、フルログを `.cmoc/logs` に保存する。"""
+    # Structured Output を要求する呼び出しは schema ファイルを必須にする。
     if expect_json and output_schema is None:
         raise ValueError("expect_json=True requires output_schema.")
 
+    # 例外指定された INDEX 生成・merge conflict 解消以外は、Codex 実行直前に INDEX を保守する。
+    if not skip_index_maintenance and (repo_root / ".git").exists():
+        from .indexing import maintain_indexes
+
+        maintain_indexes(repo_root)
+
+    # 呼び出し単位のログと必要なら output schema ファイルを準備する。
     log_dir = repo_root / ".cmoc" / "logs" / "codex_exec"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{make_timestamp()}.log"
@@ -41,6 +50,7 @@ def run_codex_exec(
     last_stderr = ""
     last_json_error = ""
     for attempt in range(1, attempts + 1):
+        # 利用者向けには prompt/stdout の先頭だけを進捗表示する。
         print(f"codex exec attempt {attempt} prompt: {_head80(prompt)}")
         result = subprocess.run(
             command,
@@ -61,6 +71,7 @@ def run_codex_exec(
             schema_path,
         )
 
+        # Codex CLI 自体の失敗はリトライせず、保存済みログ位置を添えて中断する。
         if result.returncode != 0:
             raise CmocError(
                 "codex exec が失敗しました。",
@@ -74,6 +85,7 @@ def run_codex_exec(
         if not expect_json:
             return result.stdout
 
+        # JSON parse、schema 検査、意味検査のいずれかが失敗した場合だけ次の試行へ進む。
         try:
             value = json.loads(result.stdout)
             if output_schema is not None:
@@ -85,6 +97,7 @@ def run_codex_exec(
             last_json_error = str(error)
             continue
 
+    # 全試行失敗時は最後の stdout/stderr と検証エラーを診断情報として残す。
     raise CmocError(
         "codex exec がリトライ後も schema に一致する JSON を返しませんでした。",
         [
@@ -111,6 +124,7 @@ def run_codex_exec(
 
 def parse_json_object(raw: str) -> dict[str, object]:
     """Codex CLI の JSON 応答を object として読む。"""
+    # 呼び出し側が dict として扱えることをここで保証する。
     value = json.loads(raw)
     if not isinstance(value, dict):
         raise CmocError(
@@ -133,6 +147,7 @@ def _append_codex_log(
     schema_path: Path | None,
 ) -> None:
     """1 回分の Codex CLI 呼び出し情報をフルログへ追記する。"""
+    # prompt を含む完全な入出力を、stdout 進捗とは別にログへ保存する。
     content = [
         f"attempt: {attempt}",
         f"command: {' '.join(command[:-1])} <prompt>",
@@ -150,6 +165,7 @@ def _append_codex_log(
         result.stderr,
         "",
     ]
+    # 同一 codex exec の複数 attempt は同じログファイルへ追記する。
     with log_path.open("a", encoding="utf-8") as log_file:
         log_file.write("\n".join(content))
 
@@ -159,8 +175,11 @@ def _write_output_schema(
     output_schema: dict[str, object] | None,
 ) -> Path | None:
     """Structured Output 用 JSON schema をログ配下へ保存する。"""
+    # Structured Output を使わない呼び出しでは schema ファイルを作らない。
     if output_schema is None:
         return None
+
+    # schema はログと同じ stem で保存し、Codex CLI の引数から参照させる。
     schema_dir = log_path.parent / "schemas"
     schema_dir.mkdir(parents=True, exist_ok=True)
     schema_path = schema_dir / f"{log_path.stem}.schema.json"
@@ -173,6 +192,7 @@ def _write_output_schema(
 
 def _validate_json_schema(value: object, schema: dict[str, object]) -> None:
     """cmoc 側で使う JSON Schema subset を機械的に検査する。"""
+    # Codex CLI の応答を cmoc 側でも機械的に再検証する。
     _validate_schema_node(value, schema, "$")
 
 
@@ -182,10 +202,12 @@ def _validate_schema_node(
     path: str,
 ) -> None:
     """Structured Output schema の主要 subset を再帰的に検査する。"""
+    # 現在 node の type 制約を先に確認する。
     expected_type = schema.get("type")
     if expected_type is not None and not _matches_type(value, expected_type):
         raise ValueError(f"{path} type does not match schema.")
 
+    # object では required、additionalProperties、properties の子 schema を検査する。
     if isinstance(value, dict):
         required = schema.get("required", [])
         if not isinstance(required, list):
@@ -216,6 +238,7 @@ def _validate_schema_node(
                 raise ValueError(f"{path} schema properties are invalid.")
             _validate_schema_node(value[key], child_schema, f"{path}.{key}")
 
+    # array では items schema がある場合だけ各要素へ再帰する。
     if isinstance(value, list):
         item_schema = schema.get("items")
         if item_schema is None:
@@ -228,8 +251,11 @@ def _validate_schema_node(
 
 def _matches_type(value: object, expected_type: object) -> bool:
     """JSON Schema の type 指定に値が一致するか判定する。"""
+    # type 配列は候補のいずれかに一致すれば受理する。
     if isinstance(expected_type, list):
         return any(_matches_type(value, item) for item in expected_type)
+
+    # cmoc が使う JSON Schema type subset だけを厳密に判定する。
     if expected_type == "object":
         return isinstance(value, dict)
     if expected_type == "array":
@@ -247,4 +273,5 @@ def _matches_type(value: object, expected_type: object) -> bool:
 
 def _head80(value: str) -> str:
     """stdout 表示用に改行を潰した先頭 80 文字を返す。"""
+    # 複数行 prompt/stdout は 1 行に潰して進捗表示を短く保つ。
     return value.replace("\n", "\\n")[:80]

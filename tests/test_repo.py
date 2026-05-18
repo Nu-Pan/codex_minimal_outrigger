@@ -71,6 +71,21 @@ def test_list_oracle_files_excludes_index_and_gitignored_files(
     assert [path.name for path in list_oracle_files(repo)] == ["kept.md"]
 
 
+def test_list_oracle_files_excludes_tracked_gitignored_files(
+    tmp_path: Path,
+) -> None:
+    """tracked でも .gitignore pattern に一致する oracle ファイルは除外する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "ignored.md").write_text("ignored", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "tracked oracle")
+    (repo / ".gitignore").write_text("oracles/ignored.md\n", encoding="utf-8")
+
+    assert list_oracle_files(repo) == []
+
+
 def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     tmp_path: Path,
 ) -> None:
@@ -128,6 +143,23 @@ def test_has_deleted_oracle_files_detects_base_to_head_deletion(
     _git(repo, "commit", "-m", "delete oracle")
 
     assert has_deleted_oracle_files(repo, base_commit) is True
+
+
+def test_has_deleted_oracle_files_ignores_uncommitted_deletion(
+    tmp_path: Path,
+) -> None:
+    """未コミット oracle 削除だけでは全体評価切替条件にしない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "deleted.md").write_text("delete me\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "deleted.md").unlink()
+
+    assert has_deleted_oracle_files(repo, base_commit) is False
 
 
 def test_assert_only_oracles_uncommitted_rejects_non_oracle_changes(

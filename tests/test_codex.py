@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -258,3 +259,81 @@ def test_run_codex_exec_retries_schema_validation_failure(
 
     assert state.read_text(encoding="utf-8").strip() == "3"
     assert "type does not match schema" in error.value.detail
+
+
+def test_run_codex_exec_maintains_indexes_before_codex_call(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """通常の Codex CLI 呼び出し直前に INDEX.md メンテナンスを実行する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    calls: list[Path] = []
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(["#!/usr/bin/env bash", "echo done"]),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """run_codex_exec 直前メンテナンスの呼び出しを記録する。"""
+        calls.append(repo_root)
+        return False
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
+
+    output = run_codex_exec(repo, "prompt", read_only=True)
+
+    assert output.strip() == "done"
+    assert calls == [repo]
+
+
+def test_run_codex_exec_can_skip_index_maintenance(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX 生成や merge conflict 解消用に事前メンテナンスを明示スキップできる。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(["#!/usr/bin/env bash", "echo done"]),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    def fail_maintain(repo_root: Path) -> bool:
+        """skip 指定時には呼ばれてはいけない fake メンテナンス。"""
+        raise AssertionError("maintain_indexes should be skipped")
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fail_maintain)
+
+    output = run_codex_exec(
+        repo,
+        "prompt",
+        read_only=True,
+        skip_index_maintenance=True,
+    )
+
+    assert output.strip() == "done"
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """git をテスト repo で実行する。"""
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )

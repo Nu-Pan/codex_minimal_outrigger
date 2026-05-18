@@ -102,6 +102,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
 
 def cmoc_apply_impl(repo_root: Path) -> int:
     """oracle と実装のズレを Codex CLI へ追従させる。"""
+    # apply は cmoc 作業ブランチ上でだけ実行できる。
     timer = StepTimer("apply")
     branch_name = current_branch(repo_root)
     if not is_cmoc_branch(branch_name):
@@ -111,16 +112,19 @@ def cmoc_apply_impl(repo_root: Path) -> int:
             f"Current branch: {branch_name}",
         )
 
+    # oracle 更新以外の未コミット差分を拒否し、oracle 変更は先に commit する。
     timer.start("validate repository state")
     print("apply (1/4) validate repository state")
     assert_only_oracles_uncommitted(repo_root)
     ensure_cmoc_ignored(repo_root)
     commit_if_changed(repo_root, ["oracles"], "Update oracle files")
 
+    # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
     timer.start("maintain INDEX.md files")
     print("apply (2/4) maintain INDEX.md files")
     maintain_indexes(repo_root)
 
+    # ズレ調査と追従作業を最大 5 回まで反復する。
     timer.start("investigate and apply discrepancies")
     print("apply (3/4) investigate and apply discrepancies")
     discrepancy_counts: list[int] = []
@@ -135,10 +139,13 @@ def cmoc_apply_impl(repo_root: Path) -> int:
         if not discrepancies:
             completed = True
             break
+
+        # 実装修正後、禁止領域の変更検査と commit を cmoc 側で行う。
         _apply_discrepancies(repo_root, discrepancies)
         _assert_forbidden_paths_clean(repo_root)
         _commit_all_changes(repo_root)
 
+    # 実行結果を人間向け report と exit code に変換する。
     timer.start("write report")
     print("apply (4/4) write report")
     report_path = _write_apply_report(
@@ -154,6 +161,7 @@ def cmoc_apply_impl(repo_root: Path) -> int:
 
 def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
     """oracle ファイルごとにズレ調査を実行する。"""
+    # oracle 列挙結果を 1 ファイルずつ Codex CLI に評価させる。
     discrepancies: list[dict[str, object]] = []
     oracle_files = list_oracle_files(repo_root)
     for index, oracle_file in enumerate(oracle_files, start=1):
@@ -161,6 +169,7 @@ def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
             f"investigate oracle ({index}/{len(oracle_files)}) "
             f"{oracle_file}"
         )
+        # Structured Output の discrepancies を 1 つの一覧へ結合する。
         payload = parse_json_object(
             run_codex_exec(
                 repo_root,
@@ -182,6 +191,7 @@ def _apply_discrepancies(
     discrepancies: list[dict[str, object]],
 ) -> None:
     """Codex CLI にズレ追従作業を依頼する。"""
+    # 実装変更用の workspace-write Codex 呼び出しを実行する。
     run_codex_exec(
         repo_root,
         _apply_prompt(repo_root, discrepancies),
@@ -192,6 +202,7 @@ def _apply_discrepancies(
 
 def _assert_forbidden_paths_clean(repo_root: Path) -> None:
     """Codex CLI が編集禁止領域を変更していないことを確認する。"""
+    # oracles と .agents に差分があれば、commit 前に中断する。
     forbidden = [
         path
         for path in changed_paths(repo_root)
@@ -210,11 +221,16 @@ def _assert_forbidden_paths_clean(repo_root: Path) -> None:
 
 def _commit_all_changes(repo_root: Path) -> None:
     """未コミット差分を Codex 生成メッセージで commit する。"""
+    # 差分が無ければ commit message 生成も git commit も行わない。
     if not changed_paths(repo_root):
         return
+
+    # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
     maintain_indexes(repo_root)
     if not changed_paths(repo_root):
         return
+
+    # Codex に 1 行 commit message を生成させ、空なら既定値を使う。
     message = run_codex_exec(
         repo_root,
         _commit_message_prompt(repo_root),
@@ -223,6 +239,8 @@ def _commit_all_changes(repo_root: Path) -> None:
     ).strip()
     if not message:
         message = "Apply oracle implementation changes"
+
+    # 最終的な全差分を 1 commit にまとめる。
     run_git(repo_root, ["add", "--all"])
     run_git(repo_root, ["commit", "-m", message])
 
@@ -234,9 +252,12 @@ def _write_apply_report(
     discrepancy_counts: list[int],
 ) -> Path:
     """作業レポートを Codex CLI に依頼し、ファイル保存する。"""
+    # report 保存先と timestamp 付きファイル名を用意する。
     report_dir = repo_root / ".cmoc" / "reports" / "apply"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{make_timestamp()}.md"
+
+    # Codex にはレポート本文だけを生成させ、ファイル保存は cmoc が行う。
     prompt = "\n".join(
         [
             "あなたはソフトウェア作業レポートの作成担当です。",
@@ -262,6 +283,7 @@ def _write_apply_report(
 
 def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
     """ズレ調査用 prompt を組み立てる。"""
+    # Structured Output schema と禁止事項を prompt 上で明示する。
     return "\n".join(
         [
             "あなたはソフトウェア実装の監査担当です。",
@@ -283,6 +305,7 @@ def _apply_prompt(
     discrepancies: list[dict[str, object]],
 ) -> str:
     """ズレ追従作業用 prompt を組み立てる。"""
+    # workspace-write 実行用に編集禁止領域を無条件で明示する。
     return "\n".join(
         [
             "あなたはソフトウェア実装担当です。",
@@ -298,6 +321,7 @@ def _apply_prompt(
 
 def _commit_message_prompt(repo_root: Path) -> str:
     """commit message 生成用 prompt を組み立てる。"""
+    # read-only 実行で commit message の文字列だけを要求する。
     return "\n".join(
         [
             "あなたは git commit message の作成担当です。",
@@ -311,6 +335,7 @@ def _commit_message_prompt(repo_root: Path) -> str:
 
 def _validate_discrepancy_payload(value: object) -> None:
     """ズレ調査 Structured Output の schema を検査する。"""
+    # top-level は discrepancies だけを持つ object に限定する。
     if not isinstance(value, dict):
         raise ValueError("Expected JSON object.")
     if set(value) != {"discrepancies"}:
@@ -319,6 +344,7 @@ def _validate_discrepancy_payload(value: object) -> None:
     if not isinstance(discrepancies, list):
         raise ValueError("discrepancies must be a list.")
 
+    # 各 discrepancy item の required keys を完全一致で検査する。
     required_keys = {
         "oracle_path",
         "oracle_line_start",
@@ -331,6 +357,7 @@ def _validate_discrepancy_payload(value: object) -> None:
         "suggested_fix",
     }
     for index, item in enumerate(discrepancies):
+        # item ごとに型と各プロパティの型を検査する。
         if not isinstance(item, dict):
             raise ValueError(f"discrepancies[{index}] must be an object.")
         if set(item) != required_keys:
@@ -360,6 +387,7 @@ def _validate_discrepancy_payload(value: object) -> None:
 
 def _require_string(item: dict[str, object], key: str, index: int) -> None:
     """schema 上 string の項目を検査する。"""
+    # 対象 key が Python str であることを保証する。
     if not isinstance(item[key], str):
         raise ValueError(f"discrepancies[{index}].{key} must be a string.")
 
@@ -370,6 +398,7 @@ def _require_nullable_int(
     index: int,
 ) -> None:
     """schema 上 integer|null の項目を検査する。"""
+    # 行番号は integer または null だけを許容する。
     if item[key] is not None and not isinstance(item[key], int):
         raise ValueError(
             f"discrepancies[{index}].{key} must be integer or null."

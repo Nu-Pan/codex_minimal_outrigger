@@ -14,6 +14,8 @@ from sub_commands.branch import cmoc_branch_impl
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
+from sub_commands.merge import _conflict_prompt
+from sub_commands.merge import _files_with_conflict_markers
 
 
 def test_init_adds_cmoc_ignore_and_commits_it(tmp_path: Path) -> None:
@@ -97,6 +99,13 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert len(reports) == 1
     assert "mode: full" in reports[0].read_text(encoding="utf-8")
     assert "no fatal problems" in reports[0].read_text(encoding="utf-8")
+
+
+def test_eval_oracles_body_file_uses_subcommand_name() -> None:
+    """`eval-oracles` の本体ファイルはサブコマンド名どおりに存在する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+
+    assert (repo_root / "src" / "sub_commands" / "eval-oracles.py").exists()
 
 
 def test_apply_returns_complete_when_no_discrepancies(
@@ -207,6 +216,33 @@ def test_merge_merges_explicit_cmoc_branch_and_deletes_it(
     ).stdout.splitlines()
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "feature\n"
     assert "cmoc_2026-05-10_22-21_10_123" not in branches
+
+
+def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:
+    """workspace-write の conflict 解消 prompt でも oracles は常に編集禁止にする。"""
+    repo = Path("/repo")
+
+    prompt = _conflict_prompt(repo, ["app.py"])
+
+    assert "`/repo/oracles` は編集禁止です。" in prompt
+    assert "既に conflict がある場合を除いて" not in prompt
+
+
+def test_files_with_conflict_markers_uses_fixed_conflict_targets(
+    tmp_path: Path,
+) -> None:
+    """marker 検査は現在の unmerged path ではなく渡された対象一覧を見る。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    conflicted = repo / "conflicted.txt"
+    conflicted.write_text(
+        "<<<<<<< HEAD\nleft\n=======\nright\n>>>>>>> branch\n",
+        encoding="utf-8",
+    )
+
+    assert _files_with_conflict_markers(repo, ["conflicted.txt"]) == [
+        "conflicted.txt"
+    ]
 
 
 def _init_repo(tmp_path: Path) -> Path:

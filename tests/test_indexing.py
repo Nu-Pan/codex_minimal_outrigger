@@ -52,6 +52,70 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     )
 
 
+def test_maintain_indexes_creates_empty_index_for_empty_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """空の配置対象ディレクトリにも空の INDEX.md を新規作成する。"""
+    repo = _init_repo(tmp_path)
+    empty = repo / "empty"
+    empty.mkdir()
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """root INDEX の既存ファイル向け Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo, commit_changes=False)
+
+    assert changed is True
+    assert (empty / "INDEX.md").exists()
+    assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
+
+
+def test_maintain_indexes_includes_build_and_tmp_as_entries(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """build/tmp は配置対象からは除外しても親 INDEX の目次対象には含める。"""
+    repo = _init_repo(tmp_path)
+    build = repo / "build"
+    tmp = repo / "tmp"
+    build.mkdir()
+    tmp.mkdir()
+    (build / "artifact.txt").write_text("artifact\n", encoding="utf-8")
+    (tmp / "scratch.txt").write_text("scratch\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "generated dirs")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo, commit_changes=False)
+
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    assert "# `build`" in content
+    assert "# `tmp`" in content
+    assert not (build / "INDEX.md").exists()
+    assert not (tmp / "INDEX.md").exists()
+
+
 def test_maintain_indexes_retries_invalid_structured_output(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
