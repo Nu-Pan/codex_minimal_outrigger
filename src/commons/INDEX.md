@@ -23,32 +23,31 @@
 
 ## Summary
 
-- Provides shared helpers for invoking `codex exec` from cmoc workflows.
-- `run_codex_exec` builds the Codex CLI command with read-only or workspace-write sandboxing, runs it in the target repository root, and stores full invocation logs under `.cmoc/logs/codex_exec`.
-- When JSON output is expected, `run_codex_exec` retries up to three times, parses stdout as JSON, optionally applies a validator, and raises `CmocError` with log details if validation never succeeds.
-- `parse_json_object` parses Codex CLI output and enforces that the result is a JSON object.
-- `_append_codex_log` appends each Codex CLI attempt, prompt, return code, stdout, and stderr to the per-run log file.
+- Codex CLI 呼び出しの共通処理を定義するモジュール。
+- `run_codex_exec` により `codex exec` を read-only または workspace-write サンドボックスで実行し、標準出力・標準エラー・プロンプト・終了コード・Structured Output schema の情報を `<repo-root>/.cmoc/logs/codex_exec` 配下へ保存する。
+- JSON 応答が必要な呼び出しでは最大 3 回リトライし、JSON パースや任意バリデータに失敗した場合はログ情報付きの `CmocError` を送出する。
+- `parse_json_object` は Codex CLI の JSON 応答が object であることを確認し、object 以外なら `CmocError` を送出する。
+- 内部ヘルパーとして、Codex 実行ログを追記する `_append_codex_log` と、Structured Output 用 JSON schema をログ配下へ書き出す `_write_output_schema` を持つ。
 
 ## Read this when
 
-- You need to understand or change how cmoc calls `codex exec`.
-- You are working on Codex CLI sandbox selection, including read-only versus workspace-write execution.
-- You are debugging `.cmoc/logs/codex_exec` log creation or the contents written for each Codex execution attempt.
-- You are changing retry behavior for expected JSON responses from Codex CLI.
-- You are adding or modifying validation of Codex CLI JSON output.
-- You are investigating `CmocError` messages raised after Codex CLI command failures or invalid JSON output.
+- cmoc から `codex exec` を呼び出す共通経路を確認・修正したいとき。
+- Codex CLI 呼び出し時のサンドボックス指定、作業ディレクトリ、プロンプト渡し、標準出力・標準エラーの扱いを調べたいとき。
+- Codex 実行ログや Structured Output schema が `<repo-root>/.cmoc/logs/codex_exec` 配下へどのように保存されるか確認したいとき。
+- Structured Output 相当の JSON 応答に対するリトライ、JSON パース、バリデーション、失敗時の `CmocError` を調べたいとき。
+- Codex CLI の JSON 応答を Python の辞書として扱う処理や、object 以外をエラーにする仕様を確認したいとき。
 
 ## Do not read this when
 
-- You only need command-line argument parsing, subcommand routing, or top-level CLI entrypoint behavior.
-- You are working on timestamp formatting without needing to know where Codex execution logs are named.
-- You are changing domain-specific prompt text or oracle routing rules but not the shared Codex invocation mechanism.
-- You need implementation details for non-Codex subprocesses or general filesystem operations outside Codex execution logging.
-- You are looking for tests or fixtures rather than the production helper that invokes Codex CLI.
+- 個別サブコマンドのプロンプト内容や業務ロジックだけを調べたいとき。
+- Codex CLI を使わないファイル操作、タイムスタンプ生成、共通エラー型そのものの実装を確認したいとき。
+- コンソール表示、進捗出力、ユーザー向けメッセージ全般の仕様だけを調べたいとき。
+- テスト用 Fake Codex CLI の実装やテストデータの構造だけを確認したいとき。
+- oracles の正本仕様や README/AGENTS など、実装コード以外のルーティング情報を調べたいとき。
 
 ## hash
 
-- cf766cddefb179fe47bf6973fc886f9be493ec480e89aa6cb021d6801f5536a1
+- 6e34bc0ff2bbd3ed287b7a573a14541311da29f1217bdd2c076f44d9a5407cb9
 
 # `errors.py`
 
@@ -80,30 +79,29 @@
 
 ## Summary
 
-- INDEX.md 自動メンテナンス処理を実装するモジュール。
-- 配置対象ディレクトリの列挙、既存 INDEX.md エントリの再利用、Codex CLI による目次 JSON 生成、Markdown エントリ組み立て、必要時の書き込みと自動コミットを扱う。
-- 除外名、gitignore 判定、バイナリ判定、ファイル・ディレクトリ内容ハッシュ、Structured Output 検証、既存エントリからの hash 抽出など、INDEX.md 更新に必要な補助処理をまとめる。
+- `INDEX.md` の自動生成・更新を担当する共通モジュール。
+- 対象リポジトリ内の INDEX.md 配置対象ディレクトリを列挙し、既存エントリのハッシュ再利用、Structured Output による目次生成、必要時の書き込みとコミットを行う。
+- 除外対象名、gitignore、バイナリ判定、ファイル・ディレクトリ内容ハッシュ、INDEX エントリのパースと検証など、INDEX メンテナンスに必要な内部処理をまとめている。
 
 ## Read this when
 
-- cmoc の `INDEX.md` 自動生成・更新処理を実装、修正、調査するとき。
-- `maintain_indexes` の挙動、`commit_changes`、`.gitignore` 保守、`Maintain INDEX.md files` コミットの発生条件を確認したいとき。
-- INDEX.md 配置対象から除外されるディレクトリ・ファイル名、隠しファイル、gitignore 対象、バイナリファイルの扱いを確認するとき。
-- 既存 INDEX.md エントリの hash が一致する場合に Codex CLI 呼び出しを省略する再利用ロジックを調べるとき。
-- INDEX 目次生成用の Codex prompt、Structured Output JSON の schema 検証、`summary`・`read_this_when`・`do_not_read_this_when` の取り扱いを変更するとき。
-- ファイルまたはディレクトリ直下項目から内容ハッシュを計算する処理や、Markdown の Summary / Read this when / Do not read this when / hash ブロック生成を確認するとき。
+- `maintain_indexes` による INDEX.md 自動メンテナンスの全体フローを確認・変更するとき。
+- INDEX.md を作成する対象ディレクトリの選定条件、除外名、gitignore 判定、バイナリ除外の仕様を調べるとき。
+- Codex CLI に渡す INDEX 生成プロンプト、Structured Output schema、JSON 検証処理を確認・修正するとき。
+- 既存 INDEX.md エントリの再利用条件、hash 欄の読み取り、内容ハッシュ計算、エントリ整形の挙動を調べるとき。
+- INDEX.md 更新後に `.gitignore` や生成済み INDEX.md をコミット対象へ含める処理を確認するとき。
 
 ## Do not read this when
 
-- cmoc の各サブコマンドのユーザー向け仕様や CLI ワークフローそのものを調べたいだけのとき。
-- Codex CLI の実行ラッパー、JSON パース、repo 操作、コミット処理の詳細実装を調べるときは、呼び出し先の `codex` や `repo` 系モジュールを読むべきとき。
-- 特定の `INDEX.md` に書かれたルーティング内容を確認したいだけで、自動生成・更新ロジックには関心がないとき。
-- README、AGENTS、oracles、memo などのリポジトリ運用ルールや編集可否だけを確認したいとき。
-- 一般的なハッシュ計算、正規表現、subprocess、pathlib の使い方だけを調べたいとき。
+- Codex CLI 実行や JSON パースの低レベル実装そのものを調べたいとき。
+- リポジトリ検出、`.gitignore` 更新、コミット作成など repo 共通処理の詳細だけを確認したいとき。
+- 個別サブコマンドの CLI 仕様やユーザー向けワークフローを調べたいとき。
+- INDEX.md の内容として書かれる各ディレクトリ・各ファイルの意味を知りたいだけで、自動生成処理には関心がないとき。
+- cmoc の開発ルール、テスト方針、環境設定など、実装者向け規約を確認したいとき。
 
 ## hash
 
-- 819bf8e6a28ee1b2cbdd40b80746030ab465af1265b8b6a756f6b4008ce35310
+- b7529b83c5bc96c07a4e0e527fbcb7da7343b3bde61eaeea64891bf482e6ad9d
 
 # `repo.py`
 

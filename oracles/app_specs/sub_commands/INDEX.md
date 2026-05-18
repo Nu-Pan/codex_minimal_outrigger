@@ -57,66 +57,59 @@
 
 ## Summary
 
-- `cmoc eval-oracles` subcommand specification.
-- Defines that the command evaluates whether `<repo-root>/oracles` contains fatal problems and reports the results to humans.
-- Documents arguments: no positional arguments, optional `--full` / `-f` flag.
-- Defines partial versus full evaluation mode selection based on whether the current branch is `<cmoc-branch>` and whether `--full` is supplied.
-- Specifies the execution flow: ensure `<repo-root>/.cmoc` is untracked, list oracle files, optionally narrow to changed oracle files, evaluate each file with one `codex exec` call, then aggregate a report.
-- Defines changed oracle files for partial mode as the union of committed changes since the branch source commit plus unstaged and staged changes under `<repo-root>/oracles`, excluding deleted files and using post-rename paths.
-- Defines fatal problems as specification issues that could break major workflows, prevent completion judgment, or prevent judging that cmoc's core purpose is met when implementing from specs alone.
-- Specifies report format as YAML frontmatter with environment and prerequisites followed by concatenated per-file evaluation results.
-- Specifies report output location as `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md` and requires printing the full report path to stdout.
+- `cmoc eval-oracles` サブコマンドの仕様断片。
+- `<repo-root>/oracles` の現在スナップショットに致命的な問題が無いか評価し、評価結果を人間向けレポートとして保存・提示する挙動を定義する。
+- 位置引数なし、`--full` / `-f` オプション、部分評価モードと全体評価モードの切り替え条件、評価対象となる変更済み oracle ファイルの定義を扱う。
+- 評価時の `codex exec` 呼び出し単位、関連ファイル参照、致命的な問題の評価観点、レポートの frontmatter・本文構成・保存先・stdout 出力を定義する。
 
 ## Read this when
 
-- Implementing or modifying the `cmoc eval-oracles` subcommand.
-- Working on oracle evaluation behavior, including how oracle files are selected for evaluation.
-- Implementing branch-dependent partial versus full evaluation mode selection for oracle checks.
-- Implementing the `--full` or `-f` option for oracle evaluation.
-- Defining or changing how changed files under `<repo-root>/oracles` are detected, including staged, unstaged, committed, deleted, or renamed files.
-- Building the `codex exec` prompt or execution loop used to evaluate oracle files.
-- Changing the definition or handling of fatal oracle specification problems.
-- Implementing or changing eval-oracles report generation, report frontmatter, report body formatting, report storage path, or stdout output.
+- `cmoc eval-oracles` コマンドの引数、オプション、事前条件、実行手順を実装・確認するとき。
+- `--full` の有無、現在ブランチが `<cmoc-branch>` かどうか、oracle ファイル削除の有無によって部分評価・全体評価をどう選ぶか調べるとき。
+- 部分評価で「変更があった `oracles` ファイル」をどう列挙し、削除済みファイルや rename をどう扱うか確認するとき。
+- `<cmoc-branch>` 作成元 commit を `<repo-root>/.cmoc/branch/<cmoc-branch>.txt` から読み、差分範囲を決める処理を実装するとき。
+- oracle ファイルごとの評価を `codex exec` で実行する単位や、評価時に関連ファイルも読ませる方針を確認するとき。
+- `cmoc eval-oracles` が注入する「致命的な問題」の定義や、汎用的な評価観点を確認するとき。
+- 評価レポートの yaml frontmatter、ファイルごとの結果結合、保存先 `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md`、stdout へのフルパス出力を実装・テストするとき。
 
 ## Do not read this when
 
-- Working on subcommands other than `eval-oracles` with no interaction with oracle evaluation.
-- Looking for general cmoc development rules, coding conventions, or environment setup.
-- Looking for the overall oracle directory routing structure rather than this specific subcommand behavior.
-- Working on cmoc behavior unrelated to `<repo-root>/oracles` validation or reporting.
-- Needing user-facing README documentation rather than canonical application specification fragments.
-- Investigating implementation details that are not governed by the eval-oracles command specification.
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など、`eval-oracles` 以外のサブコマンド仕様だけを調べたいとき。
+- oracle ファイルの一般的な列挙方法、`.cmoc` の git 追跡対象外保証、タイムスタンプ生成など、サブコマンド共通仕様だけを確認したいとき。
+- cmoc 自体の Python 実装規約、CLI 配置、テスト規約、開発環境ルールを調べたいとき。
+- `oracles` ディレクトリの正本仕様そのものを作成・更新するためのルーティング規則や INDEX.md メンテナンス仕様だけを確認したいとき。
+- 評価レポートの実際の内容を読みたいだけで、`cmoc eval-oracles` がレポートをどう生成・保存するかの仕様が不要なとき。
 
 ## hash
 
-- 858222ca2661460b5c9c78a12d18b431b8799badbed24abe9ab2f8ccd0f4dcc5
+- 32c17262f5488f8610f6ddd374f35a8fdfbb3cd0196a4992c2fb709a291bc282
 
 # `init.md`
 
 ## Summary
 
-- `cmoc init` initializes `<repo-root>` so it can be used for cmoc-based development.
-- `cmoc init` takes no arguments and has no init-specific preconditions.
-- The command adds `<repo-root>/.cmoc` to `<repo-root>/.gitignore` if it is not already present.
-- After making the initialization change, the command commits the resulting diff with git.
+- `cmoc init` サブコマンドの正本仕様断片。
+- `<repo-root>` を cmoc で作業可能な状態に初期化するための引数、事前条件、実行手順を定義する。
+- `<repo-root>/.cmoc` を git 追跡対象外にする具体的な操作と完了判定を定義する。
 
 ## Read this when
 
-- You are implementing, changing, or testing the `cmoc init` subcommand.
-- You need to know what repository changes `cmoc init` must perform.
-- You need to verify the argument behavior or preconditions for `cmoc init`.
-- You need to understand whether `cmoc init` should create a git commit.
+- `cmoc init` の仕様を実装・修正・確認するとき。
+- `cmoc init` が引数なしで動作することや、固有の事前条件がないことを確認したいとき。
+- `<repo-root>/.cmoc` を `.gitignore` に追加し、既に tracked な `.cmoc` 配下ファイルを追跡解除する処理を実装するとき。
+- `.cmoc` 追跡対象外保証の完了判定として、`git ls-files -- .cmoc` と `git check-ignore -q .cmoc/.__cmoc_ignore_probe__` を使う仕様を確認するとき。
+- 初期化処理の最後に、ここまでの作業で発生した差分を git commit する必要があるか確認するとき。
 
 ## Do not read this when
 
-- You are working on a different cmoc subcommand and do not need `init` behavior.
-- You are investigating general cmoc workflow, development rules, or design rules rather than `cmoc init`.
-- You only need routing information for the broader `app_specs` or `sub_commands` directories.
-- You are working on cmoc's own repository setup rather than how `cmoc init` prepares a target `<repo-root>`.
+- `cmoc init` 以外のサブコマンド仕様を調べたいとき。
+- cmoc 自体の開発ルール、コーディング規約、テスト規約、開発環境だけを調べたいとき。
+- Codex CLI 呼び出し、Structured Output、コンソール出力、共通エラーハンドリングなど、サブコマンド横断の共通仕様だけを調べたいとき。
+- `<repo-root>/.cmoc` の git ignore 保証や init 時の commit に関係しない機能を実装するとき。
 
 ## hash
 
-- d9a764e4ce63910f584219e4bee47ee9a3be6d016a82504f9da14d245ed66f29
+- b3b7cca844c91f7ba5a4e8d4592f0c2fb5510aa4ab31fbb1c114b7fd62574175
 
 # `merge.md`
 
