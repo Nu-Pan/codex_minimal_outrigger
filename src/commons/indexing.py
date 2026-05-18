@@ -226,12 +226,6 @@ def _looks_binary(path: Path) -> bool:
     return b"\0" in sample
 
 
-def _is_repo_memo(repo_root: Path, path: Path) -> bool:
-    """`<repo-root>/memo` そのものか判定する。"""
-    # memo 禁止は repo root 直下だけに適用する。
-    return path == repo_root / "memo"
-
-
 def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
     """探索時に配下を読まない INDEX 配置除外ディレクトリか判定する。"""
     # root 直下 memo と、名前ベース除外ディレクトリの配下は探索しない。
@@ -241,6 +235,12 @@ def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
         or name in _INDEX_DIRECTORY_EXCLUDED_NAMES
         or _is_repo_memo(repo_root, directory)
     )
+
+
+def _is_repo_memo(repo_root: Path, path: Path) -> bool:
+    """`<repo-root>/memo` そのものか判定する。"""
+    # memo 禁止は repo root 直下だけに適用する。
+    return path == repo_root / "memo"
 
 
 def _is_gitignored(repo_root: Path, path: Path) -> bool:

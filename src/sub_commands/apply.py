@@ -117,10 +117,16 @@ def cmoc_apply_impl(repo_root: Path | None = None) -> int | None:
             f"Current branch: {branch_name}",
         )
 
-    # oracle 更新以外の未コミット差分を拒否し、oracle 変更は先に commit する。
+    # ユーザー由来の oracle 外差分を先に拒否し、cmoc 保証差分は直後に commit する。
     timer.start("validate repository state")
     print("apply (1/4) validate repository state")
+    assert_only_oracles_uncommitted(repo_root)
     ensure_cmoc_ignored(repo_root)
+    commit_if_changed(
+        repo_root,
+        [".gitignore", ".cmoc"],
+        "Ensure cmoc directory is ignored",
+    )
     assert_only_oracles_uncommitted(repo_root)
     commit_if_changed(repo_root, ["oracles"], "Update oracle files")
 
@@ -205,25 +211,6 @@ def _apply_discrepancies(
     )
 
 
-def _assert_forbidden_paths_clean(repo_root: Path) -> None:
-    """Codex CLI が編集禁止領域を変更していないことを確認する。"""
-    # oracles と .agents に差分があれば、commit 前に中断する。
-    forbidden = [
-        path
-        for path in changed_paths(repo_root)
-        if path.startswith("oracles/") or path.startswith(".agents/")
-    ]
-    if forbidden:
-        raise CmocError(
-            "Forbidden paths were changed by implementation work.",
-            [
-                "Inspect and manually resolve the forbidden changes.",
-                "Run `cmoc apply` again after the working tree is acceptable.",
-            ],
-            "\n".join(forbidden),
-        )
-
-
 def _commit_all_changes(repo_root: Path) -> None:
     """未コミット差分を Codex 生成メッセージで commit する。"""
     # 差分が無ければ commit message 生成も git commit も行わない。
@@ -249,6 +236,25 @@ def _commit_all_changes(repo_root: Path) -> None:
     # 最終的な全差分を 1 commit にまとめる。
     run_git(repo_root, ["add", "--all"])
     run_git(repo_root, ["commit", "-m", message])
+
+
+def _assert_forbidden_paths_clean(repo_root: Path) -> None:
+    """Codex CLI が編集禁止領域を変更していないことを確認する。"""
+    # oracles と .agents に差分があれば、commit 前に中断する。
+    forbidden = [
+        path
+        for path in changed_paths(repo_root)
+        if path.startswith("oracles/") or path.startswith(".agents/")
+    ]
+    if forbidden:
+        raise CmocError(
+            "Forbidden paths were changed by implementation work.",
+            [
+                "Inspect and manually resolve the forbidden changes.",
+                "Run `cmoc apply` again after the working tree is acceptable.",
+            ],
+            "\n".join(forbidden),
+        )
 
 
 def _write_apply_report(

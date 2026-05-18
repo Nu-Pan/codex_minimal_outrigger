@@ -122,6 +122,24 @@ def test_list_oracle_files_ignores_only_root_gitignore(
     ]
 
 
+def test_list_oracle_files_keeps_nested_file_for_rooted_basename_pattern(
+    tmp_path: Path,
+) -> None:
+    """root 起点 basename pattern は oracles 配下の同名ファイルに当てない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.md\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "ignored.md").write_text("oracle\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_oracle_files(repo)
+    ]
+
+    assert relative_paths == ["oracles/ignored.md"]
+
+
 def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     tmp_path: Path,
 ) -> None:

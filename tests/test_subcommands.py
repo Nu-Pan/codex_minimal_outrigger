@@ -61,6 +61,17 @@ def test_init_untracks_existing_cmoc_file_and_commits_it(
     assert ".cmoc/logs/tracked.log" in last_commit_paths
 
 
+def test_init_rejects_existing_gitignore_changes(tmp_path: Path) -> None:
+    """`cmoc init` は既存の `.gitignore` 差分を初期化 commit に混ぜない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("user-rule\n", encoding="utf-8")
+
+    with pytest.raises(CmocError):
+        cmoc_init_impl(repo)
+
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+
+
 def test_branch_creates_cmoc_branch_and_records_base_commit(
     tmp_path: Path,
 ) -> None:
@@ -162,10 +173,10 @@ def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
     assert "cmoc apply must be run on a cmoc branch." in error.value.message
 
 
-def test_apply_guarantees_cmoc_ignored_before_uncommitted_check(
+def test_apply_rejects_non_oracle_changes_before_cmoc_guarantee(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` は未コミット差分検査より先に `.cmoc` 保証を行う。"""
+    """`cmoc apply` はユーザー由来の oracle 外差分を先に拒否する。"""
     repo = _init_repo(tmp_path)
     _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
@@ -173,7 +184,46 @@ def test_apply_guarantees_cmoc_ignored_before_uncommitted_check(
     with pytest.raises(CmocError):
         cmoc_apply_impl(repo)
 
-    assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert not (repo / ".gitignore").exists()
+
+
+def test_apply_commits_cmoc_guarantee_before_oracle_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """`cmoc apply` は `.cmoc` 保証差分を oracle commit 前に処理する。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        if kwargs.get("expect_json") is True:
+            return '{"discrepancies": []}'
+        return "complete report"
+
+    monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
+
+    assert cmoc_apply_impl(repo) == 0
+
+    commit_subjects = _git(
+        repo,
+        "log",
+        "--pretty=%s",
+        "-3",
+    ).stdout.splitlines()
+    assert commit_subjects[:2] == [
+        "Update oracle files",
+        "Ensure cmoc directory is ignored",
+    ]
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
 
 
 def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
@@ -185,12 +235,16 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
     def fake_maintain_indexes(repo_root: Path) -> bool:
+        """INDEX メンテナンス時に禁止領域差分を作る fake。"""
         oracle_index = repo_root / "oracles" / "INDEX.md"
         oracle_index.parent.mkdir()
         oracle_index.write_text("forbidden\n", encoding="utf-8")
         return True
 
-    monkeypatch.setattr("sub_commands.apply.maintain_indexes", fake_maintain_indexes)
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        fake_maintain_indexes,
+    )
 
     with pytest.raises(CmocError):
         _commit_all_changes(repo)

@@ -126,6 +126,25 @@ def assert_only_oracles_uncommitted(repo_root: Path) -> None:
         )
 
 
+def assert_paths_clean(repo_root: Path, paths: list[str]) -> None:
+    """指定 pathspec に未コミット差分がないことを確認する。"""
+    # init が既存ユーザー差分を自動 commit に混ぜないため、対象 path を先に検査する。
+    result = run_git(
+        repo_root,
+        ["status", "--porcelain", "--untracked-files=all", "--", *paths],
+    )
+    if result.stdout.strip():
+        raise CmocError(
+            "Uncommitted initialization target changes exist.",
+            [
+                "Commit or stash the listed paths before running cmoc init.",
+                "Run the command again after initialization targets are "
+                "clean.",
+            ],
+            result.stdout.strip(),
+        )
+
+
 def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     """指定パスに差分があれば add して commit する。"""
     # 指定 pathspec に差分が無ければ commit を作らない。
@@ -389,6 +408,12 @@ def _matches_root_gitignore(pattern: str, relative_path: str) -> bool:
 
     if "/" in normalized:
         return PurePosixPath(relative_path).match(normalized)
+
+    if rooted:
+        return "/" not in relative_path and fnmatch.fnmatch(
+            relative_path,
+            normalized,
+        )
 
     return any(
         fnmatch.fnmatch(part, normalized)
