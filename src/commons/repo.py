@@ -159,7 +159,7 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
         if not path.is_file() or path.name == "INDEX.md":
             continue
         relative = path.relative_to(repo_root).as_posix()
-        if _is_gitignored(repo_root, relative):
+        if _is_root_gitignored(repo_root, relative):
             continue
         files.append(path)
     return sorted(files)
@@ -210,20 +210,23 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
         for line in output.splitlines():
             collected.add(repo_root / line)
 
-    # untracked oracle ファイルは status porcelain から収集する。
-    status = run_git(repo_root, ["status", "--porcelain", "--", "oracles"])
+    # untracked oracle ファイルはディレクトリ単位に畳まない形式で収集する。
+    status = run_git(
+        repo_root,
+        ["status", "--porcelain", "--untracked-files=all", "--", "oracles"],
+    )
     for line in status.stdout.splitlines():
         if line.startswith("?? "):
             collected.add(repo_root / line[3:])
 
-    # 削除済み、INDEX.md、gitignore 対象は評価対象から除外する。
+    # 削除済み、INDEX.md、root .gitignore 対象は評価対象から除外する。
     return sorted(
         path
         for path in collected
         if path.exists()
         and path.is_file()
         and path.name != "INDEX.md"
-        and not _is_gitignored(
+        and not _is_root_gitignored(
             repo_root,
             path.relative_to(repo_root).as_posix(),
         )
@@ -328,6 +331,69 @@ def _tracked_cmoc_paths(repo_root: Path) -> list[str]:
     # `git ls-files` の空でない行だけを tracked path として返す。
     result = run_git(repo_root, ["ls-files", "--", ".cmoc"])
     return [line for line in result.stdout.splitlines() if line]
+
+
+def _is_root_gitignored(repo_root: Path, relative_path: str) -> bool:
+    """root `.gitignore` の pattern だけで ignore 対象か判定する。"""
+    # oracles 列挙仕様では下位 .gitignore や Git の exclude source は使わない。
+    gitignore = repo_root / ".gitignore"
+    if not gitignore.exists():
+        return False
+
+    ignored = False
+    for raw_line in gitignore.read_text(encoding="utf-8").splitlines():
+        pattern = _normalize_gitignore_pattern(raw_line)
+        if pattern is None:
+            continue
+        if pattern.startswith("!"):
+            if _matches_root_gitignore(pattern[1:], relative_path):
+                ignored = False
+            continue
+        if _matches_root_gitignore(pattern, relative_path):
+            ignored = True
+    return ignored
+
+
+def _normalize_gitignore_pattern(raw_line: str) -> str | None:
+    """root `.gitignore` の 1 行を評価用 pattern に整形する。"""
+    # 空行と comment 行は ignore pattern ではない。
+    line = raw_line.rstrip()
+    if not line or line.lstrip().startswith("#"):
+        return None
+    return line.strip()
+
+
+def _matches_root_gitignore(pattern: str, relative_path: str) -> bool:
+    """root `.gitignore` の単純な file/dir/glob pattern を照合する。"""
+    # root 起点指定、パス指定、basename 指定の主要 gitignore 形式を扱う。
+    rooted = pattern.startswith("/")
+    directory_only = pattern.endswith("/")
+    normalized = pattern.strip("/")
+    if not normalized:
+        return False
+
+    if directory_only:
+        if rooted:
+            return (
+                relative_path == normalized
+                or relative_path.startswith(normalized + "/")
+            )
+        return (
+            relative_path == normalized
+            or relative_path.startswith(normalized + "/")
+            or any(
+                part == normalized
+                for part in Path(relative_path).parts[:-1]
+            )
+        )
+
+    if "/" in normalized:
+        return fnmatch.fnmatch(relative_path, normalized)
+
+    return any(
+        fnmatch.fnmatch(part, normalized)
+        for part in Path(relative_path).parts
+    )
 
 
 def _is_gitignored(repo_root: Path, relative_path: str) -> bool:

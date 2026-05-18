@@ -8,7 +8,7 @@ from pathlib import Path
 from .codex import parse_json_object, run_codex_exec
 from .repo import ensure_cmoc_ignored
 
-_INDEX_DIRECTORY_EXCLUDED_NAMES = {"memo", "build", "tmp", "__pycache__"}
+_INDEX_DIRECTORY_EXCLUDED_NAMES = {"build", "tmp", "__pycache__"}
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -62,10 +62,14 @@ def _index_directories(repo_root: Path) -> list[Path]:
     """仕様の除外条件に従って INDEX.md 配置対象を列挙する。"""
     # repo root とその配下ディレクトリを配置候補として集める。
     result: list[Path] = []
-    directories = [
-        repo_root,
-        *[path for path in repo_root.rglob("*") if path.is_dir()],
-    ]
+    directories = [repo_root]
+    for current, dir_names, _file_names in repo_root.walk():
+        dir_names[:] = [
+            name
+            for name in dir_names
+            if not _should_prune_index_directory(repo_root, current / name)
+        ]
+        directories.extend(current / name for name in dir_names)
 
     # 配置対象ディレクトリ専用の除外条件を適用する。
     for directory in directories:
@@ -74,6 +78,8 @@ def _index_directories(repo_root: Path) -> list[Path]:
             part.startswith(".") or part in _INDEX_DIRECTORY_EXCLUDED_NAMES
             for part in relative_parts
         ):
+            continue
+        if _is_repo_memo(repo_root, directory):
             continue
         if _is_gitignored(repo_root, directory):
             continue
@@ -107,7 +113,11 @@ def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
 
         digest = _hash_path(repo_root, child)
         existing = existing_entries.get(child.name)
-        if existing is not None and _entry_hash(existing) == digest:
+        if (
+            existing is not None
+            and _entry_hash(existing) == digest
+            and _entry_format_is_valid(existing, child.name, digest)
+        ):
             entries.append(existing)
         else:
             entries.append(_entry_for(repo_root, child, digest))
@@ -222,6 +232,17 @@ def _is_repo_memo(repo_root: Path, path: Path) -> bool:
     return path == repo_root / "memo"
 
 
+def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
+    """探索時に配下を読まない INDEX 配置除外ディレクトリか判定する。"""
+    # root 直下 memo と、名前ベース除外ディレクトリの配下は探索しない。
+    name = directory.name
+    return (
+        name.startswith(".")
+        or name in _INDEX_DIRECTORY_EXCLUDED_NAMES
+        or _is_repo_memo(repo_root, directory)
+    )
+
+
 def _is_gitignored(repo_root: Path, path: Path) -> bool:
     """gitignore 対象のファイル・ディレクトリか判定する。"""
     # tracked 状態に依存せず .gitignore pattern への一致だけを見る。
@@ -295,3 +316,29 @@ def _entry_hash(entry: str) -> str | None:
     if match is None:
         return None
     return match.group(1)
+
+
+def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
+    """既存目次ブロックが仕様の固定フォーマットに一致するか判定する。"""
+    # 見出しと 4 セクションの順序、各説明欄の bullet 形式まで検査する。
+    expected_heading = f"# `{name}`"
+    if not entry.startswith(expected_heading + "\n"):
+        return False
+
+    pattern = re.compile(
+        r"\A"
+        rf"\# `{re.escape(name)}`\n\n"
+        r"## Summary\n\n"
+        r"(?P<summary>(?:- .*\n)+)"
+        r"\n"
+        r"## Read this when\n\n"
+        r"(?P<read>(?:- .*\n)+)"
+        r"\n"
+        r"## Do not read this when\n\n"
+        r"(?P<skip>(?:- .*\n)+)"
+        r"\n"
+        r"## hash\n\n"
+        rf"- {digest}"
+        r"\Z"
+    )
+    return pattern.match(entry) is not None

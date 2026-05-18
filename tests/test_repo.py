@@ -86,6 +86,22 @@ def test_list_oracle_files_excludes_tracked_gitignored_files(
     assert list_oracle_files(repo) == []
 
 
+def test_list_oracle_files_ignores_only_root_gitignore(
+    tmp_path: Path,
+) -> None:
+    """oracle 列挙では oracles 配下の .gitignore は除外判定に使わない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / ".gitignore").write_text("nested.md\n", encoding="utf-8")
+    (oracle_root / "nested.md").write_text("nested", encoding="utf-8")
+
+    assert [path.name for path in list_oracle_files(repo)] == [
+        ".gitignore",
+        "nested.md",
+    ]
+
+
 def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     tmp_path: Path,
 ) -> None:
@@ -106,6 +122,30 @@ def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     names = [path.name for path in changed_oracle_files(repo, base_commit)]
 
     assert names == ["committed.md", "working.md"]
+
+
+def test_changed_oracle_files_includes_untracked_files_under_new_directory(
+    tmp_path: Path,
+) -> None:
+    """未追跡ディレクトリ配下の新規 oracle ファイルも部分評価対象にする。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "base.md").write_text("base", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    nested = oracle_root / "new_dir"
+    nested.mkdir()
+    (nested / "new.md").write_text("new", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_oracle_files(repo, base_commit)
+    ]
+
+    assert relative_paths == ["oracles/new_dir/new.md"]
 
 
 def test_changed_oracle_files_excludes_gitignored_files(

@@ -101,11 +101,12 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "no fatal problems" in reports[0].read_text(encoding="utf-8")
 
 
-def test_eval_oracles_body_file_uses_subcommand_name() -> None:
-    """`eval-oracles` の本体ファイルはサブコマンド名どおりに存在する。"""
+def test_eval_oracles_body_file_uses_pep8_module_name() -> None:
+    """`eval-oracles` の本体ファイルは PEP 8 準拠の module 名にする。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    assert (repo_root / "src" / "sub_commands" / "eval-oracles.py").exists()
+    assert (repo_root / "src" / "sub_commands" / "eval_oracles.py").exists()
+    assert not (repo_root / "src" / "sub_commands" / "eval-oracles.py").exists()
 
 
 def test_apply_returns_complete_when_no_discrepancies(
