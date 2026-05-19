@@ -25,28 +25,31 @@
 ## Summary
 
 - `cmoc apply` サブコマンドの本体処理を実装するファイル。
-- cmoc ブランチ上で oracle と実装のズレを調査し、Codex CLI に修正を依頼し、変更を commit し、apply レポートを書く一連の制御フローを扱う。
-- ズレ調査用 JSON schema の検証、ズレ追従プロンプト、commit message 生成プロンプト、編集禁止パス検査、未完了時の終了コードを定義する。
+- cmoc ブランチ上での実行確認、oracle 以外の未コミット差分検証、`.cmoc` ignore 確保、oracle 変更の事前コミット、`INDEX.md` メンテナンスを行う。
+- oracle と実装のズレを Codex CLI で調査し、最大 5 回の実装ループでズレ追従、編集禁止パス検査、変更コミットを繰り返す。
+- ズレ調査用 Structured Output schema、調査プロンプト、実装依頼プロンプト、コミットメッセージ生成プロンプト、apply レポート生成処理を定義する。
+- 完了時は 0、ズレが残った場合は `APPLY_INCOMPLETE_EXIT_CODE` として 2 を返す。
 
 ## Read this when
 
-- `cmoc apply` の実行順序、進捗表示、最大ループ回数、完了・未完了判定、終了コードを確認したいとき。
-- oracle ファイルごとのズレ調査、Codex CLI 呼び出し、Structured Output の期待形式や検証ロジックを調べたいとき。
-- ズレ一覧をもとに実装変更を Codex CLI へ依頼するプロンプト内容や、Codex 作業後の禁止パス検査を確認したいとき。
-- `oracles` の自動 commit、`INDEX.md` メンテナンス、実装変更 commit、`.cmoc/reports/apply` へのレポート作成の流れを調べたいとき。
-- `cmoc apply` が `oracles/`、`.agents/`、`memo` をどのように扱うかを実装上確認したいとき。
+- `cmoc apply` の実行フロー、ステップ表示、終了コード、最大ループ回数を確認したいとき。
+- apply 実行前のブランチ制約、未コミット差分の扱い、oracle 変更のコミット、`.cmoc` ignore 確保を調べたいとき。
+- oracle と実装のズレ調査を Codex CLI に依頼する処理や、期待する JSON schema を確認したいとき。
+- ズレ一覧をもとに Codex CLI へ実装修正を依頼する prompt の内容を確認・変更したいとき。
+- apply 中に `oracles/` や `.agents/` が変更された場合の検出・エラー処理を調べたいとき。
+- apply が生成するコミットメッセージや `.cmoc/reports/apply/` 配下の作業レポート生成処理を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` ではないサブコマンドの CLI 引数定義やエントリーポイントだけを調べたいとき。
-- Codex CLI 実行の低レベル実装、git 操作ラッパー、INDEX.md メンテナンス処理、タイムスタンプ生成の内部詳細だけを調べたいとき。
-- oracle 正本仕様そのものや、`cmoc apply` のユーザー向け仕様だけを確認したいとき。
-- ズレ調査結果の個別内容や、特定の対象リポジトリで発生した実装差分の詳細を調べたいとき。
-- テストコードの構造や Fake Codex CLI を使った検証方法だけを調べたいとき。
+- `cmoc apply` 以外のサブコマンドの仕様や実装だけを調べたいとき。
+- Codex CLI 実行の低レベル実装、JSON パース共通処理、git 操作共通処理、timestamp 生成、INDEX.md メンテナンスの詳細だけを調べたいとき。
+- oracle ファイルそのものの正本仕様や、仕様ファイルのルーティング情報を調べたいとき。
+- cmoc の CLI エントリーポイントや argparse など、サブコマンド登録の仕組みだけを確認したいとき。
+- テストコードの構造、Fake Codex CLI、pytest の規約だけを調べたいとき。
 
 ## hash
 
-- c330ea2c619c508107a6322916f11c862520ee826c7089cf88ed232d381e4e6e
+- 71b0ee6cf481065fb7d8d8deba6ba1b928cb890abbaa0c3b93821553a59a4eed
 
 # `branch.py`
 

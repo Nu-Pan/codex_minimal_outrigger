@@ -15,6 +15,7 @@ class CmocError(RuntimeError):
         exit_code: int = 1,
     ) -> None:
         """エラーレポートに必要な情報を保持する。"""
+        # RuntimeError としての message と、cmoc report 用の詳細情報を両方保持する。
         super().__init__(message)
         self.message = message
         self.actions = list(actions)
@@ -24,14 +25,15 @@ class CmocError(RuntimeError):
 
 def format_error_report(error: BaseException) -> str:
     """仕様で要求される stdout 向けエラーレポートを作る。"""
+    # CmocError は利用者向け action/detail をそのまま使う。
     if isinstance(error, CmocError):
         actions = error.actions
         detail = error.detail
         message = error.message
     else:
         actions = [
-            "Read the error detail below.",
-            "Fix the repository state or command input, then run cmoc again.",
+            "下の詳細を確認してください。",
+            "リポジトリ状態またはコマンド入力を修正してから、cmoc を再実行してください。",
         ]
         detail = str(error)
         message = error.__class__.__name__

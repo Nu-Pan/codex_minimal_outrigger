@@ -46,7 +46,175 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert "kept summary" in content
     assert "# `ignored.txt`" not in content
     assert codex_kwargs
-    assert all(kwargs["output_schema"] == _INDEX_OUTPUT_SCHEMA for kwargs in codex_kwargs)
+    assert all(
+        kwargs["output_schema"] == _INDEX_OUTPUT_SCHEMA
+        for kwargs in codex_kwargs
+    )
+
+
+def test_maintain_indexes_creates_empty_index_for_empty_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """空の配置対象ディレクトリにも空の INDEX.md を新規作成する。"""
+    repo = _init_repo(tmp_path)
+    empty = repo / "empty"
+    empty.mkdir()
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """root INDEX の既存ファイル向け Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo, commit_changes=False)
+
+    assert changed is True
+    assert (empty / "INDEX.md").exists()
+    assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
+
+
+def test_maintain_indexes_includes_build_and_tmp_as_entries(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """build/tmp は配置対象からは除外しても親 INDEX の目次対象には含める。"""
+    repo = _init_repo(tmp_path)
+    build = repo / "build"
+    tmp = repo / "tmp"
+    build.mkdir()
+    tmp.mkdir()
+    (build / "artifact.txt").write_text("artifact\n", encoding="utf-8")
+    (tmp / "scratch.txt").write_text("scratch\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "generated dirs")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo, commit_changes=False)
+
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    assert "# `build`" in content
+    assert "# `tmp`" in content
+    assert not (build / "INDEX.md").exists()
+    assert not (tmp / "INDEX.md").exists()
+
+
+def test_maintain_indexes_places_index_in_nested_memo_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """配置除外の memo は repo root 直下だけに限定する。"""
+    repo = _init_repo(tmp_path)
+    nested_memo = repo / "docs" / "memo"
+    nested_memo.mkdir(parents=True)
+    (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "nested memo")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo, commit_changes=False)
+
+    assert (nested_memo / "INDEX.md").exists()
+
+
+def test_maintain_indexes_regenerates_malformed_current_entry(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """hash が最新でも必須セクションが欠ける既存エントリは再生成する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `target.txt`",
+                "",
+                "## Summary",
+                "",
+                "- stale summary",
+                "",
+                "## hash",
+                "",
+                f"- {digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "malformed index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成されたことを識別できる Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["regenerated summary"],
+                "read_this_when": ["read regenerated"],
+                "do_not_read_this_when": ["skip regenerated"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo, commit_changes=False)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "regenerated summary" in content
+    assert "## Read this when" in content
+    assert "## Do not read this when" in content
 
 
 def test_maintain_indexes_retries_invalid_structured_output(
@@ -72,9 +240,20 @@ def test_maintain_indexes_retries_invalid_structured_output(
                 "COUNT=$((COUNT + 1))",
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -eq 1 ]; then",
-                "  echo '{\"content_hash\":\"abc\",\"summary\":\"not a list\",\"read_this_when\":[\"read\"],\"do_not_read_this_when\":[\"skip\"]}'",
+                (
+                    "  printf '%s\\n' "
+                    "'{\"content_hash\":\"abc\","
+                    "\"summary\":\"not a list\","
+                    "\"read_this_when\":[\"read\"],"
+                    "\"do_not_read_this_when\":[\"skip\"]}'"
+                ),
                 "else",
-                "  echo '{\"summary\":[\"valid summary\"],\"read_this_when\":[\"read\"],\"do_not_read_this_when\":[\"skip\"]}'",
+                (
+                    "  printf '%s\\n' "
+                    "'{\"summary\":[\"valid summary\"],"
+                    "\"read_this_when\":[\"read\"],"
+                    "\"do_not_read_this_when\":[\"skip\"]}'"
+                ),
                 "fi",
             ]
         ),
@@ -100,7 +279,9 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     target = repo / "target.txt"
     target.write_text("target\n", encoding="utf-8")
-    readme_digest = hashlib.sha256((repo / "README.md").read_bytes()).hexdigest()
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
     (repo / "INDEX.md").write_text(
         "\n".join(
@@ -149,7 +330,10 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     _git(repo, "commit", "-m", "content")
 
     def fail_codex(*args: object, **kwargs: object) -> str:
-        raise AssertionError("codex exec should not be called for a fresh INDEX.md")
+        """最新 INDEX では呼ばれてはいけない fake Codex CLI。"""
+        raise AssertionError(
+            "codex exec should not be called for a fresh INDEX.md"
+        )
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
 
@@ -170,6 +354,7 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     _git(repo, "commit", "-m", "target")
 
     def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
         return json.dumps(
             {
                 "summary": ["summary"],
@@ -182,7 +367,13 @@ def test_maintain_indexes_commits_only_maintenance_paths(
 
     changed = maintain_indexes(repo, commit_changes=True)
     status = _git(repo, "status", "--porcelain").stdout
-    last_commit_paths = _git(repo, "show", "--name-only", "--pretty=format:", "HEAD").stdout
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
 
     assert changed is True
     assert "?? user_work.txt" in status
