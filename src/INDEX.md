@@ -67,7 +67,7 @@
 - 個別サブコマンドの本体処理がどのファイルにあるか判断したいとき。
 - `cmoc init` による `.cmoc` ignore 設定と初期化コミット処理を調べたいとき。
 - `cmoc branch` による cmoc 作業ブランチ作成、base commit 記録、ブランチ名衝突時のリトライ処理を調べたいとき。
-- `cmoc apply` による oracle 差分検証、`INDEX.md` メンテナンス、実装とのズレ調査、Codex CLI への修正依頼、禁止パス検査、コミット、apply レポート生成を調べたいとき。
+- `cmoc apply` による oracle 差分検証、`INDEX.md` メンテナンス、実装との不整合調査、Codex CLI への修正依頼、禁止パス検査、コミット、apply レポート生成を調べたいとき。
 - `cmoc merge` による作業ツリー検証、merge 元 cmoc ブランチ解決、`git merge --no-ff`、conflict 解消依頼、merge 後のブランチ削除を調べたいとき。
 - `cmoc eval-oracles` による oracle 評価対象選択、partial/full モード、Codex CLI 評価、評価レポート生成を調べたいとき。
 - サブコマンド本体が `commons.repo`、`commons.codex`、`commons.indexing`、`commons.timestamps` などの共通処理をどう呼び出しているか確認したいとき。

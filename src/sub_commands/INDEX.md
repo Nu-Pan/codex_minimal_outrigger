@@ -26,16 +26,16 @@
 
 - `cmoc apply` サブコマンドの本体処理を実装するファイル。
 - cmoc ブランチ上での実行確認、oracle 以外の未コミット差分検証、`.cmoc` ignore 確保、oracle 変更の事前コミット、`INDEX.md` メンテナンスを行う。
-- oracle と実装のズレを Codex CLI で調査し、最大 5 回の実装ループでズレ追従、編集禁止パス検査、変更コミットを繰り返す。
-- ズレ調査用 Structured Output schema、調査プロンプト、実装依頼プロンプト、コミットメッセージ生成プロンプト、apply レポート生成処理を定義する。
-- 完了時は 0、ズレが残った場合は `APPLY_INCOMPLETE_EXIT_CODE` として 2 を返す。
+- oracle と実装の不整合を Codex CLI で調査し、最大 5 回の実装ループで不整合追従、編集禁止パス検査、変更コミットを繰り返す。
+- 不整合調査用 Structured Output schema、調査プロンプト、実装依頼プロンプト、コミットメッセージ生成プロンプト、apply レポート生成処理を定義する。
+- 完了時は 0、不整合が残った場合は `APPLY_INCOMPLETE_EXIT_CODE` として 2 を返す。
 
 ## Read this when
 
 - `cmoc apply` の実行フロー、ステップ表示、終了コード、最大ループ回数を確認したいとき。
 - apply 実行前のブランチ制約、未コミット差分の扱い、oracle 変更のコミット、`.cmoc` ignore 確保を調べたいとき。
-- oracle と実装のズレ調査を Codex CLI に依頼する処理や、期待する JSON schema を確認したいとき。
-- ズレ一覧をもとに Codex CLI へ実装修正を依頼する prompt の内容を確認・変更したいとき。
+- oracle と実装の不整合調査を Codex CLI に依頼する処理や、期待する JSON schema を確認したいとき。
+- 不整合一覧をもとに Codex CLI へ実装修正を依頼する prompt の内容を確認・変更したいとき。
 - apply 中に `oracles/` や `.agents/` が変更された場合の検出・エラー処理を調べたいとき。
 - apply が生成するコミットメッセージや `.cmoc/reports/apply/` 配下の作業レポート生成処理を確認したいとき。
 

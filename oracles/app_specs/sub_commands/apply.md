@@ -18,21 +18,21 @@
 1. `<repo-root>/.cmoc` が git の追跡対象外であることを保証する
 2. `<repo-root>/oracles` 配下の未コミット差分を自動コミット
 3. ループ（最大５回）
-    1. `oracles` と実装との明確なズレを調査
-    2. ズレがなければこの時点でループ終了
+    1. `oracles` と実装との明確な不整合を調査
+    2. 不整合がなければこの時点でループ終了
     3. `<repo-root>` の実装を `<repo-root>/oracles` に追従させる作業を Codex CLI にやらせる
     4. `<repo-root>/oracles` などの編集禁止ディレクトリに未コミット差分が有る場合はエラー終了
     5. 全ての未コミット差分を git にコミット（コミットメッセージは Codex CLI で適切なものを生成）
     6. ループ先頭に戻る
 4. 作業結果をレポートする
 
-## ズレ調査の仕様
+## 不整合調査の仕様
 
-- `oracles` ファイルと実装との明確なズレが無いかの調査を Codex CLI に依頼する
+- `oracles` ファイルと実装との明確な不整合が無いかの調査を Codex CLI に依頼する
 - この調査は `oracles` ファイルそれぞれに対して独立に行う (for each)
     - つまり `oracles` ファイルが N 件存在するのであれば `codex exec` を N 回呼び出す
     - `codex exec` で指定したファイルは以外のファイルも、必要にならば読むべきである（指定は「だけ」の意味ではない）
-- 調査結果は Structured Output で「ズレのリスト」として受け取る
+- 調査結果は Structured Output で「不整合のリスト」として受け取る
 - Structured Output の schema は以下の通り
     ```json
     {
@@ -42,7 +42,7 @@
         "properties": {
             "discrepancies": {
                 "type": "array",
-                "description": "oracles と実装との明確なズレのリスト。空配列の場合のみズレなしとみなす。",
+                "description": "oracles と実装との明確な不整合のリスト。空配列の場合のみ不整合なしとみなす。",
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -60,26 +60,26 @@
                     "properties": {
                         "oracle_path": {
                             "type": "string",
-                            "description": "ズレの根拠となる oracle ファイルの絶対パス。"
+                            "description": "不整合の根拠となる oracle ファイルの絶対パス。"
                         },
                         "oracle_line_start": {
                             "type": ["integer", "null"],
-                            "description": "ズレの根拠となる oracle 記述の開始行。行番号を特定できない場合は null。"
+                            "description": "不整合の根拠となる oracle 記述の開始行。行番号を特定できない場合は null。"
                         },
                         "oracle_line_end": {
                             "type": ["integer", "null"],
-                            "description": "ズレの根拠となる oracle 記述の終了行。行番号を特定できない場合は null。"
+                            "description": "不整合の根拠となる oracle 記述の終了行。行番号を特定できない場合は null。"
                         },
                         "implementation_paths": {
                             "type": "array",
-                            "description": "ズレに関係する実装・テスト・設定ファイルの絶対パス。未実装などで該当ファイルを特定できない場合は空配列。",
+                            "description": "不整合に関係する実装・テスト・設定ファイルの絶対パス。未実装などで該当ファイルを特定できない場合は空配列。",
                             "items": {
                                 "type": "string"
                             }
                         },
                         "title": {
                             "type": "string",
-                            "description": "ズレの短い見出し。"
+                            "description": "不整合の短い見出し。"
                         },
                         "oracle_requirement": {
                             "type": "string",
@@ -91,7 +91,7 @@
                         },
                         "reason": {
                             "type": "string",
-                            "description": "なぜ oracle と実装が明確にズレていると言えるのか。推測や未確認事項は含めない。"
+                            "description": "なぜ oracle と実装が明確に不整合していると言えるのか。推測や未確認事項は含めない。"
                         },
                         "suggested_fix": {
                             "type": "string",
@@ -103,13 +103,13 @@
         }
     }
     ```
-- 「ズレのリスト」は全て要修正項目として扱う
-- ズレのリストが空の場合のみ「ズレなし」とみなす
+- 「不整合のリスト」は全て要修正項目として扱う
+- 不整合のリストが空の場合のみ「不整合なし」とみなす
 
-## ズレ追従作業の仕様
+## 不整合追従作業の仕様
 
 - 実装の `oracles` への追従作業を Codex CLI に依頼する
-- 補足情報として「ズレのリスト」をプロンプトに注入する
+- 補足情報として「不整合のリスト」をプロンプトに注入する
 
 ## 回数上限でループを抜けた場合
 
@@ -124,9 +124,9 @@
         - 作業区分
             - 完了 : 異常が起きずに最後まで完走出来た場合
             - 未完了 : 回数上限に引っかかった場合
-    - ズレ件数の推移
-        - ループごとに何件のズレを見つけたかを書く
-        - 回数上限に引っかかった場合は、まだズレが残っている可能性を追記する
+    - 不整合件数の推移
+        - ループごとに何件の不整合を見つけたかを書く
+        - 回数上限に引っかかった場合は、まだ不整合が残っている可能性を追記する
     - `<cmoc-branch>` 上の全ての変更内容に対する要約
         - この `cmoc apply` で行った作業内容だけの要約ではない（それ以前の作業内容も含めるということ）
         - 変更内容の意味論に基づいたカテゴリ分けを行うこと

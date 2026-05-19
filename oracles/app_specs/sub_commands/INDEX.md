@@ -4,13 +4,13 @@
 
 - `cmoc apply` サブコマンドの仕様を定義している。
 - `<repo-root>` の実装を `<repo-root>/oracles` の正本仕様断片へ追従させるための前提条件、作業手順、ループ処理、レポート出力、終了コードを扱う。
-- ズレ調査を Codex CLI に oracle ファイル単位で依頼し、Structured Output の `discrepancies` 配列として受け取る schema を定義している。
-- ズレ追従作業、最大5回の反復、編集禁止領域の差分検出、コミット、作業レポート保存先の仕様を定義している。
+- 不整合調査を Codex CLI に oracle ファイル単位で依頼し、Structured Output の `discrepancies` 配列として受け取る schema を定義している。
+- 不整合追従作業、最大5回の反復、編集禁止領域の差分検出、コミット、作業レポート保存先の仕様を定義している。
 
 ## Read this when
 
 - `cmoc apply` の実装、修正、テストを行うとき。
-- `<repo-root>/oracles` と実装のズレを検出する処理や Structured Output schema を確認するとき。
+- `<repo-root>/oracles` と実装の不整合を検出する処理や Structured Output schema を確認するとき。
 - `cmoc apply` が Codex CLI をどのように呼び出して調査・追従・レポート作成を行うべきか確認するとき。
 - `cmoc apply` の事前条件、未コミット差分の扱い、自動コミット、ループ回数上限、終了コードの仕様を確認するとき。
 - `<repo-root>/.cmoc/reports/apply/<time-stamp>.md` に保存する作業レポートの内容や標準出力の仕様を確認するとき。
@@ -20,7 +20,7 @@
 - `cmoc apply` 以外のサブコマンド仕様だけを調べているとき。
 - cmoc 自体の開発ルール、設計ルール、環境構築手順を調べているとき。
 - `oracles` のルーティング規則や INDEX.md の書き方だけを調べているとき。
-- Codex CLI に依頼する一般的な実装作業の仕様で、`cmoc apply` のズレ調査・追従ループ・レポート出力に関係しないとき。
+- Codex CLI に依頼する一般的な実装作業の仕様で、`cmoc apply` の不整合調査・追従ループ・レポート出力に関係しないとき。
 
 ## hash
 

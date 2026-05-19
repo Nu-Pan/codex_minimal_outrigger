@@ -28,7 +28,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
     "properties": {
         "discrepancies": {
             "type": "array",
-            "description": "oracles と実装との明確なズレのリスト。空配列の場合のみズレなしとみなす。",
+            "description": "oracles と実装との明確な不整合のリスト。空配列の場合のみ不整合なしとみなす。",
             "items": {
                 "type": "object",
                 "additionalProperties": False,
@@ -46,26 +46,26 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
                 "properties": {
                     "oracle_path": {
                         "type": "string",
-                        "description": "ズレの根拠となる oracle ファイルの絶対パス。",
+                        "description": "不整合の根拠となる oracle ファイルの絶対パス。",
                     },
                     "oracle_line_start": {
                         "type": ["integer", "null"],
                         "description": (
-                            "ズレの根拠となる oracle 記述の開始行。"
+                            "不整合の根拠となる oracle 記述の開始行。"
                             "行番号を特定できない場合は null。"
                         ),
                     },
                     "oracle_line_end": {
                         "type": ["integer", "null"],
                         "description": (
-                            "ズレの根拠となる oracle 記述の終了行。"
+                            "不整合の根拠となる oracle 記述の終了行。"
                             "行番号を特定できない場合は null。"
                         ),
                     },
                     "implementation_paths": {
                         "type": "array",
                         "description": (
-                            "ズレに関係する実装・テスト・設定ファイルの"
+                            "不整合に関係する実装・テスト・設定ファイルの"
                             "絶対パス。未実装などで該当ファイルを"
                             "特定できない場合は空配列。"
                         ),
@@ -73,7 +73,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
                     },
                     "title": {
                         "type": "string",
-                        "description": "ズレの短い見出し。",
+                        "description": "不整合の短い見出し。",
                     },
                     "oracle_requirement": {
                         "type": "string",
@@ -86,7 +86,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
                     "reason": {
                         "type": "string",
                         "description": (
-                            "なぜ oracle と実装が明確にズレていると"
+                            "なぜ oracle と実装が明確に不整合していると"
                             "言えるのか。推測や未確認事項は含めない。"
                         ),
                     },
@@ -102,7 +102,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
 
 
 def cmoc_apply_impl(repo_root: Path | None = None) -> int | None:
-    """oracle と実装のズレを Codex CLI へ追従させる。"""
+    """oracle と実装の不整合を Codex CLI へ追従させる。"""
     if repo_root is None:
         run_command(cmoc_apply_impl)
         return None
@@ -135,7 +135,7 @@ def cmoc_apply_impl(repo_root: Path | None = None) -> int | None:
     print("apply (2/4) maintain INDEX.md files")
     maintain_indexes(repo_root)
 
-    # ズレ調査と追従作業を最大 5 回まで反復する。
+    # 不整合調査と追従作業を最大 5 回まで反復する。
     timer.start("investigate and apply discrepancies")
     print("apply (3/4) investigate and apply discrepancies")
     discrepancy_counts: list[int] = []
@@ -171,7 +171,7 @@ def cmoc_apply_impl(repo_root: Path | None = None) -> int | None:
 
 
 def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
-    """oracle ファイルごとにズレ調査を実行する。"""
+    """oracle ファイルごとに不整合調査を実行する。"""
     # oracle 列挙結果を 1 ファイルずつ Codex CLI に評価させる。
     discrepancies: list[dict[str, object]] = []
     oracle_files = list_oracle_files(repo_root)
@@ -201,7 +201,7 @@ def _apply_discrepancies(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
 ) -> None:
-    """Codex CLI にズレ追従作業を依頼する。"""
+    """Codex CLI に不整合追従作業を依頼する。"""
     # 実装変更用の workspace-write Codex 呼び出しを実行する。
     run_codex_exec(
         repo_root,
@@ -274,7 +274,7 @@ def _write_apply_report(
         [
             "あなたはソフトウェア作業レポートの作成担当です。",
             f"`{repo_root}` のブランチ `{branch_name}` について簡潔な作業レポートを書いてください。",
-            "完了条件は、作業結果、ズレ件数の推移、ブランチ上の全変更内容を説明することです。",
+            "完了条件は、作業結果、不整合件数の推移、ブランチ上の全変更内容を説明することです。",
             f"Result: {'complete' if completed else 'incomplete'}",
             f"Discrepancy counts: {discrepancy_counts}",
             f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
@@ -294,18 +294,18 @@ def _write_apply_report(
 
 
 def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
-    """ズレ調査用 prompt を組み立てる。"""
+    """不整合調査用 prompt を組み立てる。"""
     # Structured Output schema と禁止事項を prompt 上で明示する。
     return "\n".join(
         [
             "あなたはソフトウェア実装の監査担当です。",
-            f"`{oracle_file}` と `{repo_root}` の実装との明確なズレを調査してください。",
+            f"`{oracle_file}` と `{repo_root}` の実装との明確な不整合を調査してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
-            "各ズレには oracle_path、oracle_line_start、oracle_line_end、",
+            "各不整合には oracle_path、oracle_line_start、oracle_line_end、",
             "implementation_paths、title、oracle_requirement、",
             "observed_implementation、reason、suggested_fix を",
             "含めてください。",
-            "明確なズレがない場合だけ空配列を返してください。",
+            "明確な不整合がない場合だけ空配列を返してください。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
             "ファイル編集は禁止です。",
         ]
@@ -316,12 +316,12 @@ def _apply_prompt(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
 ) -> str:
-    """ズレ追従作業用 prompt を組み立てる。"""
+    """不整合追従作業用 prompt を組み立てる。"""
     # workspace-write 実行用に編集禁止領域を無条件で明示する。
     return "\n".join(
         [
             "あなたはソフトウェア実装担当です。",
-            f"`{repo_root}` の実装を、以下のズレ一覧が解消されるように更新してください。",
+            f"`{repo_root}` の実装を、以下の不整合一覧が解消されるように更新してください。",
             "完了条件は、実装が oracle 要求に追従し、必要なテスト更新も終わっていることです。",
             f"Discrepancies: {json.dumps(discrepancies, ensure_ascii=False)}",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
@@ -346,7 +346,7 @@ def _commit_message_prompt(repo_root: Path) -> str:
 
 
 def _validate_discrepancy_payload(value: object) -> None:
-    """ズレ調査 Structured Output の schema を検査する。"""
+    """不整合調査 Structured Output の schema を検査する。"""
     # top-level は discrepancies だけを持つ object に限定する。
     if not isinstance(value, dict):
         raise ValueError("Expected JSON object.")

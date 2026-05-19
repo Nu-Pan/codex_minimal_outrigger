@@ -129,7 +129,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """`cmoc apply` はズレなし JSON で完了扱いのレポートを保存する。"""
+    """`cmoc apply` は不整合なし JSON で完了扱いのレポートを保存する。"""
     repo = _init_repo(tmp_path)
     _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -146,7 +146,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     codex_kwargs: list[dict[str, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
         codex_kwargs.append(kwargs)
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
@@ -204,7 +204,7 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
     )
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
         return "complete report"
@@ -253,7 +253,7 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
 
 
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
-    """ズレ調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
+    """不整合調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
     with pytest.raises(ValueError):
         _validate_discrepancy_payload(
             {
@@ -268,7 +268,7 @@ def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
 
 
 def test_apply_discrepancy_schema_rejects_near_miss_keys() -> None:
-    """似た名前のキーでもズレ調査 schema と一致しなければ拒否する。"""
+    """似た名前のキーでも不整合調査 schema と一致しなければ拒否する。"""
     with pytest.raises(ValueError):
         _validate_discrepancy_payload(
             {

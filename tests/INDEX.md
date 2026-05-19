@@ -110,7 +110,7 @@
 
 - cmoc の主要サブコマンド本体に対する決定論的な制御ロジックを検証する pytest ファイル。
 - `cmoc init`、`cmoc branch`、`cmoc eval-oracles --full`、`cmoc apply`、`cmoc merge <branch>` の成功系と一部失敗系を、実 Git リポジトリを使って確認する。
-- `cmoc apply` のズレ調査 JSON schema 検証、非 cmoc ブランチでの拒否、Codex CLI 呼び出しの monkeypatch による疑似応答など、外部依存を抑えたサブコマンド単体テストを含む。
+- `cmoc apply` の不整合調査 JSON schema 検証、非 cmoc ブランチでの拒否、Codex CLI 呼び出しの monkeypatch による疑似応答など、外部依存を抑えたサブコマンド単体テストを含む。
 - テスト用 Git リポジトリ作成ヘルパー `_init_repo` と、Git コマンド実行ヘルパー `_git` を同ファイル内に持つ。
 
 ## Read this when
@@ -119,7 +119,7 @@
 - `cmoc init` が `.gitignore` に `.cmoc` を追加し、`Initialize cmoc` commit を作る挙動のテストを確認したいとき。
 - `cmoc branch` が `cmoc_` で始まるブランチを作成し、`.cmoc/branch/<branch>.txt` に base commit を記録する期待値を確認したいとき。
 - `cmoc eval-oracles --full` が oracle 評価レポートを `.cmoc/reports/eval-oracles` に保存するテストを確認したいとき。
-- `cmoc apply` のズレなし完了、レポート保存、Structured Output schema 指定、非 cmoc ブランチ拒否、ズレ調査 payload 検証を調べたいとき。
+- `cmoc apply` の不整合なし完了、レポート保存、Structured Output schema 指定、非 cmoc ブランチ拒否、不整合調査 payload 検証を調べたいとき。
 - `cmoc merge <branch>` が明示された cmoc ブランチを clean tree で merge し、安全ならブランチを削除するテストを確認したいとき。
 - サブコマンドテストで一時 Git リポジトリを作る方法や、`monkeypatch` で `maintain_indexes` と `run_codex_exec` を差し替える既存パターンを探すとき。
 
