@@ -151,11 +151,11 @@
 ## Summary
 
 - `oracles/app_specs/sub_commands/init.md`、`branch.md`、`apply.md`、`eval_oracles.md`、`merge.md` に分かれた cmoc サブコマンド個別仕様へのルーティング文書です。
-- `cmoc init` は `<repo-root>` を cmoc 作業可能な状態に初期化し、`<repo-root>/.cmoc` を git 追跡対象外にする仕様を扱います。
-- `cmoc branch` は cmoc 作業用ブランチ `<cmoc-branch>` の作成、命名規則、作成元コミット記録、`.cmoc` の git 追跡対象外保証を扱います。
-- `cmoc apply` は `<repo-root>/oracles` の正本仕様断片と実装の明確な不整合を Codex CLI で調査・修正する反復ループ、レポート作成、収束・未収束・エラーの扱いを扱います。
+- `cmoc init` は `<repo-root>` を cmoc 作業可能な状態に初期化し、`<repo-root>/.cmoc` を git 追跡対象外にする具体的な操作と完了判定を扱います。
+- `cmoc branch` は cmoc 作業用ブランチ `<cmoc-branch>` の作成、`cmoc_<time-stamp>` 形式の命名規則、作成元コミットの記録、`.cmoc` の git 追跡対象外保証を扱います。
+- `cmoc apply` は `<repo-root>/oracles` の正本仕様断片と実装の明確な不整合を Codex CLI で調査・修正する反復ループ、`--repeat` / `-r`、収束・未収束・エラーの区分、作業レポート作成を扱います。
 - `cmoc eval-oracles` は現在の `<repo-root>/oracles` スナップショットを部分評価または全体評価し、致命的な問題の有無を人間向けレポートとして保存・提示する仕様を扱います。
-- `cmoc merge` は `<cmoc-branch>` を現在の `HEAD` にマージし、必要に応じて Codex CLI によるコンフリクト解決支援、merge commit 作成、ブランチ削除条件を扱います。
+- `cmoc merge` は `<cmoc-branch>` を現在の `HEAD` にマージし、省略可能なマージ元ブランチ指定、自動解決、Codex CLI によるコンフリクト解決支援、merge commit 作成、ブランチ削除条件を扱います。
 
 ## Read this when
 
@@ -165,6 +165,7 @@
 - `<cmoc-branch>` の作成、作成元コミット記録、作業用ブランチ上での apply、最終的な merge までのサブコマンド単位の流れを追いたいとき。
 - Codex CLI を使った不整合調査・修正、oracle 評価、マージコンフリクト解決支援など、サブコマンド固有の Codex 連携仕様を確認したいとき。
 - `apply` の収束・未収束レポート、`eval-oracles` の評価レポート、`merge` の失敗時通知など、個別コマンドのレポート・出力・結果区分を実装またはテストしたいとき。
+- `cmoc apply` の不整合調査用 Structured Output schema や、`cmoc eval-oracles` の部分評価・全体評価の選択条件など、特定サブコマンドに閉じた詳細仕様を探したいとき。
 
 ## Do not read this when
 
@@ -177,7 +178,7 @@
 
 ## hash
 
-- cb49de3e55c1b1a133ce640c062af491abe7fe19f17731272ae743c3cddf0c6b
+- 5e90c50ead69ee471083bb8d8d1328a857a129b41e90b46b2f821f5f91f9d8ce
 
 # `usage.md`
 
