@@ -2,28 +2,28 @@
 
 ## Summary
 
-- `bin/cmoc` は、cmoc コマンドを起動するための実行可能 Python ランチャースクリプトです。
-- リポジトリルートを自身の配置場所から解決し、`.venv/bin/python` が存在する場合はその Python で `src/main.py` を再実行します。
-- 仮想環境 Python で既に実行中、または `.venv/bin/python` が存在しない場合は、`src` を import path に追加して `main.main` を呼び出します。
-- このファイルは CLI 本体の実装ではなく、ユーザーが実行する `cmoc` コマンドから Python 実装へ制御を渡す薄い入口です。
+- `bin/cmoc` は cmoc コマンドのシェル版エントリーポイントです。
+- スクリプト自身の位置から `<cmoc-root>` を解決し、`<cmoc-root>/.venv/bin/python` を実行用 Python として固定します。
+- 仮想環境の Python が実行可能でない場合は、作成手順と `pip install -e .` の案内を stderr に出力して終了ステータス 1 で失敗します。
+- 仮想環境が存在する場合は、受け取った引数をそのまま渡して `<cmoc-root>/src/main.py` を `exec` します。
+- このファイル自体にはサブコマンド実装や業務ロジックはなく、実処理は `src/main.py` 以下に委譲されます。
 
 ## Read this when
 
-- `cmoc` 実行ファイルがどの Python インタープリタで `src/main.py` を起動するか確認したいとき。
-- `.venv/bin/python` が存在する場合の再実行ロジックや `os.execv` の引数構成を調べたいとき。
-- `bin/cmoc` から `src/main.py` や `main.main` へ処理が渡る流れを追いたいとき。
-- cmoc の CLI 起動時に `src` がどのように import path へ追加されるか確認したいとき。
-- 実行可能ファイルとしての shebang、ランチャーの `main()`、`if __name__ == "__main__"` の構造を確認したいとき。
+- cmoc コマンド起動時に、どの Python とどの main ファイルが実行されるか確認したいとき。
+- `.venv/bin/python` が見つからない、または実行できない場合のエラーメッセージや終了挙動を調べたいとき。
+- cmoc のインストール直後や開発環境で、仮想環境作成手順の案内がどこから出ているか確認したいとき。
+- CLI 引数が `src/main.py` にどのように渡されるかを確認したいとき。
+- cmoc のシェルラッパーとしての入口だけを確認し、Python 側の実装に入る前の挙動を把握したいとき。
 
 ## Do not read this when
 
-- cmoc のサブコマンドの具体的な挙動、オプション、業務ロジックを調べたいとき。
-- Typer アプリケーション本体や CLI コマンド定義を確認したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の仕様や実装詳細を調べたいとき。
-- Codex CLI 呼び出し、Structured Output、ログ保存、リトライ、サンドボックス指定などの実行時仕様を調べたいとき。
-- cmoc 自体の開発規約、テスト規約、コーディング規約、依存管理方針を確認したいとき。
-- `<repo-root>` 側に生成される `INDEX.md` や oracle 評価結果など、cmoc が扱う対象リポジトリ内の成果物について調べたいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` などのサブコマンド仕様や実装詳細を調べたいとき。
+- Codex CLI 連携、Structured Output、ログ保存、リトライ、INDEX.md 生成などのアプリケーション仕様を確認したいとき。
+- Python 側のルーティング、引数解析、共通エラーハンドリング、サブコマンド実装を読みたいとき。
+- 自動テスト、Fake Codex CLI、テスト規約など、cmoc 開発者向けのテスト情報を探しているとき。
+- README、AGENTS.md、oracles、memo などのリポジトリ運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- 45e1e7701b636a1983b642c490a05707855e028005f80723dfefc26685946e8a
+- a4a6f66b4b3c43b63b77dcaa43620430179b9707ded9a408ef455a4956cb7795

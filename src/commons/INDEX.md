@@ -144,40 +144,48 @@
 
 ## Summary
 
-- git リポジトリルートの探索、cwd のリポジトリルート固定、現在ブランチ名・HEAD commit hash の取得など、cmoc の git 操作の土台になる共通処理を提供するファイル。
-- cmoc 用ブランチ名の形式判定、cmoc branch の作成元 commit 記録ファイルのパス生成と読み取りを扱う。
-- `.cmoc` を git 追跡対象外に保つため、root `.gitignore` への `/.cmoc/` 追加、tracked `.cmoc` の index 解除、保証状態の検証を行う。
-- 未コミット差分の有無や変更パス一覧を調べ、未コミット差分禁止、oracles 配下だけの差分許可、指定 pathspec の clean 確認などの検査を提供する。
-- `cmoc init` が発生させた `.gitignore` と `.cmoc` 関連の初期化差分だけを stage・commit する処理と、任意 pathspec に差分がある場合だけ commit する処理を提供する。
-- 仕様に従って `oracles` 配下の評価対象ファイルを列挙し、変更済み oracle ファイルや削除済み oracle ファイルの有無を git 履歴・staging・working tree から判定する。
-- root `.gitignore` の pattern だけを一時 git repository 上の `git check-ignore --no-index` で評価し、oracle 列挙や変更対象判定から ignore 対象を除外する補助処理を持つ。
-- すべての git コマンド実行を `run_git()` に集約し、repo root を cwd に固定して stdout/stderr を呼び出し側で扱えるようにしている。
+- git リポジトリと cmoc 作業ディレクトリに関する共通処理をまとめたモジュール。
+- リポジトリルート探索と cwd 移動、現在ブランチ名・HEAD commit hash の取得、cmoc ブランチ名形式の判定を提供する。
+- `.cmoc` を git 追跡対象外にするため、root `.gitignore` への `/.cmoc/` 追加、既存 tracked `.cmoc` の index 解除、保証状態の検証を行う。
+- 未コミット差分の有無や対象パスの clean 検査、oracles 配下だけに差分が限定されているかの検査など、サブコマンド実行前の git 状態検証を扱う。
+- `cmoc init` が発生させた `.gitignore` と `.cmoc` 関連の差分だけを安全に stage・commit する補助処理を含む。
+- 指定 pathspec に差分がある場合だけ add・commit する汎用 commit 補助処理を提供する。
+- oracle ファイルの全列挙、base commit からの変更 oracle ファイル列挙、oracle ファイル削除有無の判定を行い、`INDEX.md` と root `.gitignore` 対象は除外する。
+- cmoc ブランチの作成元 commit 記録ファイルの読み取りと、その `.cmoc/branch/<branch>.txt` パス生成を扱う。
+- git status porcelain から変更パスを抽出し、rename 行では新しい path だけを返す。
+- root `.gitignore` だけを Git の ignore semantics で評価するため、一時 git repository を使った ignore 判定を実装している。
+- すべての git 実行は `run_git()` に集約され、repo root を cwd として stdout/stderr を捕捉する。
 
 ## Read this when
 
-- cmoc のサブコマンド実装で、現在の git リポジトリルートを見つけて cwd を固定する処理を確認したいとき。
-- git の現在ブランチ、HEAD commit、cmoc ブランチ名形式、cmoc branch の base commit 記録ファイルを扱う処理を調べたいとき。
-- `.cmoc` ディレクトリを必ず git 追跡対象外にする実装、`.gitignore` への `/.cmoc/` 追加、tracked `.cmoc` の解除、保証検証を確認したいとき。
-- 未コミット差分の検出、clean working tree の強制、oracles 配下だけの未コミット差分許可、指定 pathspec の差分検査を実装または修正するとき。
-- `cmoc init` の初期化 commit が既存ユーザー差分を混ぜないようにする stage・commit 処理を確認したいとき。
-- 指定 pathspec に差分がある場合だけ git add と commit を行う共通処理を利用または変更したいとき。
-- oracle ファイルの全件列挙、base commit 以降に変更された oracle ファイルの抽出、oracle 削除時の評価モード切替条件を調べたいとき。
-- root `.gitignore` による oracle ファイル除外の判定方法や、一時 git repository を使った wildmatch semantics の評価を確認したいとき。
-- git コマンド実行時の cwd、check、text、stdout/stderr capture の共通仕様を確認したいとき。
+- cmoc のサブコマンド実装で `<repo-root>` を探索し、処理中の cwd を git リポジトリルートへ固定したいとき。
+- 現在の git ブランチ名、HEAD commit hash、cmoc ブランチ名形式の判定が必要なとき。
+- `.cmoc` ディレクトリを root `.gitignore` と git index の両面から追跡対象外に保証する処理を確認・修正したいとき。
+- 実行前に未コミット差分がないこと、または未コミット差分が oracles 配下だけであることを検査する処理を探しているとき。
+- `cmoc init` の初期化差分を、既存ユーザー差分と混ぜずに commit する実装を確認したいとき。
+- 指定パスに差分がある場合だけ commit を作る共通処理を使いたいとき。
+- `oracles` 配下の評価対象ファイルを列挙し、`INDEX.md` や root `.gitignore` 対象を除外するロジックを調べたいとき。
+- 部分 oracle 評価のため、base commit 以降に追加・変更・rename・copy された oracle ファイルや未コミット oracle ファイルを集める処理を確認したいとき。
+- oracle ファイル削除がある場合に full 評価へ切り替えるための判定を調べたいとき。
+- cmoc ブランチ作成時に保存した base commit の読み取り場所や `.cmoc/branch` 配下のファイル名規則を確認したいとき。
+- root `.gitignore` の pattern だけを使って oracle 列挙対象を除外する実装を確認したいとき。
+- git コマンド実行の共通ラッパー、エラー時の `CmocError` 化、stdout/stderr の扱いを追いたいとき。
 
 ## Do not read this when
 
-- CLI 引数定義、サブコマンドの登録、ユーザー向け stdout 表示だけを調べたいとき。
-- Codex CLI の呼び出し、プロンプト生成、Structured Output、ログ保存、リトライ処理など、Codex 連携の詳細を調べたいとき。
-- oracle ファイルの内容評価ロジックや評価結果のレポート生成だけを確認したいとき。
-- `INDEX.md` の本文フォーマット、目次生成プロンプト、内容ハッシュ管理など、ルーティング文書生成の仕様だけを調べたいとき。
-- cmoc の例外クラスやエラーメッセージ表示の共通整形だけを確認したいとき。
-- ファイル読み書き、ディレクトリ作成、時刻生成など、git と直接関係しない汎用ユーティリティだけを探しているとき。
-- テストコードの書き方、Fake Codex CLI、pytest fixture など、開発・テスト規約だけを確認したいとき。
+- cmoc の CLI 引数定義、サブコマンド登録、エントリーポイントだけを調べたいとき。
+- Codex CLI の呼び出し、プロンプト生成、Structured Output、ログ保存、リトライ処理を調べたいとき。
+- oracle の本文仕様や `oracles/INDEX.md` などの正本仕様ファイルそのものを読みたいとき。
+- `INDEX.md` 目次生成のプロンプト内容や出力 JSON schema の詳細だけを調べたいとき。
+- cmoc のエラー表示フォーマットや `CmocError` クラス定義そのものを確認したいとき。
+- ファイルコピー、テンプレート生成、時刻フォーマットなど、git リポジトリ状態と直接関係しない共通ユーティリティを探しているとき。
+- テストコードの書き方、Fake Codex CLI、pytest fixture など、テスト実装規約だけを確認したいとき。
+- README、AGENTS、memo、oracles の編集可否など、リポジトリ運用上のアクセス制約だけを確認したいとき。
+- cmoc を用いて開発する `<repo-root>` 側の業務コードや仕様を調べており、cmoc 自体の git 共通処理が不要なとき。
 
 ## hash
 
-- 777b4a9f8976548263866ec440def24b3dece28fd918a08f437cb66b6bdded71
+- 2b9c0428634571cfc028293de22a18f2fba3dec9d1012166f1e1cddc0e4ac7f3
 
 # `timestamps.py`
 
