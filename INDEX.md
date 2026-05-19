@@ -139,32 +139,41 @@
 
 ## Summary
 
-- `oracles/INDEX.md` は、cmoc の正本仕様断片群の最上位ルーティング文書です。
-- アプリケーション実行時仕様を扱う `app_specs` と、cmoc 自体の開発ルールを扱う `dev_rules` への入口を提供します。
-- `app_specs` は Codex CLI 連携、コンソール出力、共通エラーハンドリング、対象リポジトリ探索、`.cmoc` 管理、タイムスタンプ、`INDEX.md` 自動メンテナンス、各サブコマンド仕様、利用者向けワークフローを調べるための仕様ディレクトリです。
-- `dev_rules` は Python 実装規約、CLI 設計規約、共通処理配置、開発環境、pytest や Fake Codex CLI を含むテスト規約など、cmoc 開発者向けルールを調べるための仕様ディレクトリです。
-- cmoc の仕様調査では、このファイルを起点に、目的に応じて `app_specs/INDEX.md` または `dev_rules/INDEX.md` へ進みます。
+- `oracles/app_specs/INDEX.md` は、cmoc のアプリケーション仕様断片を読むためのルーティング文書です。Codex CLI 呼び出し、コンソール出力、共通エラーハンドリング、`INDEX.md` 自動メンテナンス、対象リポジトリ探索、`.cmoc` 管理、タイムスタンプなど、サブコマンド横断の実行時仕様への導線をまとめています。
+- `oracles/app_specs/INDEX.md` は、`cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の個別仕様を集約する `sub_commands` への入口を提供します。cmoc 利用者向けの PATH 設定、初期化、作業用ブランチ作成、oracle 評価、実装反映、マージまでの全体ワークフロー仕様への導線も含みます。
+- `oracles/dev_rules/INDEX.md` は、cmoc 自体の開発ルールを扱う仕様ディレクトリへのルーティング文書です。Python 実装のコーディング規約、CLI 構成や共通処理配置などの設計規約、開発環境、テスト実装規約への導線を提供します。
+- `oracles/dev_rules/INDEX.md` は、`src` 配下の実装、`tests` 配下の自動テスト、`.venv` や依存追加など、cmoc 開発作業時の基本判断材料をまとめます。
 
 ## Read this when
 
-- cmoc の正本仕様断片を調べ始めるとき。
-- アプリケーション仕様と開発者向けルールのどちらを読むべきか判断したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` などのユーザー向け CLI 挙動やワークフロー仕様への入口を探しているとき。
-- Codex CLI 呼び出し、Structured Output、ログ保存、リトライ、stdout 表示、共通エラー処理、終了ステータスなど、cmoc 実行時仕様への入口を探しているとき。
-- `<repo-root>` 探索、oracle ファイル列挙、`.cmoc` 管理、タイムスタンプ、対象リポジトリ側 `INDEX.md` 自動メンテナンスなど、サブコマンド横断仕様への入口を探しているとき。
-- cmoc 自体の `src` 実装、CLI 構成、共通処理、開発環境、テスト規約を確認するために、開発者向け仕様の場所を知りたいとき。
+- cmoc のアプリケーション実行時仕様について、どの個別仕様ファイルやサブディレクトリを読むべきか判断したいとき。
+- Codex CLI 連携、プロンプト構成、サンドボックス指定、Structured Output、ログ保存、リトライ、自然言語の使用方針を調べたいとき。
+- サブコマンド実行中の stdout 進捗表示、`codex exec` 呼び出し表示、完了時の時間レポート、共通エラー報告、終了ステータスを実装または確認するとき。
+- `<repo-root>` の発見、oracle ファイル列挙、`.cmoc` の git 追跡対象外保証、タイムスタンプ生成など、サブコマンド横断の共通挙動を確認したいとき。
+- `<repo-root>` 配下へ自動配置される `INDEX.md` の対象、除外規則、フォーマット、Structured Output による目次生成、メンテナンス順序や実行タイミングを調べたいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の個別仕様への入口を探しているとき。
+- cmoc のエンドユーザーが PATH 設定、初期化、作業用ブランチ作成、oracle 評価、実装反映、マージをどの順番で行うか把握したいとき。
+- cmoc 自体の `src` 配下を実装・修正するとき。
+- cmoc の CLI エントリーポイント、サブコマンド、共通処理の配置や設計方針を確認したいとき。
+- cmoc の自動テストを追加・修正し、pytest、Fake Codex CLI、テスト対象範囲の規約を確認したいとき。
+- cmoc 開発用の Python バージョン、`.venv`、pip、依存追加、文字コードなどの環境ルールを確認したいとき。
+- アプリケーション仕様ではなく、実装者向けの開発スタイル・設計・テスト・環境ルールを調べたいとき。
 
 ## Do not read this when
 
-- 読むべき個別仕様ファイルまたは下位 `INDEX.md` が既に明確で、最上位の振り分け情報が不要なとき。
-- cmoc の実装コードそのものを直接読みたいだけで、仕様断片のルーティングが不要なとき。
-- 対象が cmoc ではなく、cmoc を用いて開発する別リポジトリの固有仕様だけであるとき。
-- Codex CLI、git、pytest、Python などの一般的な使い方だけを調べており、cmoc 固有仕様が不要なとき。
-- README、AGENTS、memo などのリポジトリ運用上のファイルアクセス制約だけを確認したいとき。
+- cmoc 自体の Python コーディング規約、設計規約、テスト規約、開発環境など、開発者向けルールだけを調べたいときは、`oracles/dev_rules/INDEX.md` を直接読む。
+- `<cmoc-root>/README.md`、`AGENTS.md`、`oracles`、`memo` などの編集可否やリポジトリ運用ルールだけを確認したいとき。
+- cmoc の実装コードやテストコードの具体的な配置、ファイル構造、実装パターンだけを調べたいとき。
+- 対象がアプリケーション実行時仕様ではなく、内部の開発方針やローカル開発環境設定に限られるときは、`oracles/dev_rules/INDEX.md` を直接読む。
+- Codex CLI や git の一般的な使い方だけを調べており、cmoc 固有の仕様が不要なとき。
+- 読むべき個別仕様ファイルが既に明確で、`oracles` 全体のルーティング情報が不要なとき。
+- cmoc のユーザー向け CLI 仕様、サブコマンドの詳細挙動、ワークフロー、出力形式などのアプリケーション仕様だけを調べたいときは、`oracles/app_specs/INDEX.md` を直接読む。
+- cmoc を用いて別リポジトリを開発する際の `<repo-root>` 側の仕様やルールを調べたいとき。
+- Codex CLI や LLM そのものの挙動、出力品質、外部ツール仕様を調べたいとき。
 
 ## hash
 
-- adfd35a0932d9643e66db9f5283c9457680c866a5511f8c16ff9e0e3fbe0daf7
+- 4cbf2acd2930ce9c29a6b66f6c0d17e7d672bf43629b4c3a69d578e5e5a42230
 
 # `pyproject.toml`
 
