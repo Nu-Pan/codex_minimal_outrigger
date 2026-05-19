@@ -24,6 +24,7 @@ def cmoc_merge_impl(
     cmoc_branch: str | None = None,
 ) -> None:
     """cmoc ブランチを現在の HEAD へ merge する。"""
+    # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
     if repo_root is None:
         run_command(
             lambda resolved_repo_root: cmoc_merge_impl(
@@ -190,7 +191,7 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
             "あなたは merge conflict の解消担当です。",
             f"`{repo_root}` の以下のファイルについて conflict marker を",
             f"解消してください: {unmerged}",
-            "完了条件は、conflict marker を削除し、未解決ファイルの有無を報告することです。",
+            "完了条件は、conflict marker を削除し、解決内容と未解決ファイルの有無を報告することです。",
             "`git add` と `git commit` は実行禁止です。",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",

@@ -16,6 +16,7 @@ from commons.timestamps import make_timestamp
 
 def cmoc_branch_impl(repo_root: Path | None = None) -> None:
     """cmoc 作業用ブランチを作成し、作成元 commit を記録する。"""
+    # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
     if repo_root is None:
         run_command(cmoc_branch_impl)
         return

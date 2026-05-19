@@ -4,15 +4,6 @@ from math import floor
 from time import perf_counter
 
 
-def format_duration(duration_seconds: float) -> str:
-    """oracle 指定の経過時間表示へ変換する。"""
-    total_tenths = max(0, floor(duration_seconds * 10))
-    total_seconds, msec = divmod(total_tenths, 10)
-    total_minutes, sec = divmod(total_seconds, 60)
-    hour, minute = divmod(total_minutes, 60)
-    return f"{hour:2d}h {minute:2d}m {sec:2d}.{msec}s"
-
-
 class StepTimer:
     """サブコマンド全体と各ステップの経過時間を記録する。"""
 
@@ -56,3 +47,13 @@ class StepTimer:
         )
         self._current_name = None
         self._current_started = None
+
+
+def format_duration(duration_seconds: float) -> str:
+    """oracle 指定の経過時間表示へ変換する。"""
+    # 秒数を 0.1 秒単位に切り捨て、負値は 0 として扱う。
+    total_tenths = max(0, floor(duration_seconds * 10))
+    total_seconds, msec = divmod(total_tenths, 10)
+    total_minutes, sec = divmod(total_seconds, 60)
+    hour, minute = divmod(total_minutes, 60)
+    return f"{hour:2d}h {minute:2d}m {sec:2d}.{msec}s"

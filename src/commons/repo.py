@@ -235,21 +235,30 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
 
 def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
     """部分評価対象となる変更済み oracle ファイルを列挙する。"""
-    # base..HEAD の追加・変更・rename などを収集する。
+    # base..HEAD の履歴上で起きた追加・変更・rename などを収集する。
     collected: set[Path] = set()
     committed = run_git(
         repo_root,
         [
-            "diff",
-            "--name-only",
+            "log",
+            "--name-status",
+            "-M",
             "--diff-filter=ACMRT",
+            "--format=",
             f"{base_commit}..HEAD",
             "--",
             "oracles",
         ],
     )
     for line in committed.stdout.splitlines():
-        collected.add(repo_root / line)
+        parts = line.split("\t")
+        if not parts:
+            continue
+        status = parts[0]
+        if status.startswith(("R", "C")) and len(parts) >= 3:
+            collected.add(repo_root / parts[2])
+        elif len(parts) >= 2:
+            collected.add(repo_root / parts[1])
 
     # 未コミットの working tree/staging 変更も部分評価対象に加える。
     uncommitted = run_git(
@@ -293,6 +302,7 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
         for path in collected
         if path.exists()
         and path.is_file()
+        and path.relative_to(repo_root).as_posix().startswith("oracles/")
         and path.name != "INDEX.md"
     ]
     relatives = [path.relative_to(repo_root).as_posix() for path in existing]
@@ -306,9 +316,15 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
 
 def has_deleted_oracle_files(repo_root: Path, base_commit: str) -> bool:
     """評価モード切替用に oracle 削除有無を判定する。"""
-    # committed、working tree、staging area の削除をすべて切替条件にする。
+    # committed 履歴、working tree、staging area の削除をすべて切替条件にする。
     commands = [
-        ["diff", "--name-only", "--diff-filter=D", f"{base_commit}..HEAD"],
+        [
+            "log",
+            "--name-only",
+            "--diff-filter=D",
+            "--format=",
+            f"{base_commit}..HEAD",
+        ],
         ["diff", "--name-only", "--diff-filter=D", "HEAD"],
         ["diff", "--cached", "--name-only", "--diff-filter=D"],
     ]
@@ -452,6 +468,7 @@ def _tracked_cmoc_paths(repo_root: Path) -> list[str]:
 
 def _is_root_gitignored(repo_root: Path, relative_path: str) -> bool:
     """root `.gitignore` の pattern だけで ignore 対象か判定する。"""
+    # 単一 path の判定も集合判定の実装に揃える。
     return relative_path in _root_gitignored_paths(repo_root, [relative_path])
 
 

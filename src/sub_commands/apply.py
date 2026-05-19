@@ -107,6 +107,7 @@ def cmoc_apply_impl(
     repeat: int = 5,
 ) -> int | None:
     """oracle と実装の不整合を Codex CLI へ追従させる。"""
+    # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
     if repo_root is None:
         run_command(
             lambda resolved_repo_root: cmoc_apply_impl(
@@ -290,11 +291,18 @@ def _write_apply_report(
 
     # Codex にはレポート本文だけを生成させ、ファイル保存は cmoc が行う。
     result_label = "収束" if completed else "未収束"
+    incomplete_instruction = (
+        "「未収束」の場合は、不整合件数の推移に「まだ不整合が残っている可能性」を必ず追記してください。"
+    )
     prompt = "\n".join(
         [
             "あなたはソフトウェア作業レポートの作成担当です。",
             f"`{repo_root}` のブランチ `{branch_name}` について簡潔な作業レポートを書いてください。",
             "完了条件は、作業結果、不整合件数の推移、ブランチ上の全変更内容を説明することです。",
+            "不整合件数の推移には、ループごとに何件の不整合を見つけたかを書いてください。",
+            incomplete_instruction,
+            "`<cmoc-branch>` 上の全変更内容は、この `cmoc apply` 以前の作業も含めてください。",
+            "ブランチ上の変更内容は、変更内容の意味論に基づいてカテゴリ分けして要約してください。",
             f"作業結果の区分は一言で `{result_label}` と書いてください。",
             f"Result category: {result_label}",
             f"Discrepancy counts: {discrepancy_counts}",
@@ -310,6 +318,13 @@ def _write_apply_report(
         read_only=True,
         expect_json=False,
     )
+    if not completed and "まだ不整合が残っている可能性" not in report:
+        # 未収束時の必須文言は cmoc 側でも補い、レポート内容を保証する。
+        report = (
+            report.rstrip()
+            + "\n\n"
+            + "未収束のため、まだ不整合が残っている可能性があります。\n"
+        )
     report_path.write_text(report, encoding="utf-8")
     return report_path
 

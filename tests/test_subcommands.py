@@ -126,14 +126,14 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "no fatal problems" in reports[0].read_text(encoding="utf-8")
 
 
-def test_eval_oracles_body_uses_pep8_module_name() -> None:
-    """`eval-oracles` の本体は import 可能な underscore module に置く。"""
+def test_eval_oracles_body_uses_subcommand_file_name() -> None:
+    """`eval-oracles` の本体はサブコマンド名と同じファイルに置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
     body = repo_root / "src" / "sub_commands" / "eval-oracles.py"
     module = repo_root / "src" / "sub_commands" / "eval_oracles.py"
-    assert not body.exists()
-    assert "def cmoc_eval_oracles_impl" in module.read_text(encoding="utf-8")
+    assert "def cmoc_eval_oracles_impl" in body.read_text(encoding="utf-8")
+    assert "exec(" in module.read_text(encoding="utf-8")
 
 
 def test_eval_oracles_prompt_forbids_implementation_references() -> None:
@@ -183,6 +183,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert reports[0].read_text(encoding="utf-8") == "収束\ncomplete report"
     assert codex_kwargs[0]["output_schema"] == _DISCREPANCY_OUTPUT_SCHEMA
     assert "Result category: 収束" in codex_prompts[-1]
+    assert "変更内容の意味論に基づいてカテゴリ分け" in codex_prompts[-1]
 
 
 def test_apply_uses_repeat_option_for_loop_limit(
@@ -228,7 +229,11 @@ def test_apply_uses_repeat_option_for_loop_limit(
         "implementation loop (2/2) discrepancies: 1"
         in capsys.readouterr().out
     )
+    reports = list((repo / ".cmoc" / "reports" / "apply").glob("*.md"))
+    report_text = reports[0].read_text(encoding="utf-8")
     assert "Result category: 未収束" in codex_prompts[-1]
+    assert "まだ不整合が残っている可能性" in codex_prompts[-1]
+    assert "まだ不整合が残っている可能性" in report_text
 
 
 def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
@@ -438,6 +443,7 @@ def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:
 
     assert "`/repo/oracles` は編集禁止です。" in prompt
     assert "既に conflict がある場合を除いて" not in prompt
+    assert "解決内容と未解決ファイルの有無を報告" in prompt
 
 
 def test_files_with_conflict_markers_uses_fixed_conflict_targets(

@@ -1,5 +1,37 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""cmoc command launcher."""
 
-CMOC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec "$CMOC_ROOT/.venv/bin/python" "$CMOC_ROOT/src/main.py" "$@"
+import os
+import sys
+from pathlib import Path
+
+
+def main() -> None:
+    """cmoc root を解決し、Python 実装の CLI を起動する。"""
+    # `.venv` の Python があれば同じ Python 実装で再実行する。
+    cmoc_root = Path(__file__).resolve().parents[1]
+    venv_python = cmoc_root / ".venv" / "bin" / "python"
+    if (
+        venv_python.exists()
+        and Path(sys.executable).resolve() != venv_python.resolve()
+    ):
+        argv = [
+            str(venv_python),
+            str(cmoc_root / "src" / "main.py"),
+            *sys.argv[1:],
+        ]
+        os.execv(
+            str(venv_python),
+            argv,
+        )
+
+    # src を import path に追加して Typer エントリーポイントを呼び出す。
+    sys.path.insert(0, str(cmoc_root / "src"))
+    from main import main as cmoc_main
+
+    cmoc_main()
+
+
+if __name__ == "__main__":
+    # 実行ファイルから呼ばれたときだけ launcher を動かす。
+    main()
