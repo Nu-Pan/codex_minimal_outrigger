@@ -68,33 +68,38 @@
 
 ## Summary
 
-- `src/sub_commands` は、cmoc の各 CLI サブコマンド本体を実装するパッケージです。
-- `init.py`、`branch.py`、`apply.py`、`eval_oracles.py`、`merge.py` に、各サブコマンドの実行フロー、進捗表示、共通 helper 呼び出し、Codex CLI 呼び出し、レポート保存や git 操作の制御が分かれて配置されています。
-- `__init__.py` はサブコマンド実装パッケージであることを示すだけの初期化ファイルで、実行ロジックは含みません。
-- `cmoc init` は `.cmoc` を git 追跡対象外にする初期化処理と、その変更の commit を扱います。
-- `cmoc branch` は cmoc 作業用ブランチの作成、base commit の記録、`.cmoc` ignore 保証を扱います。
-- `cmoc apply` は oracle と実装の不整合調査、Codex CLI による実装修正依頼、禁止パス検査、変更 commit、apply レポート生成を扱う大きな実装です。
-- `cmoc eval-oracles` は oracle 断片の部分評価または全体評価を Codex CLI に依頼し、評価結果を Markdown レポートとして保存します。
-- `cmoc merge` は cmoc ブランチの merge、未マージ cmoc ブランチの自動解決、conflict 発生時の Codex CLI 解消依頼、merge commit、source branch 削除を扱います。
+- `src/sub_commands` は、cmoc の各サブコマンド本体を実装する Python パッケージです。
+- `init.py`、`branch.py`、`apply.py`、`eval_oracles.py`、`merge.py` に、`cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実行フローが分かれて配置されています。
+- 各モジュールは、共通 runner による `<repo-root>` 解決、`StepTimer` による進捗・時間計測、`commons.repo` や `commons.codex` などの共通処理呼び出しを組み合わせて、サブコマンド固有の手順を実装します。
+- `init.py` は `.cmoc` を git 追跡対象外にする初期化処理と、その変更のコミット処理を扱います。
+- `branch.py` は cmoc 作業ブランチの作成、base commit の記録、`.cmoc` ignore 保証を扱います。
+- `apply.py` は oracle と実装の不整合調査、Codex CLI への実装修正依頼、禁止領域変更検査、実装差分 commit、apply レポート保存を扱います。
+- `eval_oracles.py` は oracle 評価対象の選択、Codex CLI による仕様断片評価、評価レポート保存を扱います。
+- `merge.py` は cmoc ブランチの解決、`git merge --no-ff`、conflict 発生時の Codex CLI 解消依頼、marker 検査、merge commit、作業ブランチ削除を扱います。
+- `__init__.py` はサブコマンド実装パッケージであることを示すだけの軽量な初期化ファイルです。
 
 ## Read this when
 
-- cmoc の個別サブコマンド本体がどのファイルに実装されているか確認したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実行順序、進捗表示、終了時処理を調べたいとき。
-- 各サブコマンドが `commons` 配下の repo helper、command runner、Codex CLI wrapper、index maintenance、timer などをどこで呼び出すか確認したいとき。
-- サブコマンドごとの git 操作、`.cmoc` ignore 保証、branch/base commit 管理、oracle 差分処理、レポート生成の接続点を探しているとき。
-- Codex CLI に渡す apply 不整合調査、実装修正、commit message 生成、oracle 評価、merge conflict 解消の prompt を確認したいとき。
-- サブコマンドの実装を修正する前に、対象ファイルを `init.py`、`branch.py`、`apply.py`、`eval_oracles.py`、`merge.py` のどれに絞るべきか判断したいとき。
+- cmoc の各サブコマンド本体がどのファイルに実装されているか把握したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の処理順序、進捗表示、終了条件を実装コードから確認したいとき。
+- サブコマンド実装が `commons` 配下の共通 repo helper、Codex CLI 呼び出し、index メンテナンス、時間計測とどう接続しているか調べたいとき。
+- `.cmoc` ignore 保証、cmoc ブランチ作成、base commit 記録、oracle 差分 commit、merge 元ブランチ解決など、サブコマンド単位の orchestration を確認したいとき。
+- Codex CLI に渡す apply 不整合調査 prompt、実装修正 prompt、eval-oracles 評価 prompt、merge conflict 解消 prompt の組み立て箇所を探しているとき。
+- apply や eval-oracles が `INDEX.md` メンテナンスをどのタイミングで実行するか確認したいとき。
+- apply、eval-oracles、merge のレポート保存先や保存形式、検証処理との接続点を調べたいとき。
+- サブコマンドのテストを追加・修正するために、対象となる実装関数や外部依存呼び出しを確認したいとき。
 
 ## Do not read this when
 
-- CLI 引数解析、サブコマンド登録、エントリーポイント全体の構造だけを調べたいとき。
-- repo root 探索、git コマンド実行、Codex CLI 実行、Structured Output parsing、INDEX.md メンテナンス、timestamp、StepTimer などの共通 helper 自体の詳細実装だけを調べたいとき。
-- cmoc の正本仕様断片やユーザー向け仕様を読みたいだけで、Python 実装の配置を確認する必要がないとき。
-- 自動テスト、Fake Codex CLI、pytest 規約、テストケースの配置を調べたいとき。
-- README、AGENTS、oracles、memo などの編集可否やリポジトリ運用ルールだけを確認したいとき。
-- cmoc を用いて開発する `<repo-root>` 側の oracle 内容、生成済みレポート、または自動生成された `INDEX.md` の内容だけを読みたいとき。
+- argparse による CLI 引数定義、サブコマンド登録、エントリーポイントだけを調べたいとき。
+- git 実行、repo root 探索、cmoc ブランチ判定、oracle ファイル列挙、`.cmoc` ignore 保証などの共通 helper 内部実装だけを確認したいとき。
+- Codex CLI 呼び出し、JSON パース、Structured Output、ログ保存、サンドボックス指定、リトライなどの共通処理だけを調べたいとき。
+- `INDEX.md` 自動生成・メンテナンス処理そのものの実装や仕様だけを確認したいとき。
+- cmoc の正本仕様断片を確認したい場合で、実装コードではなく `oracles` 配下を読むべきとき。
+- cmoc 自体の Python コーディング規約、テスト規約、開発環境など、開発者向けルールだけを調べたいとき。
+- pytest fixture、Fake Codex CLI、テストデータなど、テスト実装の詳細だけを確認したいとき。
+- 生成済みの `.cmoc/reports` 配下のレポート内容を読みたいだけのとき。
 
 ## hash
 
-- 980e41cbca3d5840393a9c040e267cb26f60fc290bc242b3c18e47c8d0b7ab0f
+- 8cd808a410e2c52b360714bf48c5fe832c0631e5a7c9889fa29ac8d9fbe137ff

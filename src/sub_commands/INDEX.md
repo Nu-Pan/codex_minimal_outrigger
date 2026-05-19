@@ -25,34 +25,37 @@
 ## Summary
 
 - `cmoc apply` サブコマンドの本体処理を実装するファイル。
-- cmoc 作業ブランチ確認、oracle 外の未コミット差分拒否、`.cmoc` ignore 保証、oracle 差分 commit、`INDEX.md` メンテナンスを行う。
-- oracle ファイルごとの不整合調査を Codex CLI の read-only Structured Output で実行し、見つかった不整合を workspace-write Codex CLI に渡して実装へ反映する。
-- 反映後は `oracles/` と `.agents/` の禁止パス変更を検査し、変更があれば Codex 生成の commit message で全差分を commit する。
-- apply 実行結果として、収束または未収束、不整合件数推移、ブランチ上の全変更内容を含む Markdown レポートを `.cmoc/reports/apply/` に保存する。
-- 不整合調査用 JSON schema、apply 作業 prompt、commit message prompt、レポート生成 prompt、Codex 出力検証ロジックを含む。
+- cmoc 作業ブランチ上でのみ apply を許可し、リポジトリ状態検証、`.cmoc` 無視設定、oracle 差分の commit、`INDEX.md` メンテナンスを行う。
+- oracle ファイルごとに Codex CLI の read-only 実行で実装との不整合を Structured Output として調査し、不整合がある場合は workspace-write 実行で実装修正を依頼する。
+- 不整合調査結果の JSON schema、schema 検証、調査用 prompt、実装修正用 prompt、commit message 生成用 prompt を定義する。
+- 修正後は編集禁止領域である `oracles/` と `.agents/` の差分を拒否し、変更があれば Codex 生成の commit message で commit する。
+- 指定 repeat 回数まで不整合調査と実装修正を反復し、収束時は 0、未収束時は専用終了コード 2 を返す。
+- apply 結果レポートを `.cmoc/reports/apply/<timestamp>.md` に保存し、必須見出し、結果区分、不整合件数推移、未収束時文言、ブランチ変更内容要約を保存前に検証する。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、ステップ表示、終了コード、repeat ループの挙動を確認したいとき。
-- oracle と実装の不整合調査を Codex CLI にどう依頼し、Structured Output をどう検証しているか調べたいとき。
-- 不整合一覧を実装作業用 Codex CLI に渡す prompt や、編集禁止領域の明示内容を確認したいとき。
-- apply 中に `.gitignore`、`.cmoc`、`oracles`、`INDEX.md` がどのタイミングでメンテナンスまたは commit されるか知りたいとき。
-- apply 後の commit message 生成、全差分 commit、禁止パス変更検査の実装を確認したいとき。
-- `.cmoc/reports/apply/` に保存される apply レポートの生成条件、必須見出し、未収束時の検証内容を調べたいとき。
-- `cmoc apply` が返す通常終了と未収束終了の扱い、または `--repeat` の負数エラーを確認したいとき。
+- `cmoc apply` の全体フロー、ステップ表示、終了コード、repeat による反復処理を確認したいとき。
+- apply 実行前に許可されるブランチ、未コミット差分、oracle 差分、`.gitignore` と `.cmoc` の扱いを調べたいとき。
+- Codex CLI に oracle と実装の不整合調査を依頼する prompt、read-only 実行、Structured Output schema、JSON 検証の詳細を確認したいとき。
+- Codex CLI に実装修正を依頼する prompt、workspace-write 実行、修正後 commit、commit message 生成の流れを調べたいとき。
+- apply 中に `INDEX.md` がいつメンテナンスされるか、実装差分 commit 前に index 更新がどう扱われるか確認したいとき。
+- apply が編集禁止領域の変更をどう検出し、どのパスを禁止扱いにするか調べたいとき。
+- apply レポートの保存先、生成 prompt、必須内容、検証条件を確認したいとき。
+- 不整合調査 Structured Output の `discrepancies` 各項目の必須キーや型検査を変更・テストしたいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など apply 以外のサブコマンド本体だけを調べたいとき。
-- Codex CLI 実行の低レベル実装、JSON parse の共通処理、git コマンド実行ラッパー、repo root 探索などの共通部品そのものを調べたいとき。
-- `INDEX.md` メンテナンス機能の詳細実装だけを確認したいとき。
-- oracle 仕様断片の内容やルーティング情報そのものを読みたいとき。
-- cmoc の開発規約、テスト規約、README、AGENTS、リポジトリ運用ルールだけを確認したいとき。
-- apply のテストケースや Fake Codex CLI の挙動を調べたいとき。
+- `cmoc apply` 以外のサブコマンド、例えば init、branch、merge、eval-oracles の本体処理だけを調べたいとき。
+- Codex CLI 呼び出しの共通実装、JSON パース、ログ保存、サンドボックス指定などの低レベル共通処理だけを確認したいとき。
+- git コマンド実行、ブランチ判定、changed paths、oracle ファイル列挙、`.cmoc` ignore 保証など repo 共通 helper の内部実装だけを調べたいとき。
+- `INDEX.md` 自動生成やメンテナンスの具体的な実装だけを確認したいとき。
+- cmoc の CLI 引数パースやサブコマンド登録箇所だけを調べたいとき。
+- cmoc の仕様断片そのものを確認したい場合で、実装コードではなく `oracles` 配下の正本仕様を読むべきとき。
+- apply のテストケース、Fake Codex CLI、pytest fixture などテスト実装だけを確認したいとき。
 
 ## hash
 
-- 16c36a659d72820034a69509754f2744bcd8310916f366c39f220b952d0eb3f3
+- 0e6c6e61a595b1312c2e4277e44ddf6c4033cc6da11e2fde2592c5aa656c55f1
 
 # `branch.py`
 
@@ -150,30 +153,32 @@
 
 ## Summary
 
-- `cmoc merge` の本体処理を実装するモジュール。
-- 未コミット変更の有無や `.cmoc` ignore 状態を検証し、明示指定された cmoc ブランチ、または未マージ cmoc ブランチ候補から自動解決した 1 件を現在の HEAD へ `git merge --no-ff` する。
-- merge conflict が発生した場合、unmerged path を取得して Codex CLI に conflict marker 解消を依頼し、marker 残存確認、対象ファイルの `git add`、unmerged path 再確認、`git commit --no-edit` までを行う。
-- merge 完了後は `git branch -d` による source branch 削除を試み、失敗時は warning に留める。
-- merge 開始後に例外が発生した場合は、merge state をロールバックせず手動解決が必要であることを stderr に表示する。
-- 進捗表示と `StepTimer` による `validate repository state`、`resolve source branch`、`run git merge`、`delete source branch if safe` のステップ計測を行う。
+- `cmoc merge` サブコマンドの本体処理を実装するファイル。
+- 作業ツリーの未コミット変更確認、`.cmoc` の git ignore 保証、merge 元 cmoc ブランチの解決、`git merge --no-ff` 実行、必要時の conflict 解消、merge 後の作業ブランチ削除までを扱う。
+- merge 元ブランチが明示されていない場合は、未マージブランチから cmoc 命名規則に合う候補を 1 件だけ自動解決し、0 件または複数件なら利用者に明示指定を求める。
+- merge conflict が発生した場合は unmerged path を取得し、Codex CLI に conflict marker 解消を依頼したうえで、残存 marker と unmerged path を検査してから `git add` と `git commit --no-edit` を実行する。
+- conflict 解消用プロンプトでは `git add` と `git commit` の実行禁止、`oracles` と `.agents` の編集禁止、`memo` の読み書き禁止を明示する。
+- git 管理対象ファイル全体から conflict marker を検出する補助処理、unmerged path 取得、source branch の安全削除、merge state が残る場合の手動解決案内を含む。
 
 ## Read this when
 
-- `cmoc merge` コマンドの実行フロー、前提条件検証、進捗表示、時間計測の実装を確認したいとき。
-- 未マージ cmoc ブランチを自動選択する条件や、候補が 0 件または複数件だった場合のエラー処理を調べたいとき。
-- `git merge --no-ff` の失敗時に Codex CLI へ conflict 解消を依頼する処理を確認したいとき。
-- conflict marker の検出、unmerged path の取得、解決後の `git add` と merge commit 作成の責務を調べたいとき。
-- merge 後に source branch を安全な場合だけ削除する処理や、削除失敗時の warning 表示を確認したいとき。
-- merge 開始後の例外時に、ロールバックせず手動解決を促す挙動を確認したいとき。
+- `cmoc merge` の実装フローや各ステップの進捗表示を確認したいとき。
+- merge 元 cmoc ブランチの自動解決条件、候補が 0 件または複数件の場合のエラー処理を調べたいとき。
+- `git merge --no-ff` の実行方法、merge 失敗時に Codex CLI へ conflict 解消を依頼する流れを確認したいとき。
+- merge conflict 解消後に conflict marker や unmerged path をどう検査し、どのタイミングで `git add` と `git commit --no-edit` を行うか調べたいとき。
+- conflict 解消用 Codex プロンプトの内容、編集禁止パス、`skip_index_maintenance` の扱いを確認したいとき。
+- merge 後に source branch を `git branch -d` で削除する条件や、削除失敗時の warning 表示を確認したいとき。
+- merge state が残った可能性がある場合の手動解決メッセージや例外伝播の扱いを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles` など、merge 以外のサブコマンド本体を調べたいとき。
-- CLI 引数パースやサブコマンド登録など、`cmoc merge` を呼び出す外側のエントリーポイントを確認したいとき。
-- `run_git`、`assert_no_uncommitted_changes`、`ensure_cmoc_ignored`、`run_command`、`run_codex_exec`、`StepTimer` などの共通 helper 自体の詳細実装を調べたいとき。
-- cmoc の正本仕様、ユーザー向け仕様、開発ルール、テスト規約を確認したいとき。
-- merge conflict の一般的な Git 操作方法だけを知りたいとき。
+- `cmoc merge` の CLI 引数定義や argparse への登録箇所だけを調べたいとき。
+- `run_git`、`run_command`、`run_codex_exec`、`StepTimer` など共通ユーティリティ自体の実装を調べたいとき。
+- cmoc ブランチの命名規則そのものや `is_cmoc_branch` の詳細実装を確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles` など merge 以外のサブコマンド仕様を調べたいとき。
+- INDEX.md の自動生成や Structured Output の共通仕様だけを調べたいとき。
+- git merge や conflict 解消に関する一般的な Git の使い方だけを知りたいとき。
 
 ## hash
 
-- a9075e3e12b541b2c55ed64ef0aea73ca3b7289325ead8e3a7372c061989ee5b
+- 5b43334527c457c86e109e32bb6741a4a81e840be17191070ebbea74d7b0d017

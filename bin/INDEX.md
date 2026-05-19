@@ -2,28 +2,27 @@
 
 ## Summary
 
-- `bin/cmoc` は cmoc コマンドのシェル版エントリーポイントです。
-- スクリプト自身の位置から `<cmoc-root>` を解決し、`<cmoc-root>/.venv/bin/python` を実行用 Python として固定します。
-- 仮想環境の Python が実行可能でない場合は、作成手順と `pip install -e .` の案内を stderr に出力して終了ステータス 1 で失敗します。
-- 仮想環境が存在する場合は、受け取った引数をそのまま渡して `<cmoc-root>/src/main.py` を `exec` します。
-- このファイル自体にはサブコマンド実装や業務ロジックはなく、実処理は `src/main.py` 以下に委譲されます。
+- `bin/cmoc` は cmoc CLI を起動するための POSIX shell 製ラッパースクリプトです。
+- スクリプト自身の場所から `<cmoc-root>` を解決し、`<cmoc-root>/.venv/bin/python` を cmoc 実行用 Python として使用します。
+- 仮想環境 Python が存在しない、または実行可能でない場合は、日本語のエラーレポート、次の対応、必要な実行ファイル、セットアップ手順、呼び出し箇所を stdout に出力して終了ステータス 1 で終了します。
+- 仮想環境 Python が実行可能な場合は、`exec` により `<cmoc-root>/src/main.py` をその Python で起動し、受け取った引数をそのまま引き渡します。
 
 ## Read this when
 
-- cmoc コマンド起動時に、どの Python とどの main ファイルが実行されるか確認したいとき。
-- `.venv/bin/python` が見つからない、または実行できない場合のエラーメッセージや終了挙動を調べたいとき。
-- cmoc のインストール直後や開発環境で、仮想環境作成手順の案内がどこから出ているか確認したいとき。
-- CLI 引数が `src/main.py` にどのように渡されるかを確認したいとき。
-- cmoc のシェルラッパーとしての入口だけを確認し、Python 側の実装に入る前の挙動を把握したいとき。
+- cmoc コマンドの実行入口がどこで、どの Python とどの main ファイルを起動するか確認したいとき。
+- `.venv/bin/python` が見つからない場合のエラーメッセージ、セットアップ案内、終了ステータスを調べたいとき。
+- `bin/cmoc` から `<cmoc-root>` をどのように算出しているか確認したいとき。
+- cmoc の CLI 起動時にユーザー指定の引数が `src/main.py` へどう渡されるか確認したいとき。
+- 仮想環境未セットアップ時の初期導線やトラブルシュート表示を修正・テストしたいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` などのサブコマンド仕様や実装詳細を調べたいとき。
-- Codex CLI 連携、Structured Output、ログ保存、リトライ、INDEX.md 生成などのアプリケーション仕様を確認したいとき。
-- Python 側のルーティング、引数解析、共通エラーハンドリング、サブコマンド実装を読みたいとき。
-- 自動テスト、Fake Codex CLI、テスト規約など、cmoc 開発者向けのテスト情報を探しているとき。
-- README、AGENTS.md、oracles、memo などのリポジトリ運用ルールや編集可否だけを確認したいとき。
+- cmoc のサブコマンド本体、引数解析、業務ロジック、Codex CLI 連携など `src/main.py` 以降の実装を調べたいとき。
+- cmoc の正本仕様断片、開発規約、テスト規約、アプリケーション仕様を調べたいとき。
+- Python パッケージ設定、依存関係、仮想環境の作成方法そのものを詳しく調べたいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` など個別サブコマンドの挙動を確認したいとき。
+- cmoc を用いて開発する `<repo-root>` 側のファイル探索、oracle 処理、INDEX.md 生成、git 操作の詳細を調べたいとき。
 
 ## hash
 
-- a4a6f66b4b3c43b63b77dcaa43620430179b9707ded9a408ef455a4956cb7795
+- 62fe294f1a015c92004e32b18bb98eb7cb91487375005bec22aaaae6e7a7e092
