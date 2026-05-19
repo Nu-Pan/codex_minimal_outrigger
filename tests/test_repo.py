@@ -358,6 +358,46 @@ def test_has_deleted_oracle_files_detects_staged_deletion(
     assert has_deleted_oracle_files(repo, base_commit) is True
 
 
+def test_has_deleted_oracle_files_ignores_index_md_deletion(
+    tmp_path: Path,
+) -> None:
+    """INDEX.md だけの削除は oracle ファイル削除扱いにしない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle index")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "INDEX.md").unlink()
+    _git(repo, "add", "-u", "oracles")
+
+    assert has_deleted_oracle_files(repo, base_commit) is False
+
+
+def test_has_deleted_oracle_files_ignores_gitignored_deletion(
+    tmp_path: Path,
+) -> None:
+    """root .gitignore 対象の削除は oracle ファイル削除扱いにしない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text(
+        "oracles/ignored.md\n",
+        encoding="utf-8",
+    )
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "ignored.md").write_text("ignored\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".gitignore", "oracles/ignored.md")
+    _git(repo, "commit", "-m", "ignored oracle")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "ignored.md").unlink()
+    _git(repo, "add", "-u", "oracles")
+
+    assert has_deleted_oracle_files(repo, base_commit) is False
+
+
 def test_assert_only_oracles_uncommitted_rejects_non_oracle_changes(
     tmp_path: Path,
 ) -> None:

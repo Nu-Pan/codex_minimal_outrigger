@@ -127,13 +127,19 @@ def test_eval_oracles_writes_report_with_fake_codex(
 
 
 def test_eval_oracles_body_uses_subcommand_file_name() -> None:
-    """`eval-oracles` の本体はサブコマンド名と同じファイルに置く。"""
+    """`eval-oracles` の本体は import 可能な PEP 8 名ファイルに置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    body = repo_root / "src" / "sub_commands" / "eval-oracles.py"
     module = repo_root / "src" / "sub_commands" / "eval_oracles.py"
-    assert "def cmoc_eval_oracles_impl" in body.read_text(encoding="utf-8")
-    assert "exec(" in module.read_text(encoding="utf-8")
+    assert "def cmoc_eval_oracles_impl" in module.read_text(
+        encoding="utf-8"
+    )
+    assert not (
+        repo_root / "src" / "sub_commands" / "eval-oracles.py"
+    ).exists()
+    module_text = module.read_text(encoding="utf-8")
+    assert "compile(" not in module_text
+    assert "globals()" not in module_text
 
 
 def test_eval_oracles_prompt_forbids_implementation_references() -> None:
@@ -171,7 +177,16 @@ def test_apply_returns_complete_when_no_discrepancies(
         codex_prompts.append(str(args[1]))
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
-        return "収束\ncomplete report"
+        return "\n".join(
+            [
+                "## 作業結果",
+                "収束",
+                "## 不整合件数の推移",
+                "1 回目: 0 件",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: oracle 整備",
+            ]
+        )
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -180,10 +195,15 @@ def test_apply_returns_complete_when_no_discrepancies(
     reports = list((repo / ".cmoc" / "reports" / "apply").glob("*.md"))
     assert exit_code == 0
     assert len(reports) == 1
-    assert reports[0].read_text(encoding="utf-8") == "収束\ncomplete report"
+    report_text = reports[0].read_text(encoding="utf-8")
+    assert "## 作業結果" in report_text
+    assert "## 不整合件数の推移" in report_text
+    assert "全変更内容" in report_text
     assert codex_kwargs[0]["output_schema"] == _DISCREPANCY_OUTPUT_SCHEMA
     assert "Result category: 収束" in codex_prompts[-1]
-    assert "変更内容の意味論に基づいてカテゴリ分け" in codex_prompts[-1]
+    assert "変更内容の意味論に基づき" in codex_prompts[-1]
+    assert "「カテゴリ」という語" in codex_prompts[-1]
+    assert "<cmoc-branch>" not in codex_prompts[-1]
 
 
 def test_apply_uses_repeat_option_for_loop_limit(
@@ -218,7 +238,18 @@ def test_apply_uses_repeat_option_for_loop_limit(
                 '"oracle_requirement": "r", "observed_implementation": "o", '
                 '"reason": "x", "suggested_fix": "f"}]}'
             )
-        return "未収束\nincomplete report"
+        return "\n".join(
+            [
+                "## 作業結果",
+                "未収束",
+                "## 不整合件数の推移",
+                "1 回目: 1 件",
+                "2 回目: 1 件",
+                "まだ不整合が残っている可能性があります。",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: 実装修正",
+            ]
+        )
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -234,6 +265,40 @@ def test_apply_uses_repeat_option_for_loop_limit(
     assert "Result category: 未収束" in codex_prompts[-1]
     assert "まだ不整合が残っている可能性" in codex_prompts[-1]
     assert "まだ不整合が残っている可能性" in report_text
+
+
+def test_apply_rejects_incomplete_report_from_codex(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """必須内容を欠く apply レポートは保存せずエラーにする。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査は収束、レポートは必須項目不足にする。"""
+        if kwargs.get("expect_json") is True:
+            return '{"discrepancies": []}'
+        return "収束\ncomplete report"
+
+    monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError):
+        cmoc_apply_impl(repo)
+
+    report_dir = repo / ".cmoc" / "reports" / "apply"
+    assert not report_dir.exists() or list(report_dir.glob("*.md")) == []
 
 
 def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
@@ -280,7 +345,16 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
         """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
-        return "complete report"
+        return "\n".join(
+            [
+                "## 作業結果",
+                "収束",
+                "## 不整合件数の推移",
+                "1 回目: 0 件",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: oracle 整備",
+            ]
+        )
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -307,8 +381,13 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
-    def fake_maintain_indexes(repo_root: Path) -> bool:
+    def fake_maintain_indexes(
+        repo_root: Path,
+        *,
+        commit_changes: bool = True,
+    ) -> bool:
         """INDEX メンテナンス時に禁止領域差分を作る fake。"""
+        assert commit_changes is False
         oracle_index = repo_root / "oracles" / "INDEX.md"
         oracle_index.parent.mkdir()
         oracle_index.write_text("forbidden\n", encoding="utf-8")
@@ -433,6 +512,16 @@ def test_cmoc_help_uses_cmoc_command_name() -> None:
     )
 
     assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." in result.stdout
+
+
+def test_bin_cmoc_requires_venv_python() -> None:
+    """ランチャーは system python3 へフォールバックしない。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    launcher = (repo_root / "bin" / "cmoc").read_text(encoding="utf-8")
+
+    assert launcher.startswith("#!/bin/sh")
+    assert "#!/usr/bin/env python3" not in launcher
+    assert 'exec "$venv_python"' in launcher
 
 
 def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:

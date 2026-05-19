@@ -20,7 +20,7 @@ from commons.repo import (
 from commons.timing import StepTimer
 from commons.timestamps import make_timestamp
 
-APPLY_INCOMPLETE_EXIT_CODE = 2
+_APPLY_INCOMPLETE_EXIT_CODE = 2
 _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -187,7 +187,7 @@ def cmoc_apply_impl(
     )
     print(str(report_path))
     timer.report()
-    return 0 if completed else APPLY_INCOMPLETE_EXIT_CODE
+    return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
 
 
 def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
@@ -238,7 +238,7 @@ def _commit_all_changes(repo_root: Path) -> None:
         return
 
     # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
-    maintain_indexes(repo_root)
+    maintain_indexes(repo_root, commit_changes=False)
     _assert_forbidden_paths_clean(repo_root)
     if not changed_paths(repo_root):
         return
@@ -299,10 +299,11 @@ def _write_apply_report(
             "あなたはソフトウェア作業レポートの作成担当です。",
             f"`{repo_root}` のブランチ `{branch_name}` について簡潔な作業レポートを書いてください。",
             "完了条件は、作業結果、不整合件数の推移、ブランチ上の全変更内容を説明することです。",
+            "Markdown 見出しとして「作業結果」「不整合件数の推移」「全変更内容」を必ず含めてください。",
             "不整合件数の推移には、ループごとに何件の不整合を見つけたかを書いてください。",
             incomplete_instruction,
-            "`<cmoc-branch>` 上の全変更内容は、この `cmoc apply` 以前の作業も含めてください。",
-            "ブランチ上の変更内容は、変更内容の意味論に基づいてカテゴリ分けして要約してください。",
+            f"ブランチ `{branch_name}` 上の全変更内容は、この `cmoc apply` 以前の作業も含めてください。",
+            "ブランチ上の変更内容は、変更内容の意味論に基づき「カテゴリ」という語を使って要約してください。",
             f"作業結果の区分は一言で `{result_label}` と書いてください。",
             f"Result category: {result_label}",
             f"Discrepancy counts: {discrepancy_counts}",
@@ -318,15 +319,57 @@ def _write_apply_report(
         read_only=True,
         expect_json=False,
     )
-    if not completed and "まだ不整合が残っている可能性" not in report:
-        # 未収束時の必須文言は cmoc 側でも補い、レポート内容を保証する。
-        report = (
-            report.rstrip()
-            + "\n\n"
-            + "未収束のため、まだ不整合が残っている可能性があります。\n"
-        )
+    _validate_apply_report(
+        report,
+        branch_name,
+        result_label,
+        completed,
+        discrepancy_counts,
+    )
     report_path.write_text(report, encoding="utf-8")
     return report_path
+
+
+def _validate_apply_report(
+    report: str,
+    branch_name: str,
+    result_label: str,
+    completed: bool,
+    discrepancy_counts: list[int],
+) -> None:
+    """保存前の apply レポートが必須内容を持つことを機械的に確認する。"""
+    # Markdown の意味解釈ではなく、必須セクションと既知値の存在を検査する。
+    missing: list[str] = []
+    if "作業結果" not in report or result_label not in report:
+        missing.append("作業結果の区分")
+    if "不整合件数の推移" not in report:
+        missing.append("不整合件数の推移")
+    for index, count in enumerate(discrepancy_counts, start=1):
+        if f"{index}" not in report or f"{count}" not in report:
+            missing.append(f"不整合件数の推移 loop {index}")
+    if (
+        not completed
+        and "まだ不整合が残っている可能性" not in report
+    ):
+        missing.append("未収束時の残存可能性")
+    if (
+        branch_name not in report
+        or "全変更内容" not in report
+        or "カテゴリ" not in report
+    ):
+        missing.append("ブランチ上の全変更内容の意味論的カテゴリ別要約")
+
+    # 不完全な Codex 出力をそのまま保存せず、共通エラーとして中断する。
+    if missing:
+        raise CmocError(
+            "Apply report from Codex CLI missed required content.",
+            [
+                "Inspect the Codex report generation prompt and retry.",
+                "If the problem repeats, run cmoc apply again after checking "
+                "Codex CLI output.",
+            ],
+            "\n".join(missing),
+        )
 
 
 def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:

@@ -330,9 +330,21 @@ def has_deleted_oracle_files(repo_root: Path, base_commit: str) -> bool:
     ]
     for command in commands:
         result = run_git(repo_root, [*command, "--", "oracles"])
-        if result.stdout.strip():
+        if _deleted_oracle_file_paths(repo_root, result.stdout):
             return True
     return False
+
+
+def _deleted_oracle_file_paths(repo_root: Path, output: str) -> list[str]:
+    """削除 path から oracle 列挙対象外のものを除外する。"""
+    # INDEX.md と root .gitignore 対象は oracle ファイル削除として扱わない。
+    relatives = [
+        line
+        for line in output.splitlines()
+        if line.startswith("oracles/") and Path(line).name != "INDEX.md"
+    ]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return [relative for relative in relatives if relative not in ignored]
 
 
 def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
