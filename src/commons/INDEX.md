@@ -144,38 +144,44 @@
 
 ## Summary
 
-- git リポジトリと cmoc 作業ディレクトリに関する共通処理を実装するモジュールです。
-- リポジトリルート探索と cwd 移動、現在ブランチ名や HEAD commit の取得、cmoc ブランチ名形式の判定を扱います。
-- `.cmoc` を git 追跡対象外に保つための `.gitignore` 追記、tracked `.cmoc` の index 除外、保証状態の検証を行います。
-- 未コミット差分の有無や対象 path の clean 判定、oracle 配下だけに差分が限定されていることの検証、差分がある場合だけの git add/commit を提供します。
-- oracle ファイルの全列挙、base commit 以降に変更された oracle ファイルの部分列挙、削除済み oracle の検出、cmoc branch の base commit 記録ファイルの読み書きパス解決を扱います。
-- root `.gitignore` の単純な pattern 評価、gitignore 判定の fallback、cwd 固定の `git` コマンド実行ラッパーを含みます。
+- `src/commons/repo.py` は、cmoc が対象リポジトリを扱うための共通処理をまとめるモジュールです。
+- リポジトリルートの探索と cwd 移動、現在ブランチ名・HEAD commit hash の取得、cmoc ブランチ名形式の判定を提供します。
+- `.cmoc` を git 追跡対象外に保つため、root `.gitignore` への `/.cmoc/` 追加、既存 index からの除外、保証状態の検証を行います。
+- 未コミット差分の有無確認、差分パス一覧の取得、差分が存在する場合のエラー化、oracles 配下だけの差分であることの検証、指定 pathspec の clean 検証を扱います。
+- 指定パスに差分がある場合だけ git add と commit を行う `commit_if_changed` を提供し、`.cmoc` は新規 add 対象から除外します。
+- `oracles` 配下の評価対象ファイル列挙、base commit 以降に変更された oracle ファイル列挙、削除済み oracle ファイルの有無判定を扱い、`INDEX.md` と root `.gitignore` 対象は除外します。
+- cmoc branch の作成元 commit を `.cmoc/branch/<branch>.txt` から読み、対応する記録ファイルパスを組み立てます。
+- git コマンド実行を `run_git` に集約し、repo root 固定の cwd、stdout/stderr capture、check オプションを統一します。
+- root `.gitignore` の評価は一時 git リポジトリ上で `git check-ignore --no-index --stdin` を使って行い、必要に応じて単一パス判定や簡易 fallback 判定も提供します。
 
 ## Read this when
 
-- cmoc コマンド実行時に `<repo-root>` を見つけて、そのリポジトリルートへ移動する処理を確認したいとき。
-- 現在の git ブランチ名、HEAD commit hash、`cmoc_<time-stamp>` 形式のブランチ判定を使う処理を調べたいとき。
-- `.cmoc` ディレクトリが git に追跡されないことを保証する実装、`.gitignore` への `/.cmoc/` 追加、tracked `.cmoc` の index 除外を確認したいとき。
-- 未コミット差分の検出、clean working tree の強制、oracle 配下だけの差分許可、特定 pathspec の差分検査を実装・調査するとき。
-- init や oracle 更新後に、指定パスへ差分がある場合だけ git add/commit する共通処理を確認したいとき。
-- `oracles` 配下の評価対象ファイル列挙、`INDEX.md` 除外、root `.gitignore` 対象除外、部分評価対象となる変更済み oracle ファイルの収集を調べたいとき。
-- cmoc branch 作成元 commit を `.cmoc/branch/<branch>.txt` から読む処理や、その保存パスを確認したいとき。
-- このモジュールの `run_git` を通した git 実行、stdout/stderr の扱い、`check=False` を使う git コマンドの呼び出し方を確認したいとき。
+- cmoc の各サブコマンドから git リポジトリルートを見つけたり、処理前に cwd を `<repo-root>` へ固定したりする処理を確認したいとき。
+- 現在ブランチ名、HEAD commit hash、`cmoc_<time-stamp>` 形式のブランチ名判定など、git ブランチ・commit に関する共通処理を使うとき。
+- `.cmoc` ディレクトリを git 管理対象から外す保証、root `.gitignore` への `/.cmoc/` 追加、tracked な `.cmoc` の index 除外を実装・確認したいとき。
+- コマンド実行前に未コミット差分がないこと、または未コミット差分が `oracles/` 配下だけであることを検証したいとき。
+- `cmoc init` などで、指定 pathspec に既存の未コミット差分が混入していないことを確認したいとき。
+- 対象パスに差分がある場合だけ git add と commit を作成する共通処理を確認したいとき。
+- oracle 評価対象ファイルの列挙、部分評価対象となる変更済み oracle ファイルの列挙、oracle ファイル削除による評価モード切替条件を調べたいとき。
+- `INDEX.md` や root `.gitignore` 対象を oracle 評価対象から除外するロジックを確認したいとき。
+- cmoc branch の base commit 記録ファイル `.cmoc/branch/<branch>.txt` の読み書きパスや、記録がない場合のエラー内容を確認したいとき。
+- git コマンド呼び出しの共通ラッパー、`git status --porcelain` の解釈、rename 行から新しい path だけを取り出す処理を確認したいとき。
+- root `.gitignore` の pattern を Git の wildmatch semantics に近い形で評価する処理や、その失敗時のエラー処理を調べたいとき。
 
 ## Do not read this when
 
-- CmocError クラスそのものの表現、終了ステータス、共通エラー表示の仕組みだけを調べたいとき。
-- Codex CLI 呼び出し、プロンプト生成、Structured Output、サンドボックス設定など LLM 連携処理を調べたいとき。
-- CLI サブコマンドの argparse 定義、コマンド名、引数、サブコマンド間のルーティングだけを確認したいとき。
-- コンソール出力、進捗表示、完了時間レポートなど UI 表示の仕様や実装だけを調べたいとき。
-- oracle ファイルの内容評価、Codex による oracle 判定、評価結果 JSON の処理を調べたいとき。
-- `INDEX.md` の本文生成、目次更新順序、Structured Output のスキーマ組み立てなど、ルーティング文書生成の詳細を調べたいとき。
-- タイムスタンプ生成、cmoc ブランチ名の作成処理、作業ブランチ作成フロー全体を調べたいが、ブランチ名の形式判定だけでは足りないとき。
-- Python パッケージ構成、テスト規約、開発環境、依存関係など cmoc 開発ルール全般だけを確認したいとき。
+- cmoc の CLI 引数定義、サブコマンド登録、標準出力メッセージなど、ユーザー向けインターフェースだけを調べたいとき。
+- Codex CLI の起動方法、プロンプト構築、Structured Output、ログ保存、リトライなど、Codex 連携の詳細だけを確認したいとき。
+- oracle ファイルの内容評価、LLM 実行、評価結果の解釈など、oracle 評価そのもののロジックを調べたいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の編集可否など、リポジトリ運用ルールだけを確認したいとき。
+- Python の一般的なコーディング規約、テスト規約、依存管理、開発環境など、cmoc 開発者向けルールだけを調べたいとき。
+- `.cmoc` 配下に保存されるログ、実行結果、評価結果などのデータ構造そのものを調べたいとき。
+- 特定サブコマンドの業務フローや仕様上の完了条件だけを知りたいとき。
+- git の一般的な使い方や `gitignore` の一般仕様を知りたいだけで、cmoc の共通実装に関心がないとき。
 
 ## hash
 
-- 7ddc854646eb1f88368408f463541fb7de4010b4631e0fd3d552c2379a4baac7
+- f2674774ece9cbb033bc716e9c67c827c5f665a0d1b5b52dbdf5ed973ae2279e
 
 # `timestamps.py`
 
@@ -207,24 +213,28 @@
 
 ## Summary
 
-- サブコマンド実行中のステップ別経過時間と全体経過時間を計測し、標準出力へレポートする共通ユーティリティです。
-- `StepTimer` は作成時にサブコマンド全体の開始時刻を記録し、`start()` でステップを切り替え、直前ステップを自動的に確定します。
-- `finish_current()` は実行中ステップがある場合だけ経過時間を保存する冪等な確定処理で、`report()` は未確定ステップを含めてステップ別秒数と合計秒数を表示します。
+- `src/commons/timing.py` は、cmoc のサブコマンド実行中におけるステップ別・全体の経過時間計測を提供する共通モジュールです。
+- `format_duration(duration_seconds)` は秒数を oracle 指定の `h m s` 形式へ丸め下げで整形し、負値は 0 として扱います。
+- `StepTimer` はサブコマンド名、開始時刻、現在実行中ステップ、確定済みステップ時間を保持し、ステップ開始・終了・レポート出力を管理します。
+- `StepTimer.start()` は直前ステップを確定してから新しいステップの計測を開始し、`finish_current()` は実行中ステップがない場合にも安全に何もしない冪等な終了処理です。
+- `StepTimer.report()` は未確定ステップを確定したうえで、ステップ別時間とサブコマンド全体の経過時間を stdout に出力します。
 
 ## Read this when
 
-- サブコマンドの処理区間ごとの経過時間を計測・表示する実装を確認したいとき。
-- `StepTimer` の生成、ステップ開始、現在ステップ確定、レポート出力の呼び出し順を調べたいとき。
-- 完了時の `step timings` や `total elapsed` の stdout 出力形式を確認・変更したいとき。
-- ステップ切り替え時に直前ステップがどのように自動確定されるかを確認したいとき。
+- サブコマンドのステップ別経過時間や全体経過時間の表示処理を実装・修正したいとき。
+- 経過時間を ` 0h  0m  0.0s` のような固定幅表示へ変換するロジックを確認したいとき。
+- `StepTimer` の `start()`、`finish_current()`、`report()` の呼び出し順序や副作用を調べたいとき。
+- 未終了のステップがレポート時にどう確定されるか、またステップ未実行時の終了処理がどう振る舞うかを確認したいとき。
+- サブコマンド共通の stdout 時間レポート形式を使う処理やテストを書くとき。
 
 ## Do not read this when
 
-- 日時文字列、ファイル名用タイムスタンプ、ログディレクトリ名などの壁時計時刻を生成する処理を探しているとき。
-- サブコマンド固有の業務ロジック、Codex CLI 呼び出し、git 操作、oracle 評価処理を調べたいとき。
-- 進捗メッセージやエラー表示など、経過時間以外のコンソール出力仕様を確認したいとき。
-- テスト用の時間固定、Fake Codex CLI、pytest 側の検証実装を探しているとき。
+- cmoc の個別サブコマンド仕様、引数解析、git 操作、Codex CLI 呼び出し処理を調べたいとき。
+- `<repo-root>` 探索、oracle ファイル列挙、INDEX.md 生成など、時間計測以外の共通処理を確認したいとき。
+- ログファイル保存、Structured Output、リトライ、サンドボックス指定など Codex 連携仕様を調べたいとき。
+- テスト用 Fake Codex CLI や pytest の設定など、テスト基盤そのものを確認したいとき。
+- 単に Python の `time.perf_counter` や時間フォーマットの一般的な使い方を知りたいだけのとき。
 
 ## hash
 
-- 2e8cd0e39512e7f3a2d8945e1abf5e8e96929611985513666e5c8ebd2c4535b3
+- 70ff60f908de4563216267bd427cda2ed8d216a5d4eeb235b920b161a53a54cc
