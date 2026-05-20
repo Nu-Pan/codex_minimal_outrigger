@@ -410,10 +410,10 @@ def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
     assert "cmoc apply must be run on a cmoc branch." in error.value.message
 
 
-def test_apply_rejects_non_oracle_changes_before_cmoc_guarantee(
+def test_apply_rejects_non_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` はユーザー由来の oracle 外差分を先に拒否する。"""
+    """`cmoc apply` は `.cmoc` 保証後にユーザー由来の oracle 外差分を拒否する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
@@ -421,7 +421,27 @@ def test_apply_rejects_non_oracle_changes_before_cmoc_guarantee(
     with pytest.raises(CmocError):
         cmoc_apply_impl(repo)
 
-    assert not (repo / ".gitignore").exists()
+    assert ".cmoc" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Ensure cmoc directory is ignored"
+    )
+
+
+def test_apply_does_not_commit_preexisting_gitignore_changes(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` 保証 commit は既存 `.gitignore` 差分を混ぜない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_cmoc_branch(repo)
+    (repo / ".gitignore").write_text("user-rule\n", encoding="utf-8")
+
+    with pytest.raises(CmocError):
+        cmoc_apply_impl(repo)
+
+    assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
+    assert _git(repo, "status", "--porcelain", "--", ".gitignore").stdout == (
+        " M .gitignore\n"
+    )
 
 
 def test_apply_commits_cmoc_guarantee_before_oracle_changes(
@@ -431,6 +451,9 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
     """`cmoc apply` は `.cmoc` 保証差分を oracle commit 前に処理する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
+    cmoc_log = repo / ".cmoc" / "logs" / "poll.log"
+    cmoc_log.parent.mkdir(parents=True)
+    cmoc_log.write_text("local log\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
@@ -470,6 +493,7 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
         "Ensure cmoc directory is ignored",
     ]
     assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+    assert _git(repo, "status", "--porcelain", "--", ".cmoc").stdout == ""
 
 
 def test_apply_does_not_mix_preexisting_staged_oracles_into_cmoc_commit(

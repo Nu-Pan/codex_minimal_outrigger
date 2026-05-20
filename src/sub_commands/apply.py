@@ -12,9 +12,11 @@ from commons.repo import (
     changed_oracle_files,
     changed_paths,
     changed_implementation_files,
+    commit_cmoc_initialization_changes,
     commit_if_changed,
     current_branch,
     ensure_cmoc_ignored,
+    gitignore_has_cmoc_rule,
     has_deleted_implementation_files,
     has_deleted_oracle_files,
     is_cmoc_branch,
@@ -22,6 +24,7 @@ from commons.repo import (
     list_oracle_files,
     read_branch_base_commit,
     run_git,
+    staged_diff_from_head,
 )
 from commons.timing import StepTimer
 from commons.timestamps import make_timestamp
@@ -136,14 +139,16 @@ def cmoc_apply_impl(
         )
     base_commit = read_branch_base_commit(repo_root, branch_name)
 
-    # ユーザー由来の oracle 外差分を先に拒否し、cmoc 保証差分は直後に commit する。
+    # `.cmoc` 保証差分を先に分離 commit してから、ユーザー由来の oracle 外差分を拒否する。
     timer.start("validate repository state")
     print("apply (1/4) validate repository state")
-    assert_only_oracles_uncommitted(repo_root)
+    had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
+    preexisting_staged_diff = staged_diff_from_head(repo_root)
     ensure_cmoc_ignored(repo_root)
-    commit_if_changed(
+    commit_cmoc_initialization_changes(
         repo_root,
-        [".gitignore", ".cmoc"],
+        had_cmoc_rule,
+        preexisting_staged_diff,
         "Ensure cmoc directory is ignored",
     )
     assert_only_oracles_uncommitted(repo_root)

@@ -172,8 +172,9 @@ def commit_cmoc_initialization_changes(
     repo_root: Path,
     had_cmoc_rule: bool,
     preexisting_staged_diff: str,
+    message: str = "Initialize cmoc",
 ) -> bool:
-    """`cmoc init` が発生させた差分だけを commit する。"""
+    """`.cmoc` ignore 保証が発生させた差分だけを commit する。"""
     # 一時 index だけで初期化差分の tree を作り、通常 index の既存 stage と分離する。
     parent_hash = _head_commit_or_none(repo_root)
     with tempfile.TemporaryDirectory(prefix="cmoc-init-index-") as temp_name:
@@ -207,7 +208,7 @@ def commit_cmoc_initialization_changes(
 
         tree_hash = run_git(repo_root, ["write-tree"], env=env).stdout.strip()
 
-    commit_args = ["commit-tree", tree_hash, "-m", "Initialize cmoc"]
+    commit_args = ["commit-tree", tree_hash, "-m", message]
     if parent_hash is not None:
         commit_args[2:2] = ["-p", parent_hash]
     commit_hash = run_git(

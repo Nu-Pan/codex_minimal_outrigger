@@ -464,7 +464,9 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "  exit 1",
                 "  fi",
                 "fi",
-                "if [ \"$PROMPT\" = '疎通確認です。`ok` とだけ出力してください。' ]; then",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  if [[ \"$PROMPT\" != *'/memo` は読み書き禁止です。'* ]]; then exit 2; fi",
+                "  if [[ \"$PROMPT\" != *'ファイル編集は禁止です。'* ]]; then exit 2; fi",
                 "  echo ok > \"$LAST\"",
                 "  echo '{\"event\":\"poll-ok\"}'",
                 "  exit 0",
@@ -486,8 +488,10 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     captured = capsys.readouterr().out
     assert output.strip() == "resumed"
     assert "--resume\nsession-1" in args
+    assert "Codex CLI の疎通確認担当" in args
+    assert "/memo` は読み書き禁止です。" in args
     assert "quota exhausted; waiting before resume" in captured
-    assert "quota poll prompt: 疎通確認です。`ok` とだけ出力してください。" in captured
+    assert "quota poll prompt: あなたは Codex CLI の疎通確認担当です。" in captured
     assert "quota poll output: ok" in captured
     assert "quota restored; resuming codex exec" in captured
 
@@ -517,7 +521,9 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "  PREV=\"$ARG\"",
                 "done",
                 "PROMPT=\"${@: -1}\"",
-                "if [ \"$PROMPT\" = '疎通確認です。`ok` とだけ出力してください。' ]; then",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  if [[ \"$PROMPT\" != *'/memo` は読み書き禁止です。'* ]]; then exit 2; fi",
+                "  if [[ \"$PROMPT\" != *'ファイル編集は禁止です。'* ]]; then exit 2; fi",
                 "  echo ok > \"$LAST\"",
                 "  exit 0",
                 "fi",

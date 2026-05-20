@@ -25,32 +25,36 @@
 ## Summary
 
 - `cmoc apply` サブコマンドの本体処理を実装するファイル。
-- cmoc 作業ブランチ上で oracle 変更を確定し、`INDEX.md` を保守したうえで、oracle と実装の不整合調査、Codex CLI による実装修正、禁止パス検査、コミット、作業レポート生成までを反復実行する。
-- 不整合調査用 Structured Output schema、oracle 起点・実装ファイル起点の調査プロンプト、不整合整理プロンプト、実装追従プロンプト、commit message 生成プロンプトを定義する。
-- 部分適用と全体適用の対象ファイル判定、削除検出時の全体適用への切り替え、未収束時の専用終了コード、apply レポートの必須項目検証を扱う。
-- Codex CLI から返る不整合 JSON のキー構造と型を機械的に検証する補助関数を含む。
+- cmoc 作業ブランチの検証、`.cmoc` ignore 保証、oracle 差分のコミット、`INDEX.md` メンテナンス、不整合調査、Codex CLI への実装追従依頼、変更コミット、適用レポート作成までの一連の apply 実行フローを扱う。
+- oracle と実装の不整合を表す Structured Output schema と、その JSON 検証ロジックを定義する。
+- 部分適用と全体適用の判定、調査対象 oracle・実装ファイルの選定、個別調査結果の整理、禁止パス変更検査を担当する。
+- 不整合調査、実装追従、調査結果整理、commit message 生成、apply レポート生成のために Codex CLI へ渡す prompt を組み立てる。
+- apply レポートの保存先、必須見出し、未収束時の文言、不整合件数推移、ブランチ変更内容要約の検証を行う。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、4 ステップの進捗表示、反復回数、終了コード、レポート生成の挙動を確認したいとき。
-- oracle と実装の不整合をどの Structured Output schema で受け取り、どのように検証・整理しているか調べたいとき。
-- `--full` や削除ファイルの有無によって、部分適用と全体適用の調査対象がどう切り替わるか確認したいとき。
-- Codex CLI に渡す apply 用プロンプト、調査用プロンプト、commit message 生成プロンプト、レポート生成プロンプトの内容を修正または確認したいとき。
-- `cmoc apply` 実行中に `.gitignore`、`.cmoc`、`oracles`、実装差分、`INDEX.md` がどのタイミングでコミットまたは検査されるか調べたいとき。
-- Codex による実装修正後、`oracles/` や `.agents/` などの編集禁止領域に差分がないことをどこで確認しているか知りたいとき。
-- apply レポートの保存先、収束・未収束の表現、不整合件数推移や全変更内容の検証条件を確認したいとき。
+- `cmoc apply` の実行順序や各ステップの stdout 表示を確認したいとき。
+- apply が cmoc ブランチ上でのみ実行される条件や、base commit の扱いを調べたいとき。
+- apply 実行前に許容される未コミット差分、oracle 差分の自動コミット、`.cmoc` ignore 保証の挙動を確認したいとき。
+- `cmoc apply --repeat` や `--full` に関係する反復回数、未収束時の終了コード、部分適用と全体適用の切り替え条件を調べたいとき。
+- oracle ファイル起点・実装ファイル起点の不整合調査で Codex CLI に渡す prompt や Structured Output schema を確認したいとき。
+- 不整合リストの重複整理、実装追従依頼、変更後の禁止パス検査、commit message 生成の流れを追いたいとき。
+- apply レポートの生成 prompt、保存場所、検証条件、未収束時に必要な記載を確認したいとき。
+- `run_codex_exec`、`maintain_indexes`、`changed_paths`、`list_oracle_files`、`list_implementation_files` などの共通処理が apply からどう呼ばれるかを調べたいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 以外のサブコマンド、例えば `init`、`branch`、`eval-oracles`、`merge` の詳細挙動だけを調べたいとき。
-- Codex CLI 呼び出しの低レベル実装、JSON パース、共通エラー処理、git 実行ラッパー、repo 探索などの共通処理そのものを調べたいとき。
-- `INDEX.md` 自動保守の対象ディレクトリ、除外規則、ハッシュ計算、目次生成の詳細実装だけを確認したいとき。
-- cmoc の開発ルール、Python コーディング規約、テスト規約、依存関係など、アプリケーション実行時仕様ではない内容を調べたいとき。
-- 特定の oracle 仕様断片の正本内容を確認したいだけで、`cmoc apply` がそれを実装へ反映する流れに関心がないとき。
+- `cmoc apply` 以外のサブコマンド、例えば init、branch、eval-oracles、merge の主要処理を調べたいとき。
+- Codex CLI 呼び出しの低レベル実装、JSON パース、共通 command runner、git wrapper、repo 探索、タイマー、timestamp の詳細だけを確認したいとき。
+- `INDEX.md` 自動メンテナンス機構そのものの対象ディレクトリ、除外規則、生成フォーマットを詳しく調べたいとき。
+- oracle 正本仕様の内容や、特定仕様ファイルが要求するアプリケーション挙動そのものを確認したいとき。
+- cmoc の CLI 引数定義や argparse へのサブコマンド登録だけを調べたいとき。
+- テストコード、Fake Codex CLI、pytest fixture、テストデータの構造を調べたいとき。
+- README、AGENTS、oracles、memo などの編集可否やリポジトリ運用ルールだけを確認したいとき。
 
 ## hash
 
-- 4774107aae6f21b2fbab81cd36c9638332afb945e60184c68d17b5ba21bc20dc
+- 7e9ee51daf0e9a379c91dbfe31bb6ba5ee6d487008aa2f0ff7ebec7d58032aa0
 
 # `branch.py`
 

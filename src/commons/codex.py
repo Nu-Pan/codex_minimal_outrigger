@@ -18,7 +18,6 @@ _POLL_MODEL = "gpt-5.4-mini"
 _POLL_REASONING_EFFORT = "low"
 _QUOTA_POLL_INTERVAL_SECONDS = 30 * 60
 _FORBIDDEN_REASONING_EFFORTS = {"high", "xhigh"}
-_QUOTA_POLL_PROMPT = "疎通確認です。`ok` とだけ出力してください。"
 
 
 def run_codex_exec(
@@ -228,8 +227,9 @@ def _wait_for_quota_and_resume(
     """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
     # 復活確認は低コスト model/effort の最小 prompt で行う。
     while True:
+        poll_prompt = _quota_poll_prompt(repo_root)
         print("quota poll: running minimal codex exec check")
-        print(f"quota poll prompt: {_head80(_QUOTA_POLL_PROMPT)}")
+        print(f"quota poll prompt: {_head80(poll_prompt)}")
         poll_path = log_path.with_suffix(".quota-check.txt")
         poll_command = _build_codex_command(
             read_only=True,
@@ -237,7 +237,7 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
             last_message_path=poll_path,
         )
-        poll_command.append(_QUOTA_POLL_PROMPT)
+        poll_command.append(poll_prompt)
         poll_result = subprocess.run(
             poll_command,
             cwd=repo_root,
@@ -248,7 +248,7 @@ def _wait_for_quota_and_resume(
         _append_codex_log(
             log_path,
             poll_command,
-            _QUOTA_POLL_PROMPT,
+            poll_prompt,
             attempt,
             poll_result,
             None,
@@ -269,6 +269,21 @@ def _wait_for_quota_and_resume(
                 last_message_path,
             )
         time.sleep(_QUOTA_POLL_INTERVAL_SECONDS)
+
+
+def _quota_poll_prompt(repo_root: Path) -> str:
+    """quota 疎通確認用の read-only prompt を組み立てる。"""
+    return "\n".join(
+        [
+            "あなたは Codex CLI の疎通確認担当です。",
+            "この実行環境で最小限の応答が可能か確認してください。",
+            "完了条件は `ok` だけを出力することです。",
+            "詳細な作業内容:",
+            "- ファイル編集は禁止です。",
+            f"- `{repo_root / 'memo'}` は読み書き禁止です。",
+            "- この疎通確認では、その他のファイルも読む必要はありません。",
+        ]
+    )
 
 
 def _build_codex_command(
