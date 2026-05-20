@@ -8,7 +8,7 @@ from pathlib import Path
 from .codex import parse_json_object, run_codex_exec
 from .repo import ensure_cmoc_ignored
 
-_INDEX_DIRECTORY_EXCLUDED_NAMES = {"build", "tmp", "__pycache__"}
+_INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -221,9 +221,15 @@ def _looks_binary(path: Path) -> bool:
     if path.is_dir():
         return False
 
-    # 先頭サンプルに NUL byte があればバイナリとして扱う。
-    sample = path.read_bytes()[:1024]
-    return b"\0" in sample
+    # NUL byte と UTF-8 decode 可否を組み合わせてテキスト性を判定する。
+    sample = path.read_bytes()[:4096]
+    if b"\0" in sample:
+        return True
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        return True
+    return False
 
 
 def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:

@@ -17,6 +17,7 @@ def run_codex_exec(
     expect_json: bool = False,
     output_schema: dict[str, object] | None = None,
     json_validator: Callable[[object], None] | None = None,
+    text_validator: Callable[[str], None] | None = None,
     skip_index_maintenance: bool = False,
 ) -> str:
     """`codex exec` を実行し、フルログを `.cmoc/logs` に保存する。"""
@@ -44,14 +45,15 @@ def run_codex_exec(
         command.extend(["--output-schema", str(schema_path)])
     command.append(prompt)
 
-    # Structured Output 相当の JSON が必要な呼び出しだけ最大 3 回リトライする。
-    attempts = 3 if expect_json else 1
+    # JSON 以外でも意味検証がある呼び出しは最大 3 回リトライする。
+    attempts = 3 if expect_json or text_validator is not None else 1
     last_stdout = ""
     last_stderr = ""
-    last_json_error = ""
+    last_validation_error = ""
     for attempt in range(1, attempts + 1):
         # 利用者向けには prompt/stdout の先頭だけを進捗表示する。
-        print(f"codex exec attempt {attempt} prompt: {_head80(prompt)}")
+        step = f"codex exec attempt ({attempt}/{attempts})"
+        print(f"{step} prompt: {_head80(prompt)}")
         result = subprocess.run(
             command,
             cwd=repo_root,
@@ -61,7 +63,7 @@ def run_codex_exec(
         )
         last_stdout = result.stdout
         last_stderr = result.stderr
-        print(f"codex exec attempt {attempt} stdout: {_head80(result.stdout)}")
+        print(f"{step} stdout: {_head80(result.stdout)}")
         _append_codex_log(
             log_path,
             command,
@@ -83,7 +85,14 @@ def run_codex_exec(
             )
 
         if not expect_json:
-            return result.stdout
+            if text_validator is None:
+                return result.stdout
+            try:
+                text_validator(result.stdout)
+                return result.stdout
+            except ValueError as error:
+                last_validation_error = str(error)
+                continue
 
         # JSON parse、schema 検査、意味検査のいずれかが失敗した場合だけ次の試行へ進む。
         try:
@@ -92,14 +101,17 @@ def run_codex_exec(
                 _validate_json_schema(value, output_schema)
             if json_validator is not None:
                 json_validator(value)
+            if text_validator is not None:
+                text_validator(result.stdout)
             return result.stdout
         except (json.JSONDecodeError, ValueError) as error:
-            last_json_error = str(error)
+            last_validation_error = str(error)
             continue
 
     # 全試行失敗時は最後の stdout/stderr と検証エラーを診断情報として残す。
+    validation_label = "JSON" if expect_json else "text"
     raise CmocError(
-        "codex exec がリトライ後も schema に一致する JSON を返しませんでした。",
+        f"codex exec がリトライ後も有効な {validation_label} を返しませんでした。",
         [
             "codex exec のログを確認してください。",
             "prompt または fake Codex CLI の出力を修正してから、cmoc を再実行してください。",
@@ -112,7 +124,7 @@ def run_codex_exec(
                     if schema_path is not None
                     else "Output schema: none"
                 ),
-                f"Last JSON error: {last_json_error}",
+                f"Last validation error: {last_validation_error}",
                 "Last stdout:",
                 last_stdout,
                 "Last stderr:",

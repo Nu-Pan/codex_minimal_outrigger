@@ -14,7 +14,7 @@ from commons.repo import (
 )
 from commons.timing import StepTimer
 
-_MANUAL_RESOLUTION_MESSAGE = (
+_MANUAL_RESOLUTION_MESSAGE: str = (
     "Manual resolution is required. cmoc did not roll back the merge state."
 )
 
