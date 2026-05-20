@@ -78,7 +78,7 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     assert "attempt: 3" in log_content
     captured = capsys.readouterr().out
     assert "codex exec attempt (1/3) prompt:" in captured
-    assert "codex exec attempt (3/3) stdout:" in captured
+    assert "codex exec attempt (3/3) output:" in captured
 
 
 def test_run_codex_exec_passes_output_schema_file(
@@ -140,12 +140,12 @@ def test_run_codex_exec_passes_output_schema_file(
     assert f"output_schema: {schema_path}" in log_content
 
 
-def test_run_codex_exec_prints_head80_before_escaping_newlines(
+def test_run_codex_exec_prints_output_head80_before_escaping_newlines(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """stdout 進捗は元文字列を 80 文字で切ってから改行を可視化する。"""
+    """回収出力の進捗は元文字列を 80 文字で切ってから改行を可視化する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     fake_bin = tmp_path / "bin"
@@ -163,7 +163,7 @@ def test_run_codex_exec_prints_head80_before_escaping_newlines(
                 "  fi",
                 "  PREV=\"$ARG\"",
                 "done",
-                "echo done > \"$LAST\"",
+                "printf '%079d\\nbbbbbbbbbb' 0 | tr '0' 'a' > \"$LAST\"",
                 "printf '%079d\\nbbbbbbbbbb' 0 | tr '0' 'a'",
             ]
         ),
@@ -177,7 +177,7 @@ def test_run_codex_exec_prints_head80_before_escaping_newlines(
 
     captured = capsys.readouterr().out
     assert f"prompt: {'p' * 79}\\n" in captured
-    assert f"stdout: {'a' * 79}\\n" in captured
+    assert f"output: {'a' * 79}\\n" in captured
     assert "q" not in captured
     assert "b" not in captured
 
@@ -464,7 +464,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "  exit 1",
                 "  fi",
                 "fi",
-                "if [ \"$PROMPT\" = \"疎通確認です。`ok` とだけ出力してください。\" ]; then",
+                "if [ \"$PROMPT\" = '疎通確認です。`ok` とだけ出力してください。' ]; then",
                 "  echo ok > \"$LAST\"",
                 "  echo '{\"event\":\"poll-ok\"}'",
                 "  exit 0",
@@ -488,6 +488,58 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     assert "--resume\nsession-1" in args
     assert "quota exhausted; waiting before resume" in captured
     assert "quota restored; resuming codex exec" in captured
+
+
+def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """quota 復旧後の resume が想定外エラーなら即時 CmocError にする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "HAS_RESUME=0",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "PROMPT=\"${@: -1}\"",
+                "if [ \"$PROMPT\" = '疎通確認です。`ok` とだけ出力してください。' ]; then",
+                "  echo ok > \"$LAST\"",
+                "  exit 0",
+                "fi",
+                "if [ \"$HAS_RESUME\" = 0 ]; then",
+                "  echo '{\"session_id\":\"session-1\"}'",
+                "  echo 'quota limit exhausted' >&2",
+                "  exit 1",
+                "fi",
+                "echo 'repository failure' >&2",
+                "exit 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    assert "codex exec が失敗しました。" in error.value.message
+    assert "repository failure" in error.value.detail
 
 
 def test_run_codex_exec_retries_schema_validation_failure(

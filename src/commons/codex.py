@@ -66,7 +66,7 @@ def run_codex_exec(
     last_stderr = ""
     last_validation_error = ""
     for attempt in range(1, attempts + 1):
-        # 利用者向けには prompt/stdout の先頭だけを進捗表示する。
+        # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec attempt ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
         result = _run_codex_command(
@@ -80,7 +80,6 @@ def run_codex_exec(
         )
         last_stdout_log = result.stdout
         last_stderr = result.stderr
-        print(f"{step} stdout: {_head80(result.stdout)}")
 
         # quota 枯渇だけは待機・resume に入り、それ以外の CLI 失敗は中断する。
         if result.returncode != 0:
@@ -88,32 +87,35 @@ def run_codex_exec(
                 session_id = _extract_session_id(result.stdout, result.stderr)
                 command = _resume_command(command, session_id)
                 print("quota exhausted; waiting before resume")
-                result = _wait_for_quota_and_resume(
-                    repo_root,
-                    command,
-                    log_path,
-                    prompt,
-                    attempt,
-                    schema_path,
-                    last_message_path,
-                )
-                last_stdout_log = result.stdout
-                last_stderr = result.stderr
+                while True:
+                    result = _wait_for_quota_and_resume(
+                        repo_root,
+                        command,
+                        log_path,
+                        prompt,
+                        attempt,
+                        schema_path,
+                        last_message_path,
+                    )
+                    last_stdout_log = result.stdout
+                    last_stderr = result.stderr
+                    if result.returncode == 0:
+                        break
+                    if not _looks_like_quota_exhaustion(
+                        result.stdout,
+                        result.stderr,
+                    ):
+                        _raise_codex_failure(log_path, result)
+                    print("quota exhausted again after resume; waiting")
             else:
-                raise CmocError(
-                    "codex exec が失敗しました。",
-                    [
-                        "codex exec のログを確認してください。",
-                        "Codex CLI またはリポジトリ側の原因を修正してから、cmoc を再実行してください。",
-                    ],
-                    f"Log: {log_path}\nSTDERR:\n{result.stderr}",
-                )
+                _raise_codex_failure(log_path, result)
 
         try:
             output = _read_last_message(last_message_path)
         except ValueError as error:
             last_validation_error = str(error)
             continue
+        print(f"{step} output: {_head80(output)}")
         last_output = output
 
         if not expect_json:
@@ -185,6 +187,21 @@ def parse_json_object(raw: str) -> dict[str, object]:
     return value
 
 
+def _raise_codex_failure(
+    log_path: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    """quota 以外の Codex CLI 非 0 終了を共通エラーにする。"""
+    raise CmocError(
+        "codex exec が失敗しました。",
+        [
+            "codex exec のログを確認してください。",
+            "Codex CLI またはリポジトリ側の原因を修正してから、cmoc を再実行してください。",
+        ],
+        f"Log: {log_path}\nSTDERR:\n{result.stderr}",
+    )
+
+
 def _validate_model_options(model: str, reasoning_effort: str) -> None:
     """Codex CLI に渡す model と reasoning effort の制約を検査する。"""
     # oracle は high/xhigh を禁止しているため、呼び出し前に拒否する。
@@ -194,6 +211,58 @@ def _validate_model_options(model: str, reasoning_effort: str) -> None:
         raise ValueError("reasoning_effort high/xhigh is forbidden.")
     if reasoning_effort not in {"low", "medium"}:
         raise ValueError("reasoning_effort must be low or medium.")
+
+
+def _wait_for_quota_and_resume(
+    repo_root: Path,
+    command: list[str],
+    log_path: Path,
+    prompt: str,
+    attempt: int,
+    schema_path: Path | None,
+    last_message_path: Path,
+) -> subprocess.CompletedProcess[str]:
+    """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
+    # 復活確認は低コスト model/effort の最小 prompt で行う。
+    while True:
+        print("quota poll: running minimal codex exec check")
+        poll_path = log_path.with_suffix(".quota-check.txt")
+        poll_command = _build_codex_command(
+            read_only=True,
+            model=_POLL_MODEL,
+            reasoning_effort=_POLL_REASONING_EFFORT,
+            last_message_path=poll_path,
+        )
+        poll_command.append("疎通確認です。`ok` とだけ出力してください。")
+        poll_result = subprocess.run(
+            poll_command,
+            cwd=repo_root,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _append_codex_log(
+            log_path,
+            poll_command,
+            "疎通確認です。`ok` とだけ出力してください。",
+            attempt,
+            poll_result,
+            None,
+            poll_path,
+        )
+        print(f"quota poll result: {poll_result.returncode}")
+        if poll_result.returncode == 0:
+            print("quota restored; resuming codex exec")
+            return _run_codex_command(
+                repo_root,
+                command,
+                log_path,
+                prompt,
+                attempt,
+                schema_path,
+                last_message_path,
+            )
+        time.sleep(_QUOTA_POLL_INTERVAL_SECONDS)
 
 
 def _build_codex_command(
@@ -322,58 +391,6 @@ def _resume_command(command: list[str], session_id: str | None) -> list[str]:
         resumed.append(session_id)
     resumed.extend(command[2:])
     return resumed
-
-
-def _wait_for_quota_and_resume(
-    repo_root: Path,
-    command: list[str],
-    log_path: Path,
-    prompt: str,
-    attempt: int,
-    schema_path: Path | None,
-    last_message_path: Path,
-) -> subprocess.CompletedProcess[str]:
-    """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
-    # 復活確認は低コスト model/effort の最小 prompt で行う。
-    while True:
-        print("quota poll: running minimal codex exec check")
-        poll_path = log_path.with_suffix(".quota-check.txt")
-        poll_command = _build_codex_command(
-            read_only=True,
-            model=_POLL_MODEL,
-            reasoning_effort=_POLL_REASONING_EFFORT,
-            last_message_path=poll_path,
-        )
-        poll_command.append("疎通確認です。`ok` とだけ出力してください。")
-        poll_result = subprocess.run(
-            poll_command,
-            cwd=repo_root,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _append_codex_log(
-            log_path,
-            poll_command,
-            "疎通確認です。`ok` とだけ出力してください。",
-            attempt,
-            poll_result,
-            None,
-            poll_path,
-        )
-        print(f"quota poll result: {poll_result.returncode}")
-        if poll_result.returncode == 0:
-            print("quota restored; resuming codex exec")
-            return _run_codex_command(
-                repo_root,
-                command,
-                log_path,
-                prompt,
-                attempt,
-                schema_path,
-                last_message_path,
-            )
-        time.sleep(_QUOTA_POLL_INTERVAL_SECONDS)
 
 
 def _append_codex_log(
@@ -513,5 +530,5 @@ def _matches_type(value: object, expected_type: object) -> bool:
 
 def _head80(value: str) -> str:
     """元文字列の先頭 80 文字を stdout 表示向けに返す。"""
-    # oracle の切り詰め対象は、表示用変換前の prompt/stdout そのものである。
+    # oracle の切り詰め対象は、表示用変換前の prompt/output そのものである。
     return value[:80].replace("\n", "\\n")

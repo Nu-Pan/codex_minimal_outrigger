@@ -23,38 +23,40 @@
 
 ## Summary
 
-- Codex CLI 呼び出しの共通処理を提供するモジュール。
-- `run_codex_exec` は `codex exec` のコマンド構築、実行前の INDEX 保守、ログ保存、Structured Output schema ファイル作成、stdout 進捗表示、JSON/text 検証、最大 3 回のリトライ、quota 枯渇時の待機と resume、失敗時の `CmocError` 生成をまとめて扱う。
-- `parse_json_object` は Codex CLI の最終応答文字列を JSON object として読み、object 以外なら `CmocError` にする。
-- model と reasoning effort の既定値、禁止 reasoning effort、quota 疎通確認用の軽量 model/effort、quota poll 間隔を定義する。
-- `_build_codex_command`、`_run_codex_command`、`_read_last_message`、`_append_codex_log`、`_write_output_schema` など、Codex CLI 実行とログ・成果物管理の内部ヘルパーを含む。
-- quota 枯渇判定、session id 抽出、`--resume` 付きコマンド生成、低コスト疎通確認後の再開処理を含む。
-- cmoc 側で使う JSON Schema subset の再検証として、object/array/string/integer/boolean/null、required、properties、additionalProperties、items を検査する内部実装を含む。
+- Codex CLI 呼び出しの共通処理を提供するモジュールです。
+- `run_codex_exec` により、`codex exec` のコマンド構築、実行、ログ保存、stdout 進捗表示、Structured Output schema 指定、最終メッセージ読み取り、JSON・テキスト検証、最大 3 回のリトライを一括で扱います。
+- `expect_json=True` の場合は output schema を必須とし、Codex CLI の出力を JSON として parse したうえで、cmoc 側の JSON Schema subset と任意の意味検証関数で再検証します。
+- `read_only` に応じた sandbox、既定 model、reasoning effort、`--json`、`--output-last-message` など、Codex CLI に渡す標準オプションを組み立てます。
+- 通常の Codex CLI 失敗は `CmocError` に変換し、quota 枯渇らしい失敗では session id 抽出、低コスト疎通確認、待機後 resume を行います。
+- `.cmoc/logs/codex_exec` 配下に attempt ごとの command、prompt、stdout、stderr、output schema、last message パスを追記保存します。
+- `parse_json_object` により、Codex CLI の JSON 応答が object であることを保証して呼び出し側へ返します。
+- 内部 helper として、model・reasoning effort 制約検査、quota 判定、session id 抽出、resume command 生成、output schema 書き出し、JSON Schema subset 検証、stdout 表示用の 80 文字切り詰めを実装しています。
 
 ## Read this when
 
-- cmoc から Codex CLI を呼び出す共通経路、`codex exec` の引数、sandbox、model、reasoning effort、`--json`、`--output-last-message` の扱いを確認したいとき。
-- Codex CLI 実行前に INDEX 保守が走る条件や、`skip_index_maintenance` の意味を調べたいとき。
-- Codex CLI 呼び出しログ、last message ファイル、Structured Output schema ファイルが `.cmoc/logs/codex_exec` 配下へどのように保存されるか確認したいとき。
-- Codex CLI の JSON 応答、Structured Output、text validator、json validator、リトライ回数、検証失敗時の診断情報を調べたいとき。
-- quota 枯渇らしい失敗を検出して待機し、session id を抽出して `codex exec --resume` で再開する処理を調べたいとき。
-- Codex CLI の model/reasoning effort 制約、特に high/xhigh 禁止や low/medium のみ許可する実装を確認したいとき。
-- cmoc 内部の簡易 JSON Schema 検証がどの keyword と型をサポートしているか確認したいとき。
-- Codex CLI の最終応答を dict として扱うための `parse_json_object` のエラー処理を確認したいとき。
+- Codex CLI を cmoc から実行する共通経路を調べたいとき。
+- `run_codex_exec` の引数、戻り値、リトライ条件、ログ保存先、INDEX 保守の実行タイミングを確認したいとき。
+- `codex exec` に渡す model、reasoning effort、sandbox、`--json`、`--output-last-message`、`--output-schema` の組み立てを確認したいとき。
+- Structured Output を使う呼び出しで、schema ファイル生成、JSON parse、schema subset 検証、`json_validator`・`text_validator` の扱いを調べたいとき。
+- Codex CLI の非 0 終了時に、通常失敗と quota 枯渇をどう分岐し、`CmocError` や resume にどうつなげるか確認したいとき。
+- quota 枯渇時の session id 抽出、疎通確認用の低コスト Codex 実行、待機間隔、resume コマンド生成の実装を調べたいとき。
+- `.cmoc/logs/codex_exec` のログ内容、schema 保存場所、last message ファイルの扱いを確認したいとき。
+- Codex CLI から返った JSON 文字列を dict として扱うための `parse_json_object` の挙動を確認したいとき。
+- cmoc 側で対応している JSON Schema subset の検証範囲や型判定を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックやユーザー向けワークフローだけを調べたいとき。
-- Codex CLI 呼び出しではなく、通常のファイル列挙、git 操作、設定ファイル読み書きなどの共通処理を探しているとき。
-- INDEX 生成・保守そのものの実装詳細を調べたいとき。ただし Codex 実行直前に INDEX 保守を呼ぶ接点だけ知りたい場合は読む。
-- `CmocError` のクラス定義やエラー表示形式そのものを調べたいとき。
-- タイムスタンプ文字列の生成仕様そのものを調べたいとき。
-- テストコード、Fake Codex CLI、またはテスト用 fixture の実装だけを確認したいとき。
-- Codex CLI や JSON Schema の一般仕様を調べたいだけで、cmoc 固有の呼び出し・検証・ログ保存の実装が不要なとき。
+- 個別サブコマンドのユーザー向け仕様やワークフローだけを調べたいとき。
+- Codex CLI 呼び出しを伴わないファイル操作、git 操作、設定ファイル処理、エラーメッセージ整形だけを調べたいとき。
+- cmoc の CLI エントリーポイント、引数 parsing、サブコマンド dispatch の構造を調べたいとき。
+- INDEX.md の生成対象列挙、ファイルハッシュ計算、目次ファイルの書き込み処理そのものを調べたいとき。
+- oracle ファイル列挙、実装ファイル列挙、repo root 探索など、Codex 実行前後の周辺処理だけを調べたいとき。
+- pytest や Fake Codex CLI など、テスト側の具体的な fixture や検証コードだけを探しているとき。
+- Codex CLI の一般的な使い方や外部仕様だけを知りたいとき。
 
 ## hash
 
-- a467f4d5b4dfc2effbe04da36cc1ccb562ff76a59b9a7eb7df9496c9fabaa948
+- d9a0eab47d3beadfb897d44156b97db7045246e73511720d0b2fec158121cd2e
 
 # `command_runner.py`
 

@@ -25,35 +25,35 @@
 
 ## Summary
 
-- `commons.codex.run_codex_exec` の Codex CLI 呼び出しラッパーに対する pytest テストを収めるファイル。
-- Fake Codex CLI を一時ディレクトリに作成し、`PATH` 差し替え、`tmp_path`、`monkeypatch`、`capsys` を使って外部 Codex 実行を模擬する。
-- Structured Output の JSON parse 失敗、JSON Schema 検証失敗、意味的バリデーション失敗に対する 3 回リトライと `CmocError` 詳細出力を検証する。
-- `--output-schema`、`--output-last-message`、`--json`、`--model`、`model_reasoning_effort` など、`codex exec` に渡す引数と schema ファイル化を検証する。
-- stdout 進捗表示について、元文字列を 80 文字で切ってから改行を可視化する仕様を検証する。
-- quota 枯渇時に疎通確認を行い、復旧後に `--resume` と session id 付きで同じ prompt を再実行する挙動を検証する。
-- 通常の Codex CLI 呼び出し直前に `commons.indexing.maintain_indexes` を実行すること、および `skip_index_maintenance=True` で明示的にスキップできることを検証する。
+- `commons.codex.run_codex_exec` の Codex CLI 呼び出しラッパーを検証する pytest ファイル。
+- Structured Output の JSON parse 失敗、JSON Schema 不一致、JSON/text の意味的 validation failure を 3 回までリトライし、失敗時に `CmocError` の詳細へ最終エラー、ログ、stdout などを含める挙動をテストする。
+- `--output-schema`、`--output-last-message`、`--json`、`--model`、`model_reasoning_effort="medium"` など、`codex exec` に渡す引数と schema ファイル化を確認する。
+- stdout 進捗表示では prompt/output を元文字列の先頭 80 文字で切ってから改行を可視化することを検証する。
+- Structured Output 呼び出しで `output_schema` 未指定を拒否すること、oracle で禁止された `high`/`xhigh` reasoning effort を起動前に拒否することを確認する。
+- quota 枯渇時に疎通確認を行い、復旧後に `--resume` と元 prompt で再実行する挙動、および resume 後の想定外エラーを即時 `CmocError` にする挙動をテストする。
+- 通常の Codex CLI 呼び出し直前に `commons.indexing.maintain_indexes` を実行すること、`skip_index_maintenance=True` で明示的にスキップできることを確認する。
+- テスト内では一時ディレクトリに fake `codex` 実行ファイルを作り、`PATH`、`time.sleep`、INDEX メンテナンス関数を monkeypatch して外部 Codex CLI に依存しない形で検証する。
 
 ## Read this when
 
-- `commons.codex.run_codex_exec` の挙動を変更し、Codex CLI 呼び出し、ログ保存、リトライ、Structured Output、schema 検証、semantic validation、quota resume のテスト影響を確認したいとき。
-- Codex CLI に渡す引数、`--output-schema` 用の一時 schema ファイル、`--output-last-message` の扱い、reasoning effort の制約を確認したいとき。
-- Structured Output の parse failure、JSON Schema 不一致、JSON validator 失敗、text validator 失敗がどのようにリトライされ、最終的にどのエラー詳細を出すべきか調べたいとき。
-- Codex 実行時の stdout 進捗表示や prompt/stdout の短縮表示ルールをテストから確認したいとき。
-- quota 枯渇時の待機、疎通確認 prompt、session id 抽出、`--resume` 再実行の期待動作を確認したいとき。
-- `run_codex_exec` 直前の INDEX メンテナンス実行や、INDEX 生成・merge conflict 解消向けのメンテナンススキップ挙動を確認したいとき。
-- Fake Codex CLI を bash スクリプトで作る既存テストパターンを参考に、`run_codex_exec` 周辺のテストを追加したいとき。
+- `run_codex_exec` のリトライ回数、ログ出力、Structured Output 検証、semantic validator の扱いを変更・確認したいとき。
+- Codex CLI へ渡す引数、`--output-schema` の schema ファイル、`--output-last-message` の扱い、reasoning effort の既定値や禁止値を確認したいとき。
+- quota 枯渇検知、疎通確認、`--resume` による再実行、resume 失敗時のエラー処理を実装・修正するとき。
+- `run_codex_exec` の stdout 進捗表示で prompt/output の切り詰めや改行エスケープ仕様を確認したいとき。
+- Codex 呼び出し前の `INDEX.md` メンテナンス実行タイミング、または `skip_index_maintenance` の用途と期待動作を確認したいとき。
+- fake Codex CLI を使った `run_codex_exec` のテスト追加方法や、`tmp_path`・`monkeypatch`・`capsys` を使う既存パターンを参照したいとき。
 
 ## Do not read this when
 
-- `run_codex_exec` 以外の CLI サブコマンド本体、設定読み込み、ブランチ操作、merge、apply、oracle 評価のテストを探しているとき。
-- Codex CLI ラッパーの実装そのものを読みたいとき。このファイルはテストであり、実装は `src` 配下の `commons.codex` 側を確認する。
-- INDEX 生成ロジック全体やディレクトリ巡回、目次フォーマットの実装詳細を調べたいとき。ただし `run_codex_exec` 直前のメンテナンス呼び出しだけはこのファイルで扱う。
-- 実際の Codex CLI を起動した統合テスト結果を確認したいとき。このファイルは fake `codex` 実行ファイルを使って挙動を模擬する。
-- cmoc の正本仕様断片を確認したいとき。仕様調査は `oracles` 配下の `INDEX.md` から必要な仕様ファイルへ進む。
+- `run_codex_exec` の実装そのものを読みたいとき。このファイルはテストであり、実装は `src` 配下の `commons.codex` 側を確認する。
+- Codex CLI ラッパー以外のサブコマンド、設定ファイル、oracle 評価、merge/apply/init/branch の仕様やテストを探しているとき。
+- 実際の Codex CLI の一般仕様や外部サービスとしての挙動を調べたいとき。このファイルは fake `codex` による cmoc 内部契約の検証に限られる。
+- INDEX 生成ロジックそのものの詳細を調べたいとき。このファイルでは `run_codex_exec` 直前にメンテナンスが呼ばれるか、またはスキップできるかだけを扱う。
+- リポジトリ全体のテスト方針、pytest 規約、開発環境ルールだけを確認したいとき。
 
 ## hash
 
-- 59b75ab127339cd7f95dfb2e92045df28921a4dfdfa9f5b7a4074c04e3133ac9
+- 0425b8ac4c0a4ace1f8c10e2cd9683c98da115990738bea08798e531392fe426
 
 # `test_indexing.py`
 
