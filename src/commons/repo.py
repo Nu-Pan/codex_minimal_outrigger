@@ -2,8 +2,10 @@
 
 import fnmatch
 import os
+import shutil
 import subprocess
-from pathlib import Path, PurePosixPath
+import tempfile
+from pathlib import Path
 
 from .errors import CmocError
 
@@ -145,6 +147,49 @@ def assert_paths_clean(repo_root: Path, paths: list[str]) -> None:
         )
 
 
+def gitignore_has_cmoc_rule(repo_root: Path) -> bool:
+    """作業ツリーの `.gitignore` が `/.cmoc/` 行を既に持つか返す。"""
+    # init 開始前からある ignore ルールを、init で発生した差分と区別する。
+    gitignore = repo_root / ".gitignore"
+    if not gitignore.exists():
+        return False
+    content = gitignore.read_text(encoding="utf-8")
+    lines = [line.strip() for line in content.splitlines()]
+    return "/.cmoc/" in lines
+
+
+def commit_cmoc_initialization_changes(
+    repo_root: Path,
+    had_cmoc_rule: bool,
+) -> bool:
+    """`cmoc init` が発生させた差分だけを commit する。"""
+    # init が追加した `/.cmoc/` だけを、既存 `.gitignore` 差分と分けて stage する。
+    if not had_cmoc_rule:
+        _stage_gitignore_with_cmoc_rule_from_head(repo_root)
+
+    # tracked `.cmoc` の追跡解除は `ensure_cmoc_ignored()` 済みの index 状態を使う。
+    diff = run_git(
+        repo_root,
+        ["diff", "--cached", "--quiet", "--", ".gitignore", ".cmoc"],
+        check=False,
+    )
+    if diff.returncode == 0:
+        return False
+    if diff.returncode != 1:
+        raise CmocError(
+            "Failed to inspect initialization changes.",
+            [
+                "Inspect git index state and retry cmoc init.",
+                "Commit or stash unrelated changes, then run cmoc init again.",
+            ],
+            diff.stderr.strip(),
+        )
+
+    # stage 済みの初期化差分だけを init commit にする。
+    run_git(repo_root, ["commit", "-m", "Initialize cmoc"])
+    return True
+
+
 def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     """指定パスに差分があれば add して commit する。"""
     # 指定 pathspec に差分が無ければ commit を作らない。
@@ -172,35 +217,48 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
     if not oracle_root.exists():
         return []
 
-    # INDEX.md と .gitignore 対象を除いた全ファイルを列挙する。
-    files: list[Path] = []
+    # INDEX.md と root .gitignore 対象を除いた全ファイルを列挙する。
+    candidates: list[Path] = []
     for path in oracle_root.rglob("*"):
         if not path.is_file() or path.name == "INDEX.md":
             continue
-        relative = path.relative_to(repo_root).as_posix()
-        if _is_root_gitignored(repo_root, relative):
-            continue
-        files.append(path)
-    return sorted(files)
+        candidates.append(path)
+
+    relatives = [path.relative_to(repo_root).as_posix() for path in candidates]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return sorted(
+        path
+        for path, relative in zip(candidates, relatives, strict=True)
+        if relative not in ignored
+    )
 
 
 def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
     """部分評価対象となる変更済み oracle ファイルを列挙する。"""
-    # base..HEAD の追加・変更・rename などを収集する。
+    # base..HEAD の履歴上で起きた追加・変更・rename などを収集する。
     collected: set[Path] = set()
     committed = run_git(
         repo_root,
         [
-            "diff",
-            "--name-only",
+            "log",
+            "--name-status",
+            "-M",
             "--diff-filter=ACMRT",
+            "--format=",
             f"{base_commit}..HEAD",
             "--",
             "oracles",
         ],
     )
     for line in committed.stdout.splitlines():
-        collected.add(repo_root / line)
+        parts = line.split("\t")
+        if not parts:
+            continue
+        status = parts[0]
+        if status.startswith(("R", "C")) and len(parts) >= 3:
+            collected.add(repo_root / parts[2])
+        elif len(parts) >= 2:
+            collected.add(repo_root / parts[1])
 
     # 未コミットの working tree/staging 変更も部分評価対象に加える。
     uncommitted = run_git(
@@ -239,34 +297,54 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
             collected.add(repo_root / line[3:])
 
     # 削除済み、INDEX.md、root .gitignore 対象は評価対象から除外する。
-    return sorted(
+    existing = [
         path
         for path in collected
         if path.exists()
         and path.is_file()
+        and path.relative_to(repo_root).as_posix().startswith("oracles/")
         and path.name != "INDEX.md"
-        and not _is_root_gitignored(
-            repo_root,
-            path.relative_to(repo_root).as_posix(),
-        )
+    ]
+    relatives = [path.relative_to(repo_root).as_posix() for path in existing]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return sorted(
+        path
+        for path, relative in zip(existing, relatives, strict=True)
+        if relative not in ignored
     )
 
 
 def has_deleted_oracle_files(repo_root: Path, base_commit: str) -> bool:
-    """base commit から HEAD までの oracle 削除有無を判定する。"""
-    # 全体評価への切替条件は committed な base..HEAD の削除だけに限定する。
-    committed = run_git(
-        repo_root,
+    """評価モード切替用に oracle 削除有無を判定する。"""
+    # committed 履歴、working tree、staging area の削除をすべて切替条件にする。
+    commands = [
         [
-            "diff",
+            "log",
             "--name-only",
             "--diff-filter=D",
+            "--format=",
             f"{base_commit}..HEAD",
-            "--",
-            "oracles",
         ],
-    )
-    return bool(committed.stdout.strip())
+        ["diff", "--name-only", "--diff-filter=D", "HEAD"],
+        ["diff", "--cached", "--name-only", "--diff-filter=D"],
+    ]
+    for command in commands:
+        result = run_git(repo_root, [*command, "--", "oracles"])
+        if _deleted_oracle_file_paths(repo_root, result.stdout):
+            return True
+    return False
+
+
+def _deleted_oracle_file_paths(repo_root: Path, output: str) -> list[str]:
+    """削除 path から oracle 列挙対象外のものを除外する。"""
+    # INDEX.md と root .gitignore 対象は oracle ファイル削除として扱わない。
+    relatives = [
+        line
+        for line in output.splitlines()
+        if line.startswith("oracles/") and Path(line).name != "INDEX.md"
+    ]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return [relative for relative in relatives if relative not in ignored]
 
 
 def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
@@ -302,6 +380,54 @@ def changed_paths(repo_root: Path) -> list[str]:
             value = value.split(" -> ", 1)[1]
         paths.append(value)
     return paths
+
+
+def _stage_gitignore_with_cmoc_rule_from_head(repo_root: Path) -> None:
+    """HEAD の `.gitignore` に `/.cmoc/` だけを足した blob を stage する。"""
+    # HEAD 側の内容を基準にすることで、作業ツリーの既存差分を commit から外す。
+    head_text = _head_file_text(repo_root, ".gitignore") or ""
+    lines = [line.strip() for line in head_text.splitlines()]
+    if "/.cmoc/" in lines:
+        return
+
+    # commit 対象にする `.gitignore` 内容を一時ファイル経由で git object 化する。
+    prefix = head_text
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    staged_text = f"{prefix}/.cmoc/\n"
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        delete=False,
+    ) as staged_file:
+        staged_file.write(staged_text)
+        staged_path = Path(staged_file.name)
+    try:
+        blob = run_git(
+            repo_root,
+            ["hash-object", "-w", str(staged_path)],
+        ).stdout.strip()
+    finally:
+        staged_path.unlink(missing_ok=True)
+
+    # 作った blob を index に直接置き、作業ツリーの `.gitignore` は触らない。
+    run_git(
+        repo_root,
+        ["update-index", "--add", "--cacheinfo", f"100644,{blob},.gitignore"],
+    )
+
+
+def _head_file_text(repo_root: Path, relative_path: str) -> str | None:
+    """HEAD 上のファイル内容を返し、存在しなければ None を返す。"""
+    # 初回 init のように HEAD に `.gitignore` が無い場合を通常系として扱う。
+    result = run_git(
+        repo_root,
+        ["show", f"HEAD:{relative_path}"],
+        check=False,
+    )
+    if result.returncode == 0:
+        return result.stdout
+    return None
 
 
 def _ensure_cmoc_ignore_rule(repo_root: Path) -> bool:
@@ -354,71 +480,56 @@ def _tracked_cmoc_paths(repo_root: Path) -> list[str]:
 
 def _is_root_gitignored(repo_root: Path, relative_path: str) -> bool:
     """root `.gitignore` の pattern だけで ignore 対象か判定する。"""
-    # oracles 列挙仕様では下位 .gitignore や Git の exclude source は使わない。
+    # 単一 path の判定も集合判定の実装に揃える。
+    return relative_path in _root_gitignored_paths(repo_root, [relative_path])
+
+
+def _root_gitignored_paths(
+    repo_root: Path,
+    relative_paths: list[str],
+) -> set[str]:
+    """root `.gitignore` だけを Git の wildmatch semantics で評価する。"""
+    # 評価対象または root `.gitignore` が無ければ ignore 対象なしとして返す。
     gitignore = repo_root / ".gitignore"
-    if not gitignore.exists():
-        return False
+    if not relative_paths or not gitignore.exists():
+        return set()
 
-    ignored = False
-    for raw_line in gitignore.read_text(encoding="utf-8").splitlines():
-        pattern = _normalize_gitignore_pattern(raw_line)
-        if pattern is None:
-            continue
-        if pattern.startswith("!"):
-            if _matches_root_gitignore(pattern[1:], relative_path):
-                ignored = False
-            continue
-        if _matches_root_gitignore(pattern, relative_path):
-            ignored = True
-    return ignored
-
-
-def _normalize_gitignore_pattern(raw_line: str) -> str | None:
-    """root `.gitignore` の 1 行を評価用 pattern に整形する。"""
-    # 空行と comment 行は ignore pattern ではない。
-    line = raw_line.rstrip()
-    if not line or line.lstrip().startswith("#"):
-        return None
-    return line.strip()
-
-
-def _matches_root_gitignore(pattern: str, relative_path: str) -> bool:
-    """root `.gitignore` の単純な file/dir/glob pattern を照合する。"""
-    # root 起点指定、パス指定、basename 指定の主要 gitignore 形式を扱う。
-    rooted = pattern.startswith("/")
-    directory_only = pattern.endswith("/")
-    normalized = pattern.strip("/")
-    if not normalized:
-        return False
-
-    if directory_only:
-        if rooted:
-            return (
-                relative_path == normalized
-                or relative_path.startswith(normalized + "/")
-            )
-        return (
-            relative_path == normalized
-            or relative_path.startswith(normalized + "/")
-            or any(
-                part == normalized
-                for part in Path(relative_path).parts[:-1]
-            )
+    # 一時 git repository に root `.gitignore` だけを複製して評価環境を作る。
+    with tempfile.TemporaryDirectory(prefix="cmoc-gitignore-") as temp_name:
+        temp_root = Path(temp_name)
+        shutil.copyfile(gitignore, temp_root / ".gitignore")
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=temp_root,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        # `--stdin` で渡した root 相対 path を Git の ignore 実装に判定させる。
+        result = subprocess.run(
+            ["git", "check-ignore", "--no-index", "--stdin"],
+            cwd=temp_root,
+            check=False,
+            input="\n".join(relative_paths) + "\n",
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull},
         )
 
-    if "/" in normalized:
-        return PurePosixPath(relative_path).match(normalized)
-
-    if rooted:
-        return "/" not in relative_path and fnmatch.fnmatch(
-            relative_path,
-            normalized,
+    # gitignore 評価自体の異常は利用者が復旧できる共通エラーに変換する。
+    if result.returncode not in {0, 1}:
+        raise CmocError(
+            "Failed to evaluate root .gitignore.",
+            [
+                "Inspect .gitignore syntax and retry the command.",
+                "Temporarily simplify root .gitignore, then run cmoc again.",
+            ],
+            result.stderr.strip(),
         )
 
-    return any(
-        fnmatch.fnmatch(part, normalized)
-        for part in Path(relative_path).parts
-    )
+    # `git check-ignore` が出力した path だけを ignore 対象集合として返す。
+    return set(result.stdout.splitlines())
 
 
 def _is_gitignored(repo_root: Path, relative_path: str) -> bool:

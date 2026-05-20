@@ -2,29 +2,41 @@
 
 ## Summary
 
-- `cmoc apply` サブコマンドの仕様を定義している。
-- `<repo-root>` の実装を `<repo-root>/oracles` の正本仕様断片へ追従させるための前提条件、作業手順、ループ処理、レポート出力、終了コードを扱う。
-- ズレ調査を Codex CLI に oracle ファイル単位で依頼し、Structured Output の `discrepancies` 配列として受け取る schema を定義している。
-- ズレ追従作業、最大5回の反復、編集禁止領域の差分検出、コミット、作業レポート保存先の仕様を定義している。
+- `cmoc apply` は、`<repo-root>/oracles` の正本仕様断片と実装との明確な不整合を Codex CLI で調査し、検出された不整合を修正するループを実行するサブコマンドです。
+- 位置引数はなく、修正ループの最大反復回数を指定する `--repeat` / `-r` オプションを受け取り、デフォルトは 5 回です。
+- 実行前に `<cmoc-branch>` 上であることと、`<repo-root>/oracles` 外に未コミット差分がないことを要求します。
+- 実行時には `.cmoc` の git 追跡対象外保証、`oracles` 配下の未コミット差分の自動コミット、不整合調査、修正依頼、編集禁止領域の差分確認、変更コミット、作業レポート作成を行います。
+- 不整合調査は oracle ファイルごとに独立した `codex exec` として行い、Structured Output の `discrepancies` 配列で結果を受け取ります。
+- `discrepancies` が空の場合は収束、回数上限に達した場合は未収束として扱い、未収束はエラーではなく正常系の作業結果区分です。
+- `cmoc apply` は修正ループの実行と判断材料のレポートを責務とし、実装が正本仕様へ完全に追従したことは保証しません。
+- 作業レポートは Codex CLI に執筆させ、結果区分、不整合件数の推移、`<cmoc-branch>` 上の全変更内容の要約を含めて `<repo-root>/.cmoc/reports/apply/<time-stamp>.md` に保存し、そのフルパスを標準出力へ出します。
+- 終了コードでは、収束・未収束・エラーの 3 種類を区別可能にする必要があります。
 
 ## Read this when
 
-- `cmoc apply` の実装、修正、テストを行うとき。
-- `<repo-root>/oracles` と実装のズレを検出する処理や Structured Output schema を確認するとき。
-- `cmoc apply` が Codex CLI をどのように呼び出して調査・追従・レポート作成を行うべきか確認するとき。
-- `cmoc apply` の事前条件、未コミット差分の扱い、自動コミット、ループ回数上限、終了コードの仕様を確認するとき。
-- `<repo-root>/.cmoc/reports/apply/<time-stamp>.md` に保存する作業レポートの内容や標準出力の仕様を確認するとき。
+- `cmoc apply` の引数、`--repeat` / `-r` の意味、デフォルト反復回数を実装または確認したいとき。
+- `cmoc apply` 実行前に必要なブランチ条件や未コミット差分チェックの仕様を確認したいとき。
+- `oracles` 配下の未コミット差分をいつ自動コミットするか、`.cmoc` をどう git 管理から除外するかを調べたいとき。
+- oracle と実装の不整合調査を Codex CLI にどの単位で依頼し、どの Structured Output schema で受け取るかを実装したいとき。
+- 不整合リストが空の場合、または回数上限に達した場合に、修正ループをどう終了し、収束・未収束をどう判定するかを確認したいとき。
+- Codex CLI に不整合修正作業を依頼する際、不整合リストをどのように扱うべきかを確認したいとき。
+- 修正後に編集禁止領域や `oracles` などへ未コミット差分が残っていた場合の扱いを調べたいとき。
+- `cmoc apply` の作業レポートに含める内容、保存先、標準出力へ流す情報を実装またはテストしたいとき。
+- 収束・未収束・エラーを終了コードで区別する仕様を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 以外のサブコマンド仕様だけを調べているとき。
-- cmoc 自体の開発ルール、設計ルール、環境構築手順を調べているとき。
-- `oracles` のルーティング規則や INDEX.md の書き方だけを調べているとき。
-- Codex CLI に依頼する一般的な実装作業の仕様で、`cmoc apply` のズレ調査・追従ループ・レポート出力に関係しないとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など、`apply` 以外のサブコマンド固有仕様だけを調べたいとき。
+- Codex CLI 呼び出しの共通仕様、プロンプト共通方針、サンドボックス指定、ログ保存など、サブコマンド横断の仕様だけを調べたいとき。
+- `<repo-root>` の発見方法、oracle ファイル列挙、タイムスタンプ生成、`.cmoc` 管理などの共通ユーティリティ仕様だけを確認したいとき。
+- `INDEX.md` 自動メンテナンスの対象、除外規則、目次生成用 Structured Output などを調べたいとき。
+- cmoc 自体の Python 実装規約、CLI 構成、共通処理配置、テスト規約、開発環境など、開発者向けルールだけを確認したいとき。
+- README、AGENTS、oracles、memo の編集可否やリポジトリ運用ルールだけを確認したいとき。
+- 不整合が残っていないことを保証する評価やレビューの仕様を探しているとき。このファイルの `cmoc apply` は完全追従の保証ではなく、修正ループ実行とレポート作成の仕様を扱います。
 
 ## hash
 
-- 4653b4ae85942f593f585a36c469f6e1aa65955e886d492509844a2f6a108cc4
+- 8a124510c25b9e932db6f533a93432ec01366968fe46d15e3ec2599091ee62e9
 
 # `branch.md`
 
@@ -53,36 +65,39 @@
 
 - 9eba833d96e6456d7729e92f661147f756eba666ef19fdfd4bf269a8b69c35a9
 
-# `eval-oracles.md`
+# `eval_oracles.md`
 
 ## Summary
 
 - `cmoc eval-oracles` サブコマンドの仕様断片。
-- `<repo-root>/oracles` の現在スナップショットに致命的な問題が無いか評価し、評価結果を人間向けレポートとして保存・提示する挙動を定義する。
-- 位置引数なし、`--full` / `-f` オプション、部分評価モードと全体評価モードの切り替え条件、評価対象となる変更済み oracle ファイルの定義を扱う。
-- 評価時の `codex exec` 呼び出し単位、関連ファイル参照、致命的な問題の評価観点、レポートの frontmatter・本文構成・保存先・stdout 出力を定義する。
+- 現在の `<repo-root>/oracles` スナップショットに、仕様だけから実装した場合に主要ワークフロー破壊・完了判定不能・中核目的未達につながる致命的問題がないか評価し、人間向けレポートを作成する挙動を定義する。
+- 位置引数なし、`--full` / `-f` オプションあり。`<cmoc-branch>` 上かどうか、`--full` の有無、oracles ファイル削除の有無に応じて部分評価モードまたは全体評価モードを選ぶ。
+- 実行手順として、`<repo-root>/.cmoc` の git 追跡対象外保証、oracles ファイル列挙、部分評価時の変更ファイル絞り込み、ファイル単位の `codex exec` 評価、評価結果の統合レポート化を定める。
+- 部分評価で対象にする「変更があった oracles ファイル」の定義、`<cmoc-branch>` 作成元 commit の読み取り元、削除済みファイル・rename の扱いを定める。
+- 評価レポートは yaml frontmatter と本文で構成し、`<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md` に保存して、そのフルパスを stdout に出力する。
 
 ## Read this when
 
-- `cmoc eval-oracles` コマンドの引数、オプション、事前条件、実行手順を実装・確認するとき。
-- `--full` の有無、現在ブランチが `<cmoc-branch>` かどうか、oracle ファイル削除の有無によって部分評価・全体評価をどう選ぶか調べるとき。
-- 部分評価で「変更があった `oracles` ファイル」をどう列挙し、削除済みファイルや rename をどう扱うか確認するとき。
-- `<cmoc-branch>` 作成元 commit を `<repo-root>/.cmoc/branch/<cmoc-branch>.txt` から読み、差分範囲を決める処理を実装するとき。
-- oracle ファイルごとの評価を `codex exec` で実行する単位や、評価時に関連ファイルも読ませる方針を確認するとき。
-- `cmoc eval-oracles` が注入する「致命的な問題」の定義や、汎用的な評価観点を確認するとき。
-- 評価レポートの yaml frontmatter、ファイルごとの結果結合、保存先 `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md`、stdout へのフルパス出力を実装・テストするとき。
+- `cmoc eval-oracles` コマンドの引数、オプション、実行モード、処理順序を実装または確認するとき。
+- `--full` 指定時、`<cmoc-branch>` 上、通常ブランチ上、oracles ファイル削除時に、部分評価と全体評価のどちらを選ぶべきか判断したいとき。
+- 部分評価で評価対象に含める oracles ファイルの範囲を、ブランチ上の変更、working tree、staging area、削除、rename の観点から確認したいとき。
+- `<cmoc-branch>` 作成元 commit をどこから読み取るか、またその commit から `HEAD` までの変更をどう扱うか確認したいとき。
+- oracles 評価時に `codex exec` をファイル単位で呼び出す仕様や、関連ファイルも読みながら評価する前提を確認したいとき。
+- `codex exec` に注入する「致命的な問題」の評価観点を確認したいとき。
+- eval-oracles の評価レポートについて、frontmatter、本本文、ファイルごとの区切り、保存先、stdout への提示方法を実装またはテストするとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など、`eval-oracles` 以外のサブコマンド仕様だけを調べたいとき。
-- oracle ファイルの一般的な列挙方法、`.cmoc` の git 追跡対象外保証、タイムスタンプ生成など、サブコマンド共通仕様だけを確認したいとき。
-- cmoc 自体の Python 実装規約、CLI 配置、テスト規約、開発環境ルールを調べたいとき。
-- `oracles` ディレクトリの正本仕様そのものを作成・更新するためのルーティング規則や INDEX.md メンテナンス仕様だけを確認したいとき。
-- 評価レポートの実際の内容を読みたいだけで、`cmoc eval-oracles` がレポートをどう生成・保存するかの仕様が不要なとき。
+- `cmoc eval-oracles` 以外の `init`、`branch`、`apply`、`merge` などの個別サブコマンド仕様だけを調べたいとき。
+- Codex CLI 呼び出し全般、Structured Output、ログ保存、リトライ、自然言語方針など、サブコマンド横断の共通仕様だけを確認したいとき。
+- `<repo-root>/.cmoc` を git 追跡対象外にする共通仕様や、oracles ファイル列挙の一般仕様だけを調べたいとき。
+- `INDEX.md` 自動メンテナンスやルーティング文書生成の仕様を調べたいとき。
+- cmoc 自体の Python 実装規約、テスト規約、開発環境、ディレクトリ構成など、開発者向けルールだけを確認したいとき。
+- oracles の内容を評価するための汎用的なレビュー観点ではなく、特定の oracle ファイルの仕様内容そのものを読みたいとき。
 
 ## hash
 
-- 32c17262f5488f8610f6ddd374f35a8fdfbb3cd0196a4992c2fb709a291bc282
+- 85bed3505d7d0a1c6cf4c88a64ca91502ec8c6e79d04e5eb78e9c09f2d35a666
 
 # `init.md`
 

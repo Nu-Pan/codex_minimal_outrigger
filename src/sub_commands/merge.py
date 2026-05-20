@@ -24,6 +24,7 @@ def cmoc_merge_impl(
     cmoc_branch: str | None = None,
 ) -> None:
     """cmoc ブランチを現在の HEAD へ merge する。"""
+    # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
     if repo_root is None:
         run_command(
             lambda resolved_repo_root: cmoc_merge_impl(
@@ -117,8 +118,8 @@ def _resolve_conflicts(repo_root: Path) -> None:
         skip_index_maintenance=True,
     )
 
-    # Codex が誤って git add しても、元の conflict 対象ファイルを必ず検査する。
-    marker_files = _files_with_conflict_markers(repo_root, unmerged)
+    # Codex が conflict 対象外へ marker を残した場合も、add 前に検出する。
+    marker_files = _files_with_conflict_markers(repo_root)
     if marker_files:
         raise CmocError(
             "Conflict markers remain after Codex CLI resolution.",
@@ -156,22 +157,33 @@ def _delete_branch_if_safe(repo_root: Path, branch_name: str) -> None:
 
 def _files_with_conflict_markers(
     repo_root: Path,
-    paths: list[str],
+    paths: list[str] | None = None,
 ) -> list[str]:
     """conflict marker が残るファイルを列挙する。"""
-    # 渡された conflict 対象だけを検査し、現在の unmerged 状態には依存しない。
+    # paths は後方互換のため受け取るが、仕様上は git 管理対象全体を検査する。
+    del paths
     matches: list[str] = []
-    for relative in paths:
+    result = run_git(repo_root, ["ls-files", "-z"])
+    tracked_paths = {
+        relative
+        for relative in result.stdout.split("\0")
+        if relative
+    }
+    for relative in sorted(tracked_paths):
         path = repo_root / relative
         if not path.exists() or not path.is_file():
             continue
-        content = path.read_text(encoding="utf-8", errors="ignore")
-        if (
-            "<<<<<<<" in content
-            or "=======" in content
-            or ">>>>>>>" in content
-        ):
-            matches.append(relative)
+        for line in path.read_text(
+            encoding="utf-8",
+            errors="ignore",
+        ).splitlines():
+            if (
+                line.startswith("<<<<<<<")
+                or line == "======="
+                or line.startswith(">>>>>>>")
+            ):
+                matches.append(relative)
+                break
     return matches
 
 
@@ -190,7 +202,7 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
             "あなたは merge conflict の解消担当です。",
             f"`{repo_root}` の以下のファイルについて conflict marker を",
             f"解消してください: {unmerged}",
-            "完了条件は、conflict marker を削除し、未解決ファイルの有無を報告することです。",
+            "完了条件は、conflict marker を削除し、解決内容と未解決ファイルの有無を報告することです。",
             "`git add` と `git commit` は実行禁止です。",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",

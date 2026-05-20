@@ -1,5 +1,6 @@
 """サブコマンドのステップ時間計測。"""
 
+from math import floor
 from time import perf_counter
 
 
@@ -22,6 +23,18 @@ class StepTimer:
         self._current_name = step_name
         self._current_started = perf_counter()
 
+    def report(self) -> None:
+        """ステップ別とサブコマンド全体の経過時間を stdout へ出力する。"""
+        # 未確定の最後のステップを含めてから stdout に集計を出す。
+        self.finish_current()
+        print(f"{self.command_name} step timings:")
+        for name, duration in self._durations:
+            print(f"- {name}: {format_duration(duration)}")
+        print(
+            f"{self.command_name} total elapsed: "
+            f"{format_duration(perf_counter() - self._started)}"
+        )
+
     def finish_current(self) -> None:
         """実行中のステップがあれば経過時間を確定する。"""
         # 計測中ステップが無ければ idempotent に何もしない。
@@ -35,14 +48,12 @@ class StepTimer:
         self._current_name = None
         self._current_started = None
 
-    def report(self) -> None:
-        """ステップ別とサブコマンド全体の経過時間を stdout へ出力する。"""
-        # 未確定の最後のステップを含めてから stdout に集計を出す。
-        self.finish_current()
-        print(f"{self.command_name} step timings:")
-        for name, duration in self._durations:
-            print(f"- {name}: {duration:.3f}s")
-        print(
-            f"{self.command_name} total elapsed: "
-            f"{perf_counter() - self._started:.3f}s"
-        )
+
+def format_duration(duration_seconds: float) -> str:
+    """oracle 指定の経過時間表示へ変換する。"""
+    # 秒数を 0.1 秒単位に切り捨て、負値は 0 として扱う。
+    total_tenths = max(0, floor(duration_seconds * 10))
+    total_seconds, msec = divmod(total_tenths, 10)
+    total_minutes, sec = divmod(total_seconds, 60)
+    hour, minute = divmod(total_minutes, 60)
+    return f"{hour:2d}h {minute:2d}m {sec:2d}.{msec}s"

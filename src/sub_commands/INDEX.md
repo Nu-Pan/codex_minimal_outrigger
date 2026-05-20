@@ -25,138 +25,160 @@
 ## Summary
 
 - `cmoc apply` サブコマンドの本体処理を実装するファイル。
-- cmoc ブランチ上での実行確認、oracle 以外の未コミット差分検証、`.cmoc` ignore 確保、oracle 変更の事前コミット、`INDEX.md` メンテナンスを行う。
-- oracle と実装のズレを Codex CLI で調査し、最大 5 回の実装ループでズレ追従、編集禁止パス検査、変更コミットを繰り返す。
-- ズレ調査用 Structured Output schema、調査プロンプト、実装依頼プロンプト、コミットメッセージ生成プロンプト、apply レポート生成処理を定義する。
-- 完了時は 0、ズレが残った場合は `APPLY_INCOMPLETE_EXIT_CODE` として 2 を返す。
+- cmoc 作業ブランチ上でのみ apply を許可し、リポジトリ状態検証、`.cmoc` 無視設定、oracle 差分の commit、`INDEX.md` メンテナンスを行う。
+- oracle ファイルごとに Codex CLI の read-only 実行で実装との不整合を Structured Output として調査し、不整合がある場合は workspace-write 実行で実装修正を依頼する。
+- 不整合調査結果の JSON schema、schema 検証、調査用 prompt、実装修正用 prompt、commit message 生成用 prompt を定義する。
+- 修正後は編集禁止領域である `oracles/` と `.agents/` の差分を拒否し、変更があれば Codex 生成の commit message で commit する。
+- 指定 repeat 回数まで不整合調査と実装修正を反復し、収束時は 0、未収束時は専用終了コード 2 を返す。
+- apply 結果レポートを `.cmoc/reports/apply/<timestamp>.md` に保存し、必須見出し、結果区分、不整合件数推移、未収束時文言、ブランチ変更内容要約を保存前に検証する。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、ステップ表示、終了コード、最大ループ回数を確認したいとき。
-- apply 実行前のブランチ制約、未コミット差分の扱い、oracle 変更のコミット、`.cmoc` ignore 確保を調べたいとき。
-- oracle と実装のズレ調査を Codex CLI に依頼する処理や、期待する JSON schema を確認したいとき。
-- ズレ一覧をもとに Codex CLI へ実装修正を依頼する prompt の内容を確認・変更したいとき。
-- apply 中に `oracles/` や `.agents/` が変更された場合の検出・エラー処理を調べたいとき。
-- apply が生成するコミットメッセージや `.cmoc/reports/apply/` 配下の作業レポート生成処理を確認したいとき。
+- `cmoc apply` の全体フロー、ステップ表示、終了コード、repeat による反復処理を確認したいとき。
+- apply 実行前に許可されるブランチ、未コミット差分、oracle 差分、`.gitignore` と `.cmoc` の扱いを調べたいとき。
+- Codex CLI に oracle と実装の不整合調査を依頼する prompt、read-only 実行、Structured Output schema、JSON 検証の詳細を確認したいとき。
+- Codex CLI に実装修正を依頼する prompt、workspace-write 実行、修正後 commit、commit message 生成の流れを調べたいとき。
+- apply 中に `INDEX.md` がいつメンテナンスされるか、実装差分 commit 前に index 更新がどう扱われるか確認したいとき。
+- apply が編集禁止領域の変更をどう検出し、どのパスを禁止扱いにするか調べたいとき。
+- apply レポートの保存先、生成 prompt、必須内容、検証条件を確認したいとき。
+- 不整合調査 Structured Output の `discrepancies` 各項目の必須キーや型検査を変更・テストしたいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 以外のサブコマンドの仕様や実装だけを調べたいとき。
-- Codex CLI 実行の低レベル実装、JSON パース共通処理、git 操作共通処理、timestamp 生成、INDEX.md メンテナンスの詳細だけを調べたいとき。
-- oracle ファイルそのものの正本仕様や、仕様ファイルのルーティング情報を調べたいとき。
-- cmoc の CLI エントリーポイントや argparse など、サブコマンド登録の仕組みだけを確認したいとき。
-- テストコードの構造、Fake Codex CLI、pytest の規約だけを調べたいとき。
+- `cmoc apply` 以外のサブコマンド、例えば init、branch、merge、eval-oracles の本体処理だけを調べたいとき。
+- Codex CLI 呼び出しの共通実装、JSON パース、ログ保存、サンドボックス指定などの低レベル共通処理だけを確認したいとき。
+- git コマンド実行、ブランチ判定、changed paths、oracle ファイル列挙、`.cmoc` ignore 保証など repo 共通 helper の内部実装だけを調べたいとき。
+- `INDEX.md` 自動生成やメンテナンスの具体的な実装だけを確認したいとき。
+- cmoc の CLI 引数パースやサブコマンド登録箇所だけを調べたいとき。
+- cmoc の仕様断片そのものを確認したい場合で、実装コードではなく `oracles` 配下の正本仕様を読むべきとき。
+- apply のテストケース、Fake Codex CLI、pytest fixture などテスト実装だけを確認したいとき。
 
 ## hash
 
-- 71b0ee6cf481065fb7d8d8deba6ba1b928cb890abbaa0c3b93821553a59a4eed
+- 0e6c6e61a595b1312c2e4277e44ddf6c4033cc6da11e2fde2592c5aa656c55f1
 
 # `branch.py`
 
 ## Summary
 
-- `cmoc branch` subcommand implementation.
-- Creates a new unique cmoc work branch from the current HEAD.
-- Records the source base commit under the branch-specific cmoc metadata path.
-- Ensures `.cmoc` is ignored in the target repository before writing branch metadata.
-- Retries branch creation with fresh timestamps when generated branch names collide.
+- `cmoc branch` サブコマンドの本体処理を実装するファイル。
+- 共通 runner 経由の repo root 解決、作業用ブランチ作成、`.cmoc` の git ignore 保証、作成元 commit の `.cmoc/branch` への記録を行う。
+- ブランチ名は `cmoc_<timestamp>` 形式で生成し、衝突時は最大 10 回リトライする。
+- 実行中の進捗表示は `branch (1/3)` から `branch (3/3)` までの段階表示と、各ブランチ作成試行の表示で構成される。
+- 処理時間の計測と完了時レポートには `StepTimer` を使用する。
 
 ## Read this when
 
-- Investigating or changing the behavior of the `cmoc branch` command.
-- Need to understand how cmoc work branches are named and created.
-- Need to understand when and where the base commit for a cmoc branch is recorded.
-- Debugging failures around `git checkout -b`, timestamp branch name collisions, or branch creation retries.
-- Changing interactions between branch creation and `.cmoc` ignore handling.
+- `cmoc branch` の実装フローを確認したいとき。
+- 作業用ブランチ名の生成規則や、timestamp 衝突時のリトライ挙動を調べたいとき。
+- `cmoc branch` が base commit をどのタイミングで取得し、どこへ保存するか確認したいとき。
+- `.cmoc` を git 追跡対象外にする処理が `cmoc branch` 内でいつ呼ばれるか調べたいとき。
+- `cmoc branch` の stdout 進捗表示や `StepTimer` による計測箇所を確認したいとき。
 
 ## Do not read this when
 
-- Working on unrelated cmoc subcommands other than `branch`.
-- Looking for CLI argument parsing or command dispatch wiring.
-- Investigating generic git helper implementations such as `run_git`, `head_commit`, or metadata path construction.
-- Looking for timestamp formatting logic.
-- Working on cmoc oracle specifications or documentation outside the branch command implementation.
+- `cmoc init`、`cmoc apply`、`cmoc merge`、`cmoc eval-oracles` など他サブコマンドの本体処理を調べたいとき。
+- repo root 探索、git 実行、`.cmoc` パス生成、timestamp 生成、時間計測などの共通ユーティリティ実装そのものを調べたいとき。
+- `cmoc branch` の正本仕様やユーザー向け仕様だけを確認したいとき。
+- 自動テストの構成、Fake Codex CLI、pytest 規約を調べたいとき。
+- cmoc を用いて開発する `<repo-root>` 側の oracle や `INDEX.md` 生成仕様を調べたいとき。
 
 ## hash
 
-- 1fe2b7b1e8a34400be06674015525a21fe444a06e7117317ff243e41f92baa49
+- 3f0f49fc6b3453d7c26dea4e5cb47b8bd0b23b7378f6d77da6eeb182a334eee7
 
 # `eval_oracles.py`
 
 ## Summary
 
 - `cmoc eval-oracles` サブコマンドの本体処理を実装するファイル。
-- `.cmoc` の ignore 確認、`INDEX.md` メンテナンス、評価対象 oracle ファイルの選択、Codex CLI による評価実行、評価レポートの保存までの一連の処理を扱う。
-- cmoc ブランチでは既定で変更された oracle ファイルのみを評価し、`full` 指定時または cmoc ブランチ以外では全 oracle ファイルを評価する。
+- `.cmoc` の ignore 保証、`INDEX.md` メンテナンス、評価対象 oracle の選択、Codex CLI による oracle 評価、Markdown レポート保存までの一連の実行フローを扱う。
+- cmoc ブランチ上かどうか、`--full` 指定の有無、削除された oracle の有無から、差分評価と全体評価を切り替える。
+- oracle 評価用プロンプトでは、実装やテストを参照せず、oracles ツリーと `INDEX.md` のルーティング情報に基づいて致命的な仕様問題を報告させる。
+- 評価結果は `.cmoc/reports/eval-oracles/<timestamp>.md` に frontmatter 付き Markdown として保存される。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実行フロー、進捗表示、評価対象ファイル選択、partial/full モードの分岐を確認したいとき。
-- oracle 評価時に Codex CLI へ渡すプロンプト内容、read-only 実行、JSON 出力を期待しない設定を確認したいとき。
-- 評価結果レポートの保存先、ファイル名、front matter、oracle ごとの出力記録形式を確認・変更したいとき。
-- `commons.repo`、`commons.indexing`、`commons.codex`、`commons.timestamps` と `eval-oracles` サブコマンド本体の接続部分を調べたいとき。
+- `cmoc eval-oracles` の実行順序や stdout 進捗表示を確認したいとき。
+- oracle 評価が部分評価になる条件と全体評価になる条件を調べたいとき。
+- `--full`、cmoc ブランチ、base commit、削除 oracle の扱いが評価対象選択にどう影響するか確認したいとき。
+- Codex CLI に渡す oracle 評価プロンプトの内容や、read-only 実行の指定を確認したいとき。
+- eval-oracles の評価レポート保存先、ファイル名、frontmatter、oracle ごとの出力形式を調べたいとき。
+- `maintain_indexes`、`ensure_cmoc_ignored`、oracle ファイル列挙、変更 oracle 検出、head commit 取得との接続点を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc eval-oracles` の CLI 引数定義やサブコマンド登録だけを調べたいとき。
-- oracle ファイル列挙、ブランチ判定、base commit 読み取り、変更 oracle 検出などの共通 repo 処理そのものの詳細を調べたいとき。
-- `INDEX.md` メンテナンス処理の実装詳細だけを調べたいとき。
-- Codex CLI 実行ラッパーの低レベルなコマンド組み立て、サンドボックス設定、エラーハンドリングの詳細だけを調べたいとき。
-- 評価対象である oracle 仕様断片そのものの内容やルーティング情報を調べたいとき。
+- `cmoc eval-oracles` の CLI 引数定義や argparse への登録だけを調べたいとき。
+- oracle ファイル列挙、cmoc ブランチ判定、base commit 読み取りなどの低レベル git/repo 操作の実装詳細だけを確認したいとき。
+- `INDEX.md` 自動メンテナンス処理そのものの仕様や実装だけを調べたいとき。
+- Codex CLI 呼び出し共通処理、ログ保存、リトライ、サンドボックス指定の共通実装だけを確認したいとき。
+- タイムスタンプ生成や StepTimer の実装詳細だけを調べたいとき。
+- 生成された eval-oracles レポートの内容を読みたいだけのとき。
 
 ## hash
 
-- 8d4e2184ab55dc533392787fc1d76f10c04efa45d0d055457265ba45a5f9b16f
+- bfaa17519e59fa0a092983b1556fc578decfcb4312492879ecb884035d25fff1
 
 # `init.py`
 
 ## Summary
 
-- `cmoc init` の本体処理を定義する。
-- `cmoc_init_impl(repo_root)` は `.cmoc` を git 追跡対象外にするため `ensure_cmoc_ignored(repo_root)` を呼ぶ。
-- 初期化で `.gitignore` に変更があった場合は `commit_if_changed(repo_root, [".gitignore"], "Initialize cmoc")` でコミットする。
-- 処理ステップと、コミット有無に応じた結果メッセージを標準出力へ表示する。
+- `cmoc init` サブコマンドの本体処理を定義する実装ファイル。
+- `cmoc_init_impl` は、直接呼び出し時に共通 runner へ委譲し、repo root 解決と共通エラー整形を適用する。
+- repo root が渡された実行では、`.cmoc` を git 追跡対象外にするための `.gitignore` ルール保証と tracked file 解除を行う。
+- 初期化で発生した `.gitignore` や index の変更だけをコミットし、変更有無に応じた進捗メッセージを出力する。
+- `StepTimer` を使って init 処理の各ステップ開始と完了時の経過時間レポートを管理する。
 
 ## Read this when
 
-- `cmoc init` の実行時処理を調べるとき。
-- 初期化時に `.cmoc` を `.gitignore` へ追加する流れを確認するとき。
-- 初期化変更を `Initialize cmoc` というメッセージでコミットする挙動を変更・検証するとき。
-- `ensure_cmoc_ignored` または `commit_if_changed` が `cmoc init` からどう呼ばれるかを確認するとき。
+- `cmoc init` の実行本体がどの共通処理や repository helper を呼び出しているか確認したいとき。
+- `.cmoc` を `.gitignore` に追加し、git 追跡対象外にする初期化処理の流れを調べたいとき。
+- `cmoc init` が初期化変更をどの条件でコミットするか確認したいとき。
+- `cmoc init` の stdout 進捗表示や `StepTimer` によるステップ計測の実装箇所を探しているとき。
+- サブコマンド実装から `run_command` へ委譲する直接呼び出し時のパターンを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init` の CLI 引数定義やサブコマンド登録だけを調べるとき。
-- git ignore やコミット処理の低レベル実装を調べるとき。
-- `cmoc` の他サブコマンドの挙動を調べるとき。
-- 正本仕様や設計ルールだけを確認するとき。
+- CLI 引数解析や `cmoc init` コマンドの登録箇所だけを調べたいとき。
+- `.cmoc` ignore ルールの詳細な判定・書き込み・tracked file 解除ロジックそのものを調べたいとき。
+- 初期化変更の git commit 対象や commit 実行の詳細ロジックを調べたいとき。
+- `StepTimer` の実装や時間表示フォーマットそのものを確認したいとき。
+- `cmoc branch`、`cmoc apply`、`cmoc merge` など、init 以外のサブコマンド本体を調べたいとき。
 
 ## hash
 
-- ce04df3a0d99b9ee0e2921f47ce625c0505af8f39b84c6d3593d81107a1d17a1
+- fed23b7dbddef444bcd8f69f1bf09603a657028a6aaff10e70ae0ae3089fa822
 
 # `merge.py`
 
 ## Summary
 
 - `cmoc merge` サブコマンドの本体処理を実装するファイル。
-- 対象リポジトリの作業ツリー検証、`.cmoc` ignore 確認、merge 元 cmoc ブランチの自動解決、`git merge --no-ff` 実行、merge 後のブランチ削除を扱う。
-- merge conflict 発生時に Codex CLI へ conflict marker 解消を依頼し、残存 marker や unmerged path を検査して merge commit を作成する処理を含む。
+- 作業ツリーの未コミット変更確認、`.cmoc` の git ignore 保証、merge 元 cmoc ブランチの解決、`git merge --no-ff` 実行、必要時の conflict 解消、merge 後の作業ブランチ削除までを扱う。
+- merge 元ブランチが明示されていない場合は、未マージブランチから cmoc 命名規則に合う候補を 1 件だけ自動解決し、0 件または複数件なら利用者に明示指定を求める。
+- merge conflict が発生した場合は unmerged path を取得し、Codex CLI に conflict marker 解消を依頼したうえで、残存 marker と unmerged path を検査してから `git add` と `git commit --no-edit` を実行する。
+- conflict 解消用プロンプトでは `git add` と `git commit` の実行禁止、`oracles` と `.agents` の編集禁止、`memo` の読み書き禁止を明示する。
+- git 管理対象ファイル全体から conflict marker を検出する補助処理、unmerged path 取得、source branch の安全削除、merge state が残る場合の手動解決案内を含む。
 
 ## Read this when
 
-- `cmoc merge` の実行手順、進捗表示、git merge 実行、merge 元ブランチ解決、merge 後のブランチ削除の実装を確認したいとき。
-- 未マージの cmoc ブランチ候補を `git branch --no-merged` から自動判定する挙動や、候補が一意でない場合のエラーを調べたいとき。
-- merge conflict 発生時に Codex CLI をどの prompt・権限で呼び出し、どのように conflict marker、unmerged path、`git add`、`git commit --no-edit` を処理するか確認したいとき。
-- `assert_no_uncommitted_changes`、`ensure_cmoc_ignored`、`run_git`、`run_codex_exec` と `cmoc merge` の連携箇所を追いたいとき。
+- `cmoc merge` の実装フローや各ステップの進捗表示を確認したいとき。
+- merge 元 cmoc ブランチの自動解決条件、候補が 0 件または複数件の場合のエラー処理を調べたいとき。
+- `git merge --no-ff` の実行方法、merge 失敗時に Codex CLI へ conflict 解消を依頼する流れを確認したいとき。
+- merge conflict 解消後に conflict marker や unmerged path をどう検査し、どのタイミングで `git add` と `git commit --no-edit` を行うか調べたいとき。
+- conflict 解消用 Codex プロンプトの内容、編集禁止パス、`skip_index_maintenance` の扱いを確認したいとき。
+- merge 後に source branch を `git branch -d` で削除する条件や、削除失敗時の warning 表示を確認したいとき。
+- merge state が残った可能性がある場合の手動解決メッセージや例外伝播の扱いを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc merge` 以外のサブコマンド、CLI 引数定義、エントリーポイント、共通エラー表示だけを調べたいとき。
-- git コマンド実行ラッパー、リポジトリ検証、cmoc ブランチ判定、Codex CLI 呼び出しの共通実装そのものを調べたいとき。
-- `cmoc merge` の正本仕様、ユーザー向けワークフロー、コンソール出力仕様を実装コードではなく仕様断片から確認したいとき。
-- merge conflict の一般的な解消方法や Git の使い方だけを知りたいとき。
+- `cmoc merge` の CLI 引数定義や argparse への登録箇所だけを調べたいとき。
+- `run_git`、`run_command`、`run_codex_exec`、`StepTimer` など共通ユーティリティ自体の実装を調べたいとき。
+- cmoc ブランチの命名規則そのものや `is_cmoc_branch` の詳細実装を確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles` など merge 以外のサブコマンド仕様を調べたいとき。
+- INDEX.md の自動生成や Structured Output の共通仕様だけを調べたいとき。
+- git merge や conflict 解消に関する一般的な Git の使い方だけを知りたいとき。
 
 ## hash
 
-- e828cc7bef6bd07bb49e7f4095d6edc0a6c5f749abe2d69c63b6f0743b6445a3
+- 5b43334527c457c86e109e32bb6741a4a81e840be17191070ebbea74d7b0d017

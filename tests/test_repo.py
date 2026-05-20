@@ -106,6 +106,30 @@ def test_list_oracle_files_respects_slash_pattern_depth(
     assert relative_paths == ["oracles/nested/kept.md"]
 
 
+def test_list_oracle_files_uses_git_double_star_semantics(
+    tmp_path: Path,
+) -> None:
+    """root .gitignore の `**` は Git と同じ semantics で評価する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text(
+        "oracles/**/ignored.md\n",
+        encoding="utf-8",
+    )
+    oracle_root = repo / "oracles"
+    nested = oracle_root / "a" / "b"
+    nested.mkdir(parents=True)
+    (oracle_root / "ignored.md").write_text("ignored", encoding="utf-8")
+    (nested / "ignored.md").write_text("ignored", encoding="utf-8")
+    (nested / "kept.md").write_text("kept", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_oracle_files(repo)
+    ]
+
+    assert relative_paths == ["oracles/a/b/kept.md"]
+
+
 def test_list_oracle_files_ignores_only_root_gitignore(
     tmp_path: Path,
 ) -> None:
@@ -160,6 +184,34 @@ def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     names = [path.name for path in changed_oracle_files(repo, base_commit)]
 
     assert names == ["committed.md", "working.md"]
+
+
+def test_changed_oracle_files_includes_reverted_history_changes(
+    tmp_path: Path,
+) -> None:
+    """HEAD で base と同じ内容に戻っても履歴上の変更は部分評価対象にする。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    reverted = oracle_root / "reverted.md"
+    reverted.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    reverted.write_text("changed\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "change oracle")
+    reverted.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "revert oracle")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_oracle_files(repo, base_commit)
+    ]
+
+    assert relative_paths == ["oracles/reverted.md"]
 
 
 def test_changed_oracle_files_includes_untracked_files_under_new_directory(
@@ -248,10 +300,33 @@ def test_has_deleted_oracle_files_detects_base_to_head_deletion(
     assert has_deleted_oracle_files(repo, base_commit) is True
 
 
-def test_has_deleted_oracle_files_ignores_uncommitted_deletion(
+def test_has_deleted_oracle_files_detects_delete_then_readd_history(
     tmp_path: Path,
 ) -> None:
-    """未コミット oracle 削除だけでは全体評価切替条件にしない。"""
+    """途中 commit の oracle 削除は HEAD に再追加されても全体評価へ切り替える。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    deleted = oracle_root / "deleted.md"
+    deleted.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    deleted.unlink()
+    _git(repo, "add", "-u", "oracles")
+    _git(repo, "commit", "-m", "delete oracle")
+    deleted.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "readd oracle")
+
+    assert has_deleted_oracle_files(repo, base_commit) is True
+
+
+def test_has_deleted_oracle_files_detects_uncommitted_worktree_deletion(
+    tmp_path: Path,
+) -> None:
+    """working tree の oracle 削除も全体評価切替条件にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -261,6 +336,64 @@ def test_has_deleted_oracle_files_ignores_uncommitted_deletion(
     base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     (oracle_root / "deleted.md").unlink()
+
+    assert has_deleted_oracle_files(repo, base_commit) is True
+
+
+def test_has_deleted_oracle_files_detects_staged_deletion(
+    tmp_path: Path,
+) -> None:
+    """staging area の oracle 削除も全体評価切替条件にする。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "deleted.md").write_text("delete me\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "deleted.md").unlink()
+    _git(repo, "add", "-u", "oracles")
+
+    assert has_deleted_oracle_files(repo, base_commit) is True
+
+
+def test_has_deleted_oracle_files_ignores_index_md_deletion(
+    tmp_path: Path,
+) -> None:
+    """INDEX.md だけの削除は oracle ファイル削除扱いにしない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle index")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "INDEX.md").unlink()
+    _git(repo, "add", "-u", "oracles")
+
+    assert has_deleted_oracle_files(repo, base_commit) is False
+
+
+def test_has_deleted_oracle_files_ignores_gitignored_deletion(
+    tmp_path: Path,
+) -> None:
+    """root .gitignore 対象の削除は oracle ファイル削除扱いにしない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text(
+        "oracles/ignored.md\n",
+        encoding="utf-8",
+    )
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "ignored.md").write_text("ignored\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".gitignore", "oracles/ignored.md")
+    _git(repo, "commit", "-m", "ignored oracle")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (oracle_root / "ignored.md").unlink()
+    _git(repo, "add", "-u", "oracles")
 
     assert has_deleted_oracle_files(repo, base_commit) is False
 

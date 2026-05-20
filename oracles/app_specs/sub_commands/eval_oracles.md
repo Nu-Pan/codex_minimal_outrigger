@@ -20,6 +20,7 @@
     - `--full` がついている場合は全体評価モードへ
     - `--full` が付いていない場合
         - `<cmoc-branch>` 作成元 commit から `HEAD` までの間に `oracles` ファイルの削除が有る場合は全体評価モードへ
+        - working tree または staging area に `oracles` ファイルの削除がある場合は全体評価モードへ
         - そうでなければ部分評価へ
 - `<cmoc-branch>` に居ない場合 (e.g. `master` ブランチ上)
     - 全体評価モードへ

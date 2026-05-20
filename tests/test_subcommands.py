@@ -1,7 +1,8 @@
 """サブコマンド本体の決定論的な制御ロジックのテスト。"""
 
-import subprocess
 import inspect
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from sub_commands.apply import _commit_all_changes
 from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.branch import cmoc_branch_impl
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
+from sub_commands.eval_oracles import _evaluation_prompt
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
 from sub_commands.merge import _conflict_prompt
@@ -61,19 +63,28 @@ def test_init_untracks_existing_cmoc_file_and_commits_it(
     assert ".cmoc/logs/tracked.log" in last_commit_paths
 
 
-def test_init_rejects_existing_gitignore_changes(tmp_path: Path) -> None:
-    """`cmoc init` は既存の `.gitignore` 差分を初期化 commit に混ぜない。"""
+def test_init_does_not_commit_existing_gitignore_changes(
+    tmp_path: Path,
+) -> None:
+    """`cmoc init` は既存 `.gitignore` 差分を初期化 commit に混ぜない。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("user-rule\n", encoding="utf-8")
 
-    with pytest.raises(CmocError):
-        cmoc_init_impl(repo)
+    cmoc_init_impl(repo)
 
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+    gitignore = (repo / ".gitignore").read_text(encoding="utf-8")
+    committed_gitignore = _git(repo, "show", "HEAD:.gitignore").stdout
+    assert gitignore == "user-rule\n/.cmoc/\n"
+    assert committed_gitignore == "/.cmoc/\n"
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Initialize cmoc"
+    )
+    assert _git(repo, "status", "--porcelain").stdout == " M .gitignore\n"
 
 
 def test_branch_creates_cmoc_branch_and_records_base_commit(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`cmoc branch` は branch 作成と base commit 記録を行う。"""
     repo = _init_repo(tmp_path)
@@ -85,6 +96,7 @@ def test_branch_creates_cmoc_branch_and_records_base_commit(
     record_path = repo / ".cmoc" / "branch" / f"{branch_name}.txt"
     assert branch_name.startswith("cmoc_")
     assert record_path.read_text(encoding="utf-8").strip() == base_commit
+    assert "create cmoc branch attempt (1/10)" in capsys.readouterr().out
 
 
 def test_eval_oracles_writes_report_with_fake_codex(
@@ -114,22 +126,35 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "no fatal problems" in reports[0].read_text(encoding="utf-8")
 
 
-def test_eval_oracles_body_file_uses_subcommand_name() -> None:
-    """`eval-oracles` の本体ファイルはサブコマンド名と一致させる。"""
+def test_eval_oracles_body_uses_subcommand_file_name() -> None:
+    """`eval-oracles` の本体は import 可能な PEP 8 名ファイルに置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    body = repo_root / "src" / "sub_commands" / "eval-oracles.py"
-    wrapper = repo_root / "src" / "sub_commands" / "eval_oracles.py"
-    assert body.exists()
-    assert "def cmoc_eval_oracles_impl" in body.read_text(encoding="utf-8")
-    assert wrapper.exists()
+    module = repo_root / "src" / "sub_commands" / "eval_oracles.py"
+    assert "def cmoc_eval_oracles_impl" in module.read_text(
+        encoding="utf-8"
+    )
+    assert not (
+        repo_root / "src" / "sub_commands" / "eval-oracles.py"
+    ).exists()
+    module_text = module.read_text(encoding="utf-8")
+    assert "compile(" not in module_text
+    assert "globals()" not in module_text
+
+
+def test_eval_oracles_prompt_forbids_implementation_references() -> None:
+    """評価 prompt は仕様だけから致命的問題を判断させる。"""
+    prompt = _evaluation_prompt(Path("/repo"), Path("/repo/oracles/spec.md"))
+
+    assert "実装・テスト・設定ファイルは参照禁止です。" in prompt
+    assert "仕様だけから判断・実装したとき" in prompt
 
 
 def test_apply_returns_complete_when_no_discrepancies(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """`cmoc apply` はズレなし JSON で完了扱いのレポートを保存する。"""
+    """`cmoc apply` は不整合なし JSON で完了扱いのレポートを保存する。"""
     repo = _init_repo(tmp_path)
     _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -144,13 +169,24 @@ def test_apply_returns_complete_when_no_discrepancies(
         lambda repo_root: False,
     )
     codex_kwargs: list[dict[str, object]] = []
+    codex_prompts: list[str] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
         codex_kwargs.append(kwargs)
+        codex_prompts.append(str(args[1]))
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
-        return "complete report"
+        return "\n".join(
+            [
+                "## 作業結果",
+                "収束",
+                "## 不整合件数の推移",
+                "1 回目: 0 件",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: oracle 整備",
+            ]
+        )
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -159,8 +195,110 @@ def test_apply_returns_complete_when_no_discrepancies(
     reports = list((repo / ".cmoc" / "reports" / "apply").glob("*.md"))
     assert exit_code == 0
     assert len(reports) == 1
-    assert reports[0].read_text(encoding="utf-8") == "complete report"
+    report_text = reports[0].read_text(encoding="utf-8")
+    assert "## 作業結果" in report_text
+    assert "## 不整合件数の推移" in report_text
+    assert "全変更内容" in report_text
     assert codex_kwargs[0]["output_schema"] == _DISCREPANCY_OUTPUT_SCHEMA
+    assert "作業結果区分: 収束" in codex_prompts[-1]
+    assert "変更内容の意味論に基づき" in codex_prompts[-1]
+    assert "「カテゴリ」という語" in codex_prompts[-1]
+    assert "<cmoc-branch>" not in codex_prompts[-1]
+
+
+def test_apply_uses_repeat_option_for_loop_limit(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`cmoc apply` は指定 repeat 回数をループ上限と表示に使う。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        lambda repo_root: False,
+    )
+    codex_prompts: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """常に不整合を返し、指定回数で incomplete になることを見やすくする。"""
+        codex_prompts.append(str(args[1]))
+        if kwargs.get("expect_json") is True:
+            return (
+                '{"discrepancies": [{"oracle_path": "/repo/oracles/spec.md", '
+                '"oracle_line_start": 1, "oracle_line_end": 1, '
+                '"implementation_paths": [], "title": "t", '
+                '"oracle_requirement": "r", "observed_implementation": "o", '
+                '"reason": "x", "suggested_fix": "f"}]}'
+            )
+        return "\n".join(
+            [
+                "## 作業結果",
+                "未収束",
+                "## 不整合件数の推移",
+                "1 回目: 1 件",
+                "2 回目: 1 件",
+                "まだ不整合が残っている可能性があります。",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: 実装修正",
+            ]
+        )
+
+    monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
+
+    exit_code = cmoc_apply_impl(repo, repeat=2)
+
+    assert exit_code == 2
+    assert (
+        "implementation loop (2/2) discrepancies: 1"
+        in capsys.readouterr().out
+    )
+    reports = list((repo / ".cmoc" / "reports" / "apply").glob("*.md"))
+    report_text = reports[0].read_text(encoding="utf-8")
+    assert "作業結果区分: 未収束" in codex_prompts[-1]
+    assert "まだ不整合が残っている可能性" in codex_prompts[-1]
+    assert "まだ不整合が残っている可能性" in report_text
+
+
+def test_apply_rejects_incomplete_report_from_codex(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """必須内容を欠く apply レポートは保存せずエラーにする。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査は収束、レポートは必須項目不足にする。"""
+        if kwargs.get("expect_json") is True:
+            return '{"discrepancies": []}'
+        return "収束\ncomplete report"
+
+    monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError):
+        cmoc_apply_impl(repo)
+
+    report_dir = repo / ".cmoc" / "reports" / "apply"
+    assert not report_dir.exists() or list(report_dir.glob("*.md")) == []
 
 
 def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
@@ -204,10 +342,19 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
     )
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査ならズレなし JSON、レポートなら Markdown を返す。"""
+        """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
         if kwargs.get("expect_json") is True:
             return '{"discrepancies": []}'
-        return "complete report"
+        return "\n".join(
+            [
+                "## 作業結果",
+                "収束",
+                "## 不整合件数の推移",
+                "1 回目: 0 件",
+                "## ブランチ cmoc_2026-05-10_22-21_10_123 上の全変更内容",
+                "カテゴリ: oracle 整備",
+            ]
+        )
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -234,8 +381,13 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
-    def fake_maintain_indexes(repo_root: Path) -> bool:
+    def fake_maintain_indexes(
+        repo_root: Path,
+        *,
+        commit_changes: bool = True,
+    ) -> bool:
         """INDEX メンテナンス時に禁止領域差分を作る fake。"""
+        assert commit_changes is False
         oracle_index = repo_root / "oracles" / "INDEX.md"
         oracle_index.parent.mkdir()
         oracle_index.write_text("forbidden\n", encoding="utf-8")
@@ -253,7 +405,7 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
 
 
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
-    """ズレ調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
+    """不整合調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
     with pytest.raises(ValueError):
         _validate_discrepancy_payload(
             {
@@ -268,7 +420,7 @@ def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
 
 
 def test_apply_discrepancy_schema_rejects_near_miss_keys() -> None:
-    """似た名前のキーでもズレ調査 schema と一致しなければ拒否する。"""
+    """似た名前のキーでも不整合調査 schema と一致しなければ拒否する。"""
     with pytest.raises(ValueError):
         _validate_discrepancy_payload(
             {
@@ -342,8 +494,64 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     assert "cmoc_init_impl()" in source
     assert "cmoc_branch_impl()" in source
     assert "cmoc_eval_oracles_impl(full=full)" in source
-    assert "cmoc_apply_impl()" in source
+    assert "cmoc_apply_impl(repeat=repeat)" in source
     assert "cmoc_merge_impl(cmoc_branch=cmoc_branch)" in source
+
+
+def test_cmoc_help_uses_cmoc_command_name() -> None:
+    """PATH 経由の `cmoc --help` は Usage に cmoc を表示する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "main", "--help"],
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." in result.stdout
+
+
+def test_bin_cmoc_requires_venv_python() -> None:
+    """ランチャーは system python3 へフォールバックしない。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    launcher = (repo_root / "bin" / "cmoc").read_text(encoding="utf-8")
+
+    assert launcher.startswith("#!/bin/sh")
+    assert "#!/usr/bin/env python3" not in launcher
+    assert 'exec "$venv_python"' in launcher
+    assert "} >&2" not in launcher
+
+
+def test_bin_cmoc_reports_missing_venv_to_stdout(tmp_path: Path) -> None:
+    """仮想環境が無い場合も共通エラーレポートを stdout へ出す。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    launcher = tmp_path / "repo" / "bin" / "cmoc"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(
+        (repo_root / "bin" / "cmoc").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+
+    result = subprocess.run(
+        [str(launcher), "--help"],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode == 1
+    assert result.stderr == ""
+    assert "ERROR" in result.stdout
+    assert "Summary:" in result.stdout
+    assert "Next actions:" in result.stdout
+    assert "Detail:" in result.stdout
+    assert "Call stack:" in result.stdout
+    assert "仮想環境 Python" in result.stdout
 
 
 def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:
@@ -354,22 +562,26 @@ def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:
 
     assert "`/repo/oracles` は編集禁止です。" in prompt
     assert "既に conflict がある場合を除いて" not in prompt
+    assert "解決内容と未解決ファイルの有無を報告" in prompt
 
 
-def test_files_with_conflict_markers_uses_fixed_conflict_targets(
+def test_files_with_conflict_markers_checks_all_tracked_files(
     tmp_path: Path,
 ) -> None:
-    """marker 検査は現在の unmerged path ではなく渡された対象一覧を見る。"""
-    repo = tmp_path / "repo"
-    repo.mkdir()
+    """marker 検査は渡された対象一覧に限定せず git 管理対象全体を見る。"""
+    repo = _init_repo(tmp_path)
     conflicted = repo / "conflicted.txt"
-    conflicted.write_text(
+    unrelated = repo / "unrelated.txt"
+    conflicted.write_text("resolved\n", encoding="utf-8")
+    unrelated.write_text(
         "<<<<<<< HEAD\nleft\n=======\nright\n>>>>>>> branch\n",
         encoding="utf-8",
     )
+    _git(repo, "add", "conflicted.txt", "unrelated.txt")
+    _git(repo, "commit", "-m", "add tracked files")
 
     assert _files_with_conflict_markers(repo, ["conflicted.txt"]) == [
-        "conflicted.txt"
+        "unrelated.txt"
     ]
 
 

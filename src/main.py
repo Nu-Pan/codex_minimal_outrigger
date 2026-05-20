@@ -1,8 +1,5 @@
 """cmoc CLI エントリーポイント。"""
 
-import sys
-from pathlib import Path
-
 import click
 import typer
 
@@ -13,18 +10,20 @@ from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(name="cmoc", no_args_is_help=True)
 
 
 @app.command("init")
 def init_command() -> None:
     """Initialize a repository for cmoc work."""
+    # CLI callback は init の本体実装へ処理を委譲する。
     cmoc_init_impl()
 
 
 @app.command("branch")
 def branch_command() -> None:
     """Create a cmoc work branch."""
+    # CLI callback は branch の本体実装へ処理を委譲する。
     cmoc_branch_impl()
 
 
@@ -33,18 +32,23 @@ def eval_oracles_command(
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Evaluate oracle files."""
+    # CLI callback は eval-oracles の本体実装へ処理を委譲する。
     cmoc_eval_oracles_impl(full=full)
 
 
 @app.command("apply")
-def apply_command() -> None:
+def apply_command(
+    repeat: int = typer.Option(5, "--repeat", "-r"),
+) -> None:
     """Apply oracle requirements to implementation."""
-    cmoc_apply_impl()
+    # CLI callback は apply の本体実装へ処理を委譲する。
+    cmoc_apply_impl(repeat=repeat)
 
 
 @app.command("merge")
 def merge_command(cmoc_branch: str | None = typer.Argument(None)) -> None:
     """Merge a cmoc branch into the current branch."""
+    # CLI callback は merge の本体実装へ処理を委譲する。
     cmoc_merge_impl(cmoc_branch=cmoc_branch)
 
 
@@ -52,7 +56,7 @@ def main() -> None:
     """Typer の parse error も共通エラーレポートへ変換して起動する。"""
     # standalone_mode=False で Click/Typer の例外を cmoc 側で整形する。
     try:
-        app(standalone_mode=False)
+        app(prog_name="cmoc", standalone_mode=False)
     except typer.Exit as exit_error:
         raise SystemExit(exit_error.exit_code) from exit_error
     except click.ClickException as error:
@@ -67,6 +71,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # `bin/cmoc` から直接実行される経路でも typer を起動する。
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    # `python src/main.py` で直接実行される経路でも typer を起動する。
     main()
