@@ -146,31 +146,30 @@
 
 ## Summary
 
-- `oracles` は、cmoc の正本仕様断片を格納するディレクトリです。
-- トップレベルには、アプリケーション実行時仕様へ進む `app_specs` と、cmoc 自体の開発ルールへ進む `dev_rules` があります。
-- `app_specs` は Codex CLI 連携、プロンプト構成、サンドボックス、Model・Reasoning Effort、Structured Output、ログ、リトライ、設定ファイル、共通エラーハンドリング、サブコマンド横断仕様、`INDEX.md` 自動メンテナンス、エンドユーザー向けワークフローを扱います。
-- `app_specs/sub_commands` には `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の個別仕様へのルーティングがあります。
-- `dev_rules` は cmoc 自体の Python 実装、CLI 構成、共通処理配置、開発環境、テスト実装規約など、実装者向けの開発ルールを扱います。
+- `oracles` は、cmoc の正本仕様断片を収める最上位ディレクトリです。
+- 配下には、cmoc のアプリケーション実行時仕様へルーティングする `app_specs` と、cmoc 自体の開発ルールへルーティングする `dev_rules` があります。
+- `app_specs` は Codex CLI 連携、設定ファイル、共通実行挙動、サブコマンド仕様、ユーザー向けワークフローなどを扱います。
+- `dev_rules` は Python 実装、CLI 設計、共通処理配置、テスト、開発環境など、cmoc 自体を開発するためのルールを扱います。
 
 ## Read this when
 
-- `oracles` 配下のどの仕様ディレクトリを読むべきか判断したいとき。
-- cmoc のユーザー向け実行時仕様、サブコマンド仕様、Codex CLI 呼び出し仕様、設定ファイル仕様、ログ・リトライ・エラー処理などを調べる入口を探しているとき。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の仕様へ進みたいが、読むべき個別仕様ファイルがまだ明確でないとき。
-- `<repo-root>` 探索、oracle ファイル列挙、実装ファイル列挙、`.cmoc`、タイムスタンプ、`INDEX.md` 自動生成など、サブコマンド横断の補助仕様を調べたいとき。
-- cmoc 自体の実装・修正・テスト追加にあたり、Python コーディング規約、設計規約、開発環境、pytest や Fake Codex CLI の扱いを確認したいとき。
+- `oracles` 配下の正本仕様断片を調べ始めるとき。
+- cmoc の仕様確認で、まず `app_specs` と `dev_rules` のどちらを読むべきか判断したいとき。
+- cmoc のユーザー向け実行時仕様、サブコマンド挙動、Codex CLI 連携、設定、ワークフローを調べる入口を探しているとき。
+- cmoc 自体の実装、設計、テスト、開発環境に関する開発者向けルールを調べる入口を探しているとき。
+- 仕様断片に基づいて実装やテストを進める前に、読むべき下位 `INDEX.md` を選びたいとき。
 
 ## Do not read this when
 
-- 読むべき具体的な仕様ファイルやサブディレクトリがすでに明確で、トップレベルのルーティング判断が不要なとき。
-- `src` や `tests` の実装コードを直接調査するだけで、正本仕様断片へのルーティングが不要なとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` などの編集可否やリポジトリ運用ルールだけを確認したいとき。
-- Codex CLI や git の一般的な使い方だけを調べており、cmoc 固有の仕様が不要なとき。
-- cmoc を用いた別リポジトリ開発の `<repo-root>` 側ルールだけを調べており、cmoc 自体の仕様断片を参照する必要がないとき。
+- 読むべき下位仕様ファイルまたは下位 `INDEX.md` が既に明確なとき。
+- 正本仕様ではなく、`src` や `tests` の具体的な実装コードだけを直接調査したいとき。
+- `README.md`、`AGENTS.md`、`memo` など、リポジトリ運用上の編集可否やアクセス制約だけを確認したいとき。
+- cmoc とは無関係な Codex CLI、Python、git などの一般的な使い方だけを調べているとき。
+- `oracles` 配下の仕様断片を参照する必要がない、単純なコード読解やテスト実行だけの作業をしているとき。
 
 ## hash
 
-- 17fa259142339c833e252530999c9e16c5303a2253f14414c23ba49c647ed7cc
+- bead553834b675ba1806132cc30ad9a59bacdecdf9a092d534b5158c047133d7
 
 # `pyproject.toml`
 
