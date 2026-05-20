@@ -222,6 +222,67 @@ def commit_cmoc_initialization_changes(
     return True
 
 
+def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
+    """指定パスに差分があれば add して commit する。"""
+    # 指定 pathspec に差分が無ければ commit を作らない。
+    diff_result = run_git(repo_root, ["status", "--porcelain", "--", *paths])
+    if not diff_result.stdout.strip():
+        return False
+
+    # 呼び出し前から stage 済みの無関係差分を、対象 commit へ混ぜない。
+    staged_outside_paths = _staged_diff_excluding_paths(repo_root, paths)
+    parent_hash = _head_commit_or_none(repo_root)
+    with tempfile.TemporaryDirectory(
+        prefix="cmoc-pathspec-index-",
+    ) as temp_name:
+        env = {"GIT_INDEX_FILE": str(Path(temp_name) / "index")}
+        if parent_hash is None:
+            run_git(repo_root, ["read-tree", "--empty"], env=env)
+        else:
+            run_git(repo_root, ["read-tree", "HEAD"], env=env)
+
+        update_paths = [path for path in paths if (repo_root / path).exists()]
+        if update_paths:
+            run_git(repo_root, ["add", "-u", "--", *update_paths], env=env)
+
+        add_paths = [path for path in paths if not path.startswith(".cmoc")]
+        if add_paths:
+            run_git(repo_root, ["add", "--", *add_paths], env=env)
+        if any(path == ".cmoc" or path.startswith(".cmoc/") for path in paths):
+            _remove_cmoc_from_index(repo_root, env)
+
+        changed = run_git(
+            repo_root,
+            ["diff", "--cached", "--quiet", "--", *paths],
+            check=False,
+            env=env,
+        )
+        if changed.returncode == 0:
+            return False
+        if changed.returncode != 1:
+            raise CmocError(
+                "Failed to inspect pathspec commit changes.",
+                [
+                    "Inspect git index state and retry cmoc.",
+                    "Commit or stash unrelated changes, then run cmoc again.",
+                ],
+                changed.stderr.strip(),
+            )
+
+        tree_hash = run_git(repo_root, ["write-tree"], env=env).stdout.strip()
+
+    commit_args = ["commit-tree", tree_hash, "-m", message]
+    if parent_hash is not None:
+        commit_args[2:2] = ["-p", parent_hash]
+    commit_hash = run_git(repo_root, commit_args).stdout.strip()
+    update_ref_args = ["update-ref", "HEAD", commit_hash]
+    if parent_hash is not None:
+        update_ref_args.append(parent_hash)
+    run_git(repo_root, update_ref_args)
+    _restore_index_after_pathspec_commit(repo_root, staged_outside_paths)
+    return True
+
+
 def _restore_index_after_init_commit(
     repo_root: Path,
     preexisting_staged_diff: str,
@@ -275,65 +336,6 @@ def _head_commit_or_none(repo_root: Path) -> str | None:
     return None
 
 
-def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
-    """指定パスに差分があれば add して commit する。"""
-    # 指定 pathspec に差分が無ければ commit を作らない。
-    diff_result = run_git(repo_root, ["status", "--porcelain", "--", *paths])
-    if not diff_result.stdout.strip():
-        return False
-
-    # 呼び出し前から stage 済みの無関係差分を、対象 commit へ混ぜない。
-    staged_outside_paths = _staged_diff_excluding_paths(repo_root, paths)
-    parent_hash = _head_commit_or_none(repo_root)
-    with tempfile.TemporaryDirectory(prefix="cmoc-pathspec-index-") as temp_name:
-        env = {"GIT_INDEX_FILE": str(Path(temp_name) / "index")}
-        if parent_hash is None:
-            run_git(repo_root, ["read-tree", "--empty"], env=env)
-        else:
-            run_git(repo_root, ["read-tree", "HEAD"], env=env)
-
-        update_paths = [path for path in paths if (repo_root / path).exists()]
-        if update_paths:
-            run_git(repo_root, ["add", "-u", "--", *update_paths], env=env)
-
-        add_paths = [path for path in paths if not path.startswith(".cmoc")]
-        if add_paths:
-            run_git(repo_root, ["add", "--", *add_paths], env=env)
-        if any(path == ".cmoc" or path.startswith(".cmoc/") for path in paths):
-            _remove_cmoc_from_index(repo_root, env)
-
-        changed = run_git(
-            repo_root,
-            ["diff", "--cached", "--quiet", "--", *paths],
-            check=False,
-            env=env,
-        )
-        if changed.returncode == 0:
-            return False
-        if changed.returncode != 1:
-            raise CmocError(
-                "Failed to inspect pathspec commit changes.",
-                [
-                    "Inspect git index state and retry cmoc.",
-                    "Commit or stash unrelated changes, then run cmoc again.",
-                ],
-                changed.stderr.strip(),
-            )
-
-        tree_hash = run_git(repo_root, ["write-tree"], env=env).stdout.strip()
-
-    commit_args = ["commit-tree", tree_hash, "-m", message]
-    if parent_hash is not None:
-        commit_args[2:2] = ["-p", parent_hash]
-    commit_hash = run_git(repo_root, commit_args).stdout.strip()
-    update_ref_args = ["update-ref", "HEAD", commit_hash]
-    if parent_hash is not None:
-        update_ref_args.append(parent_hash)
-    run_git(repo_root, update_ref_args)
-    _restore_index_after_pathspec_commit(repo_root, staged_outside_paths)
-    return True
-
-
 def list_oracle_files(repo_root: Path) -> list[Path]:
     """仕様に従って `oracles` ファイルを列挙する。"""
     # oracles ディレクトリが無い場合は評価対象なしとして扱う。
@@ -345,6 +347,27 @@ def list_oracle_files(repo_root: Path) -> list[Path]:
     candidates: list[Path] = []
     for path in oracle_root.rglob("*"):
         if not path.is_file() or path.name == "INDEX.md":
+            continue
+        candidates.append(path)
+
+    relatives = [path.relative_to(repo_root).as_posix() for path in candidates]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return sorted(
+        path
+        for path, relative in zip(candidates, relatives, strict=True)
+        if relative not in ignored
+    )
+
+
+def list_implementation_files(repo_root: Path) -> list[Path]:
+    """仕様に従って実装ファイルを列挙する。"""
+    # repo root 配下の全ファイルから、仕様上の除外対象だけを落とす。
+    candidates: list[Path] = []
+    for path in repo_root.rglob("*"):
+        if not path.is_file() or path.name == "INDEX.md":
+            continue
+        relative = path.relative_to(repo_root).as_posix()
+        if _is_excluded_implementation_path(relative):
             continue
         candidates.append(path)
 
@@ -439,6 +462,74 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
     )
 
 
+def changed_implementation_files(
+    repo_root: Path,
+    base_commit: str,
+) -> list[Path]:
+    """部分適用対象となる変更済み実装ファイルを列挙する。"""
+    # base..HEAD と未コミット差分から、実装ファイルだけを抽出する。
+    collected: set[Path] = set()
+    commands = [
+        [
+            "log",
+            "--name-status",
+            "-M",
+            "--diff-filter=ACMRT",
+            "--format=",
+            f"{base_commit}..HEAD",
+            "--",
+            ".",
+        ],
+        [
+            "diff",
+            "--name-status",
+            "-M",
+            "--diff-filter=ACMRT",
+            "HEAD",
+            "--",
+            ".",
+        ],
+        [
+            "diff",
+            "--cached",
+            "--name-status",
+            "-M",
+            "--diff-filter=ACMRT",
+            "--",
+            ".",
+        ],
+    ]
+    for command in commands:
+        collected.update(
+            _changed_paths_from_name_status(
+                repo_root,
+                run_git(repo_root, command).stdout,
+            )
+        )
+
+    # 未追跡ファイルもディレクトリ単位に畳まず収集する。
+    status = run_git(
+        repo_root,
+        ["status", "--porcelain", "--untracked-files=all", "--", "."],
+    )
+    for line in status.stdout.splitlines():
+        if line.startswith("?? "):
+            collected.add(repo_root / line[3:])
+
+    existing = [
+        path
+        for path in collected
+        if _is_implementation_file(repo_root, path)
+    ]
+    relatives = [path.relative_to(repo_root).as_posix() for path in existing]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return sorted(
+        path
+        for path, relative in zip(existing, relatives, strict=True)
+        if relative not in ignored
+    )
+
+
 def _changed_paths_from_name_status(repo_root: Path, output: str) -> set[Path]:
     """`git diff --name-status` から変更後 path を取り出す。"""
     # rename/copy を考慮しながら git 出力を path 集合へ変換する。
@@ -477,6 +568,31 @@ def has_deleted_oracle_files(repo_root: Path, base_commit: str) -> bool:
     return False
 
 
+def has_deleted_implementation_files(
+    repo_root: Path,
+    base_commit: str,
+) -> bool:
+    """適用モード切替用に実装ファイル削除有無を判定する。"""
+    # committed 履歴、working tree、staging area の削除をすべて切替条件にする。
+    commands = [
+        [
+            "log",
+            "--name-only",
+            "-M",
+            "--diff-filter=D",
+            "--format=",
+            f"{base_commit}..HEAD",
+        ],
+        ["diff", "--name-only", "-M", "--diff-filter=D", "HEAD"],
+        ["diff", "--cached", "--name-only", "-M", "--diff-filter=D"],
+    ]
+    for command in commands:
+        result = run_git(repo_root, [*command, "--", "."])
+        if _deleted_implementation_file_paths(repo_root, result.stdout):
+            return True
+    return False
+
+
 def _deleted_oracle_file_paths(repo_root: Path, output: str) -> list[str]:
     """削除 path から oracle 列挙対象外のものを除外する。"""
     # INDEX.md と root .gitignore 対象は oracle ファイル削除として扱わない。
@@ -487,6 +603,48 @@ def _deleted_oracle_file_paths(repo_root: Path, output: str) -> list[str]:
     ]
     ignored = _root_gitignored_paths(repo_root, relatives)
     return [relative for relative in relatives if relative not in ignored]
+
+
+def _deleted_implementation_file_paths(
+    repo_root: Path,
+    output: str,
+) -> list[str]:
+    """削除 path から実装ファイル列挙対象外のものを除外する。"""
+    # 削除済み path は存在確認できないため、path 規則と gitignore だけで判定する。
+    relatives = [
+        line
+        for line in output.splitlines()
+        if not _is_excluded_implementation_path(line)
+    ]
+    ignored = _root_gitignored_paths(repo_root, relatives)
+    return [relative for relative in relatives if relative not in ignored]
+
+
+def _is_implementation_file(repo_root: Path, path: Path) -> bool:
+    """実装ファイル列挙対象の既存ファイルか判定する。"""
+    # Path が repo 外を指すケースは対象外にする。
+    try:
+        relative = path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return False
+    return (
+        path.exists()
+        and path.is_file()
+        and not _is_excluded_implementation_path(relative)
+    )
+
+
+def _is_excluded_implementation_path(relative_path: str) -> bool:
+    """実装ファイル列挙から機械的に除外する path か判定する。"""
+    # oracles、.git、INDEX.md は仕様上の除外対象である。
+    path = Path(relative_path)
+    return (
+        relative_path == "oracles"
+        or relative_path.startswith("oracles/")
+        or relative_path == ".git"
+        or relative_path.startswith(".git/")
+        or path.name == "INDEX.md"
+    )
 
 
 def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
@@ -530,7 +688,15 @@ def _staged_diff_excluding_paths(repo_root: Path, paths: list[str]) -> str:
     exclusions = [f":(exclude){path}" for path in paths]
     result = run_git(
         repo_root,
-        ["diff", "--cached", "--binary", "--full-index", "--", ".", *exclusions],
+        [
+            "diff",
+            "--cached",
+            "--binary",
+            "--full-index",
+            "--",
+            ".",
+            *exclusions,
+        ],
     )
     return result.stdout
 

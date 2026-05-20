@@ -23,35 +23,38 @@
 
 ## Summary
 
-- Codex CLI 呼び出しに関する共通処理を提供するモジュール。
-- `run_codex_exec` で `codex exec` を実行し、read-only または workspace-write のサンドボックス指定、Structured Output schema 指定、stdout 進捗表示、`.cmoc/logs/codex_exec` へのフルログ保存をまとめて扱う。
-- `codex exec` 実行直前の INDEX 保守、JSON またはテキスト出力の検証、最大 3 回のリトライ、Codex CLI 失敗時や検証失敗時の `CmocError` 生成を担当する。
-- `parse_json_object` で Codex CLI の JSON 応答が object であることを保証する。
-- Structured Output 用 schema ファイルの保存、Codex 呼び出しログの追記、cmoc が使う JSON Schema subset の再帰的検査、表示用の 80 文字切り詰めを内部ヘルパーで実装している。
+- Codex CLI 呼び出しの共通処理を提供するモジュール。
+- `run_codex_exec` は `codex exec` のコマンド構築、実行前の INDEX 保守、ログ保存、Structured Output schema ファイル作成、stdout 進捗表示、JSON/text 検証、最大 3 回のリトライ、quota 枯渇時の待機と resume、失敗時の `CmocError` 生成をまとめて扱う。
+- `parse_json_object` は Codex CLI の最終応答文字列を JSON object として読み、object 以外なら `CmocError` にする。
+- model と reasoning effort の既定値、禁止 reasoning effort、quota 疎通確認用の軽量 model/effort、quota poll 間隔を定義する。
+- `_build_codex_command`、`_run_codex_command`、`_read_last_message`、`_append_codex_log`、`_write_output_schema` など、Codex CLI 実行とログ・成果物管理の内部ヘルパーを含む。
+- quota 枯渇判定、session id 抽出、`--resume` 付きコマンド生成、低コスト疎通確認後の再開処理を含む。
+- cmoc 側で使う JSON Schema subset の再検証として、object/array/string/integer/boolean/null、required、properties、additionalProperties、items を検査する内部実装を含む。
 
 ## Read this when
 
-- cmoc から Codex CLI を呼び出す共通経路を実装・修正・調査したいとき。
-- `codex exec` のサンドボックス指定、実行ディレクトリ、コマンド引数、prompt の渡し方を確認したいとき。
-- Codex CLI 呼び出し前に `maintain_indexes` がいつ実行され、どの条件でスキップされるかを調べたいとき。
-- Structured Output の schema ファイル作成、`--output-schema` 引数、JSON parse、schema 検査、意味検証の流れを確認したいとき。
-- Codex CLI の stdout/stderr、prompt、returncode、schema パスが `.cmoc/logs/codex_exec` にどのように保存されるかを調べたいとき。
-- Codex CLI の失敗、JSON 以外の応答、schema 不一致、テキスト検証失敗がどのようにリトライまたは `CmocError` 化されるかを確認したいとき。
-- cmoc 内で使う JSON Schema subset の対応 type、required、properties、additionalProperties、items の検査仕様を確認したいとき。
-- Codex CLI の JSON 応答を dict として扱うための `parse_json_object` の挙動を確認したいとき。
+- cmoc から Codex CLI を呼び出す共通経路、`codex exec` の引数、sandbox、model、reasoning effort、`--json`、`--output-last-message` の扱いを確認したいとき。
+- Codex CLI 実行前に INDEX 保守が走る条件や、`skip_index_maintenance` の意味を調べたいとき。
+- Codex CLI 呼び出しログ、last message ファイル、Structured Output schema ファイルが `.cmoc/logs/codex_exec` 配下へどのように保存されるか確認したいとき。
+- Codex CLI の JSON 応答、Structured Output、text validator、json validator、リトライ回数、検証失敗時の診断情報を調べたいとき。
+- quota 枯渇らしい失敗を検出して待機し、session id を抽出して `codex exec --resume` で再開する処理を調べたいとき。
+- Codex CLI の model/reasoning effort 制約、特に high/xhigh 禁止や low/medium のみ許可する実装を確認したいとき。
+- cmoc 内部の簡易 JSON Schema 検証がどの keyword と型をサポートしているか確認したいとき。
+- Codex CLI の最終応答を dict として扱うための `parse_json_object` のエラー処理を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの仕様やユーザー向け CLI ワークフローだけを調べたいとき。
-- INDEX 生成・保守ロジックそのもののディレクトリ走査、対象除外、目次生成 prompt の詳細を調べたいとき。
-- タイムスタンプ生成の形式や実装だけを確認したいとき。
-- `CmocError` クラスの構造、表示形式、共通エラーレポートの詳細だけを調べたいとき。
-- Codex CLI と無関係なファイル操作、git 操作、oracle 読み込み、サブコマンド分岐の実装を探しているとき。
-- Python の一般的な JSON Schema 検証ライブラリ利用方法や Codex CLI 自体の外部仕様だけを調べたいとき。
+- 個別サブコマンドの業務ロジックやユーザー向けワークフローだけを調べたいとき。
+- Codex CLI 呼び出しではなく、通常のファイル列挙、git 操作、設定ファイル読み書きなどの共通処理を探しているとき。
+- INDEX 生成・保守そのものの実装詳細を調べたいとき。ただし Codex 実行直前に INDEX 保守を呼ぶ接点だけ知りたい場合は読む。
+- `CmocError` のクラス定義やエラー表示形式そのものを調べたいとき。
+- タイムスタンプ文字列の生成仕様そのものを調べたいとき。
+- テストコード、Fake Codex CLI、またはテスト用 fixture の実装だけを確認したいとき。
+- Codex CLI や JSON Schema の一般仕様を調べたいだけで、cmoc 固有の呼び出し・検証・ログ保存の実装が不要なとき。
 
 ## hash
 
-- fcdb548a3b35daaf4f95299b513e7f08276f8edca4d1fd9041240ba9178d45b4
+- a467f4d5b4dfc2effbe04da36cc1ccb562ff76a59b9a7eb7df9496c9fabaa948
 
 # `command_runner.py`
 
@@ -147,39 +150,35 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、cmoc が対象リポジトリを扱うための共通処理をまとめたモジュールです。
-- git リポジトリルートの探索と cwd 移動、現在ブランチ名や HEAD commit hash の取得、cmoc 作業ブランチ名の判定を提供します。
-- `.cmoc` が git 追跡対象外であることを保証するため、root `.gitignore` への `/.cmoc/` 追加、既存 tracked `.cmoc` の index 除外、保証状態の検証を行います。
-- 未コミット差分の有無確認、未コミット差分が oracle 配下だけかどうかの検査、指定 pathspec の clean 検査、変更パス一覧の取得を扱います。
-- `cmoc init` や pathspec 指定 commit のために、一時 git index を使って既存 staged 差分を混ぜずに必要な差分だけ commit し、commit 後に元の staged 差分を復元します。
-- oracle ファイル列挙、変更済み oracle ファイル列挙、削除済み oracle ファイル有無判定を実装し、`INDEX.md` と root `.gitignore` 対象ファイルを評価対象から除外します。
-- cmoc branch の base commit 記録ファイルの読み書き先パス解決と、記録ファイル欠落時の利用者向け `CmocError` を扱います。
-- git 実行は `run_git` に集約され、repo root 固定の cwd、stdout/stderr 捕捉、任意の環境変数・stdin・check 指定を共通化しています。
+- `src/commons/repo.py` は、git リポジトリ検出、カレントブランチ・HEAD 取得、cmoc ブランチ名判定、未コミット差分検査、`.cmoc` の git 追跡対象外保証を扱う共通モジュールです。
+- `cmoc init` や pathspec commit 用に、既存 staged 差分を分離しながら初期化差分・指定パス差分だけを commit し、index を復元する処理を提供します。
+- oracle ファイル、実装ファイル、変更済み oracle、変更済み実装ファイルを仕様上の除外規則と root `.gitignore` に従って列挙し、削除有無の判定も行います。
+- `.cmoc/branch/<branch>.txt` に保存された cmoc ブランチ作成元 commit の読み取り、未コミットパス一覧の抽出、git name-status 出力の path 変換など、サブコマンド横断の補助処理を含みます。
+- git コマンド実行は `run_git` に集約され、失敗時に `CmocError` へ変換する箇所では利用者向けの復旧ヒントと詳細情報を付けます。
 
 ## Read this when
 
-- cmoc の各サブコマンドで `<repo-root>` を発見し、以降の git 操作をリポジトリルート基準に固定する処理を確認したいとき。
-- `.cmoc` ディレクトリを git 追跡対象外に保つ仕様、`.gitignore` への `/.cmoc/` 追加、tracked `.cmoc` の index 除外処理を実装・修正したいとき。
-- 未コミット差分の検査、clean working tree 要件、oracle 配下だけの差分許可、指定 pathspec の差分検査に関する共通処理を調べたいとき。
-- `cmoc init` が発生させた差分だけを commit し、利用者が事前に stage していた無関係差分を commit に混ぜない仕組みを確認したいとき。
-- 特定 pathspec だけを commit する処理、一時 index、`commit-tree`、`update-ref`、既存 staged 差分復元の流れを調べたいとき。
-- oracle ファイルの全件評価・部分評価・削除検知で、どのファイルを対象に含めるか、`INDEX.md` や root `.gitignore` 対象をどう除外するか確認したいとき。
-- cmoc branch の作成元 commit を `.cmoc/branch/<branch>.txt` から読む処理や、記録ファイルが無い場合のエラーを確認したいとき。
-- git コマンド呼び出しの共通ラッパー、`CmocError` への変換箇所、git の stdout/stderr の扱いを調べたいとき。
+- `<repo-root>` の探索や `os.chdir` による repo root への移動処理を確認・修正したいとき。
+- 現在ブランチ、HEAD commit、`cmoc_<timestamp>` 形式のブランチ名判定、cmoc ブランチの base commit 記録ファイルを扱う処理を調べたいとき。
+- `.cmoc` を root `.gitignore` に追加し、tracked な `.cmoc` を index から外し、追跡対象外保証を検証する挙動を確認したいとき。
+- 未コミット差分の有無、未コミット差分が oracle 配下だけか、特定 pathspec が clean かを判定する共通チェックを使う・直すとき。
+- `cmoc init` の初期化差分 commit や、指定パスだけを commit する処理で、既存 staged 差分を混ぜずに一時 index を使う仕組みを理解したいとき。
+- oracle ファイル列挙、実装ファイル列挙、変更済みファイル列挙、削除ファイル検出の対象・除外条件を確認したいとき。
+- `oracles/`、`.git/`、`INDEX.md`、root `.gitignore` 対象ファイルが列挙から除外されるかを調べたいとき。
+- git の `status`、`diff`、`log --name-status`、`check-ignore`、`commit-tree`、`update-ref` などの呼び出しラッパーやエラー処理を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの CLI 引数、stdout 表示、終了ステータスなど、ユーザー向け実行仕様だけを確認したいとき。
-- Codex CLI の呼び出し、プロンプト構成、Structured Output、ログ保存、リトライなど、Codex 連携処理を調べたいとき。
-- oracle の正本仕様本文や、oracle 評価プロンプトの内容そのものを読みたいとき。
-- `CmocError` クラスの定義やエラー表示フォーマットだけを確認したいとき。
-- ファイルシステム上の INDEX.md 自動生成ロジックや、目次情報の JSON schema だけを調べたいとき。
-- Python パッケージ構成、CLI エントリーポイント、サブコマンドのルーティングだけを確認したいとき。
-- README、AGENTS、oracles、memo の編集可否など、リポジトリ運用ルールだけを確認したいとき。
+- CLI 引数定義、サブコマンドの argparse 構成、エントリーポイントだけを調べたいとき。
+- Codex CLI 呼び出し、プロンプト生成、Structured Output、ログ保存、リトライなど LLM 連携仕様を調べたいとき。
+- `comconfig.json` や `CMOConfig` の読み書き、設定値補完、設定プロパティの詳細だけを確認したいとき。
+- oracle 目次 `INDEX.md` の本文フォーマット、Codex への目次生成依頼、内容ハッシュ管理だけを調べたいとき。
+- 個別サブコマンドの利用者向け標準出力、進捗表示、終了時レポート、コマンド全体のワークフローだけを確認したいとき。
+- git 以外のファイル入出力ユーティリティ、時刻生成、一般的な文字列処理など、このモジュールにない共通処理を探しているとき。
 
 ## hash
 
-- 24164cfead162546386e0c8fbb28f02a2cd9458916008464c314302ec81d5d36
+- b075d68d5381adb8b7ae342b2127cb443b03391aedc4cb7a289f2a4fce70dfad
 
 # `timestamps.py`
 

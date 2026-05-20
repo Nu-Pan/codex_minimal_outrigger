@@ -265,6 +265,14 @@ def test_maintain_indexes_retries_invalid_structured_output(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
@@ -272,7 +280,7 @@ def test_maintain_indexes_retries_invalid_structured_output(
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -eq 1 ]; then",
                 (
-                    "  printf '%s\\n' "
+                    "  printf '%s\\n' > \"$LAST\" "
                     "'{\"content_hash\":\"abc\","
                     "\"summary\":\"not a list\","
                     "\"read_this_when\":[\"read\"],"
@@ -280,12 +288,13 @@ def test_maintain_indexes_retries_invalid_structured_output(
                 ),
                 "else",
                 (
-                    "  printf '%s\\n' "
+                    "  printf '%s\\n' > \"$LAST\" "
                     "'{\"summary\":[\"valid summary\"],"
                     "\"read_this_when\":[\"read\"],"
                     "\"do_not_read_this_when\":[\"skip\"]}'"
                 ),
                 "fi",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",

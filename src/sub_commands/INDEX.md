@@ -24,36 +24,41 @@
 
 ## Summary
 
-- `cmoc apply` サブコマンドの本体処理を実装するファイルです。
-- cmoc 作業ブランチ上であることを確認し、oracle 外の未コミット差分を拒否したうえで、`.cmoc` ignore 保証差分と oracle 差分を必要に応じて commit します。
-- `INDEX.md` メンテナンス、不整合調査、不整合追従、禁止パス検査、変更 commit、作業レポート生成までの apply 全体フローを 4 ステップで制御します。
-- oracle ファイルごとに Codex CLI を read-only Structured Output モードで呼び出し、`discrepancies` JSON schema と追加の Python バリデーションで不整合調査結果を検証します。
-- 検出された不整合は workspace-write の Codex CLI に修正させ、`oracles/` と `.agents/` への差分を禁止し、変更があれば Codex 生成の 1 行 commit message で commit します。
-- apply レポートを `.cmoc/reports/apply/<timestamp>.md` に保存し、必須見出し・収束区分・不整合件数推移・全変更内容カテゴリ要約を検証してから、収束時は終了コード 0、指定回数内に収束しない場合は終了コード 2 を返します。
+- `src/sub_commands/apply.py` は `cmoc apply` の本体処理を実装するファイルです。
+- cmoc 作業ブランチの検証、oracle 由来差分のコミット、`INDEX.md` メンテナンス、不整合調査、実装修正依頼、禁止パス検査、変更コミット、apply レポート生成までの実行フローを扱います。
+- 不整合調査では oracle ファイル起点と実装ファイル起点の両方から Codex CLI を read-only Structured Output で呼び出し、`discrepancies` 配列を検証・整理します。
+- 部分適用と全体適用の切り替え、変更済み oracle・実装ファイルの抽出、削除検出時の全体適用へのフォールバックを扱います。
+- 実装修正では Codex CLI を workspace-write で呼び出し、`oracles`、`.agents`、`memo` などの禁止領域が変更されていないことを commit 前に検査します。
+- apply レポート生成では `.cmoc/reports/apply` 配下へタイムスタンプ付き Markdown を保存し、収束・未収束、不整合件数推移、ブランチ上の全変更内容の必須記述を検証します。
+- このファイルには不整合 Structured Output schema、調査・整理・修正・commit message・レポート生成用 prompt、JSON payload validator が含まれます。
 
 ## Read this when
 
-- `cmoc apply` の実行順序、ブランチ制約、未コミット差分の扱い、INDEX メンテナンス、実装修正ループ、レポート生成までの全体フローを確認したいとき。
-- `--repeat` の反復上限、負の値の拒否、収束時と未収束時の終了コードを調べたいとき。
-- apply がどの条件で `CmocError` を出すか、特に cmoc ブランチ以外での実行、負の `--repeat`、禁止パス変更、レポート不備、Structured Output 不備の扱いを調べたいとき。
-- 不整合調査で Codex CLI に渡す prompt、read-only 実行、Structured Output schema、`discrepancies` payload の検証ロジックを確認したいとき。
-- 不整合追従作業で Codex CLI に渡す prompt、workspace-write 実行、`oracles`・`.agents`・`memo` の禁止指定を確認したいとき。
-- apply 中の commit 方針、`commit_if_changed` と `_commit_all_changes` の使い分け、Codex 生成 commit message の fallback を確認したいとき。
-- apply レポートの保存先、必須見出し、収束・未収束ラベル、不整合件数推移の検証条件を確認したいとき。
+- `cmoc apply` の全体処理順序を実装または確認したいとき。
+- cmoc 作業ブランチでのみ apply を許可する条件や、base commit を使った変更範囲の扱いを調べたいとき。
+- apply 実行前に未コミット差分をどのように検査し、`.gitignore`、`.cmoc`、`oracles` の保証差分を commit するか確認したいとき。
+- `cmoc apply` が `INDEX.md` をいつメンテナンスするか確認したいとき。
+- oracle と実装の不整合調査で Codex CLI に渡す Structured Output schema、prompt、validator を調べたいとき。
+- 部分適用と全体適用の判定、変更済み oracle ファイル・実装ファイルの選別、削除検出時の挙動を確認したいとき。
+- 不整合リストの重複整理や矛盾調整を Codex CLI に依頼する処理を調べたいとき。
+- 不整合ごとに Codex CLI へ実装修正を依頼し、その後の禁止パス検査と commit を行う処理を確認したいとき。
+- `cmoc apply` の未収束時 exit code、repeat 回数、ループごとの不整合件数記録を調べたいとき。
+- apply レポートの保存先、必須見出し、収束・未収束表示、検証条件を実装または修正したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 以外のサブコマンド、例えば `init`、`branch`、`merge`、`eval-oracles` の詳細挙動だけを調べたいとき。
-- CLI の引数定義や Typer のコマンド登録だけを確認したいとき。
-- Codex CLI 呼び出しの共通実装、JSON パース、ログ保存、リトライなど、`commons.codex` 側の詳細だけを調べたいとき。
-- git 操作、cmoc ブランチ判定、oracle ファイル列挙、`.cmoc` ignore 保証など、`commons.repo` 側の共通関数の内部実装だけを調べたいとき。
-- `INDEX.md` 自動生成・ハッシュ管理・除外規則の共通仕様や実装だけを調べたいとき。
-- oracle の正本仕様本文やルーティング情報を調べたいだけで、apply 実装コードの制御フローが不要なとき。
-- apply のテストケースや monkeypatch 方針だけを調べたいとき。
+- `cmoc apply` の CLI 引数定義や argparse への接続だけを確認したいとき。
+- Codex CLI 呼び出しの低レベル実装、ログ保存、リトライ、sandbox 指定の共通処理だけを調べたいとき。
+- git 操作、ブランチ判定、変更ファイル列挙、commit 実行などの共通 repository helper の実装詳細だけを調べたいとき。
+- `INDEX.md` メンテナンス処理そのものの対象ディレクトリ、除外規則、ハッシュ検証、生成 prompt の詳細だけを調べたいとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` の個別挙動を調べたいとき。
+- cmoc の開発規約、テスト規約、Python コーディング規約など実装者向けルールだけを確認したいとき。
+- oracle 正本仕様断片の内容そのものを確認したいとき。
+- apply が生成したレポートの実ファイル内容や過去の実行結果だけを読みたいとき。
 
 ## hash
 
-- 91277899ac4cb4c3b4ac4070006439b9d7c5de2bedcfd85ffcdc87d37fb02748
+- 01f9fea017cf85c87dcc9a30b4d2694abc20f914d060db62567c81fa527e9862
 
 # `branch.py`
 
@@ -89,28 +94,33 @@
 
 ## Summary
 
-- `src/sub_commands/eval_oracles.py` は、ハイフン付きの本命実装ファイル `eval-oracles.py` を通常の Python import から扱いやすくする互換モジュールです。
-- `importlib.util.spec_from_file_location` を使って同じディレクトリの `eval-oracles.py` を `sub_commands.eval-oracles` として動的に読み込みます。
-- 読み込んだ本命実装モジュールから `cmoc_eval_oracles_impl` と `_evaluation_prompt` を再公開し、テストや他モジュールがアンダースコア区切りの `eval_oracles.py` 経由で参照できるようにします。
-- 動的ロードに失敗した場合は `ImportError` を送出します。
+- `cmoc eval-oracles` サブコマンドの本体処理を実装するファイル。
+- `.cmoc` の git ignore 保証、`INDEX.md` メンテナンス、評価対象 oracle ファイルの選択、Codex CLI による oracle 評価、Markdown レポート保存までの一連の処理を担当する。
+- `--full` 指定、cmoc ブランチ判定、base commit、削除 oracle の有無に基づいて、部分評価と全体評価を切り替える。
+- oracle 評価用プロンプトを組み立て、参照範囲、必須見出し、ファイル編集禁止、`memo` 読み書き禁止などを Codex CLI に渡す。
+- 評価出力に必須見出しが含まれることを検証し、`.cmoc/reports/eval-oracles/<timestamp>.md` に frontmatter 付きで評価結果を保存する。
 
 ## Read this when
 
-- `eval-oracles.py` の実装を Python の通常 import で参照するための互換レイヤーを確認したいとき。
-- `cmoc_eval_oracles_impl` や `_evaluation_prompt` が `src/sub_commands/eval_oracles.py` からどのように公開されているか調べたいとき。
-- ハイフンを含むファイル名の本命実装を `importlib` で読み込む仕組みを確認したいとき。
-- `eval-oracles` サブコマンド関連のテストが `eval_oracles.py` を import している理由を理解したいとき。
+- `cmoc eval-oracles` の実行フロー、進捗表示、ステップ構成を確認したいとき。
+- oracle 評価が部分評価になる条件、全体評価になる条件、`--full` の影響を調べたいとき。
+- Codex CLI に渡す oracle 評価プロンプトの内容や、評価時の参照禁止範囲を確認したいとき。
+- 評価レポートに要求される必須見出しや、出力検証の条件を確認したいとき。
+- `.cmoc/reports/eval-oracles` に保存される評価レポートのパス、frontmatter、oracle ごとの本文構成を調べたいとき。
+- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.timing`、`commons.timestamps` との連携箇所を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc eval-oracles` の本体処理、CLI 挙動、oracle 評価ロジック、プロンプト生成の詳細を調べたいとき。その場合は本命実装の `src/sub_commands/eval-oracles.py` を読むべきです。
-- `cmoc eval-oracles` の正本仕様を確認したいとき。その場合は `oracles/INDEX.md` から該当する仕様断片へルーティングしてください。
-- 他のサブコマンドや共通 CLI 処理の実装を調べたいとき。
-- ファイル名互換や再公開の仕組みではなく、実際の評価結果生成、ログ保存、Codex CLI 呼び出しなどの処理内容を確認したいとき。
+- `cmoc eval-oracles` ではなく、`init`、`branch`、`apply`、`merge` など他サブコマンドの本体処理を調べたいとき。
+- Codex CLI 実行の低レベル実装、リトライ、ログ保存、Structured Output 処理などの共通処理だけを調べたいとき。
+- oracle ファイル列挙、変更 oracle 検出、cmoc ブランチ判定、base commit 読み取りなどの git・repo 共通ヘルパー自体を修正したいとき。
+- `INDEX.md` メンテナンス処理の詳細な対象ディレクトリ、除外規則、ハッシュ判定、目次生成処理を調べたいとき。
+- 評価レポートのタイムスタンプ生成やステップ時間計測の共通実装だけを確認したいとき。
+- cmoc の正本仕様断片そのものや、`cmoc eval-oracles` の仕様上の期待挙動を確認したいだけのとき。
 
 ## hash
 
-- f7b3b8fed670ac7d3b700362e0de934019a514fb8f5c3b2f06b762b6eabf01c7
+- 831c8e5abba60851849dc02b00f8b1a6a1fdf9e33dd09e876e8952ae342efc3b
 
 # `init.py`
 

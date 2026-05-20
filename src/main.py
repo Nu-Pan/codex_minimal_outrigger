@@ -6,13 +6,11 @@ import typer
 from commons.errors import format_error_report
 from sub_commands.apply import cmoc_apply_impl
 from sub_commands.branch import cmoc_branch_impl
-from sub_commands.eval_oracles import load_eval_oracles_module
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
 
 
 app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=True)
-cmoc_eval_oracles_impl = load_eval_oracles_module().cmoc_eval_oracles_impl
 
 
 @app.command("init")
@@ -35,16 +33,19 @@ def eval_oracles_command(
 ) -> None:
     """Evaluate oracle files."""
     # CLI callback は eval-oracles の本体実装へ処理を委譲する。
+    from sub_commands.eval_oracles import cmoc_eval_oracles_impl
+
     cmoc_eval_oracles_impl(full=full)
 
 
 @app.command("apply")
 def apply_command(
     repeat: int = typer.Option(5, "--repeat", "-r"),
+    full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Apply oracle requirements to implementation."""
     # CLI callback は apply の本体実装へ処理を委譲する。
-    cmoc_apply_impl(repeat=repeat)
+    cmoc_apply_impl(repeat=repeat, full=full)
 
 
 @app.command("merge")
