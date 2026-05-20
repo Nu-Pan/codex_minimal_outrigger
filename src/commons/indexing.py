@@ -8,7 +8,7 @@ from pathlib import Path
 from .codex import parse_json_object, run_codex_exec
 from .repo import ensure_cmoc_ignored
 
-_INDEX_DIRECTORY_EXCLUDED_NAMES = {"build", "tmp", "__pycache__"}
+_INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,

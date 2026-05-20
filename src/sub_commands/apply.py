@@ -20,7 +20,7 @@ from commons.repo import (
 from commons.timing import StepTimer
 from commons.timestamps import make_timestamp
 
-_APPLY_INCOMPLETE_EXIT_CODE = 2
+_APPLY_INCOMPLETE_EXIT_CODE: int = 2
 _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,

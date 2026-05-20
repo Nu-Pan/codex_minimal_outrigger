@@ -158,36 +158,118 @@ def gitignore_has_cmoc_rule(repo_root: Path) -> bool:
     return "/.cmoc/" in lines
 
 
+def staged_diff_from_head(repo_root: Path) -> str:
+    """現在 stage 済みの差分を HEAD 基準の patch として返す。"""
+    # init commit 後に利用者の stage 済み差分だけを復元するため事前保存する。
+    result = run_git(
+        repo_root,
+        ["diff", "--cached", "--binary", "--full-index"],
+    )
+    return result.stdout
+
+
 def commit_cmoc_initialization_changes(
     repo_root: Path,
     had_cmoc_rule: bool,
+    preexisting_staged_diff: str,
 ) -> bool:
     """`cmoc init` が発生させた差分だけを commit する。"""
-    # init が追加した `/.cmoc/` だけを、既存 `.gitignore` 差分と分けて stage する。
-    if not had_cmoc_rule:
-        _stage_gitignore_with_cmoc_rule_from_head(repo_root)
+    # 一時 index だけで初期化差分の tree を作り、通常 index の既存 stage と分離する。
+    parent_hash = _head_commit_or_none(repo_root)
+    with tempfile.TemporaryDirectory(prefix="cmoc-init-index-") as temp_name:
+        env = {"GIT_INDEX_FILE": str(Path(temp_name) / "index")}
+        if parent_hash is None:
+            run_git(repo_root, ["read-tree", "--empty"], env=env)
+        else:
+            run_git(repo_root, ["read-tree", "HEAD"], env=env)
+        if not had_cmoc_rule:
+            _stage_gitignore_with_cmoc_rule_from_head(repo_root, env)
+        _remove_cmoc_from_index(repo_root, env)
 
-    # tracked `.cmoc` の追跡解除は `ensure_cmoc_ignored()` 済みの index 状態を使う。
-    diff = run_git(
+        diff = run_git(
+            repo_root,
+            ["diff", "--cached", "--quiet", "--", ".gitignore", ".cmoc"],
+            check=False,
+            env=env,
+        )
+        if diff.returncode == 0:
+            return False
+        if diff.returncode != 1:
+            raise CmocError(
+                "Failed to inspect initialization changes.",
+                [
+                    "Inspect git index state and retry cmoc init.",
+                    "Commit or stash unrelated changes, then run cmoc init "
+                    "again.",
+                ],
+                diff.stderr.strip(),
+            )
+
+        tree_hash = run_git(repo_root, ["write-tree"], env=env).stdout.strip()
+
+    commit_args = ["commit-tree", tree_hash, "-m", "Initialize cmoc"]
+    if parent_hash is not None:
+        commit_args[2:2] = ["-p", parent_hash]
+    commit_hash = run_git(
         repo_root,
-        ["diff", "--cached", "--quiet", "--", ".gitignore", ".cmoc"],
+        commit_args,
+    ).stdout.strip()
+    update_ref_args = ["update-ref", "HEAD", commit_hash]
+    if parent_hash is not None:
+        update_ref_args.append(parent_hash)
+    run_git(repo_root, update_ref_args)
+    _restore_index_after_init_commit(repo_root, preexisting_staged_diff)
+    return True
+
+
+def _restore_index_after_init_commit(
+    repo_root: Path,
+    preexisting_staged_diff: str,
+) -> None:
+    """init commit 後の index を HEAD ベースに戻し、既存 staged 差分を復元する。"""
+    # 作業ツリーは触らず index だけを新しい HEAD に合わせる。
+    run_git(repo_root, ["read-tree", "--reset", "HEAD"])
+    if not preexisting_staged_diff:
+        return
+
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        delete=False,
+    ) as patch_file:
+        patch_file.write(preexisting_staged_diff)
+        patch_path = Path(patch_file.name)
+    try:
+        result = run_git(
+            repo_root,
+            ["apply", "--cached", "--3way", str(patch_path)],
+            check=False,
+        )
+    finally:
+        patch_path.unlink(missing_ok=True)
+    if result.returncode == 0:
+        return
+
+    raise CmocError(
+        "Failed to restore preexisting staged changes.",
+        [
+            "Inspect git index state before continuing.",
+            "Re-stage your previous changes if needed.",
+        ],
+        result.stderr.strip(),
+    )
+
+
+def _head_commit_or_none(repo_root: Path) -> str | None:
+    """HEAD が存在すれば commit hash を返し、未作成なら None を返す。"""
+    result = run_git(
+        repo_root,
+        ["rev-parse", "--verify", "HEAD"],
         check=False,
     )
-    if diff.returncode == 0:
-        return False
-    if diff.returncode != 1:
-        raise CmocError(
-            "Failed to inspect initialization changes.",
-            [
-                "Inspect git index state and retry cmoc init.",
-                "Commit or stash unrelated changes, then run cmoc init again.",
-            ],
-            diff.stderr.strip(),
-        )
-
-    # stage 済みの初期化差分だけを init commit にする。
-    run_git(repo_root, ["commit", "-m", "Initialize cmoc"])
-    return True
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
 
 
 def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
@@ -382,7 +464,10 @@ def changed_paths(repo_root: Path) -> list[str]:
     return paths
 
 
-def _stage_gitignore_with_cmoc_rule_from_head(repo_root: Path) -> None:
+def _stage_gitignore_with_cmoc_rule_from_head(
+    repo_root: Path,
+    env: dict[str, str],
+) -> None:
     """HEAD の `.gitignore` に `/.cmoc/` だけを足した blob を stage する。"""
     # HEAD 側の内容を基準にすることで、作業ツリーの既存差分を commit から外す。
     head_text = _head_file_text(repo_root, ".gitignore") or ""
@@ -406,6 +491,7 @@ def _stage_gitignore_with_cmoc_rule_from_head(repo_root: Path) -> None:
         blob = run_git(
             repo_root,
             ["hash-object", "-w", str(staged_path)],
+            env=env,
         ).stdout.strip()
     finally:
         staged_path.unlink(missing_ok=True)
@@ -414,7 +500,24 @@ def _stage_gitignore_with_cmoc_rule_from_head(repo_root: Path) -> None:
     run_git(
         repo_root,
         ["update-index", "--add", "--cacheinfo", f"100644,{blob},.gitignore"],
+        env=env,
     )
+
+
+def _remove_cmoc_from_index(repo_root: Path, env: dict[str, str]) -> None:
+    """指定 index から `.cmoc` 配下の tracked entries を取り除く。"""
+    tracked = run_git(
+        repo_root,
+        ["ls-files", "-z", "--", ".cmoc"],
+        env=env,
+    ).stdout
+    if tracked:
+        run_git(
+            repo_root,
+            ["update-index", "--force-remove", "-z", "--stdin"],
+            input_text=tracked,
+            env=env,
+        )
 
 
 def _head_file_text(repo_root: Path, relative_path: str) -> str | None:
@@ -568,6 +671,8 @@ def run_git(
     *,
     check: bool = True,
     text: bool = True,
+    input_text: str | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """git コマンドを cwd 固定で実行する。"""
     # git 呼び出しは全て repo root 起点で実行し、stdout/stderr を呼び出し側で扱う。
@@ -576,6 +681,8 @@ def run_git(
         cwd=repo_root,
         check=check,
         text=text,
+        input=input_text,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env={**os.environ, **env} if env is not None else None,
     )

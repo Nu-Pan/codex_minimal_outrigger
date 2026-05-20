@@ -3,7 +3,10 @@
 import inspect
 import subprocess
 import sys
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import ModuleType
+from typing import Callable
 
 import pytest
 from pytest import MonkeyPatch
@@ -14,12 +17,33 @@ from sub_commands.apply import _DISCREPANCY_OUTPUT_SCHEMA
 from sub_commands.apply import _commit_all_changes
 from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.branch import cmoc_branch_impl
-from sub_commands.eval_oracles import cmoc_eval_oracles_impl
-from sub_commands.eval_oracles import _evaluation_prompt
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
 from sub_commands.merge import _conflict_prompt
 from sub_commands.merge import _files_with_conflict_markers
+
+
+def _load_eval_oracles_module() -> ModuleType:
+    """`eval-oracles` の本体ファイルをテスト用に読み込む。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    module_path = repo_root / "src" / "sub_commands" / "eval-oracles.py"
+    spec = spec_from_file_location("tests.eval_oracles_body", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Failed to load module spec: {module_path}")
+
+    module = module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+eval_oracles_module: ModuleType = _load_eval_oracles_module()
+cmoc_eval_oracles_impl: Callable[..., None] = (
+    eval_oracles_module.cmoc_eval_oracles_impl
+)
+_evaluation_prompt: Callable[[Path, Path], str] = (
+    eval_oracles_module._evaluation_prompt
+)
 
 
 def test_init_adds_cmoc_ignore_and_commits_it(tmp_path: Path) -> None:
@@ -82,6 +106,49 @@ def test_init_does_not_commit_existing_gitignore_changes(
     assert _git(repo, "status", "--porcelain").stdout == " M .gitignore\n"
 
 
+def test_init_does_not_commit_preexisting_staged_changes(
+    tmp_path: Path,
+) -> None:
+    """`cmoc init` は実行前から stage 済みの別差分を commit に混ぜない。"""
+    repo = _init_repo(tmp_path)
+    staged_file = repo / "feature.txt"
+    staged_file.write_text("user staged\n", encoding="utf-8")
+    _git(repo, "add", "feature.txt")
+
+    cmoc_init_impl(repo)
+
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Initialize cmoc"
+    )
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout.splitlines()
+    assert last_commit_paths == [".gitignore"]
+    assert _git(repo, "diff", "--cached", "--name-only").stdout == (
+        "feature.txt\n"
+    )
+
+
+def test_init_can_create_first_commit(tmp_path: Path) -> None:
+    """`cmoc init` は unborn HEAD のリポジトリでも初期化 commit を作る。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+
+    cmoc_init_impl(repo)
+
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Initialize cmoc"
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
+
+
 def test_branch_creates_cmoc_branch_and_records_base_commit(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -110,11 +177,13 @@ def test_eval_oracles_writes_report_with_fake_codex(
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "sub_commands.eval_oracles.maintain_indexes",
+        eval_oracles_module,
+        "maintain_indexes",
         lambda repo_root: False,
     )
     monkeypatch.setattr(
-        "sub_commands.eval_oracles.run_codex_exec",
+        eval_oracles_module,
+        "run_codex_exec",
         lambda *args, **kwargs: "no fatal problems",
     )
 
@@ -127,15 +196,15 @@ def test_eval_oracles_writes_report_with_fake_codex(
 
 
 def test_eval_oracles_body_uses_subcommand_file_name() -> None:
-    """`eval-oracles` の本体は import 可能な PEP 8 名ファイルに置く。"""
+    """`eval-oracles` の本体はサブコマンド名と同じファイルに置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    module = repo_root / "src" / "sub_commands" / "eval_oracles.py"
+    module = repo_root / "src" / "sub_commands" / "eval-oracles.py"
     assert "def cmoc_eval_oracles_impl" in module.read_text(
         encoding="utf-8"
     )
     assert not (
-        repo_root / "src" / "sub_commands" / "eval-oracles.py"
+        repo_root / "src" / "sub_commands" / "eval_oracles.py"
     ).exists()
     module_text = module.read_text(encoding="utf-8")
     assert "compile(" not in module_text
