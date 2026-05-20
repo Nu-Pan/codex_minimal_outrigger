@@ -14,6 +14,7 @@
     - `<repo-root>` 配下の全てのファイルを glob する（拡張子で制限しない）
     - `<repo-root>/oracles` は除外
     - `<repo-root>/.gitignore` の対象は除外
+    - `.git` は対象外
     - `INDEX.md` は除外
 
 ## `<repo-root>` に対する仮定
