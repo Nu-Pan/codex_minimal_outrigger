@@ -535,13 +535,8 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
-    def fake_maintain_indexes(
-        repo_root: Path,
-        *,
-        commit_changes: bool = True,
-    ) -> bool:
+    def fake_maintain_indexes(repo_root: Path) -> bool:
         """INDEX メンテナンス時に禁止領域差分を作る fake。"""
-        assert commit_changes is False
         oracle_index = repo_root / "oracles" / "INDEX.md"
         oracle_index.parent.mkdir()
         oracle_index.write_text("forbidden\n", encoding="utf-8")

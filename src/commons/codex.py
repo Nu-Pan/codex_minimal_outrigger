@@ -12,10 +12,13 @@ from .timestamps import make_timestamp
 
 _DEFAULT_MODEL = "gpt-5.5"
 _DEFAULT_REASONING_EFFORT = "medium"
+INDEX_GENERATION_MODEL = "gpt-5.4-mini"
+INDEX_GENERATION_REASONING_EFFORT = "medium"
 _POLL_MODEL = "gpt-5.4-mini"
 _POLL_REASONING_EFFORT = "low"
 _QUOTA_POLL_INTERVAL_SECONDS = 30 * 60
 _FORBIDDEN_REASONING_EFFORTS = {"high", "xhigh"}
+_QUOTA_POLL_PROMPT = "疎通確認です。`ok` とだけ出力してください。"
 
 
 def run_codex_exec(
@@ -226,6 +229,7 @@ def _wait_for_quota_and_resume(
     # 復活確認は低コスト model/effort の最小 prompt で行う。
     while True:
         print("quota poll: running minimal codex exec check")
+        print(f"quota poll prompt: {_head80(_QUOTA_POLL_PROMPT)}")
         poll_path = log_path.with_suffix(".quota-check.txt")
         poll_command = _build_codex_command(
             read_only=True,
@@ -233,7 +237,7 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
             last_message_path=poll_path,
         )
-        poll_command.append("疎通確認です。`ok` とだけ出力してください。")
+        poll_command.append(_QUOTA_POLL_PROMPT)
         poll_result = subprocess.run(
             poll_command,
             cwd=repo_root,
@@ -244,7 +248,7 @@ def _wait_for_quota_and_resume(
         _append_codex_log(
             log_path,
             poll_command,
-            "疎通確認です。`ok` とだけ出力してください。",
+            _QUOTA_POLL_PROMPT,
             attempt,
             poll_result,
             None,
@@ -252,6 +256,8 @@ def _wait_for_quota_and_resume(
         )
         print(f"quota poll result: {poll_result.returncode}")
         if poll_result.returncode == 0:
+            poll_output = _read_last_message(poll_path)
+            print(f"quota poll output: {_head80(poll_output)}")
             print("quota restored; resuming codex exec")
             return _run_codex_command(
                 repo_root,

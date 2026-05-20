@@ -487,6 +487,8 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     assert output.strip() == "resumed"
     assert "--resume\nsession-1" in args
     assert "quota exhausted; waiting before resume" in captured
+    assert "quota poll prompt: 疎通確認です。`ok` とだけ出力してください。" in captured
+    assert "quota poll output: ok" in captured
     assert "quota restored; resuming codex exec" in captured
 
 

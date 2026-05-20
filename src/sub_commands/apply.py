@@ -351,7 +351,7 @@ def _commit_all_changes(repo_root: Path) -> None:
         return
 
     # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
-    maintain_indexes(repo_root, commit_changes=False)
+    maintain_indexes(repo_root)
     _assert_forbidden_paths_clean(repo_root)
     if not changed_paths(repo_root):
         return

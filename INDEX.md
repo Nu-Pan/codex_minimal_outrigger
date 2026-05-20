@@ -202,36 +202,35 @@
 
 ## Summary
 
-- `/home/happy/codex_minimal_outrigger_cli_stage1/src` は cmoc 本体の Python 実装を収めるディレクトリです。
-- `main.py` は Typer ベースの CLI エントリーポイントで、`init`、`branch`、`eval-oracles`、`apply`、`merge` の各サブコマンドを登録し、実処理を `sub_commands` 配下へ委譲します。
-- `main.py` は Click/Typer の parse error や想定外例外を `commons.errors.format_error_report` による共通エラーレポートへ変換して終了コードを決定します。
-- `commons` はサブコマンド横断で使う共通処理のパッケージで、Codex CLI 呼び出し、Structured Output 検証、repo root 解決、git 操作、エラー整形、INDEX.md メンテナンス、タイムスタンプ生成、時間計測などを扱います。
-- `sub_commands` は cmoc の各 CLI サブコマンド本体実装を集約するパッケージで、初期化、作業ブランチ作成、oracle 評価、実装追従、マージ処理の制御フローを含みます。
-- `commons/INDEX.md` と `sub_commands/INDEX.md` には、それぞれ共通モジュール群と個別サブコマンド実装ファイルへの詳細なルーティング情報があります。
+- `src` は cmoc 本体の Python 実装を置くディレクトリです。
+- トップレベルの `main.py` は Typer ベースの CLI エントリーポイントで、`init`、`branch`、`eval-oracles`、`apply`、`merge` の各サブコマンドを登録し、実処理を `src/sub_commands` 配下へ委譲します。
+- `src/sub_commands` は個別サブコマンドの本体実装パッケージで、初期化、作業ブランチ作成、oracle 評価、oracle 変更の実装反映、cmoc ブランチのマージ処理を扱います。
+- `src/commons` はサブコマンド横断の共通処理パッケージで、Codex CLI 呼び出し、Structured Output 検証、ログ保存、リトライ、quota 待機、`INDEX.md` 自動メンテナンス、git リポジトリ操作、エラー整形、時間計測、タイムスタンプ生成を提供します。
+- CLI の入口、サブコマンド固有ロジック、共通ユーティリティが `main.py`、`sub_commands`、`commons` に分離されています。
 
 ## Read this when
 
-- cmoc 本体の実装コードが `src` 配下でどのように分かれているか把握したいとき。
-- CLI エントリーポイント、サブコマンド本体、共通ユーティリティのどこを読むべきか判断したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の登録箇所と実装委譲先を確認したいとき。
-- Typer/Click の起動経路、parse error、想定外例外が共通エラーレポートへ変換される入口を探しているとき。
-- Codex CLI 呼び出し、Structured Output、ログ保存、repo root 探索、git 操作、INDEX.md 自動メンテナンス、タイムスタンプ、時間計測などの共通処理の所在を知りたいとき。
-- 個別サブコマンドの実行フロー、進捗表示、レポート生成、Codex 連携、git 操作の実装ファイルへ進む前に全体の入口を確認したいとき。
-- `src/commons` と `src/sub_commands` のどちらを先に読むべきか迷っているとき。
+- cmoc 本体の実装コード全体の配置を把握し、どのファイルやサブディレクトリを読むべきか判断したいとき。
+- cmoc CLI のトップレベル入口、サブコマンド登録、Typer/Click の例外処理、各サブコマンド実装への委譲関係を確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の本体実装がどこにあるか探しているとき。
+- Codex CLI 呼び出し、Structured Output、ログ保存、リトライ、quota 待機、`INDEX.md` 自動保守など、複数サブコマンドで共有される処理の入口を探したいとき。
+- git リポジトリ探索、ブランチや HEAD の取得、`.cmoc` の git 追跡対象外保証、oracle・実装ファイル列挙、指定パス commit などの共通 repo 操作を調べたいとき。
+- 共通エラー型、利用者向けエラーレポート、サブコマンドの共通実行ラッパー、ステップ別時間計測、cmoc 用タイムスタンプ生成の配置を確認したいとき。
+- tests 配下の自動テストを読む前に、対応する実装モジュールや責務分担を把握したいとき。
 
 ## Do not read this when
 
-- cmoc の正本仕様断片を確認したいだけで、実装コードの配置を調べる必要がないとき。
-- Python コーディング規約、設計規約、テスト規約、開発環境など、開発者向けルールだけを確認したいとき。
-- 自動テストの fixture、Fake Codex CLI、pytest 設定、検証ケースなど、`tests` 配下の構成だけを調べたいとき。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` のうち、読むべき具体的な実装ファイルが既に分かっているとき。
-- Codex CLI 呼び出し、git 操作、INDEX.md メンテナンス、エラー整形など、特定の共通モジュールの詳細だけを直接調べたいとき。
-- cmoc を用いて開発する対象リポジトリ側の `<repo-root>` の oracle、実装ファイル、`.cmoc` 成果物、生成レポートを調査したいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` などの編集可否やリポジトリ運用ルールだけを確認したいとき。
+- cmoc の正本仕様断片を確認したいだけのとき。その場合は `oracles` 配下の該当 `INDEX.md` から辿ってください。
+- cmoc 自体の開発ルール、設計規約、テスト規約、開発環境などを確認したいだけのとき。
+- README、AGENTS、oracles、memo の編集可否やリポジトリ運用ルールだけを確認したいとき。
+- 自動テスト、pytest fixture、Fake Codex CLI、期待出力など、tests 配下のテスト実装だけを調べたいとき。
+- cmoc を用いて開発する対象リポジトリ側の `<repo-root>` の oracle や実装ファイルの内容を調査したいとき。
+- Typer、Click、git、Codex CLI、JSON Schema、日時 API などの一般的な使い方だけを知りたいとき。
+- 特定の個別モジュールを読むべきことが既に明確で、src 全体のルーティング情報が不要なとき。
 
 ## hash
 
-- 167a5b201bf57e05c78aeb63aee05fe8c9625c2e51c5236c365c1b13a0254c38
+- bc888907c1acb0aa352614b9c499b539f7b202cbbdb2a19f1458931eeecf08a4
 
 # `test.sh`
 
@@ -261,35 +260,38 @@
 
 ## Summary
 
-- `tests` は cmoc 自体の pytest 自動テストを置くディレクトリです。
-- `conftest.py` は `<cmoc-root>/src` を import path に追加し、テストから本体モジュールを直接 import できるようにします。
-- `test_codex.py` は `commons.codex.run_codex_exec` の Codex CLI 呼び出しラッパーを検証し、Structured Output、JSON Schema、semantic validator、リトライ、ログ、stdout 進捗表示、quota 枯渇時の resume、INDEX メンテナンス呼び出しを扱います。
-- `test_indexing.py` は `commons.indexing.maintain_indexes` による `INDEX.md` 自動生成・更新を検証し、目次対象・配置対象・除外対象、空ディレクトリ、`build`・`tmp`・ネストした `memo`、壊れた既存エントリ、Structured Output リトライ、最新時の Codex 呼び出し抑制、自動コミット対象を扱います。
-- `test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証し、repo root 探索、`.cmoc` ignore 保証、oracle・実装ファイル列挙、gitignore semantics、cmoc ブランチ判定、base commit 記録、変更・削除・rename 検出、`cmoc apply` 前提条件を扱います。
-- `test_subcommands.py` は `init`、`branch`、`eval-oracles`、`apply`、`merge` と CLI エントリーポイント周辺の決定論的な制御ロジックを検証し、git commit、ブランチ、レポート保存、プロンプト、Structured Output schema、終了コード、`bin/cmoc` ランチャーを扱います。
-- `test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の出力形式を検証し、cmoc timestamp と経過時間表示の固定フォーマットを扱います。
-- 各テストファイルは一時 git リポジトリ、fake Codex CLI、`monkeypatch`、`capsys`、`subprocess` などを使い、外部サービスに依存しない回帰テストとして構成されています。
+- `tests` は cmoc 自体の自動テストを置くディレクトリです。
+- pytest 共通設定の `conftest.py` により、テスト実行時に `<cmoc-root>/src` が import path の先頭へ追加されます。
+- `test_codex.py` は `commons.codex.run_codex_exec` の Codex CLI 呼び出しラッパーを検証し、Structured Output、schema 検証、意味的バリデーション、3 回リトライ、ログ保存、stdout 進捗表示、quota 枯渇時の resume、INDEX メンテナンス呼び出しを扱います。
+- `test_indexing.py` は `commons.indexing.maintain_indexes` による `INDEX.md` メンテナンスを検証し、gitignore 対象除外、空ディレクトリ、`build`/`tmp`、非 UTF-8 バイナリ、repo 直下以外の `memo`、既存 INDEX の再生成、Structured Output 不正時のリトライ、最新 INDEX での Codex 非呼び出し、自動コミット対象の限定を扱います。
+- `test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証し、repo root 探索、`.cmoc` ignore 保証、oracle・実装ファイル列挙、root `.gitignore` semantics、cmoc ブランチ判定、base commit 記録、変更検出、削除検出、oracle 外未コミット差分拒否を扱います。
+- `test_subcommands.py` は `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge`、Typer エントリーポイント、`bin/cmoc` ランチャーの決定論的な制御ロジックを検証します。
+- `test_timestamps.py` は cmoc timestamp と経過時間表示の出力形式を検証します。
+- 各テストファイルには一時 git リポジトリ、fake Codex CLI、monkeypatch、capsys、subprocess を使った決定論的なテストパターンが含まれます。
 
 ## Read this when
 
-- cmoc の自動テスト全体で、どのテストファイルがどの実装領域を検証しているか判断したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.timestamps`、`commons.timing`、`src/sub_commands`、`src/main.py`、`bin/cmoc` の変更に対応する既存テストを探したいとき。
-- Codex CLI 呼び出し、Structured Output、schema validation、semantic validation、quota resume、ログ保存、stdout 進捗表示のテストを確認したいとき。
-- `INDEX.md` メンテナンスの対象ディレクトリ、除外規則、ハッシュ最新判定、壊れたエントリ再生成、自動コミット挙動のテストを確認したいとき。
-- git リポジトリ探索、`.cmoc` 追跡除外、oracle・実装ファイル列挙、gitignore pattern、cmoc ブランチ、base commit からの変更・削除・rename 検出のテストを確認したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge`、Typer CLI、ランチャー、エラーレポートのテストを確認したいとき。
-- cmoc timestamp や経過時間表示の期待フォーマットをテストから確認したいとき。
-- 新しい pytest を追加する際に、一時 git リポジトリ、fake `codex`、`monkeypatch`、`capsys`、`subprocess` の既存パターンを参考にしたいとき。
+- cmoc 自体の自動テスト全体の配置と、どのテストファイルを読むべきか判断したいとき。
+- pytest で `src` 配下の実装を import できる理由や、テスト共通設定を確認したいとき。
+- Codex CLI 呼び出し、Structured Output、schema 検証、リトライ、ログ保存、quota resume、INDEX メンテナンス連携のテストを探しているとき。
+- `INDEX.md` 自動生成・メンテナンスの除外規則、再生成条件、Codex 呼び出し条件、自動コミット範囲のテストを確認したいとき。
+- git repo 共通処理、oracle ファイル列挙、実装ファイル列挙、cmoc ブランチ、base commit、変更・削除検出、gitignore pattern の期待挙動をテストから確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` のサブコマンド実装を変更し、既存テストの期待値を把握したいとき。
+- Typer の `main.py` command 関数、`cmoc --help` の Usage、サブコマンドエラー時の終了コード、`bin/cmoc` の仮想環境 Python 必須チェックに関するテストを探しているとき。
+- タイムスタンプや経過時間表示のフォーマットを変更する前に、既存テストの期待値を確認したいとき。
+- 一時 git リポジトリ、fake `codex` 実行ファイル、monkeypatch、capsys を使うテスト実装例を参照したいとき。
 
 ## Do not read this when
 
-- cmoc の正本仕様断片を調べたいとき。その場合はまず `<cmoc-root>/oracles/INDEX.md` から必要な仕様ファイルへ進むこと。
-- cmoc の実装本体を直接読みたいとき。その場合は `<cmoc-root>/src` や `<cmoc-root>/bin/cmoc` の該当ファイルを確認すること。
-- テストではなく、ユーザー向け README、リポジトリ運用ルール、AGENTS 指示、編集可否だけを確認したいとき。
-- `memo` 配下の情報を探しているとき。このリポジトリでは `<cmoc-root>/memo` は AI 閲覧・編集禁止です。
-- cmoc を使って別リポジトリを開発する `<repo-root>` 側の作業内容や成果物を確認したいとき。
-- pytest の実行環境や Python 依存の一般的な設定だけを確認したいとき。cmoc 固有のテスト配置や期待挙動が不要なら、このディレクトリの個別テストを読む必要はありません。
+- cmoc の正本仕様断片を確認したいだけのとき。仕様の入口は `<cmoc-root>/oracles` 配下の `INDEX.md` です。
+- cmoc の本体実装コードを直接読みたいとき。実装は `<cmoc-root>/src` 配下を確認してください。
+- cmoc のユーザー向け README、利用手順、インストール手順だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の編集可否など、リポジトリ運用ルールだけを確認したいとき。
+- pytest、git、Typer、Codex CLI の一般的な使い方だけを調べており、cmoc 固有のテスト期待値が不要なとき。
+- cmoc を使って別リポジトリを開発する `<repo-root>` 側の作業手順を知りたいとき。
+- 外部 Codex CLI や実際の LLM 出力品質を検証したいとき。このディレクトリの多くは fake や monkeypatch による決定論的テストです。
+- `__pycache__` 配下の `.pyc` ファイルを調べたいとき。テストの意味を理解するには対応する `.py` ファイルを読むべきです。
 
 ## hash
 
-- 13353ac8e541865c5acdcf53ae58cb34c84ea0c0ab65486d51c947145b093326
+- 19203ccbb9c230b0b745cf3068a9c466dc10c2b51712112fa200a8cbf3db3e9b
