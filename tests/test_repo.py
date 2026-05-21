@@ -10,10 +10,13 @@ from commons.repo import (
     assert_only_oracles_uncommitted,
     branch_base_commit_path,
     changed_oracle_files,
+    changed_implementation_files,
     ensure_cmoc_ignored,
     find_repo_root,
+    has_deleted_implementation_files,
     has_deleted_oracle_files,
     is_cmoc_branch,
+    list_implementation_files,
     list_oracle_files,
 )
 
@@ -162,6 +165,27 @@ def test_list_oracle_files_keeps_nested_file_for_rooted_basename_pattern(
     ]
 
     assert relative_paths == ["oracles/ignored.md"]
+
+
+def test_list_implementation_files_excludes_specified_paths(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル列挙は oracles、.git、INDEX.md、gitignore 対象を除外する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    (repo / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    (repo / "INDEX.md").write_text("index\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == [".gitignore", "README.md", "app.py"]
 
 
 def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
@@ -315,6 +339,47 @@ def test_changed_oracle_files_excludes_gitignored_files(
     (oracle_root / "ignored.md").write_text("ignored", encoding="utf-8")
 
     assert changed_oracle_files(repo, base_commit) == []
+
+
+def test_changed_implementation_files_filters_to_implementation_targets(
+    tmp_path: Path,
+) -> None:
+    """変更済み実装ファイルは oracles や INDEX.md を除外して返す。"""
+    repo = _init_repo(tmp_path)
+    (repo / "base.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (repo / "base.py").write_text("changed\n", encoding="utf-8")
+    (repo / "new.py").write_text("new\n", encoding="utf-8")
+    (repo / "INDEX.md").write_text("index\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_implementation_files(repo, base_commit)
+    ]
+
+    assert relative_paths == ["base.py", "new.py"]
+
+
+def test_has_deleted_implementation_files_detects_target_deletion(
+    tmp_path: Path,
+) -> None:
+    """cmoc ブランチ上の実装ファイル削除を全体適用切替用に検出する。"""
+    repo = _init_repo(tmp_path)
+    deleted = repo / "deleted.py"
+    deleted.write_text("delete me\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    deleted.unlink()
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
 
 
 def test_changed_oracle_files_respects_slash_pattern_depth(

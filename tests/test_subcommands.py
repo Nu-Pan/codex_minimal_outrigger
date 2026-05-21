@@ -9,6 +9,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from commons.errors import CmocError
+from commons.repo import branch_base_commit_path
 from sub_commands import eval_oracles as eval_oracles_module
 from sub_commands.apply import cmoc_apply_impl
 from sub_commands.apply import _DISCREPANCY_OUTPUT_SCHEMA
@@ -183,14 +184,23 @@ def test_eval_oracles_writes_report_with_fake_codex(
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module._module,
+        eval_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
     monkeypatch.setattr(
-        eval_oracles_module._module,
+        eval_oracles_module,
         "run_codex_exec",
-        lambda *args, **kwargs: "no fatal problems",
+        lambda *args, **kwargs: "\n".join(
+            [
+                "## 仕様だけに基づく根拠",
+                "仕様だけを参照しました。",
+                "## 参照した oracle / INDEX ファイル",
+                "- oracles/spec.md",
+                "## 致命的問題の有無と根拠",
+                "no fatal problems",
+            ]
+        ),
     )
 
     cmoc_eval_oracles_impl(repo, full=True)
@@ -202,24 +212,27 @@ def test_eval_oracles_writes_report_with_fake_codex(
 
 
 def test_eval_oracles_body_uses_subcommand_file_name() -> None:
-    """`eval-oracles` の本体はサブコマンド名と同じファイルに置く。"""
+    """`eval-oracles` の本体は PEP 8 の module 名に置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    body = repo_root / "src" / "sub_commands" / "eval-oracles.py"
-    wrapper = repo_root / "src" / "sub_commands" / "eval_oracles.py"
-    assert "def cmoc_eval_oracles_impl" in body.read_text(
-        encoding="utf-8"
-    )
-    wrapper_text = wrapper.read_text(encoding="utf-8")
-    assert "spec_from_file_location" in wrapper_text
-    assert "def cmoc_eval_oracles_impl" not in wrapper_text
+    body = repo_root / "src" / "sub_commands" / "eval_oracles.py"
+    legacy = repo_root / "src" / "sub_commands" / "eval-oracles.py"
+    body_text = body.read_text(encoding="utf-8")
+    assert "def cmoc_eval_oracles_impl" in body_text
+    assert "spec_from_file_location" not in body_text
+    assert not legacy.exists()
 
 
 def test_eval_oracles_prompt_forbids_implementation_references() -> None:
     """評価 prompt は仕様だけから致命的問題を判断させる。"""
     prompt = _evaluation_prompt(Path("/repo"), Path("/repo/oracles/spec.md"))
 
-    assert "実装・テスト・設定ファイルは参照禁止です。" in prompt
+    assert "`/repo/oracles` 外のファイルは一切参照禁止です。" in prompt
+    assert "`/repo/oracles/INDEX.md` から始まる INDEX.md" in prompt
+    assert "`oracles` 外のファイルは一切参照禁止です。" not in prompt
+    assert "`oracles/INDEX.md`" not in prompt
+    assert "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。" in prompt
+    assert "参照した oracle / INDEX ファイル" in prompt
     assert "仕様だけから判断・実装したとき" in prompt
 
 
@@ -229,9 +242,11 @@ def test_eval_oracles_prompt_orders_completion_before_details() -> None:
     lines = prompt.splitlines()
 
     assert lines[0] == "あなたはソフトウェア仕様のレビュー担当です。"
-    assert lines[1] == "`/repo` 内の oracle ファイル `/repo/oracles/spec.md` を評価してください。"
+    assert lines[1] == (
+        "`/repo` 内の oracle ファイル `/repo/oracles/spec.md` を評価してください。"
+    )
     assert lines[2] == "完了条件は、致命的な仕様問題の有無と根拠を報告することです。"
-    assert lines.index("対象 oracle だけで判断せず、同じ oracles ツリー内の関連仕様と") > 2
+    assert lines.index("評価レポートには「仕様だけに基づく根拠」、") > 2
 
 
 def test_apply_returns_complete_when_no_discrepancies(
@@ -240,7 +255,7 @@ def test_apply_returns_complete_when_no_discrepancies(
 ) -> None:
     """`cmoc apply` は不整合なし JSON で完了扱いのレポートを保存する。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -297,7 +312,7 @@ def test_apply_uses_repeat_option_for_loop_limit(
 ) -> None:
     """`cmoc apply` は指定 repeat 回数をループ上限と表示に使う。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -357,7 +372,7 @@ def test_apply_rejects_incomplete_report_from_codex(
 ) -> None:
     """必須内容を欠く apply レポートは保存せずエラーにする。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -395,18 +410,38 @@ def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
     assert "cmoc apply must be run on a cmoc branch." in error.value.message
 
 
-def test_apply_rejects_non_oracle_changes_before_cmoc_guarantee(
+def test_apply_rejects_non_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` はユーザー由来の oracle 外差分を先に拒否する。"""
+    """`cmoc apply` は `.cmoc` 保証後にユーザー由来の oracle 外差分を拒否する。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
     with pytest.raises(CmocError):
         cmoc_apply_impl(repo)
 
-    assert not (repo / ".gitignore").exists()
+    assert ".cmoc" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Ensure cmoc directory is ignored"
+    )
+
+
+def test_apply_does_not_commit_preexisting_gitignore_changes(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` 保証 commit は既存 `.gitignore` 差分を混ぜない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_cmoc_branch(repo)
+    (repo / ".gitignore").write_text("user-rule\n", encoding="utf-8")
+
+    with pytest.raises(CmocError):
+        cmoc_apply_impl(repo)
+
+    assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
+    assert _git(repo, "status", "--porcelain", "--", ".gitignore").stdout == (
+        " M .gitignore\n"
+    )
 
 
 def test_apply_commits_cmoc_guarantee_before_oracle_changes(
@@ -415,7 +450,10 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
 ) -> None:
     """`cmoc apply` は `.cmoc` 保証差分を oracle commit 前に処理する。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
+    cmoc_log = repo / ".cmoc" / "logs" / "poll.log"
+    cmoc_log.parent.mkdir(parents=True)
+    cmoc_log.write_text("local log\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
@@ -455,6 +493,7 @@ def test_apply_commits_cmoc_guarantee_before_oracle_changes(
         "Ensure cmoc directory is ignored",
     ]
     assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+    assert _git(repo, "status", "--porcelain", "--", ".cmoc").stdout == ""
 
 
 def test_apply_does_not_mix_preexisting_staged_oracles_into_cmoc_commit(
@@ -463,7 +502,7 @@ def test_apply_does_not_mix_preexisting_staged_oracles_into_cmoc_commit(
 ) -> None:
     """事前 stage 済み oracle 差分も `.cmoc` 保証 commit へ混ぜない。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
@@ -520,13 +559,8 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
-    def fake_maintain_indexes(
-        repo_root: Path,
-        *,
-        commit_changes: bool = True,
-    ) -> bool:
+    def fake_maintain_indexes(repo_root: Path) -> bool:
         """INDEX メンテナンス時に禁止領域差分を作る fake。"""
-        assert commit_changes is False
         oracle_index = repo_root / "oracles" / "INDEX.md"
         oracle_index.parent.mkdir()
         oracle_index.write_text("forbidden\n", encoding="utf-8")
@@ -588,7 +622,7 @@ def test_merge_merges_explicit_cmoc_branch_and_deletes_it(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     target_branch = _git(repo, "branch", "--show-current").stdout.strip()
-    _git(repo, "checkout", "-b", "cmoc_2026-05-10_22-21_10_123")
+    _checkout_cmoc_branch(repo)
     (repo / "feature.txt").write_text("feature\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "feature")
@@ -627,15 +661,19 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     import main
 
     source = inspect.getsource(main)
+    eval_oracles_source = inspect.getsource(main.eval_oracles_command)
 
     assert "def _run_command" not in source
     assert "_run_command(" not in source
-    assert "from sub_commands.eval_oracles import load_eval_oracles_module" in source
-    assert "load_eval_oracles_module().cmoc_eval_oracles_impl" in source
     assert "cmoc_init_impl()" in source
     assert "cmoc_branch_impl()" in source
+    assert (
+        "from sub_commands.eval_oracles import cmoc_eval_oracles_impl"
+        in source
+    )
+    assert "from sub_commands.eval_oracles" not in eval_oracles_source
     assert "cmoc_eval_oracles_impl(full=full)" in source
-    assert "cmoc_apply_impl(repeat=repeat)" in source
+    assert "cmoc_apply_impl(repeat=repeat, full=full)" in source
     assert "cmoc_merge_impl(cmoc_branch=cmoc_branch)" in source
 
 
@@ -725,6 +763,8 @@ def test_merge_conflict_prompt_always_forbids_oracles_edit() -> None:
     prompt = _conflict_prompt(repo, ["app.py"])
 
     assert "`/repo/oracles` は編集禁止です。" in prompt
+    assert "解消してください: ['/repo/app.py']" in prompt
+    assert "解消してください: ['app.py']" not in prompt
     assert "既に conflict がある場合を除いて" not in prompt
     assert "解決内容と未解決ファイルの有無を報告" in prompt
 
@@ -760,6 +800,18 @@ def _init_repo(tmp_path: Path) -> Path:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "initial")
     return repo
+
+
+def _checkout_cmoc_branch(repo: Path) -> None:
+    """テスト用 cmoc branch に移動し、base commit 記録を作る。"""
+    branch_name = "cmoc_2026-05-10_22-21_10_123"
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "checkout", "-b", branch_name)
+    path = branch_base_commit_path(repo, branch_name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(base_commit, encoding="utf-8")
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_text(f"{exclude.read_text(encoding='utf-8')}\n.cmoc/\n")
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

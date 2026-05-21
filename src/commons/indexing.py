@@ -5,7 +5,12 @@ import re
 import subprocess
 from pathlib import Path
 
-from .codex import parse_json_object, run_codex_exec
+from .codex import (
+    INDEX_GENERATION_MODEL,
+    INDEX_GENERATION_REASONING_EFFORT,
+    parse_json_object,
+    run_codex_exec,
+)
 from .repo import ensure_cmoc_ignored
 
 _INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
@@ -30,7 +35,7 @@ _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
 }
 
 
-def maintain_indexes(repo_root: Path, *, commit_changes: bool = True) -> bool:
+def maintain_indexes(repo_root: Path) -> bool:
     """配置対象ディレクトリへ `INDEX.md` を用意し、必要なら自動コミットする。"""
     # `.cmoc` の ignore 保証を先に行い、INDEX メンテ差分と一緒に扱う。
     changed_paths: list[str] = []
@@ -51,7 +56,7 @@ def maintain_indexes(repo_root: Path, *, commit_changes: bool = True) -> bool:
             )
 
     # 自動コミット対象は INDEX メンテナンスで触ったパスだけに限定する。
-    if changed_paths and commit_changes:
+    if changed_paths:
         from .repo import commit_if_changed
 
         commit_if_changed(repo_root, changed_paths, "Maintain INDEX.md files")
@@ -145,6 +150,8 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
             output_schema=_INDEX_OUTPUT_SCHEMA,
             json_validator=_validate_index_payload,
             skip_index_maintenance=True,
+            model=INDEX_GENERATION_MODEL,
+            reasoning_effort=INDEX_GENERATION_REASONING_EFFORT,
         )
     )
 

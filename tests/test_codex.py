@@ -35,16 +35,25 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
                 "COUNT=$((COUNT + 1))",
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -lt 3 ]; then",
-                "  echo 'not-json'",
+                "  echo 'not-json' > \"$LAST\"",
                 "else",
-                "  echo '{\"ok\": true}'",
+                "  echo '{\"ok\": true}' > \"$LAST\"",
                 "fi",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -69,7 +78,7 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     assert "attempt: 3" in log_content
     captured = capsys.readouterr().out
     assert "codex exec attempt (1/3) prompt:" in captured
-    assert "codex exec attempt (3/3) stdout:" in captured
+    assert "codex exec attempt (3/3) output:" in captured
 
 
 def test_run_codex_exec_passes_output_schema_file(
@@ -88,7 +97,16 @@ def test_run_codex_exec_passes_output_schema_file(
             [
                 "#!/usr/bin/env bash",
                 f"printf '%s\\n' \"$@\" > {args_file}",
-                "echo '{\"ok\": true}'",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo '{\"ok\": true}' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -109,6 +127,11 @@ def test_run_codex_exec_passes_output_schema_file(
         (repo / ".cmoc" / "logs" / "codex_exec").glob("*.log")
     ).read_text(encoding="utf-8")
     assert output.strip() == '{"ok": true}'
+    assert "--json" in args
+    assert "--output-last-message" in args
+    assert "--model" in args
+    assert "-c" in args
+    assert 'model_reasoning_effort="medium"' in args
     assert "--output-schema" in args
     assert (
         json.loads(schema_path.read_text(encoding="utf-8"))
@@ -117,12 +140,12 @@ def test_run_codex_exec_passes_output_schema_file(
     assert f"output_schema: {schema_path}" in log_content
 
 
-def test_run_codex_exec_prints_head80_before_escaping_newlines(
+def test_run_codex_exec_prints_output_head80_before_escaping_newlines(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """stdout 進捗は元文字列を 80 文字で切ってから改行を可視化する。"""
+    """回収出力の進捗は元文字列を 80 文字で切ってから改行を可視化する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     fake_bin = tmp_path / "bin"
@@ -132,6 +155,15 @@ def test_run_codex_exec_prints_head80_before_escaping_newlines(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "printf '%079d\\nbbbbbbbbbb' 0 | tr '0' 'a' > \"$LAST\"",
                 "printf '%079d\\nbbbbbbbbbb' 0 | tr '0' 'a'",
             ]
         ),
@@ -145,7 +177,7 @@ def test_run_codex_exec_prints_head80_before_escaping_newlines(
 
     captured = capsys.readouterr().out
     assert f"prompt: {'p' * 79}\\n" in captured
-    assert f"stdout: {'a' * 79}\\n" in captured
+    assert f"output: {'a' * 79}\\n" in captured
     assert "q" not in captured
     assert "b" not in captured
 
@@ -165,16 +197,25 @@ def test_run_codex_exec_retries_json_semantic_validation_failure(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
                 "COUNT=$((COUNT + 1))",
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -lt 3 ]; then",
-                "  echo '{\"ok\": false}'",
+                "  echo '{\"ok\": false}' > \"$LAST\"",
                 "else",
-                "  echo '{\"ok\": true}'",
+                "  echo '{\"ok\": true}' > \"$LAST\"",
                 "fi",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -219,7 +260,16 @@ def test_run_codex_exec_reports_json_semantic_validation_failure(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
-                "echo '{\"ok\": false}'",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo '{\"ok\": false}' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -261,16 +311,25 @@ def test_run_codex_exec_retries_text_semantic_validation_failure(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
                 "COUNT=$((COUNT + 1))",
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -lt 3 ]; then",
-                "  echo 'incomplete report'",
+                "  echo 'incomplete report' > \"$LAST\"",
                 "else",
-                "  echo 'complete report'",
+                "  echo 'complete report' > \"$LAST\"",
                 "fi",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -311,7 +370,21 @@ def test_run_codex_exec_reports_text_semantic_validation_failure(
     fake_bin.mkdir()
     codex = fake_bin / "codex"
     codex.write_text(
-        "\n".join(["#!/usr/bin/env bash", "echo 'incomplete report'"]),
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'incomplete report' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
         encoding="utf-8",
     )
     codex.chmod(0o755)
@@ -345,6 +418,138 @@ def test_run_codex_exec_requires_schema_for_structured_output(
         run_codex_exec(repo, "prompt", read_only=True, expect_json=True)
 
 
+def test_run_codex_exec_rejects_forbidden_reasoning_effort(
+    tmp_path: Path,
+) -> None:
+    """oracle が禁止する high/xhigh reasoning effort は起動前に拒否する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    with pytest.raises(ValueError):
+        run_codex_exec(repo, "prompt", read_only=True, reasoning_effort="high")
+
+
+def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """quota 枯渇時は疎通確認後に --resume 付きで同じ prompt を再実行する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    args_file = tmp_path / "args.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"printf '%s\\n' \"$@\" >> {args_file}",
+                "LAST=''",
+                "PREV=''",
+                "HAS_RESUME=0",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "PROMPT=\"${@: -1}\"",
+                "if [ \"$PROMPT\" = \"original prompt\" ]; then",
+                "  if [ \"$HAS_RESUME\" = 0 ]; then",
+                "  echo '{\"session_id\":\"session-1\"}'",
+                "  echo 'quota limit exhausted' >&2",
+                "  exit 1",
+                "  fi",
+                "fi",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  if [[ \"$PROMPT\" != *'/memo` は読み書き禁止です。'* ]]; then exit 2; fi",
+                "  if [[ \"$PROMPT\" != *'ファイル編集は禁止です。'* ]]; then exit 2; fi",
+                "  echo ok > \"$LAST\"",
+                "  echo '{\"event\":\"poll-ok\"}'",
+                "  exit 0",
+                "fi",
+                "echo resumed > \"$LAST\"",
+                "echo '{\"event\":\"resumed\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
+
+    output = run_codex_exec(repo, "original prompt", read_only=True)
+
+    args = args_file.read_text(encoding="utf-8")
+    captured = capsys.readouterr().out
+    assert output.strip() == "resumed"
+    assert "--resume\nsession-1" in args
+    assert "Codex CLI の疎通確認担当" in args
+    assert "/memo` は読み書き禁止です。" in args
+    assert "quota exhausted; waiting before resume" in captured
+    assert "quota poll prompt: あなたは Codex CLI の疎通確認担当です。" in captured
+    assert "quota poll output: ok" in captured
+    assert "quota restored; resuming codex exec" in captured
+
+
+def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """quota 復旧後の resume が想定外エラーなら即時 CmocError にする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "HAS_RESUME=0",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "PROMPT=\"${@: -1}\"",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  if [[ \"$PROMPT\" != *'/memo` は読み書き禁止です。'* ]]; then exit 2; fi",
+                "  if [[ \"$PROMPT\" != *'ファイル編集は禁止です。'* ]]; then exit 2; fi",
+                "  echo ok > \"$LAST\"",
+                "  exit 0",
+                "fi",
+                "if [ \"$HAS_RESUME\" = 0 ]; then",
+                "  echo '{\"session_id\":\"session-1\"}'",
+                "  echo 'quota limit exhausted' >&2",
+                "  exit 1",
+                "fi",
+                "echo 'repository failure' >&2",
+                "exit 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    assert "codex exec が失敗しました。" in error.value.message
+    assert "repository failure" in error.value.detail
+
+
 def test_run_codex_exec_retries_schema_validation_failure(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -360,12 +565,21 @@ def test_run_codex_exec_retries_schema_validation_failure(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
                 "COUNT=$((COUNT + 1))",
                 "echo \"$COUNT\" > \"$STATE\"",
-                "echo '{\"ok\":\"not boolean\"}'",
+                "echo '{\"ok\":\"not boolean\"}' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -399,7 +613,21 @@ def test_run_codex_exec_maintains_indexes_before_codex_call(
     fake_bin.mkdir()
     codex = fake_bin / "codex"
     codex.write_text(
-        "\n".join(["#!/usr/bin/env bash", "echo done"]),
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo done > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
         encoding="utf-8",
     )
     codex.chmod(0o755)
@@ -430,7 +658,21 @@ def test_run_codex_exec_can_skip_index_maintenance(
     fake_bin.mkdir()
     codex = fake_bin / "codex"
     codex.write_text(
-        "\n".join(["#!/usr/bin/env bash", "echo done"]),
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo done > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
         encoding="utf-8",
     )
     codex.chmod(0o755)

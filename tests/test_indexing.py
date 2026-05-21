@@ -38,7 +38,7 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    changed = maintain_indexes(repo, commit_changes=False)
+    changed = maintain_indexes(repo)
 
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
     assert changed is True
@@ -49,6 +49,10 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert all(
         kwargs["output_schema"] == _INDEX_OUTPUT_SCHEMA
         for kwargs in codex_kwargs
+    )
+    assert all(kwargs["model"] == "gpt-5.4-mini" for kwargs in codex_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == "medium" for kwargs in codex_kwargs
     )
 
 
@@ -73,7 +77,7 @@ def test_maintain_indexes_creates_empty_index_for_empty_directory(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    changed = maintain_indexes(repo, commit_changes=False)
+    changed = maintain_indexes(repo)
 
     assert changed is True
     assert (empty / "INDEX.md").exists()
@@ -107,7 +111,7 @@ def test_maintain_indexes_includes_build_and_tmp_as_entries(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    maintain_indexes(repo, commit_changes=False)
+    maintain_indexes(repo)
 
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
     assert "# `build`" in content
@@ -140,7 +144,7 @@ def test_maintain_indexes_excludes_non_utf8_binary_without_nul(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    maintain_indexes(repo, commit_changes=False)
+    maintain_indexes(repo)
 
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
     assert "# `kept.txt`" in content
@@ -171,7 +175,7 @@ def test_maintain_indexes_places_index_in_nested_memo_directory(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    maintain_indexes(repo, commit_changes=False)
+    maintain_indexes(repo)
 
     assert (nested_memo / "INDEX.md").exists()
 
@@ -239,7 +243,7 @@ def test_maintain_indexes_regenerates_malformed_current_entry(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    changed = maintain_indexes(repo, commit_changes=False)
+    changed = maintain_indexes(repo)
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
 
     assert changed is True
@@ -265,6 +269,14 @@ def test_maintain_indexes_retries_invalid_structured_output(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 f"STATE={state}",
                 "COUNT=0",
                 "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
@@ -272,7 +284,7 @@ def test_maintain_indexes_retries_invalid_structured_output(
                 "echo \"$COUNT\" > \"$STATE\"",
                 "if [ \"$COUNT\" -eq 1 ]; then",
                 (
-                    "  printf '%s\\n' "
+                    "  printf '%s\\n' > \"$LAST\" "
                     "'{\"content_hash\":\"abc\","
                     "\"summary\":\"not a list\","
                     "\"read_this_when\":[\"read\"],"
@@ -280,12 +292,13 @@ def test_maintain_indexes_retries_invalid_structured_output(
                 ),
                 "else",
                 (
-                    "  printf '%s\\n' "
+                    "  printf '%s\\n' > \"$LAST\" "
                     "'{\"summary\":[\"valid summary\"],"
                     "\"read_this_when\":[\"read\"],"
                     "\"do_not_read_this_when\":[\"skip\"]}'"
                 ),
                 "fi",
+                "echo '{\"event\":\"done\"}'",
             ]
         ),
         encoding="utf-8",
@@ -293,7 +306,7 @@ def test_maintain_indexes_retries_invalid_structured_output(
     codex.chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
 
-    changed = maintain_indexes(repo, commit_changes=False)
+    changed = maintain_indexes(repo)
 
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
     assert changed is True
@@ -368,7 +381,7 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
 
-    changed = maintain_indexes(repo, commit_changes=False)
+    changed = maintain_indexes(repo)
 
     assert changed is False
 
@@ -396,7 +409,7 @@ def test_maintain_indexes_commits_only_maintenance_paths(
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
 
-    changed = maintain_indexes(repo, commit_changes=True)
+    changed = maintain_indexes(repo)
     status = _git(repo, "status", "--porcelain").stdout
     last_commit_paths = _git(
         repo,

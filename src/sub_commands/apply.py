@@ -9,13 +9,22 @@ from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
     assert_only_oracles_uncommitted,
+    changed_oracle_files,
     changed_paths,
+    changed_implementation_files,
+    commit_cmoc_initialization_changes,
     commit_if_changed,
     current_branch,
     ensure_cmoc_ignored,
+    gitignore_has_cmoc_rule,
+    has_deleted_implementation_files,
+    has_deleted_oracle_files,
     is_cmoc_branch,
+    list_implementation_files,
     list_oracle_files,
+    read_branch_base_commit,
     run_git,
+    staged_diff_from_head,
 )
 from commons.timing import StepTimer
 from commons.timestamps import make_timestamp
@@ -105,6 +114,7 @@ def cmoc_apply_impl(
     repo_root: Path | None = None,
     *,
     repeat: int = 5,
+    full: bool = False,
 ) -> int | None:
     """oracle と実装の不整合を Codex CLI へ追従させる。"""
     # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
@@ -113,6 +123,7 @@ def cmoc_apply_impl(
             lambda resolved_repo_root: cmoc_apply_impl(
                 resolved_repo_root,
                 repeat=repeat,
+                full=full,
             )
         )
         return None
@@ -126,15 +137,18 @@ def cmoc_apply_impl(
             ["Run `cmoc branch` first.", "Checkout an existing cmoc branch."],
             f"Current branch: {branch_name}",
         )
+    base_commit = read_branch_base_commit(repo_root, branch_name)
 
-    # ユーザー由来の oracle 外差分を先に拒否し、cmoc 保証差分は直後に commit する。
+    # `.cmoc` 保証差分を先に分離 commit してから、ユーザー由来の oracle 外差分を拒否する。
     timer.start("validate repository state")
     print("apply (1/4) validate repository state")
-    assert_only_oracles_uncommitted(repo_root)
+    had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
+    preexisting_staged_diff = staged_diff_from_head(repo_root)
     ensure_cmoc_ignored(repo_root)
-    commit_if_changed(
+    commit_cmoc_initialization_changes(
         repo_root,
-        [".gitignore", ".cmoc"],
+        had_cmoc_rule,
+        preexisting_staged_diff,
         "Ensure cmoc directory is ignored",
     )
     assert_only_oracles_uncommitted(repo_root)
@@ -161,7 +175,11 @@ def cmoc_apply_impl(
     discrepancy_counts: list[int] = []
     completed = False
     for loop_index in range(1, repeat + 1):
-        discrepancies = _investigate_discrepancies(repo_root)
+        discrepancies = _investigate_discrepancies(
+            repo_root,
+            base_commit,
+            full=full,
+        )
         discrepancy_counts.append(len(discrepancies))
         print(
             f"implementation loop ({loop_index}/{repeat}) discrepancies: "
@@ -190,11 +208,24 @@ def cmoc_apply_impl(
     return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
 
 
-def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
-    """oracle ファイルごとに不整合調査を実行する。"""
-    # oracle 列挙結果を 1 ファイルずつ Codex CLI に評価させる。
+def _investigate_discrepancies(
+    repo_root: Path,
+    base_commit: str,
+    *,
+    full: bool,
+) -> list[dict[str, object]]:
+    """oracle ファイル・実装ファイルごとに不整合調査を実行する。"""
+    # ループごとに部分・全体適用モードと調査対象を再評価する。
     discrepancies: list[dict[str, object]] = []
-    oracle_files = list_oracle_files(repo_root)
+    partial = _use_partial_mode(repo_root, base_commit, full)
+    oracle_files = _target_oracle_files(repo_root, base_commit, partial)
+    implementation_files = _target_implementation_files(
+        repo_root,
+        base_commit,
+        partial,
+    )
+
+    # oracle ファイルを 1 件ずつ独立に調査する。
     for index, oracle_file in enumerate(oracle_files, start=1):
         print(
             f"investigate oracle ({index}/{len(oracle_files)}) "
@@ -214,7 +245,92 @@ def _investigate_discrepancies(repo_root: Path) -> list[dict[str, object]]:
         values = payload.get("discrepancies")
         for value in values:
             discrepancies.append(value)
-    return discrepancies
+
+    # 実装ファイルも 1 件ずつ独立に調査する。
+    for index, implementation_file in enumerate(
+        implementation_files,
+        start=1,
+    ):
+        print(
+            "investigate implementation "
+            f"({index}/{len(implementation_files)}) {implementation_file}"
+        )
+        payload = parse_json_object(
+            run_codex_exec(
+                repo_root,
+                _implementation_investigation_prompt(
+                    repo_root,
+                    implementation_file,
+                ),
+                read_only=True,
+                expect_json=True,
+                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
+                json_validator=_validate_discrepancy_payload,
+            )
+        )
+        values = payload.get("discrepancies")
+        for value in values:
+            discrepancies.append(value)
+
+    return _organize_discrepancies(repo_root, discrepancies)
+
+
+def _use_partial_mode(repo_root: Path, base_commit: str, full: bool) -> bool:
+    """現在ループの部分・全体適用モードを判定する。"""
+    # --full または削除検出時は全体適用、それ以外は部分適用にする。
+    if full:
+        return False
+    if has_deleted_oracle_files(repo_root, base_commit):
+        return False
+    return not has_deleted_implementation_files(repo_root, base_commit)
+
+
+def _target_oracle_files(
+    repo_root: Path,
+    base_commit: str,
+    partial: bool,
+) -> list[Path]:
+    """適用モードに応じた oracle 調査対象を返す。"""
+    # 部分適用では列挙結果を cmoc ブランチ上の変更済みに絞る。
+    all_files = list_oracle_files(repo_root)
+    if not partial:
+        return all_files
+    changed = set(changed_oracle_files(repo_root, base_commit))
+    return [path for path in all_files if path in changed]
+
+
+def _target_implementation_files(
+    repo_root: Path,
+    base_commit: str,
+    partial: bool,
+) -> list[Path]:
+    """適用モードに応じた実装調査対象を返す。"""
+    # 部分適用では列挙結果を cmoc ブランチ上の変更済みに絞る。
+    all_files = list_implementation_files(repo_root)
+    if not partial:
+        return all_files
+    changed = set(changed_implementation_files(repo_root, base_commit))
+    return [path for path in all_files if path in changed]
+
+
+def _organize_discrepancies(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """連結した不整合リストを Codex CLI に整理させる。"""
+    # 整理結果も同じ Structured Output schema で受け取って検証する。
+    payload = parse_json_object(
+        run_codex_exec(
+            repo_root,
+            _organize_prompt(repo_root, discrepancies),
+            read_only=True,
+            expect_json=True,
+            output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
+            json_validator=_validate_discrepancy_payload,
+        )
+    )
+    values = payload.get("discrepancies")
+    return [value for value in values if isinstance(value, dict)]
 
 
 def _apply_discrepancies(
@@ -222,13 +338,15 @@ def _apply_discrepancies(
     discrepancies: list[dict[str, object]],
 ) -> None:
     """Codex CLI に不整合追従作業を依頼する。"""
-    # 実装変更用の workspace-write Codex 呼び出しを実行する。
-    run_codex_exec(
-        repo_root,
-        _apply_prompt(repo_root, discrepancies),
-        read_only=False,
-        expect_json=False,
-    )
+    # 不整合 1 件につき 1 回の workspace-write Codex 呼び出しを実行する。
+    for index, discrepancy in enumerate(discrepancies, start=1):
+        print(f"apply discrepancy ({index}/{len(discrepancies)})")
+        run_codex_exec(
+            repo_root,
+            _apply_prompt(repo_root, discrepancy),
+            read_only=False,
+            expect_json=False,
+        )
 
 
 def _commit_all_changes(repo_root: Path) -> None:
@@ -238,7 +356,7 @@ def _commit_all_changes(repo_root: Path) -> None:
         return
 
     # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
-    maintain_indexes(repo_root, commit_changes=False)
+    maintain_indexes(repo_root)
     _assert_forbidden_paths_clean(repo_root)
     if not changed_paths(repo_root):
         return
@@ -302,7 +420,7 @@ def _write_apply_report(
             "Markdown 見出しとして「作業結果」「不整合件数の推移」「全変更内容」を必ず含めてください。",
             "不整合件数の推移には、ループごとに何件の不整合を見つけたかを書いてください。",
             incomplete_instruction,
-            f"ブランチ `{branch_name}` 上の全変更内容は、この `cmoc apply` 以前の作業も含めてください。",
+            f"ブランチ `{branch_name}` 上の全変更内容は、今回の自動適用処理以前の作業も含めてください。",
             "ブランチ上の変更内容は、変更内容の意味論に基づき「カテゴリ」という語を使って要約してください。",
             f"作業結果の区分は一言で `{result_label}` と書いてください。",
             f"作業結果区分: {result_label}",
@@ -404,18 +522,63 @@ def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
     )
 
 
-def _apply_prompt(
+def _implementation_investigation_prompt(
+    repo_root: Path,
+    implementation_file: Path,
+) -> str:
+    """実装ファイル起点の不整合調査用 prompt を組み立てる。"""
+    # 指定ファイルは調査起点であり、必要な関連ファイル参照は許可する。
+    return "\n".join(
+        [
+            "あなたはソフトウェア実装の監査担当です。",
+            f"`{implementation_file}` を起点に、",
+            f"`{repo_root / 'oracles'}` と `{repo_root}` の実装との",
+            "明確な不整合を調査してください。",
+            "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
+            "指定ファイルは調査の起点であり、必要なら他の oracle・実装ファイルも読んでください。",
+            "各不整合には oracle_path、oracle_line_start、oracle_line_end、",
+            "implementation_paths、title、oracle_requirement、",
+            "observed_implementation、reason、suggested_fix を",
+            "含めてください。",
+            "明確な不整合がない場合だけ空配列を返してください。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
+        ]
+    )
+
+
+def _organize_prompt(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
+) -> str:
+    """不整合リスト整理用 prompt を組み立てる。"""
+    # 個別調査結果の重複や矛盾を整理し、同じ schema で返させる。
+    return "\n".join(
+        [
+            "あなたはソフトウェア監査結果の整理担当です。",
+            f"`{repo_root}` の oracle と実装の不整合リストを整理してください。",
+            "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
+            "重複する不整合は 1 件にマージし、矛盾する修正方針は矛盾しない内容に調整してください。",
+            "明確な不整合がない場合だけ空配列を返してください。",
+            f"連結済み不整合リスト: {json.dumps(discrepancies, ensure_ascii=False)}",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
+        ]
+    )
+
+
+def _apply_prompt(
+    repo_root: Path,
+    discrepancy: dict[str, object],
 ) -> str:
     """不整合追従作業用 prompt を組み立てる。"""
     # workspace-write 実行用に編集禁止領域を無条件で明示する。
     return "\n".join(
         [
             "あなたはソフトウェア実装担当です。",
-            f"`{repo_root}` の実装を、以下の不整合一覧が解消されるように更新してください。",
+            f"`{repo_root}` の実装を、以下の不整合 1 件が解消されるように更新してください。",
             "完了条件は、実装が oracle 要求に追従し、必要なテスト更新も終わっていることです。",
-            f"不整合一覧: {json.dumps(discrepancies, ensure_ascii=False)}",
+            f"不整合: {json.dumps(discrepancy, ensure_ascii=False)}",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
