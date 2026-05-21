@@ -44,14 +44,65 @@
 
 ## Model, Reasoning Effort
 
-- Code CLI 呼び出し時に Model, Reasoning Effort を必ず指定すること
-    - Model: `--model <model>`
-    - Reasoning Effort: `-c 'model_reasoning_effort="<reasoning-effort>"'`
-- Model, Reasoning Effort の設定は、以下の原則に従って AI が裁量で決めて良い
-    - Reasoning Effort = xhigh, high は使用禁止 
-    - 特定の条件に当てはまらない場合はフロンティアモデル (e.g. GPT-5.5) の Reasoning Effort = medium を使う
-    - 結果の品質がさほど重要ではなく繰り返し色が強い作業 (e.g. `INDEX.md` の内容生成) は、コストパフォーマンス重視モデル (e.g. GPT-5.4-mini) の Reasoning Effort = medium を使う
-    - 疎通確認などの本当に全く結果の品質が重要ではない場合は、コストパフォーマンス重視モデル (e.g. GPT-5.4-mini) の Reasoning Effort = low を使う
+### 指定規則
+
+Code CLI 呼び出し時に Model, Reasoning Effort を必ず指定すること
+
+- Model: `--model <model>`
+- Reasoning Effort: `-c 'model_reasoning_effort="<reasoning-effort>"'`
+
+### モデル選択
+
+具体的なモデル名は時期によって異なるため、cmoc の仕様上としては「抽象的なモデル名」と「そのモデルの特徴」だけを述べるに留める。実装を行う AI あるいは実装されたコードは、仕様を満たすように具体的なモデル名を選択しなければならない。
+
+- フロンティアモデル
+    - その時の最新・高性能モデル
+    - 2026/5/22 現在で言えば GPT-5.5 のこと
+- コストパフォーマンスモデル
+    - コスト（トークン）パフォーマンスに優れるモデル
+    - 必ずしも最新である必要は無い
+    - 2026/5/22 現在で言えば GPT-5.4-mini のこと
+
+### 設定原則
+
+Model, Reasoning Effort の設定は、以下の原則に従って AI が裁量で決めて良い
+
+- Reasoning Effort = xhigh は使用禁止 
+- 結果の品質が重要ではない作業は、コストパフォーマンスモデルの Reasoning Effort = medium を使う
+- 本当に全く結果の品質が重要ではない場合は、コストパフォーマンスモデルの Reasoning Effort = low を使う
+- 特別に品質が重要な場合は、フロンティアモデルの Reasoning Effort = high を使う
+- 特定の条件に当てはまらない場合は、フロンティアモデルの Reasoning Effort = medium を使う
+
+### 実際の設定例
+
+以下に、人間による判断の例を参考として挙げる。
+
+- `INDEX.md` の生成
+    - コストパフォーマンスモデル (medium)
+- quota poll
+    - コストパフォーマンスモデル (low)
+- commit message 生成
+    - コストパフォーマンスモデル (low)
+- `cmoc apply` のレポート生成 
+    - コストパフォーマンスモデル (medium)
+- `cmoc eval-oracles` の仕様評価
+    - フロンティアモデル (medium)
+    - 人間が偽陽性に振り回されるのは cmoc の価値観に反する
+    - トークン消費の激しさを呑んででも品質を確保するべきと判断して、フロンティアモデルとした
+- `cmoc apply` の要修正点調査
+    - コストパフォーマンスモデル (medium)
+    - トークン節約効果が大きい
+        - ここは非常に呼び出し回数が多くなりうる（特に実装ファイル数は膨らみやすい）
+        - しかも、大抵は「要修正点なし」になるはず
+    - 予防策がいくつか有るので、間違いが許されやすい
+        - 仕様・実装双方からの「挟み撃ち」的な調査なので、そもそも漏れにくい
+        - 調査・修正を繰り返すので、呼び出し１回たりの責任が小さい
+        - 後続の「要修正点リストの改善」はフロンティアモデルで行われるので False-Positive に対して寛容
+    - これらのことから、トークン節約効果の大きさに目がくらんで、コストパフォーマンスモデルとした
+- `cmoc apply` の要修正点リストの改善
+    - フロンティアモデル (medium)
+    - この後に続く実装作業にゴミを流し込まないための最後の砦なので品質がとても大事
+    - よってフロンティアモデルとした
 
 ## サンドボックスモード
 
