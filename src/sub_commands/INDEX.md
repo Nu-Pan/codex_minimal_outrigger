@@ -147,3 +147,30 @@
 ## hash
 
 - 253e20a5cd3777cd63492c0bac7fb6ed2c0dc7fdefeb5135264b7912c81b9a7a
+
+# `merge.py`
+
+## Summary
+
+- `src/sub_commands/merge.py` は `cmoc merge` の本体処理を実装するファイルです。
+- 未コミット差分の検証、`.cmoc` の追跡除外保証、マージ元 cmoc ブランチの解決、`git merge` 実行、コンフリクト解消支援、作業ブランチ削除までを扱います。
+- `cmoc_merge_impl` を中心に、`_resolve_source_branch`、`_resolve_conflicts`、`_delete_branch_if_safe`、`_files_with_conflict_markers`、`_unmerged_paths`、`_conflict_prompt` を含みます。
+- `StepTimer` による 4 段階の進捗表示と時間計測もこのファイルの責務です。
+
+## Read this when
+
+- `cmoc merge` の実装、修正、テストを行いたいとき。
+- マージ前の前提条件、マージ元ブランチの自動解決、コンフリクト時の Codex CLI 依頼内容を確認したいとき。
+- merge 後に作業ブランチを削除してよい条件や、削除失敗時の warning 挙動を確認したいとき。
+- conflict marker 検査や unmerged path 検査の実装を確認したいとき。
+
+## Do not read this when
+
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles` など他サブコマンドの本体処理を調べたいとき。
+- CLI エントリーポイントでのサブコマンド登録や引数定義だけを調べたいとき。
+- `commons` 配下の共通処理、git ラッパー、Codex CLI ラッパー、時間計測などの共通ユーティリティを調べたいとき。
+- `oracles` 配下の正本仕様や、`tests` 配下の自動テストの全体構成を調べたいとき。
+
+## hash
+
+- c186e40fe69e79e257939c154a2eee4248df231f234d2add1fbaeb90fe05ed8f

@@ -64,21 +64,21 @@
 ## Summary
 
 - `commons.indexing.maintain_indexes` による `INDEX.md` メンテナンス処理の pytest テストです。
-- gitignore 対象の除外、空ディレクトリへの空 INDEX 作成、`build`/`tmp` の親目次掲載と配置除外、非 UTF-8 バイナリ除外、repo 直下以外の `memo` ディレクトリ処理を検証します。
-- 既存 `INDEX.md` の必須セクション欠落時の再生成、Structured Output 不正時のリトライ、最新 INDEX では Codex CLI を呼ばないこと、自動コミット対象がメンテナンス差分に限られることを検証します。
-- テスト用 git リポジトリ作成と git コマンド実行の補助関数を含みます。
+- gitignore 対象の除外、空ディレクトリへの空 `INDEX.md` 作成、`build`/`tmp` の親目次掲載と配置除外、非 UTF-8 バイナリ除外、UTF-8 文字境界の取り扱い、`memo` ディレクトリの扱いを検証します。
+- 既存 `INDEX.md` の必須セクション欠落時の再生成、Structured Output 不正時のリトライ、最新 `INDEX.md` では Codex CLI を呼ばないこと、自動コミット対象がメンテナンス差分に限られることを検証します。
+- テスト用 git リポジトリ作成と git コマンド実行の補助関数 `_init_repo` と `_git` を含みます。
 
 ## Read this when
 
 - `maintain_indexes` の対象ファイル・対象ディレクトリ判定、除外規則、ハッシュによる再生成判定を確認したいとき。
-- INDEX 生成で Codex CLI に渡す Structured Output schema、model、reasoning effort の期待値を確認したいとき。
-- `build`、`tmp`、`memo`、`.gitignore`、非 UTF-8 バイナリ、空ディレクトリが INDEX メンテナンスでどう扱われるかを調べたいとき。
-- INDEX が最新または壊れている場合の Codex CLI 呼び出し有無、再生成、リトライ挙動を検証したいとき。
-- INDEX メンテナンス後の自動コミットがユーザー作業ファイルを巻き込まないことを確認したいとき。
+- `INDEX.md` 生成で Codex CLI に渡す Structured Output schema、model、reasoning effort の期待値を確認したいとき。
+- `build`、`tmp`、`memo`、`.gitignore`、非 UTF-8 バイナリ、空ディレクトリ、UTF-8 文字境界が `INDEX.md` メンテナンスでどう扱われるかを調べたいとき。
+- 既存 `INDEX.md` が最新か壊れているかで Codex CLI 呼び出し、再生成、リトライがどう変わるかを確認したいとき。
+- `INDEX.md` メンテナンス後の自動コミットがユーザー作業ファイルを巻き込まないことを確認したいとき。
 
 ## Do not read this when
 
-- cmoc の INDEX 目次仕様そのものを正本仕様として確認したいとき。
+- cmoc の `INDEX.md` 目次仕様そのものを正本仕様として確認したいとき。
 - `maintain_indexes` の実装詳細を直接修正したいだけで、テスト期待値を確認する必要がないとき。
 - `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` など個別サブコマンドの挙動を調べたいとき。
 - Codex CLI 実行共通処理や Structured Output リトライ処理の実装本体だけを読みたいとき。
@@ -86,7 +86,7 @@
 
 ## hash
 
-- 504580437f00209e97e48af790b47093fc22db05cdff8397315718693a437792
+- 80901c433ef95e2268b5afeafbaf564a0371c640b34fdb568aebd38a5ec655f6
 
 # `test_repo.py`
 
