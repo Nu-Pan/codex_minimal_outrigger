@@ -23,19 +23,17 @@
 
 ## Summary
 
-- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーです。
-- `read-only` / `workspace-write` のサンドボックス、`model`、`reasoning_effort`、`--json`、`--output-last-message`、`--output-schema` の付与をまとめて扱います。
-- Structured Output の schema を `logs/codex_exec/output_schemae` にハッシュ名で保存し、`logs/codex_exec/call` と `logs/codex_exec/output_last_message` に実行ログを残します。
-- JSON 応答の解析、cmoc 側の JSON Schema subset 再検証、text validator、最大 3 回のリトライまでを扱います。
+- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーをまとめたモジュールです。
+- `read-only` / `workspace-write` のサンドボックス指定、`model`、`reasoning_effort`、`--json`、`--output-last-message`、`--output-schema` の付与を統一的に扱います。
+- Structured Output の schema をハッシュ名のファイルとして保存し、`logs/codex_exec/call` と `logs/codex_exec/output_last_message` に実行ログを残します。
+- JSON 応答の解析、cmoc 側の JSON Schema subset 再検証、text validator、最大 3 回までのリトライを扱います。
 - quota 枯渇時は session id を抽出して `--resume` し、回復待ち中は最小構成の疎通確認を繰り返します。
-- `parse_json_object` で JSON object 以外を拒否し、呼び出し側が `dict` 前提で扱えることを保証します。
 
 ## Read this when
 
 - cmoc から Codex CLI をどのようなオプションで呼び出しているか確認したいとき。
 - `run_codex_exec` の引数、`expect_json`、`output_schema`、`json_validator`、`text_validator` の扱いを確認したいとき。
 - Structured Output の schema ファイルの保存先と、`codex exec` への渡し方を確認したいとき。
-- `codex exec` 前の `INDEX.md` 保守の有無や、`skip_index_maintenance` の意味を確認したいとき。
 - quota 枯渇時に session id を抽出して `--resume` する流れを確認したいとき。
 - JSON 応答を `dict` 前提で扱う処理や、cmoc 側の JSON Schema subset 検証を確認したいとき。
 
@@ -46,11 +44,10 @@
 - git リポジトリ探索、ブランチ操作、差分収集、`.cmoc` の追跡外保証を調べたいとき。
 - `CmocError` の表示形式や共通エラーハンドリング全体を調べたいとき。
 - タイムスタンプ生成、経過時間表示、サブコマンドログなど別の共通ユーティリティだけを確認したいとき。
-- テストコードや Fake Codex CLI の実装例だけを確認したいとき。
 
 ## hash
 
-- 6607c2b782358fdf271fa4f4ec303590605ee07cf5ea91f8cbb7e8a9e0c17a96
+- b7c6ad2bd685eca46bc0b63e817d39d0387c77d1ade8194b3c19b9ec08bc3328
 
 # `command_runner.py`
 
