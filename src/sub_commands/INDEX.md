@@ -78,21 +78,21 @@
 ## Summary
 
 - `src/sub_commands/eval_oracles.py` は `cmoc eval-oracles` の本体実装で、oracle 断片の評価からレポート保存までを担当します。
-- 評価前の `.cmoc` の ignore 保証、`INDEX.md` メンテナンス、oracle ファイル列挙、部分評価・全体評価の切り替えをまとめて扱います。
-- 各 oracle に対する `codex exec` 呼び出し用の評価 prompt 組み立てと、評価出力に必須見出しがあるかの検証を含みます。
-- 評価結果は `.cmoc/reports/eval-oracles` に Markdown レポートとして保存され、モード・ブランチ・コミット情報も記録します。
+- 評価前の `.cmoc` の ignore 保証、`INDEX.md` メンテナンス、oracle ファイル列挙、`--full` と cmoc branch 状態による部分評価・全体評価の切り替えをまとめて扱います。
+- 各 oracle に対する `codex exec` 用の評価 prompt 組み立てと、評価出力に必須見出しがあるかの検証を含みます。
+- 評価結果は `.cmoc/reports/eval-oracles` に Markdown レポートとして保存され、モード・ブランチ・コミット情報や削除 oracle 検出結果も記録します。
 
 ## Read this when
 
 - `cmoc eval-oracles` の実行フロー、ステップ順序、進捗表示を確認したいとき。
 - `--full` の有無や cmoc ブランチ判定によって、部分評価と全体評価がどう切り替わるか調べたいとき。
-- 評価対象 oracle の選定条件や、削除 oracle がある場合の扱いを確認したいとき。
+- 評価対象 oracle の選定条件や、削除済み oracle がある場合の扱いを確認したいとき。
 - `codex exec` に渡す oracle 評価 prompt の内容、参照可能な `oracles` / `INDEX.md` の範囲、読み取り専用条件を確認したいとき。
-- 評価出力の検証条件や、`.cmoc/reports/eval-oracles` に保存されるレポートの最低限の構成を確認したいとき。
+- 評価出力の必須見出し検証や、`.cmoc/reports/eval-oracles` に保存されるレポートの最低限の構成を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの実装を調べたいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
 - Codex CLI の低レベル実装や、共通 runner・repo 操作・timestamp 生成などの共通処理だけを調べたいとき。
 - `INDEX.md` 自動メンテナンスの生成規則や更新ロジックそのものを調べたいとき。
 - oracle ファイルの列挙や変更検出など、評価対象選定の個別実装だけを確認したいとき。
@@ -100,7 +100,7 @@
 
 ## hash
 
-- 73c22f10cf34a91b0a882d027f6fe09813a5661ac0e5b560fa9b54fef127e998
+- ac1afa48e1efdbaf11203af749454251c8fc30dfab95f6516dac9623b2b9320f
 
 # `init.py`
 
