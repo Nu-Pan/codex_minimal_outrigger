@@ -77,27 +77,28 @@
 
 ## Summary
 
-- `src/sub_commands/eval_oracles.py` は `cmoc eval-oracles` の本体実装で、oracle 断片の評価、結果検証、レポート保存までをまとめて扱うファイルです。
-- 実行前に `.cmoc` の ignore 保証と `INDEX.md` メンテナンスを行い、`--full` とブランチ状態に応じて部分評価か全体評価かを切り替えます。
-- 各 oracle ごとに `codex exec` を呼び出し、Structured Output の JSON を検証したうえで、`.cmoc/reports/eval-oracles` 配下へ Markdown レポートを出力します。
+- `src/sub_commands/eval_oracles.py` は `cmoc eval-oracles` の本体実装で、oracle 断片の評価、検証、レポート保存までをまとめて扱うモジュールです。
+- 実行前に `.cmoc` の ignore 保証と `INDEX.md` メンテナンスを行い、`--full` と `cmoc` ブランチ状態に応じて部分評価か全体評価かを切り替えます。
+- 各 oracle ファイルごとに `codex exec` を呼び出し、Structured Output の JSON schema を検証したうえで、評価結果を 1 つの Markdown レポートに集約します。
+- 評価レポートには severity 別の issue 集計、評価順を保った問題一覧、参照した oracle / `INDEX.md` の一覧、エラー時の代替レポート出力も含まれます。
 
 ## Read this when
 
 - `cmoc eval-oracles` の処理順序、前処理、評価実行、レポート保存までの流れを確認したいとき。
-- `--full` の有無や cmoc ブランチ上かどうかで、どの oracle を評価するか知りたいとき。
-- 評価時に参照してよい oracle / `INDEX.md` の範囲、`codex exec` に渡す評価プロンプト、期待される Structured Output を確認したいとき。
-- 評価結果の検証ロジック、問題件数の集計方法、Markdown レポートの frontmatter と本文構成を確認したいとき。
+- `--full` の有無や `cmoc` ブランチ上かどうかで、どの oracle ファイルを評価するか知りたいとき。
+- 評価用 prompt の内容、許可される参照範囲、Structured Output schema、JSON 検証ロジックを確認したいとき。
+- 評価結果の集計方法、severity ごとの並び順、レポートの Markdown 体裁とエラー時の出力を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの仕様だけを調べたいとき。
-- `codex exec` の共通呼び出し規約、ログ、エラーハンドリング、`INDEX.md` 自動生成の共通仕様だけを確認したいとき。
-- oracle 仕様そのものや `oracles` 配下の正本仕様を読みたいとき。
-- 開発規約、コーディング規約、テスト規約などの開発者向けルールだけを確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
+- Codex CLI の共通呼び出し規約、ログ、エラーハンドリング、`INDEX.md` 自動生成の共通仕様だけを確認したいとき。
+- `oracles` 配下の正本仕様そのものを読みたいとき。
+- 開発規約、コーディング規約、テスト規約など、開発者向けルールだけを確認したいとき。
 
 ## hash
 
-- b6e502bd8b41159cc5ab4dc7e41dfd5b2bdf1ee67339f9b5503a5191ccfefc8b
+- 27594a3633c164a64be706f0c05e01074cb7617096fe9fabdcba90e9356a6b22
 
 # `init.py`
 
