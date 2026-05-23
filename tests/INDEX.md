@@ -27,16 +27,18 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証する pytest 群の入口です。
-- Structured Output の schema ファイル生成、JSON/テキストのリトライ、意味的検証失敗、ログ出力、quota 枯渇時の再開、INDEX.md 事前メンテナンスを扱います。
-- `cmoc` の Codex 呼び出しラッパーに関する制御ロジックを確認するためのテストです。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証する pytest 群の目次です。
+- Structured Output の schema ファイル生成、JSON とテキストのリトライ、意味的検証失敗、呼び出しログ、出力通知、quota 枯渇時の再開を扱います。
+- Codex CLI 呼び出し前の `INDEX.md` 事前メンテナンスと、そのスキップ可否も確認します。
+- ファイル末尾にはテスト用に git リポジトリを初期化して実行する `_git` 補助関数があります。
 
 ## Read this when
 
-- `run_codex_exec()` の引数や `--output-schema` / `--output-last-message` / `--resume` の扱いを確認したいとき。
-- JSON / テキスト出力の構文・意味的検証が 3 回までリトライされる条件を確認したいとき。
+- `run_codex_exec()` の引数や `--output-schema`、`--output-last-message`、`--resume` の扱いを確認したいとき。
+- Structured Output の構文検証と意味的検証が 3 回までリトライされる条件を確認したいとき。
 - 呼び出しログ、出力スキーマファイル、last message ファイル、標準出力通知の記録規則を確認したいとき。
-- quota 枯渇時の待機・疎通確認・再開、および INDEX.md 事前メンテナンスの有無を確認したいとき。
+- quota 枯渇時の待機・疎通確認・再開、および Codex 呼び出し前の `INDEX.md` 事前メンテナンスの有無を確認したいとき。
+- テスト用 git リポジトリを作る `_git` 補助関数の使い方を確認したいとき。
 
 ## Do not read this when
 
@@ -47,7 +49,7 @@
 
 ## hash
 
-- 725b71c5caab41a2c32523c179a637406a180d4f613de1c1c730ed0eec505da9
+- 32372c764d82f5d3ea6686a2998b7ba5de71fedad212d77698dd1121a2bb2dfe
 
 # `test_indexing.py`
 

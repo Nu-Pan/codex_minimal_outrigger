@@ -23,31 +23,31 @@
 
 ## Summary
 
-- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーをまとめるモジュールです。
-- `read-only` / `workspace-write` のサンドボックス、`model`、`reasoning_effort`、`--json`、`--output-last-message`、`--output-schema` の付与を統一して扱います。
-- Structured Output の schema をハッシュ名のファイルとして保存し、`logs/codex_exec/call` と `logs/codex_exec/output_last_message` に実行ログを残します。
-- JSON 応答の解析、cmoc 側の JSON Schema subset 再検証、text validator、最大 3 回までのリトライを扱います。
-- quota 枯渇時は session id を抽出して `--resume` し、回復待ち中は最小構成の疎通確認を繰り返します。
+- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーと、その周辺の補助処理をまとめるモジュールです。
+- sandbox モード、`model`、`reasoning_effort`、`--json`、`--output-schema`、`--output-last-message` の付与を統一して扱います。
+- Structured Output 用の schema ファイル生成、呼び出しログ、last message の保存、JSON 解析と schema 再検証を担います。
+- 最大 3 回のリトライ、quota 枯渇時の `--resume`、session id の抽出、待機ループを扱います。
+- `parse_json_object` や model / reasoning_effort の妥当性検査など、Codex CLI 連携の共通前処理と後処理を集約しています。
 
 ## Read this when
 
-- cmoc から Codex CLI をどのようなオプションで呼び出しているか確認したいとき。
-- `run_codex_exec` の引数、`expect_json`、`output_schema`、`json_validator`、`text_validator` の扱いを確認したいとき。
-- Structured Output の schema ファイルの保存先と、`codex exec` への渡し方を確認したいとき。
-- quota 枯渇時に session id を抽出して `--resume` する流れを確認したいとき。
-- JSON 応答を `dict` 前提で扱う処理や、cmoc 側の JSON Schema subset 検証を確認したいとき。
+- cmoc から Codex CLI をどの引数・出力形式で呼び出すべきか確認したいとき。
+- Structured Output の schema ファイルの生成、検証、`--output-schema` への渡し方を調べたいとき。
+- JSON 応答の `dict` 化、schema 検証、text validator、リトライ条件を変更したいとき。
+- quota 枯渇時に session id を抽出して `--resume` し、回復待ちを行う流れを確認したいとき。
+- Codex CLI 呼び出しの共通定数や、利用可能な model / reasoning_effort の制約を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを調べたいとき。
-- `INDEX.md` の配置対象や自動メンテナンス全体を調べたいとき。
-- git リポジトリ探索、ブランチ操作、差分収集、`.cmoc` の追跡外保証を調べたいとき。
-- `CmocError` の表示形式や共通エラーハンドリング全体を調べたいとき。
-- タイムスタンプ生成、経過時間表示、サブcommandログなど別の共通ユーティリティだけを確認したいとき。
+- 個別サブコマンドの業務ロジック、CLI 引数、ユーザー向け出力だけを調べたいとき。
+- `INDEX.md` の生成・更新ロジックや `<repo-root>` の探索・差分収集を調べたいとき。
+- 共通エラーハンドリングや `CmocError` の表示形式だけを確認したいとき。
+- タイムスタンプ、サブコマンドログ、repo 探索など他の共通ユーティリティだけを調べたいとき。
+- cmoc 自体の開発ルール、テスト規約、環境ルールだけを調べたいとき。
 
 ## hash
 
-- f2022c7e9e944253ad49b517fa7ea74cf2d4adbe9d3e3c5ad87e8fc7e4d871c8
+- 6c32d8121defb1ad493e2f4ea877c9463afec12a017c731cdf8bebb0d71f93f8
 
 # `command_runner.py`
 
