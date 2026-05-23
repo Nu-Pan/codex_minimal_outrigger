@@ -20,15 +20,14 @@
 ## 事前条件
 
 - `<cmoc-branch>` 上に居なければエラー終了とする
-- `<repo-root>/oracles` の外の未コミット差分があればエラー終了する
+- git 未コミット差分があればエラー終了する
+    - 人間が事前に必要な差分を手動でコミットする事（クリーンな状態すること）を前提とする
 
 ## 部分・全体適用モード
 
 - `cmoc apply` は部分適用・全体適用の２つのモードを持つ
 - `--full` がついている場合は全体適用モードへ
-- `--full` が付いていない場合
-    - `<cmoc-branch>` 上で `oracles` ファイル・実装ファイルの削除が有る場合は全体適用モードへ
-    - そうでなければ部適用モードへ
+- `--full` が付いていない場合は部分適用モードへ
 
 ## 実行作業
 
@@ -114,7 +113,7 @@
     "type": "object",
     "additionalProperties": false,
     "required": [
-        "discrepancies"
+        "fixing_points"
     ],
     "properties": {
         "git_head_commit_hash": {
