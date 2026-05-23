@@ -122,33 +122,36 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
-- `run_command` の stdout への tee、ログ保存、共通エラーレポート、終了コード処理を横断して確認します。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の実行フロー、補助関数、prompt、Structured Output schema を扱います。
-- `main` と `bin/cmoc` の委譲、`--help` 表示、互換 alias、仮想環境 Python の必須条件も確認します。
+- `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証する pytest 群の入口です。
+- `run_command` の stdout への tee、ファイルログ保存、共通エラーレポート、終了コード処理を横断して確認します。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の実行フロー、prompt、Structured Output、補助関数をまとめて扱います。
+- `main.py` のコマンド登録、`--help` 表示、互換 alias、`bin/cmoc` の起動条件も検証します。
 
 ## Read this when
 
-- `run_command` の出力 tee、ログ保存、例外時の終了コードとエラーレポートを確認したいとき。
-- `cmoc init` の `.cmoc` ignore 追加、tracked ファイルの追跡解除、初期 commit の挙動を確認したいとき。
+- サブコマンドの CLI 入口がどの実装関数へ委譲されるか確認したいとき。
+- `run_command` の stdout とファイルへの tee、ログ保存、例外時の終了コードやエラーレポートを確認したいとき。
+- `cmoc init` の `.cmoc` ignore 追加、tracked ファイルの追跡解除、初期 commit を確認したいとき。
 - `cmoc branch` のブランチ作成、base commit 記録、進捗表示を確認したいとき。
-- `cmoc eval-oracles` の評価レポート出力、severity 集約、部分評価と全体評価の切り替えを確認したいとき。
-- `cmoc apply` の不整合調査、要修正点の改善ループ、修正 commit、レポート検証を確認したいとき。
-- `cmoc merge` の branch 結合、コンフリクト解消 prompt、conflict marker 検査を確認したいとき。
-- CLI の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` のオプション表示を確認したいとき。
-- `format_error_report` の日本語方針や、引数なし起動・サブコマンドエラー時の共通挙動を確認したいとき。
+- `cmoc eval-oracles` の部分・全体評価切り替え、レポート保存、severity 集約、prompt 制約を確認したいとき。
+- `cmoc apply` の不整合調査、要修正点の改善、修正 commit、レポート検証、Structured Output schema を確認したいとき。
+- `cmoc merge` の branch 自動解決、コンフリクト解消 prompt、conflict marker 検査、ブランチ削除条件を確認したいとき。
+- `main.py` の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` のオプション表示を確認したいとき。
+- `bin/cmoc` の仮想環境 Python 必須条件や、launcher のエラーレポート出力を確認したいとき。
+- テスト内の補助関数 `_init_repo`、`_checkout_cmoc_branch`、`_git`、`_discrepancy_json`、`_eval_oracle_issue` の役割を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` 本体の実装コードや共通ライブラリの実装だけを追いたいとき。
-- `oracles` 配下の正本仕様だけを確認したいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_timestamps.py` など別のテスト群を探しているとき。
+- `src/sub_commands` の個別実装本体だけを追いたいとき。
+- `src/commons` の共通基盤仕様だけを知りたいとき。
+- `oracles` 側の正本仕様だけを確認したいとき。
+- 他のテストファイル、たとえば `tests/test_repo.py` や `tests/test_indexing.py` を探しているとき。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
-- テスト補助関数の定義順や、ファイル末尾の `_init_repo`、`_git` などの実装詳細だけを探しているとき。
+- 開発者向けのコーディング規約、設計規約、テスト規約だけを調べたいとき。
 
 ## hash
 
-- 26da9a246686f1d312b86b480aaec6c357fb89d62b46c804fe7bd2f1cb49f24d
+- 6d993d54302e382e0bd27d523363281616b330a8594b6378f1157ebb8b514460
 
 # `test_timestamps.py`
 
