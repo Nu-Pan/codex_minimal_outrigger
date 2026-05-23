@@ -77,30 +77,31 @@
 
 ## Summary
 
-- `cmoc eval-oracles` の本体実装で、oracle 断片の評価からレポート保存までを担当する。
-- 実行前の `.cmoc` の ignore 保証、`INDEX.md` メンテナンス、oracle ファイル列挙、`--full` とブランチ状態による部分評価・全体評価の切り替えをまとめて扱う。
-- 各 oracle に対する `codex exec` 用の評価 prompt 組み立て、Structured Output の schema 検証、評価結果の集約を行う。
-- 評価結果は Markdown レポートとして `.cmoc/reports/eval-oracles` に保存し、モード・ブランチ・コミット情報・削除 oracle 検出結果・issue 集計を記録する。
+- `cmoc eval-oracles` の本体実装で、oracle 断片の評価からレポート保存までをまとめて扱う。
+- `.cmoc` が git 追跡対象外であることを事前に保証し、既存の `INDEX.md` をメンテナンスしたうえで評価を進める。
+- `--full` の有無と現在のブランチ状態から、部分評価か全体評価かを切り替える。
+- 対象 oracle ごとに `codex exec` を呼び出し、Structured Output の JSON を検証して評価結果を集約する。
+- 評価結果は `.cmoc/reports/eval-oracles` 配下の Markdown レポートとして保存し、モード、ブランチ、コミット、問題件数を記録する。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実行フロー、ステップ順序、進捗表示を修正・確認したいとき。
-- `--full` の有無や cmoc ブランチ状態に応じた部分評価・全体評価の切り替え条件を確認したいとき。
-- 評価対象 oracle の選定条件や、削除済み oracle がある場合の扱いを確認したいとき。
-- `codex exec` に渡す評価 prompt の内容、参照可能な `oracles` / `INDEX.md` の範囲、読み取り専用条件を確認したいとき。
-- 評価出力の JSON schema 検証や、レポート保存先・frontmatter・本文構成を確認したいとき。
+- `cmoc eval-oracles` の処理順序、前処理、出力レポートの構成を確認したいとき。
+- `--full` の有無や cmoc ブランチ上かどうかで、どの oracle を評価するか知りたいとき。
+- 評価時に参照してよい `oracles` 配下のファイル範囲や、`INDEX.md` の扱いを確認したいとき。
+- `codex exec` に渡す評価プロンプト、Structured Output の期待値、JSON 検証の流れを確認したいとき。
+- レポート保存先、frontmatter の項目、問題件数の集計方法を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
-- Codex CLI の低レベル実装や、共通 runner・repo 操作・タイムスタンプ生成などの共通処理だけを調べたいとき。
-- `INDEX.md` 自動メンテナンスの生成規則や更新ロジックそのものを調べたいとき。
-- oracle ファイルの列挙や変更検出など、評価対象選定の個別実装だけを確認したいとき。
-- コーディング規約、設計規約、テスト規約など、開発者向けルールだけを確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc merge` など他サブコマンドの仕様だけを知りたいとき。
+- Codex CLI の低レベルな実装や、共通 runner、repo 操作、タイムスタンプ生成だけを調べたいとき。
+- `INDEX.md` 自動生成や更新ロジックそのものを調べたいとき。
+- oracle ファイルの列挙条件や、変更検出の個別実装だけを確認したいとき。
+- 開発規約、コーディング規約、テスト規約などの開発者向けルールだけを確認したいとき。
 
 ## hash
 
-- 41d352c5084bf8b764f754be1cbbe387886d8a96255487ee174740d8dbc2c689
+- ace18f9932a352ec8e2610650b375d53dc66dea41ed44c7b20571c4de7a0c449
 
 # `init.py`
 
