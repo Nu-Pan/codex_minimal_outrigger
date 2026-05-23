@@ -27,9 +27,9 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証する pytest 群の目次です。
-- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗、呼び出しログ、出力通知を扱います。
-- quota 枯渇時の待機・疎通確認・`--resume` 再実行、および Codex 呼び出し前の `INDEX.md` 事前メンテナンスの有無を確認します。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証するテスト群の目次です。
+- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗時のエラー表示、呼び出しログ、出力通知、`--resume` 再実行を扱います。
+- quota 枯渇時の待機・疎通確認・再開と、Codex 呼び出し前の `INDEX.md` 事前メンテナンスの有無も確認します。
 - ファイル末尾には、テスト用 git リポジトリを初期化して実行する `_git` 補助関数があります。
 
 ## Read this when
@@ -50,7 +50,7 @@
 
 ## hash
 
-- 80485c801e88909a200cee296b29edaab61e1010f0977694b9916a9239416bfa
+- 74950e737a3c65f85c2579990406180a17d922e5dd5ed2cfa85e5d2944ecb9c1
 
 # `test_indexing.py`
 
