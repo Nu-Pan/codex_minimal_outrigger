@@ -59,9 +59,9 @@
 
 ## Summary
 
-- `src/sub_commands` 配下の cmoc サブコマンド実装へのルーティング用目次です。
-- `__init__.py` と `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の各実装ファイルへの入口をまとめます。
-- 各サブコマンドの処理順、前提条件、入出力、共通制御の詳細を探すときの最初の案内役になります。
+- `src/sub_commands` は、cmoc の各サブコマンド本体実装へのルーティング用ディレクトリの目次です。
+- `__init__.py` と `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実装ファイルへの入口をまとめています。
+- 各サブコマンドの処理順、前提条件、入力、出力、共通制御の詳細を探すときの最初の案内役になります。
 
 ## Read this when
 
@@ -79,4 +79,4 @@
 
 ## hash
 
-- 435bb2b8ce6c73bdd728ba592c7b8c93ca3df7bb5828f2f17a8542e2f485117a
+- b8b3b47ca40df5980d839372a58f6f93440115341be38652c386367a5dde633a
