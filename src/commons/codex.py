@@ -59,7 +59,7 @@ def run_codex_exec(
     schema_path = _write_output_schema(log_path, output_schema)
     if schema_path is not None:
         command.extend(["--output-schema", str(schema_path)])
-    command.append(prompt)
+    command.append("-")
 
     # JSON 以外でも意味検証がある呼び出しは最大 3 回リトライする。
     attempts = 3 if expect_json or text_validator is not None else 1
@@ -237,10 +237,11 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
             last_message_path=poll_path,
         )
-        poll_command.append(poll_prompt)
+        poll_command.append("-")
         poll_result = subprocess.run(
             poll_command,
             cwd=repo_root,
+            input=poll_prompt,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -326,6 +327,7 @@ def _run_codex_command(
     result = subprocess.run(
         command,
         cwd=repo_root,
+        input=prompt,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -427,7 +429,7 @@ def _append_codex_log(
     # prompt を含む完全な入出力を、stdout 進捗とは別にログへ保存する。
     content = [
         f"attempt: {attempt}",
-        f"command: {' '.join(command[:-1])} <prompt>",
+        f"command: {' '.join(command[:-1])} <prompt-stdin>",
         (
             f"output_schema: {schema_path}"
             if schema_path is not None
