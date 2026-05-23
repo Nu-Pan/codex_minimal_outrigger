@@ -24,28 +24,27 @@
 
 ## Summary
 
-- `cmoc apply` の本体処理を実装するモジュールです。
-- `oracles` と実装の不整合調査、要修正点の整理と適用、レポート生成までの反復フローをまとめています。
-- Structured Output による不整合スキーマ検証、部分適用・全体適用モードの切り替え、禁止領域チェック、commit 処理も担当します。
+- `cmoc apply` の本体実装を定義するサブコマンドモジュールです。
+- `oracles` と実装の不整合調査、要修正点の整理、修正適用、コミット、レポート出力までの反復フローを扱います。
+- Structured Output スキーマ検証、部分適用・全体適用の判定、禁止領域チェック、`INDEX.md` メンテナンスもこのファイルにまとまっています。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、引数、反復回数、終了コードを実装・確認したいとき。
-- 部分適用・全体適用の判定条件や、変更済み `oracles` / 実装ファイルへの絞り込み条件を確認したいとき。
-- Codex CLI に渡す不整合調査・整理・適用・commit message 生成の prompt を確認したいとき。
-- 不整合リストの Structured Output schema 検証や、レポート保存先・レポート本文の検証条件を確認したいとき。
-- `INDEX.md` の自動メンテナンスを `cmoc apply` の途中でどう扱うか確認したいとき。
+- `cmoc apply` の実行フロー、反復回数、終了コード、レポート生成の実装を確認したいとき。
+- 部分適用・全体適用の切り替え条件や、変更済み `oracles`・実装ファイルへの絞り込み条件を確認したいとき。
+- Codex CLI に渡す不整合調査、整理、修正、commit message 生成の prompt を確認したいとき。
+- 不整合リストの Structured Output 検証条件や、`INDEX.md` を含む事前メンテナンスの扱いを確認したいとき。
 
 ## Do not read this when
 
 - `cmoc branch`、`cmoc init`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの本体処理だけを調べたいとき。
 - `INDEX.md` の生成ルールや `<repo-root>` 全体の目次仕様だけを確認したいとき。
-- cmoc 自体のコーディング規約、設計規約、テスト規約など開発者向けルールだけを確認したいとき。
+- cmoc 自体の開発規約、設計規約、テスト規約など開発者向けルールだけを確認したいとき。
 - repo 操作ユーティリティ、ログ、タイムスタンプ、`codex exec` 共通規約だけを確認したいとき。
 
 ## hash
 
-- 8ea886926602d1cebf1a660b0e31875a08da9fa83d3f857c3d36617b14030c0d
+- 0d31b27ab15ba1d9af1603840c0496fe5de9654b006462b9f4ebf79c09c896ef
 
 # `branch.py`
 
