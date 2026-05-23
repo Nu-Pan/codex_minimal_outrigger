@@ -24,27 +24,28 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の本体実装を担当し、`oracles` と実装の不整合調査から修正適用、コミット、レポート出力までを一括して扱うモジュールです。
-- このファイルでは、`cmoc branch` 上での実行確認、`.cmoc` の追跡対象外保証、`oracles` の自動コミット、INDEX.md の維持、Structured Output 検証を含む調査・改善・適用ループが実装されています。
-- 部分適用・全体適用の切り替え、要修正点リストの整理、個別不整合への Codex CLI 呼び出し、禁止領域チェック、apply レポートの生成と検証もこのファイルの担当範囲です。
+- `src/sub_commands/apply.py` は `cmoc apply` の本体実装で、`oracles` と実装の不整合調査、修正適用、commit、レポート出力までを一括して扱う。
+- `cmoc branch` 上での実行確認、`.cmoc` の ignore 保証、`oracles` 以外の未コミット差分拒否、`INDEX.md` の維持を含む前処理を実施する。
+- 要修正点の Structured Output schema、調査・整理・適用ループ、commit message 生成、apply レポート検証と終了コード返却を実装している。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、前提条件、終了コード、反復回数の扱いを確認したいとき。
-- `oracles` と実装の差分をどう調査し、部分適用・全体適用で対象ファイルをどう切り替えるか知りたいとき。
-- 要修正点リストの Structured Output スキーマ、整理ループ、個別修正ループ、commit message 生成の流れを確認したいとき。
-- `.cmoc` の ignore 保証、編集禁止パスの検査、INDEX.md の維持、apply レポートの保存・検証仕様を確認したいとき。
+- `cmoc apply` の実行フロー、前提条件、反復回数、終了条件を確認したいとき。
+- 部分適用と全体適用の切り替えや、調査対象の oracle ファイル・実装ファイルの絞り込みを追いたいとき。
+- Codex CLI に渡す調査・整理・適用・commit message 生成の prompt と、要修正点 JSON の schema を確認したいとき。
+- `INDEX.md` の維持、変更の自動 commit、編集禁止領域チェック、apply レポートの生成・検証を確認したいとき。
+- 対応する正本仕様や検証観点として `oracles/app_specs/apply.md`、`oracles/app_specs/indexing.md`、`oracles/app_specs/codex_call.md`、`tests/test_subcommands.py` を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc branch`、`cmoc init`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
-- `src/commons` 配下の共通ユーティリティ、git 操作ヘルパー、タイムスタンプ、Codex 呼び出し共通処理だけを追いたいとき。
-- `oracles` 側の正本仕様そのものや、`INDEX.md` のルーティング文書だけを読みたいとき。
-- `tests` 側の検証内容やテストケースだけを確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの実装だけを確認したいとき。
+- Codex CLI の共通呼び出し規約、ログ、エラーハンドリング、`INDEX.md` 自動生成の共通仕様だけを確認したいとき。
+- `oracles` 側の正本仕様そのものを読みたいときや、テスト観点だけを先に確認したいとき。
+- 共通ユーティリティや git 操作ヘルパーだけを追いたいとき。
 
 ## hash
 
-- 7f7b15fc7d0e435c8eb7ad1d74af20e71dc63a961273094c2de8636870ba22d7
+- f5aede074b1d018f5118afef0e8e07422ac1b5c39662af8cfe75db1761a41ced
 
 # `branch.py`
 
