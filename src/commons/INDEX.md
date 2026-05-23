@@ -171,16 +171,15 @@
 
 ## Summary
 
-- `src/commons/subcommand_log.py` は、サブコマンド単位の標準出力・標準エラー出力を `tee` して `<repo-root>/logs/sub_commands` 配下へ保存する共通ログ管理モジュールです。
-- `SubcommandLogContext` と `current_subcommand_log()` で現在のログ状態を共有し、`add_quota_wait()` で quota 回復待ち時間を加算できます。
-- `subcommand_log()` はログファイルを作成し、コンソール出力とログファイルへの複製を行い、開始時にログの相対パスを表示します。
-- `_ensure_logs_excluded()` は `logs/` がサブコマンド自身の未コミット差分にならないよう、`.git/info/exclude` へ除外設定を追加します。
+- `src/commons/subcommand_log.py` は、サブコマンド実行ごとの標準出力と標準エラー出力を `tee` して `<repo-root>/logs/sub_commands/<time-stamp>.log` に保存する共通ログ管理モジュールです。
+- `SubcommandLogContext` と `current_subcommand_log()` で現在のログ状態を共有し、`add_quota_wait()` で quota 回復待ち時間を累積できます。
+- `subcommand_log()` はログファイルを作成して開始メッセージを表示し、`_ensure_logs_excluded()` は `logs/` が未コミット差分にならないよう `.git/info/exclude` に除外設定を追加します。
 
 ## Read this when
 
-- サブコマンド実行時の標準出力・標準エラー出力をログファイルへ同時保存する仕組みを確認したいとき。
+- サブコマンドの標準出力・標準エラー出力をコンソールとログファイルへ同時保存する仕組みを確認したいとき。
 - 現在実行中のサブコマンドのログ状態や、quota 回復待ち時間の累積方法を確認したいとき。
-- ログファイルの保存先、ファイル名の付け方、開始メッセージの表示内容を確認したいとき。
+- ログファイルの保存先、ファイル名、開始時に表示される相対パスのメッセージを確認したいとき。
 - `logs/` をサブコマンド自身の差分として扱わないための除外設定の挙動を確認したいとき。
 
 ## Do not read this when
@@ -193,7 +192,7 @@
 
 ## hash
 
-- 56034b81bd2d66809847c5c1a5d493068d686c1cbd4a943e4e12eaa4f3e3d330
+- 0a32294fc5aaad00f31dc614cf1f8fa39e9fb9ef60033d781aee8504aeb24b23
 
 # `timestamps.py`
 

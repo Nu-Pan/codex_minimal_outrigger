@@ -120,29 +120,31 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI 起動経路の決定論的なテスト群の目次です。
-- `run_command` の stdout への tee、ログ保存、例外時のエラーレポート、終了コード処理を横断して扱います。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローに加え、`main` と `bin/cmoc` の委譲構造、help 表示、補助ヘルパーの確認先です。
+- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI 起動経路の決定論的な振る舞いをまとめて検証するテスト目次です。
+- `run_command` の stdout への tee、ログ保存、例外時の共通エラーレポート、終了コード処理を横断して確認します。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローと、各サブコマンドの補助関数・プロンプト・schema を扱います。
+- `main` と `bin/cmoc` の委譲構造、`--help` 表示、互換 alias、仮想環境 Python の必須条件もこのテストで確認します。
 
 ## Read this when
 
-- `run_command` の進捗出力、ログファイル保存、例外時の終了コードとレポートを確認したいとき。
+- `run_command` の標準出力 tee、ログファイル保存、例外時の終了コードとレポート内容を確認したいとき。
 - `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローをテスト観点で追いたいとき。
-- `main` と `bin/cmoc` の起動経路、`cmoc --help`、`eval-oracle` と `eval-oracles` の登録、`cmoc apply --help` を確認したいとき。
-- `format_error_report` や共通エラー表示の日本語方針、仮想環境 Python 必須条件を確認したいとき。
-- merge の conflict prompt、conflict marker 検出、apply の discrepancy schema 検証などの補助関数の挙動を確認したいとき。
+- `main` と `bin/cmoc` の起動経路、`cmoc --help`、`eval-oracle` と `eval-oracles` の登録関係、`cmoc apply --help` を確認したいとき。
+- `format_error_report` の日本語エラー方針や、引数なし起動・サブコマンドエラー時の共通挙動を確認したいとき。
+- `eval-oracles` と `apply` の prompt 生成、Structured Output schema、`merge` の conflict prompt、conflict marker 検出などの補助関数を確認したいとき。
+- `bin/cmoc` が仮想環境 Python に依存することや、フロントエンドの CLI 入口まわりのテストを見たいとき。
 
 ## Do not read this when
 
-- `cmoc` の正本仕様そのものだけを知りたいとき。
-- 各サブコマンドの実装本体や共通ライブラリのコードだけを追いたいとき。
-- `INDEX.md` の生成・メンテナンス仕様だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
-- `tests/test_repo.py` など他のテスト群の仕様だけを調べたいとき。
+- `cmoc` の実装本体や共通ライブラリのコードだけを追いたいとき。
+- `oracles` 配下の正本仕様そのものだけを知りたいとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_timestamps.py` など別のテスト群の仕様を探しているとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- サブコマンドの個別仕様ではなく、テスト用のヘルパー関数やモックの実装詳細だけが必要なとき。
 
 ## hash
 
-- a6cd9be59be0595e7c7aded931088ffcfaec9b944c4d2bfa3e722420fa0fff25
+- a0c8908a4976dae46f85a324a2b5bccb1324b0467de16ef04d3c2a0ff9efdf59
 
 # `test_timestamps.py`
 
