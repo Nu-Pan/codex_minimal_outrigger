@@ -2,14 +2,12 @@
 
 ## Summary
 
-- cmoc から `codex exec` で Codex CLI を呼び出す際の共通規約をまとめた仕様です。
-- プロンプトの構成、`<cmoc-root>` や `<repo-root>` のような cmoc 固有語の扱い、アクセス制限指示の入れ方を扱います。
-- Model / Reasoning Effort の選び方、サンドボックス、`--json`・`--output-last-message`・`--output-schema` の使い方を定めます。
-- `codex exec` のログ保存、リトライ、quota 待機・再開、自然言語の日本語統一方針、`.agents` 配下を編集できない問題への対処を含みます。
+- `cmoc` から `codex exec` を呼び出す際の共通規約をまとめたルーティング用ファイルです。
+- プロンプト構成、アクセス制限、Model / Reasoning Effort、Structured Output、ログ、リトライ、quota 待機、日本語統一方針を扱います。
 
 ## Read this when
 
-- cmoc から Codex CLI を呼び出す実装や仕様を確認したいとき。
+- `cmoc` から Codex CLI を呼び出す実装や仕様を確認したいとき。
 - Codex CLI に渡すプロンプトの構成、役割説明、作業内容、完了条件の書き方を確認したいとき。
 - `<cmoc-root>` や `<repo-root>` のような抽象語をプロンプトに入れてよいか判断したいとき。
 - 読み取り専用実行か書き込み可実行か、どちらのサンドボックスにするべきか確認したいとき。
@@ -29,7 +27,7 @@
 
 ## hash
 
-- 74e99e6b9c41c8b159bbd7ba0db59d376472f7e467874f716fffe7bb8fb740be
+- a7f133c0b61d583820a52282f3ce01aa8f1470f2d7148328a341326363e0d878
 
 # `console_and_file_log.md`
 
