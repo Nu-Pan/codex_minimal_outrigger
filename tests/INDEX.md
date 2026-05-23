@@ -127,27 +127,25 @@
 - `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI エントリポイント周辺の決定論的な制御ロジックを固定するテスト群の目次です。
 - `run_command` の stdout とログへの tee、例外時のエラーレポート、`cmoc init` / `cmoc branch` / `cmoc eval-oracles` / `cmoc apply` / `cmoc merge` の振る舞いを横断的に扱います。
 - `main` と `bin/cmoc` の委譲構造、`cmoc --help` の表示、終了コード、仮想環境 Python 必須条件、共通エラー表示の文言も検証対象です。
-- `apply` の不整合 schema 検証、`merge` の conflict prompt、`_init_repo` や `_checkout_cmoc_branch` のテスト補助も含みます。
+- `apply` の不整合 schema 検証、`merge` の conflict prompt、テスト用 git リポジトリ作成ヘルパーも含みます。
 
 ## Read this when
 
-- cmoc の各サブコマンドがどのように git 操作、レポート保存、終了コード処理を行うかをテスト観点から確認したいとき。
-- サブコマンド実行時の stdout とログファイルの出力規則、進捗表示、例外時のまとめ出力を確認したいとき。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の主要な制御フローを pytest の期待値から追いたいとき。
-- `main` / `bin/cmoc` の起動経路、ヘルプ表示、エラー終了、仮想環境 Python 必須条件を確認したいとき。
-- 不整合調査 JSON の schema、merge の conflict marker 検査、テスト用 git リポジトリの作り方を把握したいとき。
+- cmoc 各サブコマンドの制御フロー、終了コード、ログ出力をテスト観点から確認したいとき。
+- `main` / `bin/cmoc` の起動経路、help 表示、エラー表示、仮想環境 Python 要件を確認したいとき。
+- `apply` の不整合 JSON schema、`merge` の conflict 解消プロンプト、`eval_oracles` の prompt 仕様をテストで追いたいとき。
+- テスト用 git リポジトリの作り方や、`_checkout_cmoc_branch` などの補助関数を把握したいとき。
 
 ## Do not read this when
 
-- cmoc の正本仕様そのものを知りたいとき。仕様断片は `oracles` 配下を読むべきです。
-- 各サブコマンドの実装コードだけを追いたいとき。実装本体は `src/sub_commands` 配下にあります。
-- `INDEX.md` 自動生成や更新の共通ロジックだけを調べたいとき。
-- `commons.repo` や `commons.codex` など、サブコマンド以外の共通処理の単体テストを探しているとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- cmoc の正本仕様そのものを知りたいとき。
+- サブコマンドの実装本体や共通処理のコードだけを追いたいとき。
+- `INDEX.md` 自動生成や `<repo-root>` 側のディレクトリ列挙仕様だけを知りたいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
 
 ## hash
 
-- a3ee2f52051d19370f268afce2685a86cb7eefca4913075ebedb18abfb2e8769
+- 8143b247b8a29718a57f6fec4fddac926d18452e31840f98f84246e7ed19cc9f
 
 # `test_timestamps.py`
 

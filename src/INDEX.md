@@ -31,49 +31,48 @@
 
 - `cmoc` CLI の Typer エントリーポイントを定義するファイルです。
 - `init`、`branch`、`eval-oracles`、`apply`、`merge` を `app` に登録し、それぞれ対応する `sub_commands` 実装へ処理を委譲します。
-- `main()` は Typer / Click の起動をラップし、parse error や想定外例外を共通エラーレポート形式に整えて終了コードを決定します。
-- `python src/main.py` で直接実行された場合も `main()` を起動する入口です。
+- `main()` で Typer / Click の起動を包み、parse error や想定外例外を共通エラーレポート形式に整えて終了コードを決めます。
+- `python src/main.py` で直接実行された場合の起動経路も、このファイルでまとめています。
 
 ## Read this when
 
-- `cmoc` のトップレベル CLI コマンド一覧やサブコマンド登録箇所を確認したいとき。
-- `init`、`branch`、`eval-oracles`、`apply`、`merge` がどの実装関数へ委譲されるか調べたいとき。
-- サブコマンドの Typer 引数・オプション定義、デフォルト値、短縮オプションを確認したいとき。
-- Typer や Click の例外、CLI の parse error、想定外例外がどのように共通エラーレポートと終了コードへ変換されるか確認したいとき。
-- `app` オブジェクト、`main()`、直接実行時の挙動を修正または調査したいとき。
+- `cmoc` のトップレベルコマンド一覧と、各サブコマンドの登録箇所を確認したいとき。
+- 各コマンドがどの `sub_commands` 実装関数へ渡されるかを調べたいとき。
+- `apply` の `--repeat` や `--full`、`eval-oracles` の `--full` などの Typer 引数定義や既定値を確認したいとき。
+- Typer / Click の parse error、`NoArgsIsHelpError`、想定外例外がどのように終了コード付きのエラーレポートへ変換されるか確認したいとき。
+- `app` オブジェクトや `main()` の起動条件、`python src/main.py` での直接実行時挙動を調べたいとき。
 
 ## Do not read this when
 
-- 各サブコマンドの具体的な処理内容、git 操作、ファイル生成、Codex CLI 呼び出しなどの本体実装を調べたいとき。
-- 共通エラーレポートのフォーマット処理そのものを詳しく確認したいとき。
-- cmoc の設定ファイル、oracle 評価、INDEX.md 生成、ログ保存などの詳細仕様や処理フローを調べたいとき。
-- Typer ではなく個別モジュール内のビジネスロジックやテスト対象の詳細を確認したいとき。
-- cmoc を使う対象リポジトリ側の `<repo-root>` 構造やファイル内容を調査したいとき。
+- 各サブコマンドの業務ロジックや `src/sub_commands` 配下の本体実装を追いたいとき。
+- 共通エラーレポートの本文生成や `commons.errors` の内部を詳しく確認したいとき。
+- `INDEX.md` 自動生成、repo 探索、ログ保存などの共通基盤の仕様を調べたいとき。
+- `cmoc` の利用手順全体や各サブコマンドの正本仕様を知りたいとき。
 
 ## hash
 
-- 46a839a204d98681f3b4b8ae950eedaa799d921d99d7ab1989d89478396fd25d
+- 0332175dfe26d12c8c9399d5f7bf9d97c1aaf35044ca0eb67fbe696644a3d041
 
 # `sub_commands`
 
 ## Summary
 
-- `cmoc` の各サブコマンド本体実装をまとめる `src/sub_commands` ディレクトリの目次です。
-- `__init__.py` はパッケージ初期化、`init.py`、`branch.py`、`apply.py`、`eval_oracles.py`、`merge.py` は各サブコマンドの実装入口です。
-- このディレクトリは、サブコマンドごとの処理の流れ、入出力、実行条件、進捗表示や終了判定を確認するための案内役です。
+- このディレクトリは cmoc のサブコマンド実装をまとめる Python パッケージの目次です。
+- `__init__.py` と `apply.py`、`branch.py`、`eval_oracles.py`、`init.py`、`merge.py` がこの配下の主な入口です。
+- 各モジュールは対応するサブコマンドの処理フロー、引数処理、git 操作、進捗表示、レポート生成などを担当します。
 
 ## Read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` のどの実装ファイルを読むべきか判断したいとき。
-- 各サブコマンドの処理の流れ、引数、前提条件、終了条件、保存先などの実装詳細を確認したいとき。
-- サブコマンド実装のパッケージ境界や、個別モジュールの役割を把握したいとき。
+- cmoc のサブコマンド実装がどのファイルにあるか確認したいとき。
+- 特定サブコマンドの本体処理や実装入口を追いたいとき。
+- `src/sub_commands` 配下の構成やパッケージ境界を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc` の開発ルール、コーディング規約、テスト方針、開発環境だけを調べたいとき。
-- CLI のユーザー向け利用方法や、サブコマンド一覧だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`oracles` の運用ルールや編集可否だけを確認したいとき。
+- cmoc 全体の開発規約やテスト規約だけを確認したいとき。
+- コマンドの仕様そのものは知りたいが、実装ファイルの所在は不要なとき。
+- `oracles` の正本仕様や `<repo-root>` 側の運用ルールだけを調べたいとき。
 
 ## hash
 
-- cb429b2d3c2360fd3d21bf461f7ca360685222b91aa33b70a81043eec5acd933
+- 1c0db9ad408e1257449d31576f2c11596ad1955b357195f80766dd1074482324
