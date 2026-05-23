@@ -228,11 +228,11 @@
 
 ## Summary
 
-- サブコマンドのステップ単位の時間計測を担う共通モジュールです。
-- `StepTimer` は開始時刻、現在ステップ、確定済みステップの経過時間を保持し、`start()` で直前ステップを確定して次のステップを開始します。
-- `report()` は未確定の最後のステップも確定したうえで、各ステップの経過時間とサブコマンド全体の経過時間を stdout に出力します。
-- `current_timer()`、`report_current_timer()`、`clear_current_timer()` は `ContextVar` を使って現在の計測器を参照・出力・解除します。
-- `format_duration()` は秒数を 0.1 秒単位で切り捨て、負値を 0 として扱い、` 0h  0m  0.0s` 形式の文字列に変換します。
+- `src/commons/timing.py` はサブコマンドのステップ単位の経過時間を扱う共通モジュールです。
+- `StepTimer` はサブコマンド全体の開始時刻、現在のステップ名、確定済みステップの経過時間を保持し、`start()` で直前ステップを確定して次のステップを開始します。
+- `report()` は未確定の最後のステップも含めて、各ステップの経過時間とサブコマンド全体の経過時間を stdout に出力します。
+- `current_timer()`、`report_current_timer()`、`clear_current_timer()` は `ContextVar` を使って現在の計測器を参照、出力、解除します。
+- `format_duration()` は秒数を 0.1 秒単位で切り捨て、負値を 0 として ` 0h  0m  0.0s` 形式の文字列に整形します。
 
 ## Read this when
 
@@ -245,11 +245,11 @@
 ## Do not read this when
 
 - 各サブコマンド固有の業務ロジックだけを追いたいとき。
-- Codex CLI 呼び出し、Structured Output、ログ保存、リトライなど別の共通処理を調べたいとき。
+- Codex CLI 呼び出し、ログ保存、Structured Output、リトライなど `timing.py` 以外の共通処理を調べたいとき。
 - `INDEX.md` の自動生成や内容ハッシュの規則を調べたいとき。
-- repo 探索、oracle 列挙、ブランチ操作など、timing 以外の共通機能を探したいとき。
+- `repo` 探索、oracle 列挙、ブランチ操作など、タイミング以外の共通機能を探したいとき。
 - Python の一般的な時間計測 API や `perf_counter` の詳細仕様だけを知りたいとき。
 
 ## hash
 
-- 75558c0d9b8b16b8296f16fd1b5cf927260d60da1a97a672539bda11584bf2a4
+- 10e161032e4c03d1517c0c89f553acc0c2bd56358372ee48189480672ceb7fe1

@@ -10,7 +10,7 @@
 
 ## Read this when
 
-- `cmoc` の共通ユーティリティの役割分担や、どの処理がこのディレクトリにあるかを確認したいとき。
+- `cmoc` の共通ユーティリティの役割分担や、このディレクトリに何があるかを確認したいとき。
 - git リポジトリ探索、ブランチや HEAD の取得、`.cmoc` の ignore 保証、差分収集、ファイル列挙の実装方針を知りたいとき。
 - `codex exec` の起動方法、Structured Output、ログ保存、検証リトライ、quota 復旧の流れを確認したいとき。
 - `INDEX.md` の自動生成・更新・再利用・自動コミットの仕組みを確認したいとき。
@@ -26,7 +26,7 @@
 
 ## hash
 
-- 1e25d531f87072557d3049821b4cff2aee96007f47c9f0111b24f3919163b4c6
+- 479849ab463d34aaadbb6c9d4a4c96073497a15d24cf744b5d3dc8f342f1dd20
 
 # `main.py`
 
@@ -64,12 +64,12 @@
 ## Summary
 
 - `src/sub_commands` は、cmoc の各サブコマンド本体処理を実装するパッケージです。
-- `init.py` は `cmoc init` の実装で、`.cmoc` の追跡除外保証、初期化差分のコミット、進捗表示、`StepTimer` による時間計測を扱います。
-- `branch.py` は `cmoc branch` の実装で、`cmoc_<timestamp>` 形式の作業用ブランチ作成、作成元 commit の保存、`.cmoc` ignore 保証、衝突時リトライを扱います。
-- `apply.py` は `cmoc apply` の実装で、cmoc ブランチ検証、oracle 差分のコミット、`INDEX.md` メンテナンス、不整合調査、実装追従、変更コミット、apply レポート生成を扱います。
-- `eval_oracles.py` は `cmoc eval-oracles` の実装で、評価対象 oracle の選定、`INDEX.md` メンテナンス、Codex CLI による oracle 評価、Markdown レポート保存を扱います。
+- `__init__.py` はパッケージ初期化用の最小ファイルで、実行ロジックや公開 API は持ちません。
+- `init.py` は `cmoc init` の実装で、`.cmoc` の追跡除外保証、初期化変更のコミット、進捗表示と時間計測を扱います。
+- `branch.py` は `cmoc branch` の実装で、`cmoc_<time-stamp>` 形式の作業ブランチ作成、作成元 commit の記録、衝突時リトライを扱います。
+- `apply.py` は `cmoc apply` の実装で、cmoc ブランチ検証、oracle 差分のコミット、`INDEX.md` メンテナンス、不整合調査と追従修正の反復を扱います。
+- `eval_oracles.py` は `cmoc eval-oracles` の実装で、評価対象 oracle の選定、`INDEX.md` メンテナンス、Codex CLI による評価、Markdown レポート保存を扱います。
 - `merge.py` は `cmoc merge` の実装で、未コミット差分検証、マージ元ブランチ解決、`git merge`、conflict 解消支援、作業ブランチ削除を扱います。
-- `__init__.py` はサブコマンド実装パッケージであることを示す最小限の初期化ファイルです。
 
 ## Read this when
 
@@ -89,4 +89,4 @@
 
 ## hash
 
-- f29c03d2f46bdca4c712089824a5424c7c6904d0445cd5bf193db8758e6e6e2e
+- 5d1a468e5967603f345f0f3ef7d01320c18669edfbd60ee468ba60bffea240c2
