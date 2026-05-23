@@ -24,16 +24,16 @@
 
 ## Summary
 
-- `cmoc apply` の本体実装を定義するサブコマンドモジュールです。
-- `oracles` と実装の不整合調査、要修正点の整理、修正適用、コミット、レポート出力までの反復フローを扱います。
-- Structured Output スキーマ検証、部分適用・全体適用の判定、禁止領域チェック、`INDEX.md` メンテナンスもこのファイルにまとまっています。
+- `src/sub_commands/apply.py` は `cmoc apply` の本体実装を担当するサブコマンドモジュールです。
+- `oracles` と実装の不整合調査、要修正点の整理、修正適用、コミット、レポート出力までの反復処理をまとめています。
+- 部分適用・全体適用の判定、Structured Output の検証、禁止領域チェック、`INDEX.md` の維持もこのファイルに集約されています。
 
 ## Read this when
 
 - `cmoc apply` の実行フロー、反復回数、終了コード、レポート生成の実装を確認したいとき。
-- 部分適用・全体適用の切り替え条件や、変更済み `oracles`・実装ファイルへの絞り込み条件を確認したいとき。
-- Codex CLI に渡す不整合調査、整理、修正、commit message 生成の prompt を確認したいとき。
-- 不整合リストの Structured Output 検証条件や、`INDEX.md` を含む事前メンテナンスの扱いを確認したいとき。
+- `oracles` と実装の差分をどう抽出し、調査対象ファイルを部分適用・全体適用でどう切り替えるか知りたいとき。
+- Codex CLI に渡す不整合調査、要修正点整理、修正、コミットメッセージ生成のプロンプトを確認したいとき。
+- 要修正点リストの Structured Output 検証条件や、`INDEX.md` を含む事前メンテナンスの扱いを確認したいとき。
 
 ## Do not read this when
 
@@ -44,7 +44,7 @@
 
 ## hash
 
-- 0d31b27ab15ba1d9af1603840c0496fe5de9654b006462b9f4ebf79c09c896ef
+- 74cf78c652cf99d3441dc853bd68b95773dc21d5df8d2ffd6baea60abe8d74c8
 
 # `branch.py`
 
