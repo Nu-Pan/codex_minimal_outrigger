@@ -124,15 +124,15 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI エントリポイント周辺の決定論的な制御ロジックを検証するテスト群への入口です。
-- `run_command` の stdout とログへの tee、例外時のエラーレポート、`cmoc init` / `cmoc branch` / `cmoc eval-oracles` / `cmoc apply` / `cmoc merge` の制御フローを横断して扱います。
-- `main` と `bin/cmoc` の委譲構造、`cmoc --help`、終了コード、仮想環境 Python 必須条件、共通エラー表示も確認対象です。
+- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI エントリポイント周辺の決定論的な制御ロジックを検証するテストの目次です。
+- `run_command` の stdout への tee、ログ保存、例外時のエラーレポート、終了コードの扱いを横断して扱います。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローと、`main`・`bin/cmoc` の委譲構造を確認できます。
 - `apply` の不整合 JSON schema、`merge` の conflict prompt、テスト用 git リポジトリ作成ヘルパーもこの目次で案内します。
 
 ## Read this when
 
 - `cmoc` 各サブコマンドの制御フロー、終了コード、ログ出力をテスト観点から確認したいとき。
-- `main` / `bin/cmoc` の起動経路、help 表示、エラー表示、仮想環境 Python 要件を確認したいとき。
+- `main` / `bin/cmoc` の起動経路、`cmoc --help`、エラー表示、仮想環境 Python 必須条件を確認したいとき。
 - `apply` の不整合 JSON schema、`merge` の conflict 解消プロンプト、`eval_oracles` の prompt 仕様をテストで追いたいとき。
 - テスト用 git リポジトリの作り方や、`_checkout_cmoc_branch` などの補助関数を把握したいとき。
 
@@ -145,7 +145,7 @@
 
 ## hash
 
-- 24d99c3e7dd376b60dab26d40431567472e65787691a0bf46f0f2552f8327e6b
+- 71ec16ff0d4f8e3ac7dd2c929dd4d77b30ed46c0dac98a17e16ba94179bbd180
 
 # `test_timestamps.py`
 
