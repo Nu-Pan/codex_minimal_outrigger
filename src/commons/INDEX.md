@@ -25,8 +25,9 @@
 
 - `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーです。
 - `read-only` / `workspace-write` のサンドボックス、`model`、`reasoning_effort`、`--json`、`--output-last-message`、`--output-schema` の付与をまとめて扱います。
-- Structured Output の schema を `logs/codex_exec/output_schemae` に hash 名で保存し、`logs/codex_exec/call` と `logs/codex_exec/output_last_message` に実行ログを残します。
-- JSON 応答の解析、cmoc 側の JSON Schema subset 再検証、text validator、最大 3 回のリトライ、quota 枯渇時の待機と `--resume` 再実行までを扱います。
+- Structured Output の schema を `logs/codex_exec/output_schemae` にハッシュ名で保存し、`logs/codex_exec/call` と `logs/codex_exec/output_last_message` に実行ログを残します。
+- JSON 応答の解析、cmoc 側の JSON Schema subset 再検証、text validator、最大 3 回のリトライまでを扱います。
+- quota 枯渇時は session id を抽出して `--resume` し、回復待ち中は最小構成の疎通確認を繰り返します。
 - `parse_json_object` で JSON object 以外を拒否し、呼び出し側が `dict` 前提で扱えることを保証します。
 
 ## Read this when
@@ -49,7 +50,7 @@
 
 ## hash
 
-- e37d6171c059764e6fa7e8509f409af6218eddb74cfca7b0638ff3f7930f4f47
+- 6607c2b782358fdf271fa4f4ec303590605ee07cf5ea91f8cbb7e8a9e0c17a96
 
 # `command_runner.py`
 

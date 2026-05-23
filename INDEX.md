@@ -203,25 +203,28 @@
 
 ## Summary
 
-- `src` は cmoc 本体の実装を置くルートディレクトリです。
-- `main.py` が CLI エントリーポイントで、`commons` に共通処理、`sub_commands` に各サブコマンド実装がまとまっています。
-- `src` 配下を起点に、コマンド登録、共通基盤、個別コマンドの配置先を横断して確認できます。
+- `src` は cmoc の実装コードを置くルートで、CLI エントリーポイント、共通ユーティリティ、各サブコマンド実装への入口をまとめるルーティング用ディレクトリです。
+- `commons` は `codex exec` 呼び出し、repo 探索、共通エラー、ログ、時間計測、`INDEX.md` 保守などの共通基盤への入口です。
+- `main.py` は `cmoc` CLI の Typer エントリーポイントで、トップレベルコマンド登録と例外整形を担います。
+- `sub_commands` は `init`、`branch`、`eval-oracles`、`apply`、`merge` の各本体実装への入口です。
 
 ## Read this when
 
-- cmoc の実装全体で、どのファイルやパッケージに何があるかを把握したいとき。
-- CLI エントリーポイント、共通ユーティリティ、サブコマンド実装の置き場所を探したいとき。
-- 新しい実装を `main.py`、`commons`、`sub_commands` のどこに置くべきか判断したいとき。
+- `src` 配下で、どの責務がどのファイル・ディレクトリにあるかを素早く切り分けたいとき。
+- CLI エントリーポイント、共通ユーティリティ、各サブコマンド本体のどこを読むべきか判断したいとき。
+- `cmoc` の処理の流れを、`main.py` から `commons` と `sub_commands` へたどりたいとき。
+- 実装追加や修正のために、対象モジュールの所在だけ先に把握したいとき。
 
 ## Do not read this when
 
-- 特定の共通処理や補助関数の中身だけを確認したいときは、`src/commons` 側の個別 `INDEX.md` を読むべきです。
-- 特定サブコマンドの処理フローや引数定義だけを確認したいときは、`src/sub_commands` 側の個別 `INDEX.md` を読むべきです。
-- テスト、正本仕様、運用ルールだけを確認したいときは、`tests` や `oracles` 側の文書を読むべきです。
+- `oracles` の正本仕様や、個別の実行時要件を調べたいとき。
+- `tests` の構成やテスト観点だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` などの運用ルールだけを確認したいとき。
+- `src/commons` や `src/sub_commands` の各モジュールの詳細仕様を既に把握していて、ルートの案内が不要なとき。
 
 ## hash
 
-- 0b773abf11ae70703c02dc8f1fb73f0031cf2672ed7f274543970f004c121636
+- ca38f506f19900010030467a08c8776c6a6dba9f1363300a074fde3749eca380
 
 # `test.sh`
 
@@ -251,22 +254,30 @@
 
 ## Summary
 
-- `tests` 配下の pytest テスト群への入口となるルーティング用目次です。
-- `conftest.py` によるテスト共通設定、`test_codex.py` の Codex 呼び出し検証、`test_indexing.py` の INDEX.md メンテナンス検証、`test_repo.py` の git 共通処理検証、`test_subcommands.py` のサブコマンド制御ロジック検証、`test_timestamps.py` の日時・経過時間フォーマット検証を案内します。
-- cmoc 本体の実装場所ではなく、`tests` 配下の自動テストの配置と役割を把握するための目次です。
+- `tests` は cmoc の自動テスト群をまとめるルーティング用ディレクトリです。
+- `conftest.py` は pytest 実行時に `<cmoc-root>/src` を import できるようにする共通設定です。
+- `test_codex.py` は `commons.codex.run_codex_exec()` の呼び出し、Structured Output、リトライ、quota 再開、ログ出力を検証します。
+- `test_indexing.py` は `commons.indexing.maintain_indexes` による `INDEX.md` 自動生成・再生成・対象選別を検証します。
+- `test_repo.py` は git ルート探索、`.cmoc` の ignore 保証、oracle / 実装ファイル列挙、差分検出を検証します。
+- `test_subcommands.py` は `cmoc` の各サブコマンドと CLI エントリポイント周辺の制御フローを検証します。
+- `test_timestamps.py` は timestamp と経過時間表示のフォーマットを検証します。
 
 ## Read this when
 
-- `tests` 配下のどのテストファイルを読むべきか判断したいとき。
-- pytest の共通設定や fixture の役割を確認したいとき。
-- Codex CLI 呼び出し、INDEX.md メンテナンス、git リポジトリ共通処理、サブコマンド制御、タイムスタンプ表示の検証観点を探したいとき。
+- pytest の共通設定や `src` の import path を確認したいとき。
+- Codex CLI 呼び出しラッパーのテスト範囲や retry / resume の挙動を確認したいとき。
+- `INDEX.md` 自動生成の対象選別、空ディレクトリ、gitignore、binary 除外、`memo` の扱いを確認したいとき。
+- git リポジトリ探索、`.cmoc` ignore、oracle / 実装ファイル列挙、差分検出の期待挙動を確認したいとき。
+- `cmoc` のサブコマンド、起動経路、終了コード、エラー表示を検証したいとき。
+- timestamp と経過時間表示の出力形式を確認したいとき。
 
 ## Do not read this when
 
-- cmoc の実装コードやサブコマンド本体の仕様だけを知りたいとき。
-- oracle 正本仕様や `oracles` 配下のルーティングだけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` などの運用ルールや編集可否だけを調べたいとき。
+- 個別の `src` 実装や `oracles` の正本仕様だけを見たいとき。
+- テストコードではなく、利用者向けの CLI 仕様やワークフロー説明を探しているとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- `tests` 以外のルーティング目次や `src` 側の構造を確認したいとき。
 
 ## hash
 
-- 97349fcaabb6c137b7c3dcc762f16e7afeefff9d806a84ecb16b65598609641e
+- 753963d147f8eeb77c980611df97a4e0ffda5c8df750872a8e91cb99a055e1c4

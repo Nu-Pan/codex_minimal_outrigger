@@ -2,28 +2,29 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で再利用する共通処理をまとめるディレクトリです。
-- `codex exec` 呼び出し、リポジトリ探索、共通エラー整形、サブコマンド共通実行制御、ログ記録、経過時間計測、タイムスタンプ生成、`INDEX.md` 生成・更新の基盤を提供します。
-- 個別サブコマンドの実装ではなく、各コマンドから横断利用される基盤モジュールを集約しています。
+- `src/commons` は、cmoc 自体の CLI 実行を支える共通ユーティリティ群のルーティング用ディレクトリです。
+- `codex.py` は `codex exec` の呼び出し、Structured Output、JSON 検証、リトライ、quota 待機と resume の共通処理をまとめます。
+- `repo.py` は `<repo-root>` の探索、git 状態確認、`.cmoc` の追跡外保証、初期化やブランチ関連の共通検査を扱います。
+- `errors.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`command_runner.py` は、共通エラー表示、ログ保存、経過時間計測、時刻文字列生成、サブコマンド実行制御を分担します。
+- `indexing.py` は各ディレクトリの `INDEX.md` を自動生成・更新するための入口です。
 
 ## Read this when
 
-- cmoc の共通処理を実装・修正したいとき。
-- `codex exec` の共通ラッパー、Structured Output、ログ保存、リトライ、quota 復帰の流れを確認したいとき。
-- git リポジトリ探索、`<repo-root>` 解決、ブランチ判定、`.cmoc` の ignore 保証、差分検査、commit 制御を確認したいとき。
-- サブコマンド共通のエラー表示、tee ログ、経過時間表示、タイムスタンプ生成を確認したいとき。
-- `<repo-root>` 配下の `INDEX.md` 自動生成・更新ロジックを確認したいとき。
+- cmoc の共通処理を実装・修正していて、責務ごとの入口を素早く見つけたいとき。
+- Codex CLI の呼び出し方、JSON 応答の扱い、再試行や quota 待機の流れを確認したいとき。
+- `<repo-root>` の探索、git 状態確認、`.cmoc` の ignore 保証、初期化時の検査を追いたいとき。
+- 共通のエラーレポート、サブコマンドログ、タイミング表示、タイムスタンプ、`INDEX.md` 自動保守の仕様を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義を調べたいとき。
-- `oracles` 配下の正本仕様やディレクトリのルーティングだけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` などの運用ルールだけを確認したいとき。
-- テスト実装やモックの詳細だけを調べたいとき。
+- 個別サブコマンドの業務ロジックや CLI 引数仕様だけを調べたいとき。
+- `oracles` の正本仕様や、ユーザー向け実行時仕様の全体ルーティングだけを見たいとき。
+- `src/commons` 以外の実装コードやテストコードの場所を探しているとき。
+- README、AGENTS、memo の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- 59226fc86f2aa8f1073b983e1192dace60dbdfa80b0552a38ca4a92da1a026ec
+- 0cc076fe4f9470e84c0fde81c044c01c6c7b900e53c84e7bb93d0debc4a2d699
 
 # `main.py`
 

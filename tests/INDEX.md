@@ -27,30 +27,27 @@
 
 ## Summary
 
-- `tests/test_codex.py` は、`commons.codex.run_codex_exec` の Codex CLI 呼び出しラッパーを検証するテストの目次です。
-- Structured Output の `--json`、`--output-last-message`、`--output-schema`、schema ファイル生成、`model`、`reasoning_effort` の受け渡しを扱います。
-- JSON 解析失敗、schema 不一致、semantic validator 失敗、非 JSON テキストの validator 失敗に対する最大 3 回のリトライと、失敗時の `CmocError` 詳細を扱います。
-- stdout の進捗表示の切り詰めと改行可視化、quota 枯渇時の疎通確認と `--resume` 再実行、`INDEX.md` 事前メンテナンスの実行・スキップも検証対象です。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証する pytest 群の入口です。
+- Structured Output の schema ファイル生成、JSON/テキストのリトライ、意味的検証失敗、ログ出力、quota 枯渇時の再開、INDEX.md 事前メンテナンスを扱います。
+- `cmoc` の Codex 呼び出しラッパーに関する制御ロジックを確認するためのテストです。
 
 ## Read this when
 
-- `run_codex_exec` の引数構成、Structured Output の渡し方、リトライ挙動を確認したいとき。
-- Codex CLI 呼び出し前後のログ保存、stdout 進捗表示、戻り値の扱いを調べたいとき。
-- JSON schema 検証、semantic validator、非 JSON テキスト validator の失敗時挙動を確認したいとき。
-- quota 枯渇時の疎通確認プロンプトと `--resume` 再実行の流れを確認したいとき。
-- `INDEX.md` の事前メンテナンスが通常呼び出しで走る条件と、明示スキップできる条件を確認したいとき。
+- `run_codex_exec()` の引数や `--output-schema` / `--output-last-message` / `--resume` の扱いを確認したいとき。
+- JSON / テキスト出力の構文・意味的検証が 3 回までリトライされる条件を確認したいとき。
+- 呼び出しログ、出力スキーマファイル、last message ファイル、標準出力通知の記録規則を確認したいとき。
+- quota 枯渇時の待機・疎通確認・再開、および INDEX.md 事前メンテナンスの有無を確認したいとき。
 
 ## Do not read this when
 
-- `commons.codex.run_codex_exec` の実装本体や内部 helper の処理だけを確認したいとき。
-- `cmoc` のサブコマンド全体、CLI エントリーポイント、`branch` / `apply` / `merge` など他機能の仕様を調べたいとき。
-- `INDEX.md` 自動生成ロジックそのものや、対象ディレクトリ列挙の詳細を知りたいとき。
-- Codex CLI や OpenAI API の一般的な使い方、外部仕様を調べたいとき。
-- pytest 全体の共通設定や、テスト用 git リポジトリ作成の一般論だけを確認したいとき。
+- `cmoc` のユーザー向けサブコマンド仕様や oracle 正本仕様だけを知りたいとき。
+- pytest の共通 fixture や `tests` 全体の配置ルールを探したいとき。
+- `run_codex_exec()` 以外の `commons` 実装や git 共通処理の仕様を調べたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
 
 ## hash
 
-- c38030f1b7be20b969877e663701fb89f92a1116805c3ccab03f13d6d41f625f
+- 725b71c5caab41a2c32523c179a637406a180d4f613de1c1c730ed0eec505da9
 
 # `test_indexing.py`
 
