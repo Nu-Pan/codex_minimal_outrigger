@@ -83,45 +83,44 @@
 
 ## Summary
 
-- `tests/test_repo.py` は、`commons.repo` にある git リポジトリ共通処理の自動テストです。
-- `find_repo_root`、`.cmoc` の ignore 保証、`.cmoc` 配下 tracked ファイルの index 除外、cmoc ブランチ名判定、branch base commit 記録パスを検証します。
-- oracle ファイル列挙について、`INDEX.md` の除外、root `.gitignore` のみを使う除外判定、slash 付き pattern、`**` pattern、tracked かつ gitignore 対象の扱いを検証します。
-- 実装ファイル列挙について、`oracles`、`.git`、`INDEX.md`、gitignore 対象を除外し、実装対象だけを返すことを検証します。
-- cmoc ブランチの base commit からの変更検出について、committed 変更、未コミット変更、未追跡ディレクトリ内の新規 oracle、履歴上で戻された変更、rename 後 path、gitignore 対象除外を検証します。
-- oracle 削除検出について、committed 削除、途中 commit での削除後再追加、working tree 削除、staged 削除を全体評価切替条件として扱うことを検証します。
-- oracle 削除検出の除外条件として、rename、`INDEX.md` の削除、root `.gitignore` 対象ファイルの削除を削除扱いしないことを検証します。
-- 実装ファイル変更・削除検出について、oracle や `INDEX.md` を除いた実装対象の変更抽出と、実装ファイル削除の検出を検証します。
-- `assert_only_oracles_uncommitted` が `cmoc apply` の事前条件として oracles 外の未コミット差分を拒否することを検証します。
-- テスト用 git リポジトリを作成する `_init_repo` と、指定リポジトリで git コマンドを実行する `_git` の補助関数を含みます。
+- `tests/test_repo.py` は `commons.repo` にある git リポジトリ共通処理の自動テストをまとめた目次です。
+- `.cmoc` の ignore 保証、既存 tracked ファイルの index 除外、cmoc ブランチ判定、branch base commit 記録先を扱います。
+- oracle ファイル列挙では `INDEX.md` の除外、root `.gitignore` のみを使う判定、`/` 付き pattern、`**` pattern、tracked な ignored file の扱いを検証します。
+- 実装ファイル列挙では `oracles`、`.git`、`INDEX.md`、gitignore 対象を除外して、実装対象だけを返すことを検証します。
+- 変更・削除検出では、base commit からの oracle / 実装の差分抽出、rename、未追跡ディレクトリ、履歴上の戻し、削除判定と `assert_no_uncommitted_changes` を確認します。
 
 ## Read this when
 
-- `commons.repo` の git リポジトリ探索、cmoc 用 `.gitignore` 更新、`.cmoc` 配下ファイルの追跡解除に関するテストを確認したいとき。
-- oracle ファイル列挙や変更検出で、`INDEX.md`、root `.gitignore`、slash pattern、double-star pattern、tracked ignored file をどう扱うべきか確認したいとき。
-- `changed_oracle_files`、`has_deleted_oracle_files`、`changed_implementation_files`、`has_deleted_implementation_files` の期待挙動をテストから把握したいとき。
-- cmoc ブランチの base commit を基準に、committed 変更、未コミット変更、未追跡ファイル、rename、削除、再追加履歴をどう検出するか確認したいとき。
-- `cmoc apply` 実行前に oracles 外の未コミット差分を拒否する条件を確認したいとき。
-- cmoc ブランチ名の正規表現的な判定条件や、branch base commit 記録ファイルの配置を確認したいとき。
-- git を使う pytest の fixture 的な補助関数や、一時リポジトリ作成パターンを参考にしたいとき。
+- `commons.repo` の git リポジトリ探索や `.cmoc` ignore 保証のテスト観点を確認したいとき。
+- `.cmoc` 配下に既に tracked なファイルがある場合に、index から外す挙動を確認したいとき。
+- oracle ファイル列挙で `INDEX.md`、root `.gitignore`、`/` 付き pattern、`**` pattern をどう扱うか確認したいとき。
+- 実装ファイル列挙で `oracles` や `INDEX.md` を除外し、実装対象だけを返す条件を確認したいとき。
+- `changed_oracle_files` が base commit と working tree / staged / committed 変更をどう拾うか確認したいとき。
+- rename 後の oracle を削除ではなく変更として扱うか、削除検出とどう分かれるか確認したいとき。
+- `has_deleted_oracle_files` と `has_deleted_implementation_files` の削除判定条件を確認したいとき。
+- `cmoc apply` の前提条件として、未コミット差分を拒否する `assert_no_uncommitted_changes` の挙動を確認したいとき。
+- cmoc ブランチ名の判定規則や、branch base commit の保存パスを確認したいとき。
+- テスト用 git リポジトリを作る `_init_repo` と、そこで git コマンドを実行する `_git` の補助実装を見たいとき。
 
 ## Do not read this when
 
-- CLI サブコマンドのユーザー向け仕様や stdout 表示、Codex CLI 呼び出し、Structured Output、ログ保存などの実行時仕様を調べたいとき。
-- `commons.repo` 以外の実装モジュール、サブコマンド本体、設定ファイル処理、エラーレポート処理のテストを探しているとき。
-- oracle 正本仕様そのものの記述内容や、仕様ファイル間のルーティングを調べたいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の編集可否など、リポジトリ運用ルールだけを確認したいとき。
-- cmoc を使って別リポジトリを開発する `<repo-root>` 側の作業手順を知りたいとき。
-- gitignore pattern の一般仕様だけを調べており、cmoc の oracle・実装ファイル列挙における期待挙動が不要なとき。
+- `cmoc` のユーザー向け CLI 仕様やサブコマンドの入出力だけを知りたいとき。
+- `commons.repo` 以外の本体実装や別モジュールのテストを探しているとき。
+- oracle 正本仕様そのものを知りたいとき。仕様断片は `oracles/app_specs` 側を読むべきです。
+- `INDEX.md` の自動生成やメンテナンス仕様だけを知りたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- `tests/test_codex.py` や `tests/test_indexing.py` のような別テスト群の仕様を調べたいとき。
+- gitignore pattern の一般論だけを調べており、cmoc における oracle / 実装ファイル列挙の期待挙動が不要なとき。
 
 ## hash
 
-- cfb776e4fd4975b4cf44e30dbf3f26ce83f82cd6aa53526305112fd45422cd03
+- d2819022054e7ef9e7ed6cf5c2c2ddb1f4f42c3091dd8f2d6284d508083915f3
 
 # `test_subcommands.py`
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI エントリポイント周辺の決定論的な制御ロジックを検証する pytest 群の目次です。
+- `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI エントリポイント周辺の決定論的な制御ロジックを検証する pytest 群の入口です。
 - `run_command` の stdout への tee、ログ保存、例外時のエラーレポート、終了コード処理を横断的に扱います。
 - `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローに加え、`main` と `bin/cmoc` の委譲構造や補助ヘルパー群の確認先になります。
 
@@ -129,7 +128,7 @@
 
 - `cmoc` 各サブコマンドの制御フロー、終了コード、ログ出力をテスト観点から確認したいとき。
 - `main` / `bin/cmoc` の起動経路、`cmoc --help`、エラー表示、仮想環境 Python 必須条件を確認したいとき。
-- `apply` の不整合 JSON schema、`eval_oracles` の prompt 仕様、`merge` の conflict 解消プロンプトをテストで追いたいとき。
+- `apply` の不整合 JSON schema、`eval-oracles` の prompt 仕様、`merge` の conflict 解消プロンプトをテストで追いたいとき。
 - テスト用 git リポジトリの作り方や、`_checkout_cmoc_branch` などの補助関数を把握したいとき。
 
 ## Do not read this when
@@ -141,7 +140,7 @@
 
 ## hash
 
-- d0394f4dc8cfd145e88096707686c74b778eede5fa26f4a8b4278f88ccb42010
+- 4163478c9e0c26fb17511440fbd8d6aeb2faf8e2488b5f4d7c3e5559bfb1c005
 
 # `test_timestamps.py`
 
