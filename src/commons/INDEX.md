@@ -138,7 +138,7 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、`<repo-root>` の探索、現在のブランチ名と `HEAD` commit の取得、`cmoc` 作業用ブランチ判定をまとめる共通モジュールです。
+- `src/commons/repo.py` は、`<repo-root>` の探索、現在ブランチ名と `HEAD` commit の取得、`cmoc` 作業用ブランチ判定をまとめる共通モジュールです。
 - `.cmoc` を `.gitignore` と git index の両面から追跡対象外に保つ保証処理と、その検証・復元を扱います。
 - 未コミット差分の検査、指定パスだけを対象にした commit 作成、stage 済み差分の退避と復元を担います。
 - `oracles` と実装ファイルの列挙、変更済みファイルや削除済みファイルの収集、評価・適用モード切替のための path 判定を実装します。
@@ -165,7 +165,7 @@
 
 ## hash
 
-- 95e5306838d4bf06d904e06dbbd8355359d15bd34e38fe9507b7b432d673ac38
+- fd6bde80e30e480fdedbf93b940fd282bcf05b5edca9b6fc77cde43cb8d64213
 
 # `subcommand_log.py`
 
