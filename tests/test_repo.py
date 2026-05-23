@@ -7,7 +7,7 @@ import pytest
 
 from commons.errors import CmocError
 from commons.repo import (
-    assert_only_oracles_uncommitted,
+    assert_no_uncommitted_changes,
     branch_base_commit_path,
     changed_oracle_files,
     changed_implementation_files,
@@ -524,15 +524,20 @@ def test_has_deleted_oracle_files_ignores_gitignored_deletion(
     assert has_deleted_oracle_files(repo, base_commit) is False
 
 
-def test_assert_only_oracles_uncommitted_rejects_non_oracle_changes(
+def test_assert_no_uncommitted_changes_rejects_oracle_changes(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` の事前条件として oracles 外差分を拒否する。"""
+    """`cmoc apply` の事前条件として oracle 差分も拒否する。"""
     repo = _init_repo(tmp_path)
-    (repo / "app.py").write_text("print('changed')\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("changed\n", encoding="utf-8")
 
-    with pytest.raises(CmocError):
-        assert_only_oracles_uncommitted(repo)
+    with pytest.raises(CmocError) as error:
+        assert_no_uncommitted_changes(repo)
+
+    assert "未コミットの変更があります。" in error.value.message
+    assert "oracles/" in error.value.detail
 
 
 @pytest.mark.parametrize(

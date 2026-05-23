@@ -1,4 +1,4 @@
-"""`cmoc eval-oracles` の本体処理。"""
+"""`cmoc eval-oracle` の本体処理。"""
 
 from pathlib import Path
 
@@ -106,7 +106,7 @@ _EVALUATION_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "string",
                         "description": (
                             "影響を受ける workflow / subcommand / concept。"
-                            "例: cmoc apply, cmoc eval-oracles, overall。"
+                            "例: cmoc apply, cmoc eval-oracle, overall。"
                         ),
                     },
                     "requirement": {
@@ -183,46 +183,70 @@ def cmoc_eval_oracles_impl(
     else:
         oracle_files = all_oracle_files
         mode = "full"
+    commit_hash = head_commit(repo_root)
 
     # oracle ファイルごとに Codex CLI 評価を実行する。
-    start_step(timer, 4, 5, "evaluate oracle files")
     evaluations = []
-    for index, oracle_file in enumerate(oracle_files, start=1):
-        print(f"evaluate oracle ({index}/{len(oracle_files)}) {oracle_file}")
-        payload = parse_json_object(
-            run_codex_exec(
-                repo_root,
-                _evaluation_prompt(repo_root, oracle_file),
-                purpose=f"evaluate oracle {oracle_file.relative_to(repo_root)}",
-                read_only=True,
-                expect_json=True,
-                output_schema=_EVALUATION_OUTPUT_SCHEMA,
-                json_validator=lambda value, current_oracle=oracle_file: (
-                    _validate_evaluation_payload(
-                        value,
-                        repo_root,
-                        current_oracle,
-                    )
-                ),
+    failed_stage = "evaluate oracle files"
+    try:
+        start_step(timer, 4, 5, "evaluate oracle files")
+        for index, oracle_file in enumerate(oracle_files, start=1):
+            print(f"evaluate oracle ({index}/{len(oracle_files)}) {oracle_file}")
+            payload = parse_json_object(
+                run_codex_exec(
+                    repo_root,
+                    _evaluation_prompt(repo_root, oracle_file),
+                    purpose=(
+                        f"evaluate oracle {oracle_file.relative_to(repo_root)}"
+                    ),
+                    read_only=True,
+                    expect_json=True,
+                    output_schema=_EVALUATION_OUTPUT_SCHEMA,
+                    json_validator=lambda value, current_oracle=oracle_file: (
+                        _validate_evaluation_payload(
+                            value,
+                            repo_root,
+                            current_oracle,
+                        )
+                    ),
+                )
             )
-        )
-        evaluations.append(payload)
+            evaluations.append(payload)
 
-    # 評価結果を 1 つの Markdown レポートとして保存する。
-    start_step(timer, 5, 5, "write report")
-    report_path = _write_report(
-        repo_root,
-        mode,
-        full,
-        branch_name,
-        cmoc_branch,
-        base_commit,
-        head_commit(repo_root),
-        deleted_oracles,
-        len(all_oracle_files),
-        oracle_files,
-        evaluations,
-    )
+        # 評価結果を 1 つの Markdown レポートとして保存する。
+        failed_stage = "write report"
+        start_step(timer, 5, 5, "write report")
+        report_path = _write_report(
+            repo_root,
+            mode,
+            full,
+            branch_name,
+            cmoc_branch,
+            base_commit,
+            commit_hash,
+            deleted_oracles,
+            len(all_oracle_files),
+            oracle_files,
+            evaluations,
+        )
+    except Exception as error:
+        report_path = _write_error_report(
+            repo_root,
+            mode,
+            full,
+            branch_name,
+            cmoc_branch,
+            base_commit,
+            commit_hash,
+            deleted_oracles,
+            len(all_oracle_files),
+            oracle_files,
+            evaluations,
+            failed_stage,
+            error,
+        )
+        print(str(report_path))
+        raise
     print(str(report_path))
     timer.report()
 
@@ -328,7 +352,7 @@ def _write_report(
     lines = [
         "---",
         "schema_version: 1",
-        "command: cmoc eval-oracles",
+        "command: cmoc eval-oracle",
         f"generated_at: {generated_at}",
         f"repo_root: {repo_root.resolve()}",
         f"oracle_root: {(repo_root / 'oracles').resolve()}",
@@ -349,7 +373,7 @@ def _write_report(
         f"result: {result}",
         "---",
         "",
-        "# cmoc eval-oracles report",
+        "# cmoc eval-oracle report",
         "",
         "## Summary",
         "",
@@ -405,24 +429,114 @@ def _write_report(
     return report_path
 
 
-def _require_absolute_oracle_path(
-    value: object,
+def _write_error_report(
     repo_root: Path,
-    label: str,
+    mode: str,
+    full_requested: bool,
+    branch_name: str,
+    cmoc_branch: bool,
+    base_commit: str | None,
+    commit_hash: str,
+    deleted_oracles: bool,
+    oracle_count_total: int,
+    oracle_files: list[Path],
+    evaluations: list[dict[str, object]],
+    failed_stage: str,
+    error: Exception,
 ) -> Path:
-    """JSON 値を oracles 配下の絶対パスとして検査する。"""
-    if not isinstance(value, str):
-        raise ValueError(f"{label} must be a string.")
-    path = Path(value)
-    if not path.is_absolute():
-        raise ValueError(f"{label} must be an absolute path.")
-    resolved_path = path.resolve()
-    oracle_root = (repo_root / "oracles").resolve()
-    try:
-        resolved_path.relative_to(oracle_root)
-    except ValueError as error:
-        raise ValueError(f"{label} must be under oracles.") from error
-    return resolved_path
+    """評価処理失敗時の `result: error` レポートを best effort で保存する。"""
+    report_dir = repo_root / ".cmoc" / "reports" / "eval-oracles"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    generated_at = make_timestamp()
+    report_path = report_dir / f"{generated_at}.md"
+    issue_counts = _issue_counts(evaluations)
+    result = "error"
+    lines = [
+        "---",
+        "schema_version: 1",
+        "command: cmoc eval-oracle",
+        f"generated_at: {generated_at}",
+        f"repo_root: {repo_root.resolve()}",
+        f"oracle_root: {(repo_root / 'oracles').resolve()}",
+        f"mode: {mode}",
+        f"full_requested: {str(full_requested).lower()}",
+        f"branch: {branch_name}",
+        f"is_cmoc_branch: {str(cmoc_branch).lower()}",
+        f"base_commit: {_yaml_nullable(base_commit)}",
+        f"head_commit: {commit_hash}",
+        f"commit: {commit_hash}",
+        f"deleted_oracles_detected: {str(deleted_oracles).lower()}",
+        f"oracle_count_total: {oracle_count_total}",
+        f"oracle_count_evaluated: {len(evaluations)}",
+        f"oracle_count: {len(evaluations)}",
+        f"fatal_issue_count: {issue_counts['fatal']}",
+        f"warning_issue_count: {issue_counts['warning']}",
+        f"inconclusive_issue_count: {issue_counts['inconclusive']}",
+        f"result: {result}",
+        "---",
+        "",
+        "# cmoc eval-oracle report",
+        "",
+        "## Summary",
+        "",
+        f"- Result: `{result}`",
+        f"- Mode: `{mode}`",
+        f"- Evaluated oracle files: `{len(evaluations)}`",
+        f"- Requested oracle files: `{len(oracle_files)}`",
+        f"- Fatal issues: `{issue_counts['fatal']}`",
+        f"- Inconclusive issues: `{issue_counts['inconclusive']}`",
+        f"- Warning issues: `{issue_counts['warning']}`",
+        f"- Failed stage: `{failed_stage}`",
+        f"- Exception type: `{type(error).__name__}`",
+        f"- Exception message: `{str(error)}`",
+        "",
+        "## Verdict",
+        "",
+        _verdict_text(result),
+        "",
+        f"Failed stage: `{failed_stage}`",
+        "",
+        f"Exception: `{type(error).__name__}: {str(error)}`",
+        "",
+        "## Evaluated oracle files",
+        "",
+        "| No. | Oracle file | Issues |",
+        "|---:|---|---:|",
+    ]
+    issue_count_by_target = _issue_count_by_target(evaluations)
+    for index, oracle_file in enumerate(oracle_files, start=1):
+        target = str(oracle_file.resolve())
+        lines.append(
+            f"| {index} | `{oracle_file.relative_to(repo_root)}` | "
+            f"{issue_count_by_target.get(target, 0)} |"
+        )
+    lines.extend([""])
+    for severity, heading in [
+        ("fatal", "## Fatal issues"),
+        ("inconclusive", "## Inconclusive issues"),
+        ("warning", "## Warnings"),
+    ]:
+        lines.extend([heading, ""])
+        issues = _issues_for_severity(evaluations, severity)
+        if not issues:
+            lines.extend(["No issues.", ""])
+            continue
+        for issue_id, issue in _numbered_issues(severity, issues):
+            lines.extend(_issue_lines(issue_id, issue))
+    lines.extend(["## Referenced files", ""])
+    referenced_path_rows = _referenced_path_rows(repo_root, evaluations)
+    if referenced_path_rows:
+        lines.extend(
+            [
+                "| Oracle file | Referenced files |",
+                "|---|---|",
+            ]
+        )
+        lines.extend(referenced_path_rows)
+    else:
+        lines.append("No referenced files.")
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    return report_path
 
 
 def _validate_referenced_paths(value: object, repo_root: Path) -> set[Path]:
@@ -479,6 +593,26 @@ def _validate_evaluation_issues(value: object, repo_root: Path) -> None:
             "suggested_oracle_change",
         ]:
             _require_issue_string(item, key, index)
+
+
+def _require_absolute_oracle_path(
+    value: object,
+    repo_root: Path,
+    label: str,
+) -> Path:
+    """JSON 値を oracles 配下の絶対パスとして検査する。"""
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a string.")
+    path = Path(value)
+    if not path.is_absolute():
+        raise ValueError(f"{label} must be an absolute path.")
+    resolved_path = path.resolve()
+    oracle_root = (repo_root / "oracles").resolve()
+    try:
+        resolved_path.relative_to(oracle_root)
+    except ValueError as error:
+        raise ValueError(f"{label} must be under oracles.") from error
+    return resolved_path
 
 
 def _require_issue_string(

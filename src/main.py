@@ -29,12 +29,13 @@ def branch_command() -> None:
     cmoc_branch_impl()
 
 
-@app.command("eval-oracles")
+@app.command("eval-oracle")
+@app.command("eval-oracles", hidden=True)
 def eval_oracles_command(
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Evaluate oracle files."""
-    # CLI callback は eval-oracles の本体実装へ処理を委譲する。
+    # CLI callback は eval-oracle の本体実装へ処理を委譲する。
     cmoc_eval_oracles_impl(full=full)
 
 
@@ -86,7 +87,7 @@ def main() -> None:
                 "コマンドが指定されていません。",
                 [
                     "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
-                    "`cmoc init`, `cmoc branch`, `cmoc eval-oracles`, "
+                    "`cmoc init`, `cmoc branch`, `cmoc eval-oracle`, "
                     "`cmoc apply`, `cmoc merge` のいずれかを実行してください。",
                 ],
                 (

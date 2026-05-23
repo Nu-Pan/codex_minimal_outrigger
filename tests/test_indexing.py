@@ -151,6 +151,37 @@ def test_maintain_indexes_excludes_non_utf8_binary_without_nul(
     assert "# `image.bin`" not in content
 
 
+def test_maintain_indexes_excludes_binary_after_initial_chunk(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """先頭付近が UTF-8 でも後続に NUL があるファイルは目次対象から除外する。"""
+    repo = _init_repo(tmp_path)
+    binary = repo / "late_binary.dat"
+    binary.write_bytes(b"a" * 4096 + b"\0")
+    (repo / "kept.txt").write_text("kept\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "late binary")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo)
+
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    assert "# `kept.txt`" in content
+    assert "# `late_binary.dat`" not in content
+
+
 def test_maintain_indexes_keeps_utf8_when_sample_ends_mid_character(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

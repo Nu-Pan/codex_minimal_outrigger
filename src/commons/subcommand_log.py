@@ -1,7 +1,5 @@
 """サブコマンド呼び出し単位の tee ログ管理。"""
 
-from __future__ import annotations
-
 import sys
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from contextvars import ContextVar
@@ -33,6 +31,7 @@ class _TeeTextIO:
     """write/flush をコンソールとログファイルへ複製する。"""
 
     def __init__(self, console: IO[str], log_file: IO[str]) -> None:
+        """コンソール出力先とログファイル出力先を保持して初期化する。"""
         self._console = console
         self._log_file = log_file
 
@@ -76,17 +75,17 @@ def subcommand_log(repo_root: Path) -> Iterator[SubcommandLogContext]:
             _CURRENT_LOG.reset(token)
 
 
-def current_subcommand_log() -> SubcommandLogContext | None:
-    """現在のサブコマンドログ状態を返す。"""
-    return _CURRENT_LOG.get()
-
-
 def add_quota_wait(duration_seconds: float) -> None:
     """現在のサブコマンドに quota 回復待ち時間を加算する。"""
     context = current_subcommand_log()
     if context is None:
         return
     context.quota_wait_seconds += max(0.0, duration_seconds)
+
+
+def current_subcommand_log() -> SubcommandLogContext | None:
+    """現在のサブコマンドログ状態を返す。"""
+    return _CURRENT_LOG.get()
 
 
 def _ensure_logs_excluded(repo_root: Path) -> None:

@@ -26,7 +26,7 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Structured Output の parse 失敗は 3 回までリトライし、試行ログを残す。"""
+    """Structured Output の parse 失敗は 3 回までリトライし、各呼び出しログを残す。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     fake_bin = tmp_path / "bin"
@@ -71,16 +71,23 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
         output_schema=_BOOLEAN_SCHEMA,
     )
 
-    log_files = list((repo / "logs" / "codex_exec" / "call").glob("*.log"))
-    log_content = log_files[0].read_text(encoding="utf-8")
+    log_files = sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    log_contents = [path.read_text(encoding="utf-8") for path in log_files]
     assert output.strip() == '{"ok": true}'
     assert state.read_text(encoding="utf-8").strip() == "3"
-    assert log_content.startswith("---\n")
-    assert "latest_attempt: 3" in log_content
-    assert "latest_returncode: 0" in log_content
-    assert "## Attempt 1" in log_content
-    assert "## Attempt 2" in log_content
-    assert "## Attempt 3" in log_content
+    assert len(log_files) == 3
+    assert all(content.startswith("---\n") for content in log_contents)
+    attempt_flags = [
+        f"attempt: {index}" in content
+        for index, content in enumerate(log_contents, 1)
+    ]
+    assert attempt_flags == [True, True, True]
+    assert all("returncode: 0" in content for content in log_contents)
+    assert all(
+        content.count("## Codex Exec Call") == 1
+        for content in log_contents
+    )
+    assert not any("## Attempt 1" in content for content in log_contents)
     captured = capsys.readouterr().out
     assert "codex exec attempt (1/3) prompt:" in captured
     assert "codex exec attempt (3/3) output:" in captured
@@ -339,13 +346,22 @@ def test_run_codex_exec_retries_json_semantic_validation_failure(
         json_validator=validate,
     )
 
-    log_files = list((repo / "logs" / "codex_exec" / "call").glob("*.log"))
-    log_content = log_files[0].read_text(encoding="utf-8")
+    log_contents = [
+        path.read_text(encoding="utf-8")
+        for path in sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    ]
     assert output.strip() == '{"ok": true}'
     assert state.read_text(encoding="utf-8").strip() == "3"
-    assert "## Attempt 1" in log_content
-    assert "## Attempt 2" in log_content
-    assert "## Attempt 3" in log_content
+    assert len(log_contents) == 3
+    assert all(
+        content.count("## Codex Exec Call") == 1
+        for content in log_contents
+    )
+    attempt_flags = [
+        f"attempt: {index}" in content
+        for index, content in enumerate(log_contents, 1)
+    ]
+    assert attempt_flags == [True, True, True]
 
 
 def test_run_codex_exec_reports_json_semantic_validation_failure(
@@ -451,14 +467,22 @@ def test_run_codex_exec_retries_text_semantic_validation_failure(
         text_validator=validate,
     )
 
-    log_content = next(
-        (repo / "logs" / "codex_exec" / "call").glob("*.log")
-    ).read_text(encoding="utf-8")
+    log_contents = [
+        path.read_text(encoding="utf-8")
+        for path in sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    ]
     assert output.strip() == "complete report"
     assert state.read_text(encoding="utf-8").strip() == "3"
-    assert "## Attempt 1" in log_content
-    assert "## Attempt 2" in log_content
-    assert "## Attempt 3" in log_content
+    assert len(log_contents) == 3
+    assert all(
+        content.count("## Codex Exec Call") == 1
+        for content in log_contents
+    )
+    attempt_flags = [
+        f"attempt: {index}" in content
+        for index, content in enumerate(log_contents, 1)
+    ]
+    assert attempt_flags == [True, True, True]
 
 
 def test_run_codex_exec_reports_text_semantic_validation_failure(
@@ -584,10 +608,12 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     """quota 枯渇時は疎通確認後に --resume 付きで同じ prompt を再実行する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
+    _git(repo, "init")
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     args_file = tmp_path / "args.txt"
     prompts_file = tmp_path / "prompts.txt"
+    maintain_file = tmp_path / "maintain.txt"
     codex = fake_bin / "codex"
     codex.write_text(
         "\n".join(
@@ -614,6 +640,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "  fi",
                 "fi",
                 "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                f"  if [ \"$(wc -l < {maintain_file})\" -lt 2 ]; then exit 3; fi",
                 "  if [[ \"$PROMPT\" != *'/memo` は読み書き禁止です。'* ]]; then exit 2; fi",
                 "  if [[ \"$PROMPT\" != *'ファイル編集は禁止です。'* ]]; then exit 2; fi",
                 "  echo ok > \"$LAST\"",
@@ -631,12 +658,36 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
 
+    calls: list[Path] = []
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """Codex CLI 呼び出し前の INDEX.md メンテナンスを記録する。"""
+        calls.append(repo_root)
+        with maintain_file.open("a", encoding="utf-8") as handle:
+            handle.write("maintain\n")
+        return False
+
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
+
     output = run_codex_exec(repo, "original prompt", read_only=True)
 
     args = args_file.read_text(encoding="utf-8")
     prompts = prompts_file.read_text(encoding="utf-8")
     captured = capsys.readouterr().out
+    log_contents = [
+        path.read_text(encoding="utf-8")
+        for path in sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    ]
     assert output.strip() == "resumed"
+    assert calls == [repo, repo]
+    assert len(log_contents) == 3
+    assert all(
+        content.count("## Codex Exec Call") == 1
+        for content in log_contents
+    )
+    assert any("quota limit exhausted" in content for content in log_contents)
+    assert any("Codex CLI の疎通確認担当" in content for content in log_contents)
+    assert any("--resume" in content for content in log_contents)
     assert "original prompt" not in args
     assert "Codex CLI の疎通確認担当" not in args
     assert "--resume\nsession-1" in args

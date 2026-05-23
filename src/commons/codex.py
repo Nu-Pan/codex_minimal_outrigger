@@ -5,6 +5,7 @@ import re
 import subprocess
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
@@ -16,12 +17,26 @@ from .timestamps import make_timestamp
 
 _DEFAULT_MODEL = "gpt-5.5"
 _DEFAULT_REASONING_EFFORT = "medium"
-INDEX_GENERATION_MODEL = "gpt-5.4-mini"
-INDEX_GENERATION_REASONING_EFFORT = "medium"
-_POLL_MODEL = "gpt-5.4-mini"
+COST_PERFORMANCE_MODEL = "gpt-5.4-mini"
+COST_PERFORMANCE_REASONING_EFFORT = "medium"
+COMMIT_MESSAGE_MODEL = COST_PERFORMANCE_MODEL
+COMMIT_MESSAGE_REASONING_EFFORT = "low"
+INDEX_GENERATION_MODEL = COST_PERFORMANCE_MODEL
+INDEX_GENERATION_REASONING_EFFORT = COST_PERFORMANCE_REASONING_EFFORT
+_POLL_MODEL = COST_PERFORMANCE_MODEL
 _POLL_REASONING_EFFORT = "low"
 _QUOTA_POLL_INTERVAL_SECONDS = 30 * 60
 _FORBIDDEN_REASONING_EFFORTS = {"xhigh"}
+
+
+@dataclass(frozen=True)
+class _CodexCommandRun:
+    """1 回の `codex exec` 起動結果と対応する成果物 path。"""
+
+    result: subprocess.CompletedProcess[str]
+    log_path: Path
+    last_message_path: Path
+    command: list[str]
 
 
 def run_codex_exec(
@@ -50,19 +65,11 @@ def run_codex_exec(
 
         maintain_indexes(repo_root)
 
-    # 呼び出し単位のログ、last message、必要なら output schema ファイルを準備する。
-    paths = _prepare_codex_exec_paths(repo_root)
-    log_path = paths["call"]
-    last_message_path = paths["last_message"]
-    print(
-        "codex exec call: "
-        f"{_head80(prompt)} -> {log_path.relative_to(repo_root)}"
-    )
+    # 必要なら output schema ファイルを準備する。call log と last message は実行単位で払い出す。
     command = _build_codex_command(
         read_only=read_only,
         model=model,
         reasoning_effort=reasoning_effort,
-        last_message_path=last_message_path,
     )
     schema_path = _write_output_schema(repo_root, output_schema)
     if schema_path is not None:
@@ -75,20 +82,24 @@ def run_codex_exec(
     last_stdout_log = ""
     last_stderr = ""
     last_validation_error = ""
+    last_log_path: Path | None = None
+    last_message_path: Path | None = None
     for attempt in range(1, attempts + 1):
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec attempt ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
-        result = _run_codex_command(
+        run = _run_codex_command(
             repo_root,
             command,
-            log_path,
             prompt,
             purpose,
             attempt,
             schema_path,
-            last_message_path,
         )
+        result = run.result
+        last_log_path = run.log_path
+        last_message_path = run.last_message_path
+        command = run.command
         last_stdout_log = result.stdout
         last_stderr = result.stderr
 
@@ -99,16 +110,18 @@ def run_codex_exec(
                 command = _resume_command(command, session_id)
                 print("quota exhausted; waiting before resume")
                 while True:
-                    result = _wait_for_quota_and_resume(
+                    run = _wait_for_quota_and_resume(
                         repo_root,
                         command,
-                        log_path,
                         prompt,
                         purpose,
                         attempt,
                         schema_path,
-                        last_message_path,
                     )
+                    result = run.result
+                    last_log_path = run.log_path
+                    last_message_path = run.last_message_path
+                    command = run.command
                     last_stdout_log = result.stdout
                     last_stderr = result.stderr
                     if result.returncode == 0:
@@ -117,10 +130,10 @@ def run_codex_exec(
                         result.stdout,
                         result.stderr,
                     ):
-                        _raise_codex_failure(log_path, result)
+                        _raise_codex_failure(run.log_path, result)
                     print("quota exhausted again after resume; waiting")
             else:
-                _raise_codex_failure(log_path, result)
+                _raise_codex_failure(run.log_path, result)
 
         try:
             output = _read_last_message(last_message_path)
@@ -164,7 +177,7 @@ def run_codex_exec(
         ],
         "\n".join(
             [
-                f"Log: {log_path}",
+                f"Log: {last_log_path}",
                 (
                     f"Output schema: {schema_path}"
                     if schema_path is not None
@@ -228,65 +241,47 @@ def _validate_model_options(model: str, reasoning_effort: str) -> None:
 def _wait_for_quota_and_resume(
     repo_root: Path,
     command: list[str],
-    log_path: Path,
     prompt: str,
     purpose: str,
     attempt: int,
     schema_path: Path | None,
-    last_message_path: Path,
-) -> subprocess.CompletedProcess[str]:
+) -> _CodexCommandRun:
     """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
     # 復活確認は低コスト model/effort の最小 prompt で行う。
     while True:
         poll_prompt = _quota_poll_prompt(repo_root)
         print("quota poll: running minimal codex exec check")
         print(f"quota poll prompt: {_head80(poll_prompt)}")
-        poll_path = _make_last_message_path(repo_root)
         poll_command = _build_codex_command(
             read_only=True,
             model=_POLL_MODEL,
             reasoning_effort=_POLL_REASONING_EFFORT,
-            last_message_path=poll_path,
         )
         poll_command.append("-")
-        poll_started = perf_counter()
-        poll_result = subprocess.run(
-            poll_command,
-            cwd=repo_root,
-            input=poll_prompt,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _append_codex_log(
-            log_path,
+        if (repo_root / ".git").exists():
+            from .indexing import maintain_indexes
+
+            maintain_indexes(repo_root)
+        poll_run = _run_codex_command(
+            repo_root,
             poll_command,
             poll_prompt,
+            "quota recovery check",
             attempt,
-            poll_result,
             None,
-            poll_path,
         )
-        _print_codex_notification(
-            purpose="quota recovery check",
-            repo_root=repo_root,
-            log_path=log_path,
-            elapsed_seconds=perf_counter() - poll_started,
-            returncode=poll_result.returncode,
-        )
+        poll_result = poll_run.result
         if poll_result.returncode == 0:
-            poll_output = _read_last_message(poll_path)
+            poll_output = _read_last_message(poll_run.last_message_path)
             print(f"quota poll output: {_head80(poll_output)}")
             print("quota restored; resuming codex exec")
             return _run_codex_command(
                 repo_root,
                 command,
-                log_path,
                 prompt,
                 purpose,
                 attempt,
                 schema_path,
-                last_message_path,
             )
         wait_started = perf_counter()
         time.sleep(_QUOTA_POLL_INTERVAL_SECONDS)
@@ -313,10 +308,9 @@ def _build_codex_command(
     read_only: bool,
     model: str,
     reasoning_effort: str,
-    last_message_path: Path,
 ) -> list[str]:
     """必須オプション込みの `codex exec` コマンドを組み立てる。"""
-    # 全呼び出しで model、reasoning effort、json、last message を指定する。
+    # last message の保存先は実行単位で決まるため、起動直前に追加する。
     sandbox = "read-only" if read_only else "workspace-write"
     return [
         "codex",
@@ -328,27 +322,31 @@ def _build_codex_command(
         "--sandbox",
         sandbox,
         "--json",
-        "--output-last-message",
-        str(last_message_path),
     ]
 
 
 def _run_codex_command(
     repo_root: Path,
     command: list[str],
-    log_path: Path,
     prompt: str,
     purpose: str,
     attempt: int,
     schema_path: Path | None,
-    last_message_path: Path,
-) -> subprocess.CompletedProcess[str]:
-    """Codex CLI を 1 回起動し、結果をログに追記する。"""
+) -> _CodexCommandRun:
+    """Codex CLI を 1 回起動し、その呼び出し専用ログを出力する。"""
+    paths = _prepare_codex_exec_paths(repo_root)
+    log_path = paths["call"]
+    last_message_path = paths["last_message"]
+    run_command = _command_with_last_message(command, last_message_path)
+    print(
+        "codex exec call: "
+        f"{_head80(prompt)} -> {log_path.relative_to(repo_root)}"
+    )
     # 前回 attempt の最終メッセージを誤読しないよう、起動前に消しておく。
     last_message_path.unlink(missing_ok=True)
     started = perf_counter()
     result = subprocess.run(
-        command,
+        run_command,
         cwd=repo_root,
         input=prompt,
         text=True,
@@ -357,7 +355,7 @@ def _run_codex_command(
     )
     _append_codex_log(
         log_path,
-        command,
+        run_command,
         prompt,
         attempt,
         result,
@@ -371,7 +369,35 @@ def _run_codex_command(
         elapsed_seconds=perf_counter() - started,
         returncode=result.returncode,
     )
-    return result
+    return _CodexCommandRun(
+        result=result,
+        log_path=log_path,
+        last_message_path=last_message_path,
+        command=run_command,
+    )
+
+
+def _command_with_last_message(
+    command: list[str],
+    last_message_path: Path,
+) -> list[str]:
+    """`--output-last-message` の保存先だけを実行単位の path に差し替える。"""
+    run_command = [*command]
+    if "--output-last-message" in run_command:
+        option_index = run_command.index("--output-last-message")
+        if option_index + 1 < len(run_command):
+            run_command[option_index + 1] = str(last_message_path)
+            return run_command
+        run_command.append(str(last_message_path))
+        return run_command
+    insert_index = len(run_command)
+    if run_command and run_command[-1] == "-":
+        insert_index -= 1
+    run_command[insert_index:insert_index] = [
+        "--output-last-message",
+        str(last_message_path),
+    ]
+    return run_command
 
 
 def _print_codex_notification(
@@ -473,11 +499,10 @@ def _append_codex_log(
     schema_path: Path | None,
     last_message_path: Path,
 ) -> None:
-    """1 回分の Codex CLI 入出力を Markdown フルログへ追記する。"""
-    # 同一 codex exec の複数 attempt は同じログファイルへ Markdown section として追記する。
-    section = "\n".join(
+    """1 回分の Codex CLI 入出力を Markdown フルログへ書き出す。"""
+    body = "\n".join(
         [
-            f"## Attempt {attempt}",
+            "## Codex Exec Call",
             "",
             "### Prompt",
             "",
@@ -518,13 +543,8 @@ def _append_codex_log(
         schema_path=schema_path,
         last_message_path=last_message_path,
     )
-    previous_body = ""
-    if log_path.exists():
-        previous_body = _markdown_body_after_front_matter(
-            log_path.read_text(encoding="utf-8")
-        )
     log_path.write_text(
-        front_matter + previous_body + section,
+        front_matter + body,
         encoding="utf-8",
     )
 
@@ -561,18 +581,20 @@ def _prepare_codex_exec_paths(repo_root: Path) -> dict[str, Path]:
     last_message_dir = base_dir / "output_last_message"
     call_dir.mkdir(parents=True, exist_ok=True)
     last_message_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = make_timestamp()
+    timestamp = _make_unused_codex_call_timestamp(call_dir)
     return {
         "call": call_dir / f"{timestamp}.log",
         "last_message": last_message_dir / f"{timestamp}.log",
     }
 
 
-def _make_last_message_path(repo_root: Path) -> Path:
-    """追加の codex exec 用 last message 保存先を作る。"""
-    last_message_dir = repo_root / "logs" / "codex_exec" / "output_last_message"
-    last_message_dir.mkdir(parents=True, exist_ok=True)
-    return last_message_dir / f"{make_timestamp()}.log"
+def _make_unused_codex_call_timestamp(call_dir: Path) -> str:
+    """既存 call log と衝突しない timestamp を作る。"""
+    while True:
+        timestamp = make_timestamp()
+        if not (call_dir / f"{timestamp}.log").exists():
+            return timestamp
+        time.sleep(0.001)
 
 
 def _codex_log_front_matter(
@@ -597,8 +619,8 @@ def _codex_log_front_matter(
         f"sandbox: {_yaml_scalar(sandbox)}",
         f"output_schema: {_yaml_scalar(str(schema_path) if schema_path else None)}",
         f"output_last_message: {_yaml_scalar(str(last_message_path))}",
-        f"latest_attempt: {attempt}",
-        f"latest_returncode: {returncode}",
+        f"attempt: {attempt}",
+        f"returncode: {returncode}",
         "---",
         "",
     ]
@@ -630,16 +652,6 @@ def _reasoning_effort_from_command(command: list[str]) -> str | None:
         if match is not None:
             return match.group(1)
     return None
-
-
-def _markdown_body_after_front_matter(content: str) -> str:
-    """既存 Markdown ログから Front Matter 以降の本文だけを取り出す。"""
-    if not content.startswith("---\n"):
-        return content
-    marker = content.find("\n---\n", 4)
-    if marker == -1:
-        return content
-    return content[marker + len("\n---\n") :]
 
 
 def _read_optional_text(path: Path) -> str:

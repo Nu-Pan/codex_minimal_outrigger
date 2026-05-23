@@ -1,8 +1,9 @@
 """タイムスタンプ仕様のテスト。"""
 
 from datetime import datetime
+from inspect import getsourcelines
 
-from commons.timing import format_duration
+from commons.timing import current_timer, format_duration, report_current_timer
 from commons.timestamps import make_timestamp
 
 
@@ -17,3 +18,11 @@ def test_format_duration_uses_required_stdout_format() -> None:
     """時間表示は hour/min/sec と 1 桁小数切り捨てで出す。"""
     assert format_duration(0.199) == " 0h  0m  0.1s"
     assert format_duration(3661.987) == " 1h  1m  1.9s"
+
+
+def test_timing_helpers_are_ordered_caller_first() -> None:
+    """同一ファイル内の呼び出し関係は caller first, callee last で並べる。"""
+    _, report_line = getsourcelines(report_current_timer)
+    _, current_line = getsourcelines(current_timer)
+
+    assert report_line < current_line

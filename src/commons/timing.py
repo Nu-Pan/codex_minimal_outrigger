@@ -71,17 +71,17 @@ def start_step(
     print(f"({step_number}/{total_steps}) {description}")
 
 
-def current_timer() -> StepTimer | None:
-    """現在のサブコマンド用 StepTimer を返す。"""
-    return _CURRENT_TIMER.get()
-
-
 def report_current_timer() -> None:
     """現在の StepTimer があれば未出力の経過時間を出力する。"""
     timer = current_timer()
     if timer is None:
         return
     timer.report()
+
+
+def current_timer() -> StepTimer | None:
+    """現在のサブコマンド用 StepTimer を返す。"""
+    return _CURRENT_TIMER.get()
 
 
 def clear_current_timer() -> None:

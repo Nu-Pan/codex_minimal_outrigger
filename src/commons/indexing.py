@@ -15,6 +15,7 @@ from .codex import (
 from .repo import ensure_cmoc_ignored
 
 _INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
+_BINARY_DETECTION_CHUNK_SIZE = 8192
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -231,12 +232,17 @@ def _looks_binary(path: Path) -> bool:
         return False
 
     # NUL byte と UTF-8 decode 可否を組み合わせてテキスト性を判定する。
-    sample = path.read_bytes()[:4096]
-    if b"\0" in sample:
-        return True
+    decoder = codecs.getincrementaldecoder("utf-8")()
     try:
-        decoder = codecs.getincrementaldecoder("utf-8")()
-        decoder.decode(sample, final=False)
+        with path.open("rb") as file:
+            for chunk in iter(
+                lambda: file.read(_BINARY_DETECTION_CHUNK_SIZE),
+                b"",
+            ):
+                if b"\0" in chunk:
+                    return True
+                decoder.decode(chunk, final=False)
+        decoder.decode(b"", final=True)
     except UnicodeDecodeError:
         return True
     return False

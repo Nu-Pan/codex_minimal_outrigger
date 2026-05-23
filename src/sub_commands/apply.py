@@ -3,20 +3,27 @@
 import json
 from pathlib import Path
 
-from commons.codex import parse_json_object, run_codex_exec
+from commons.codex import (
+    COMMIT_MESSAGE_MODEL,
+    COMMIT_MESSAGE_REASONING_EFFORT,
+    COST_PERFORMANCE_MODEL,
+    COST_PERFORMANCE_REASONING_EFFORT,
+    parse_json_object,
+    run_codex_exec,
+)
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
-    assert_only_oracles_uncommitted,
+    assert_no_uncommitted_changes,
     changed_oracle_files,
     changed_paths,
     changed_implementation_files,
     commit_cmoc_initialization_changes,
-    commit_if_changed,
     current_branch,
     ensure_cmoc_ignored,
     gitignore_has_cmoc_rule,
+    head_commit,
     is_cmoc_branch,
     list_implementation_files,
     list_oracle_files,
@@ -169,7 +176,7 @@ def cmoc_apply_impl(
         )
     base_commit = read_branch_base_commit(repo_root, branch_name)
 
-    # `.cmoc` 保証差分を先に分離 commit してから、ユーザー由来の oracle 外差分を拒否する。
+    # `.cmoc` 保証差分を先に分離 commit してから、全てのユーザー由来差分を拒否する。
     start_step(timer, 1, 4, "validate repository state")
     had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
     preexisting_staged_diff = staged_diff_from_head(repo_root)
@@ -180,8 +187,7 @@ def cmoc_apply_impl(
         preexisting_staged_diff,
         "Ensure cmoc directory is ignored",
     )
-    assert_only_oracles_uncommitted(repo_root)
-    commit_if_changed(repo_root, ["oracles"], "Update oracle files")
+    assert_no_uncommitted_changes(repo_root)
 
     # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
     start_step(timer, 2, 4, "maintain INDEX.md files")
@@ -227,10 +233,7 @@ def cmoc_apply_impl(
             completed = True
             break
 
-        # 実装修正後、禁止領域の変更検査と commit を cmoc 側で行う。
         _apply_discrepancies(repo_root, discrepancies)
-        _assert_forbidden_paths_clean(repo_root)
-        _commit_all_changes(repo_root)
 
     # 実行結果を人間向け report と exit code に変換する。
     start_step(timer, 4, 4, "write report")
@@ -281,11 +284,11 @@ def _investigate_discrepancies(
                 expect_json=True,
                 output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
                 json_validator=_validate_discrepancy_payload,
+                model=COST_PERFORMANCE_MODEL,
+                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
             )
         )
-        values = payload.get("fixing_points")
-        for value in values:
-            discrepancies.append(value)
+        discrepancies.extend(_fixing_points_with_head_commit_hash(repo_root, payload))
 
     # 実装ファイルも 1 件ずつ独立に調査する。
     for index, implementation_file in enumerate(
@@ -311,11 +314,11 @@ def _investigate_discrepancies(
                 expect_json=True,
                 output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
                 json_validator=_validate_discrepancy_payload,
+                model=COST_PERFORMANCE_MODEL,
+                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
             )
         )
-        values = payload.get("fixing_points")
-        for value in values:
-            discrepancies.append(value)
+        discrepancies.extend(_fixing_points_with_head_commit_hash(repo_root, payload))
 
     return _improove_fixing_list(
         repo_root,
@@ -385,10 +388,19 @@ def _organize_discrepancies(
 ) -> list[dict[str, object]]:
     """連結した不整合リストを Codex CLI に整理させる。"""
     # 整理結果も同じ Structured Output schema で受け取って検証する。
+    branch_name = current_branch(repo_root)
+    base_commit = read_branch_base_commit(repo_root, branch_name)
+    head_commit_hash = head_commit(repo_root)
     payload = parse_json_object(
         run_codex_exec(
             repo_root,
-            _organize_prompt(repo_root, discrepancies),
+            _organize_prompt(
+                repo_root,
+                discrepancies,
+                branch_name,
+                base_commit,
+                head_commit_hash,
+            ),
             purpose="organize discrepancies",
             read_only=True,
             expect_json=True,
@@ -396,8 +408,27 @@ def _organize_discrepancies(
             json_validator=_validate_discrepancy_payload,
         )
     )
+    return _fixing_points_with_head_commit_hash(repo_root, payload)
+
+
+def _fixing_points_with_head_commit_hash(
+    repo_root: Path,
+    payload: dict[str, object],
+) -> list[dict[str, object]]:
+    """Structured Output の要修正点へ発見時 HEAD commit hash を付与する。"""
+    # AI 出力の git_head_commit_hash は信用せず、cmoc 側で現在の HEAD を記録する。
+    commit_hash = head_commit(repo_root)
     values = payload.get("fixing_points")
-    return [value for value in values if isinstance(value, dict)]
+    if not isinstance(values, list):
+        return []
+    fixing_points: list[dict[str, object]] = []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        fixing_point = dict(value)
+        fixing_point["git_head_commit_hash"] = commit_hash
+        fixing_points.append(fixing_point)
+    return fixing_points
 
 
 def _apply_discrepancies(
@@ -405,7 +436,7 @@ def _apply_discrepancies(
     discrepancies: list[dict[str, object]],
 ) -> None:
     """Codex CLI に不整合追従作業を依頼する。"""
-    # 不整合 1 件につき 1 回の workspace-write Codex 呼び出しを実行する。
+    # 不整合 1 件ごとに修正、禁止領域検査、commit までを完結させる。
     for index, discrepancy in enumerate(discrepancies, start=1):
         print(f"apply discrepancy ({index}/{len(discrepancies)})")
         run_codex_exec(
@@ -415,6 +446,8 @@ def _apply_discrepancies(
             read_only=False,
             expect_json=False,
         )
+        _assert_forbidden_paths_clean(repo_root)
+        _commit_all_changes(repo_root)
 
 
 def _commit_all_changes(repo_root: Path) -> None:
@@ -436,6 +469,8 @@ def _commit_all_changes(repo_root: Path) -> None:
         purpose="generate commit message",
         read_only=True,
         expect_json=False,
+        model=COMMIT_MESSAGE_MODEL,
+        reasoning_effort=COMMIT_MESSAGE_REASONING_EFFORT,
     ).strip()
     if not message:
         message = "Apply oracle implementation changes"
@@ -506,6 +541,8 @@ def _write_apply_report(
         purpose="write apply report",
         read_only=True,
         expect_json=False,
+        model=COST_PERFORMANCE_MODEL,
+        reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
         text_validator=lambda value: _validate_apply_report(
             value,
             branch_name,
@@ -623,9 +660,15 @@ def _implementation_investigation_prompt(
 def _organize_prompt(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
+    branch_name: str,
+    base_commit: str,
+    head_commit_hash: str,
 ) -> str:
     """不整合リスト整理用 prompt を組み立てる。"""
     # 個別調査結果の重複や矛盾を整理し、同じ schema で返させる。
+    structured_discrepancies = _discrepancies_for_structured_output(
+        discrepancies
+    )
     return "\n".join(
         [
             "あなたはソフトウェア監査結果の整理担当です。",
@@ -633,18 +676,37 @@ def _organize_prompt(
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "要修正点の内容の品質に明確な問題がない状態を目指してください。",
             "重複する要修正点は 1 件にマージし、矛盾する修正方針は矛盾しない内容に調整してください。",
-            "`<cmoc-branch>` 上の過去の修正内容を確認し、その内容を考慮してください。",
+            (
+                f"git ブランチ `{branch_name}` の `{base_commit}..{head_commit_hash}` "
+                "に含まれる過去の修正内容を確認し、その内容を考慮してください。"
+            ),
             "False-Positive と判断できる要修正点は除外してください。",
             "要修正点を先頭から順番に対応した時に、作業順序として適切になるよう並べ替えてください。",
             "改善過程で発見した漏れがあれば、要修正点リストに追加してください。",
             "実装のみから発見した要修正点でも、関係する oracle 仕様を oracle_requirement に記載してください。",
             "改善点がない場合は入力と同じ要修正点リストを返してください。",
             "明確な要修正点がない場合だけ fixing_points に空配列を返してください。",
-            f"連結済み要修正点リスト: {json.dumps(discrepancies, ensure_ascii=False)}",
+            "連結済み要修正点リスト: "
+            f"{json.dumps(structured_discrepancies, ensure_ascii=False)}",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
             "ファイル編集は禁止です。",
         ]
     )
+
+
+def _discrepancies_for_structured_output(
+    discrepancies: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """cmoc 内部メタデータを Structured Output 用の要修正点から除外する。"""
+    # fixing_points item は schema 上 additionalProperties false なので内部キーを出さない。
+    return [
+        {
+            key: value
+            for key, value in discrepancy.items()
+            if key != "git_head_commit_hash"
+        }
+        for discrepancy in discrepancies
+    ]
 
 
 def _apply_prompt(
@@ -656,8 +718,13 @@ def _apply_prompt(
     return "\n".join(
         [
             "あなたはソフトウェア実装担当です。",
-            f"`{repo_root}` の実装を、以下の要修正点 1 件が解消されるように更新してください。",
-            "完了条件は、実装が oracle 要求に追従し、必要なテスト更新も終わっていることです。",
+            f"`{repo_root}` の実装を、oracle 要求に追従するようベストエフォートで更新してください。",
+            "作業が必要と判断できる場合は、実装修正と必要なテスト更新を行ってください。",
+            "以下の要修正点情報は作業のためのヒントです。",
+            "絶対に従わなければならない指示書としては扱わないでください。",
+            "実装状況や oracle を確認した結果として不適切なら、この要修正点情報は無視してかまいません。",
+            "作業目的は、要修正点が指摘している問題の修正を試みることです。",
+            "要修正点本文への逐語的追従や、要修正点で述べている目的を達成した保証は不要です。",
             f"要修正点: {json.dumps(discrepancy, ensure_ascii=False)}",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",

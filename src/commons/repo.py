@@ -109,25 +109,6 @@ def assert_no_uncommitted_changes(repo_root: Path) -> None:
         )
 
 
-def assert_only_oracles_uncommitted(repo_root: Path) -> None:
-    """未コミット差分が `oracles` 配下だけであることを確認する。"""
-    # apply 前の許容差分を oracles 配下だけに制限する。
-    outside = [
-        path
-        for path in changed_paths(repo_root)
-        if not path.startswith("oracles/")
-    ]
-    if outside:
-        raise CmocError(
-            "oracles 以外に未コミットの変更があります。",
-            [
-                "oracle 以外の変更を commit または stash してください。",
-                "未コミット変更が oracle だけになってから `cmoc apply` を実行してください。",
-            ],
-            "\n".join(outside),
-        )
-
-
 def assert_paths_clean(repo_root: Path, paths: list[str]) -> None:
     """指定 pathspec に未コミット差分がないことを確認する。"""
     # init が既存ユーザー差分を自動 commit に混ぜないため、対象 path を先に検査する。
@@ -655,7 +636,7 @@ def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
             "cmoc branch の作成元 commit ファイルが見つかりませんでした。",
             [
                 "差分評価の前に `cmoc branch` を実行してください。",
-                "全 oracle ファイルを評価する場合は `cmoc eval-oracles --full` を実行してください。",
+                "全 oracle ファイルを評価する場合は `cmoc eval-oracle --full` を実行してください。",
             ],
             str(path),
         )
