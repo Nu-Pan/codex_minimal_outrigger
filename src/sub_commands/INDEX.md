@@ -24,27 +24,27 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の本体実装を担当するサブコマンドモジュールです。
-- `oracles` と実装の不整合調査、要修正点の整理、修正適用、コミット、レポート出力までの反復処理をまとめています。
-- 部分適用・全体適用の判定、Structured Output の検証、禁止領域チェック、`INDEX.md` の維持もこのファイルに集約されています。
+- `src/sub_commands/apply.py` は `cmoc apply` の本体実装を担当し、`oracles` と実装の不整合調査から修正適用、コミット、レポート出力までを一括して扱うモジュールです。
+- このファイルでは、`cmoc branch` 上での実行確認、`.cmoc` の追跡対象外保証、`oracles` の自動コミット、INDEX.md の維持、Structured Output 検証を含む調査・改善・適用ループが実装されています。
+- 部分適用・全体適用の切り替え、要修正点リストの整理、個別不整合への Codex CLI 呼び出し、禁止領域チェック、apply レポートの生成と検証もこのファイルの担当範囲です。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、反復回数、終了コード、レポート生成の実装を確認したいとき。
-- `oracles` と実装の差分をどう抽出し、調査対象ファイルを部分適用・全体適用でどう切り替えるか知りたいとき。
-- Codex CLI に渡す不整合調査、要修正点整理、修正、コミットメッセージ生成のプロンプトを確認したいとき。
-- 要修正点リストの Structured Output 検証条件や、`INDEX.md` を含む事前メンテナンスの扱いを確認したいとき。
+- `cmoc apply` の実行フロー、前提条件、終了コード、反復回数の扱いを確認したいとき。
+- `oracles` と実装の差分をどう調査し、部分適用・全体適用で対象ファイルをどう切り替えるか知りたいとき。
+- 要修正点リストの Structured Output スキーマ、整理ループ、個別修正ループ、commit message 生成の流れを確認したいとき。
+- `.cmoc` の ignore 保証、編集禁止パスの検査、INDEX.md の維持、apply レポートの保存・検証仕様を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc branch`、`cmoc init`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの本体処理だけを調べたいとき。
-- `INDEX.md` の生成ルールや `<repo-root>` 全体の目次仕様だけを確認したいとき。
-- cmoc 自体の開発規約、設計規約、テスト規約など開発者向けルールだけを確認したいとき。
-- repo 操作ユーティリティ、ログ、タイムスタンプ、`codex exec` 共通規約だけを確認したいとき。
+- `cmoc branch`、`cmoc init`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
+- `src/commons` 配下の共通ユーティリティ、git 操作ヘルパー、タイムスタンプ、Codex 呼び出し共通処理だけを追いたいとき。
+- `oracles` 側の正本仕様そのものや、`INDEX.md` のルーティング文書だけを読みたいとき。
+- `tests` 側の検証内容やテストケースだけを確認したいとき。
 
 ## hash
 
-- 74cf78c652cf99d3441dc853bd68b95773dc21d5df8d2ffd6baea60abe8d74c8
+- 7f7b15fc7d0e435c8eb7ad1d74af20e71dc63a961273094c2de8636870ba22d7
 
 # `branch.py`
 
