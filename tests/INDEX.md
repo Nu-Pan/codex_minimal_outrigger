@@ -123,10 +123,11 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
+- `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト目次です。
 - `run_command` の stdout への tee、ファイルログ保存、共通エラーレポート、終了コード処理を横断して確認します。
 - `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の実行フロー、prompt、Structured Output、補助関数をまとめて扱います。
-- `main.py` のコマンド登録、`--help` 表示、互換 alias、`bin/cmoc` の起動条件も検証します。
+- `main.py` のコマンド登録、`--help` 表示、`eval-oracle` と `eval-oracles` の互換 alias、`bin/cmoc` の起動条件も検証します。
+- テスト内の補助関数 `_init_repo`、`_checkout_cmoc_branch`、`_git`、`_discrepancy_json`、`_eval_oracle_issue` などの役割もここで追えます。
 
 ## Read this when
 
@@ -136,10 +137,10 @@
 - `cmoc branch` のブランチ作成、base commit 記録、進捗表示を確認したいとき。
 - `cmoc eval-oracles` の部分・全体評価切り替え、レポート保存、severity 集約、prompt 制約を確認したいとき。
 - `cmoc apply` の不整合調査、要修正点の改善、修正 commit、レポート検証、Structured Output schema を確認したいとき。
-- `cmoc merge` の branch 自動解決、コンフリクト解消 prompt、conflict marker 検査、ブランチ削除条件を確認したいとき。
+- `cmoc merge` の branch 自動解決、conflict marker 解消 prompt、ブランチ削除条件を確認したいとき。
 - `main.py` の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` のオプション表示を確認したいとき。
 - `bin/cmoc` の仮想環境 Python 必須条件や、launcher のエラーレポート出力を確認したいとき。
-- テスト内の補助関数 `_init_repo`、`_checkout_cmoc_branch`、`_git`、`_discrepancy_json`、`_eval_oracle_issue` の役割を確認したいとき。
+- テスト内の補助関数がどういう前提データを作るか把握したいとき。
 
 ## Do not read this when
 
@@ -149,10 +150,11 @@
 - 他のテストファイル、たとえば `tests/test_repo.py` や `tests/test_indexing.py` を探しているとき。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
 - 開発者向けのコーディング規約、設計規約、テスト規約だけを調べたいとき。
+- `INDEX.md` の自動生成やメンテナンス仕様そのものを調べたいとき。
 
 ## hash
 
-- f92af0b392c0d8fbb800192473ce9175ddb1c935d2220538097fb03672c303ec
+- 5b847268fdd1ce0a4999b016884ad55dac50b99b4621ca0b69d1ee082903e0d2
 
 # `test_timestamps.py`
 

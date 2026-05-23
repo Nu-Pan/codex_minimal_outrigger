@@ -205,7 +205,7 @@
 
 - cmoc の実装コードをまとめる `src` ディレクトリのルーティング用目次です。
 - `main.py` の CLI エントリーポイント、`commons` の共通処理、`sub_commands` の各サブコマンド実装への入口を案内します。
-- このディレクトリは、実装本体の細部ではなく、どのファイル群に進むべきかを判断するための案内に絞っています。
+- このディレクトリは実装の詳細説明ではなく、目的のファイル群へ素早く進むための案内に絞っています。
 
 ## Read this when
 
@@ -218,11 +218,10 @@
 - 個別関数やクラスの実装詳細だけを調べたいとき。
 - サブコマンドごとの入出力仕様や処理順だけを知りたいとき。
 - 開発規約、テスト規約、リポジトリ運用ルールだけを確認したいとき。
-- `oracles` や `memo` など、別ディレクトリの正本仕様や運用ルールを探しているとき。
 
 ## hash
 
-- 1708184ea4ea8c3b98d6f60230d8333e3829c8fa32297d07a3690ef45d8c78c2
+- 54082750cf04694d8c24a0ef916077defa549bf24a269e49510a0cd66891dc3e
 
 # `test.sh`
 
@@ -252,25 +251,22 @@
 
 ## Summary
 
-- `tests` は cmoc の pytest 自動テストを集めたルーティング用ディレクトリの目次です。
-- `conftest.py` は `<cmoc-root>/src` を import path の先頭に追加する共通設定です。
-- `test_codex.py` は `run_codex_exec()` の呼び出し、Structured Output、再試行、ログ保存を検証します。
-- `test_indexing.py` は `INDEX.md` 生成・更新、`test_repo.py` は repo / git 共通処理、`test_subcommands.py` は CLI 入口と各サブコマンド、`test_timestamps.py` はタイムスタンプと経過時間表示を扱います。
+- `tests` は cmoc の自動テストをまとめたルーティング用ディレクトリの目次です。
+- `conftest.py` による import path 設定と、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` への入口を案内します。
+- Codex CLI 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、サブコマンド制御ロジック、タイムスタンプ表示の各テスト観点を横断して整理します。
 
 ## Read this when
 
-- `tests` 配下のどのテストファイルを読むべきか判断したいとき。
-- pytest で cmoc の決定論的な制御ロジックをどう検証しているか確認したいとき。
-- `conftest.py` の import path 設定や、各テストファイルの役割を整理したいとき。
-- `run_codex_exec()`、`INDEX.md` メンテナンス、repo / git 判定、サブコマンド入口、タイムスタンプ表示のテスト観点を追いたいとき。
+- どのテストファイルがどの機能を検証しているか、`tests` 全体の役割を把握したいとき。
+- pytest の共通設定や、`commons` / `sub_commands` のどの挙動に対するテストがあるか確認したいとき。
+- Codex CLI 呼び出し、`INDEX.md` 生成、git 操作、CLI サブコマンド、タイムスタンプ仕様のテスト入口を探したいとき。
 
 ## Do not read this when
 
-- cmoc 本体の実装コードだけを追いたいとき。
-- 各サブコマンドの正本仕様だけを確認したいとき。
-- Codex CLI や LLM の挙動そのものを評価したいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
+- cmoc のユーザー向け正本仕様だけを確認したいとき。
+- `src` 配下の実装コードや `oracles` 配下の仕様断片だけを調べたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
 
 ## hash
 
-- 4e0c15e75b6a705db34b5883add299d2a91f28257544c4c157ddeda656ae10a8
+- 41f5bb116ab128a309a25c7a5c4bf3a5b06dd38b64347812c0ea44dec9bd666d
