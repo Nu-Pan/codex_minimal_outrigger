@@ -23,11 +23,11 @@
 
 ## Summary
 
-- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーと、その周辺の補助処理をまとめるモジュールです。
-- sandbox モード、`model`、`reasoning_effort`、`--json`、`--output-schema`、`--output-last-message` の付与を統一して扱います。
+- `src/commons/codex.py` は、cmoc から `codex exec` を起動するための共通ラッパーと、その前後処理をまとめるモジュールです。
+- `--model`、`--sandbox`、`-c model_reasoning_effort=...`、`--json`、`--output-schema`、`--output-last-message` の付与を統一して扱います。
 - Structured Output 用の schema ファイル生成、呼び出しログ、last message の保存、JSON 解析と schema 再検証を担います。
 - 最大 3 回のリトライ、quota 枯渇時の `--resume`、session id の抽出、待機ループを扱います。
-- `parse_json_object` や model / reasoning_effort の妥当性検査など、Codex CLI 連携の共通前処理と後処理を集約しています。
+- `parse_json_object` と model / reasoning_effort の妥当性検査など、Codex CLI 連携の共通処理を集約しています。
 
 ## Read this when
 
@@ -35,19 +35,19 @@
 - Structured Output の schema ファイルの生成、検証、`--output-schema` への渡し方を調べたいとき。
 - JSON 応答の `dict` 化、schema 検証、text validator、リトライ条件を変更したいとき。
 - quota 枯渇時に session id を抽出して `--resume` し、回復待ちを行う流れを確認したいとき。
-- Codex CLI 呼び出しの共通定数や、利用可能な model / reasoning_effort の制約を確認したいとき。
+- Codex CLI 呼び出しの共通定数や、利用可能な `model` / `reasoning_effort` の制約を確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの業務ロジック、CLI 引数、ユーザー向け出力だけを調べたいとき。
 - `INDEX.md` の生成・更新ロジックや `<repo-root>` の探索・差分収集を調べたいとき。
 - 共通エラーハンドリングや `CmocError` の表示形式だけを確認したいとき。
-- タイムスタンプ、サブコマンドログ、repo 探索など他の共通ユーティリティだけを調べたいとき。
+- タイムスタンプ、サブcommand ログ、repo 探索など他の共通ユーティリティだけを調べたいとき。
 - cmoc 自体の開発ルール、テスト規約、環境ルールだけを調べたいとき。
 
 ## hash
 
-- 6c32d8121defb1ad493e2f4ea877c9463afec12a017c731cdf8bebb0d71f93f8
+- 22036afd73b40ad2cea051e8f075b2b9abcd13b452730563c5dfc58dd881ea32
 
 # `command_runner.py`
 
