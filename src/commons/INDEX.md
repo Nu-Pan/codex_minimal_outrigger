@@ -107,15 +107,14 @@
 ## Summary
 
 - `src/commons/indexing.py` は `<repo-root>` 配下の `INDEX.md` を列挙・生成・更新し、必要なら変更分を自動コミットする共通モジュールです。
-- `memo`、隠し項目、`build` / `tmp` / `__pycache__`、`gitignore` 対象、バイナリらしいファイルを除外しながら、目次配置対象ディレクトリと直下項目を判定します。
-- 既存の `INDEX.md` ブロックを解析して再利用し、子項目ハッシュと固定フォーマットが一致する場合は再生成を避けます。
-- 目次本文の新規生成では Codex CLI を Structured Output schema 付きで呼び出し、JSON 検証後に Markdown へ変換します。
+- 配置対象ディレクトリと直下項目を、`memo`、隠し項目、`build` / `tmp` / `__pycache__`、`gitignore` 対象、バイナリらしいファイルを除外しながら判定します。
+- 既存の `INDEX.md` ブロックを解析して再利用し、ハッシュ一致かつ固定フォーマット一致なら再生成を避けます。
+- 新規生成時は Codex CLI を Structured Output schema 付きで呼び出し、JSON を検証して Markdown の目次ブロックへ変換します。
 
 ## Read this when
 
 - `INDEX.md` をどのディレクトリに配置し、どの項目を目次生成対象にするか確認したいとき。
-- `maintain_indexes` の処理順、`INDEX.md` 更新、変更パスだけを対象にした自動コミットの流れを調べたいとき。
-- 既存の `INDEX.md` がハッシュ一致時に再利用される条件や、固定フォーマット検証の仕様を確認したいとき。
+- `maintain_indexes` の処理順、既存 `INDEX.md` の再利用条件、自動コミットの流れを確認したいとき。
 - `memo`、隠しディレクトリ、`build`、`tmp`、`__pycache__`、`gitignore` 対象、バイナリファイルの除外規則を確認したいとき。
 - INDEX 生成用の Codex CLI プロンプト、Structured Output schema、JSON 検証、Markdown 変換処理を変更したいとき。
 
@@ -123,13 +122,12 @@
 
 - 個別サブコマンドの CLI 引数、ユーザー向け出力、終了ステータスだけを調べたいとき。
 - Codex CLI 呼び出しの汎用ラッパー、JSON パース、モデル定数の詳細だけを調べたいとき。
-- git コミット処理や `.gitignore` 更新、repo root 検出など、INDEX 以外の repo 共通処理だけを確認したいとき。
+- git コミット処理や `.gitignore` 更新、repo root 検出など、INDEX 以外の共通処理だけを確認したいとき。
 - 特定の `INDEX.md` 目次本文だけを読みたい場合で、生成・更新ロジックを追う必要がないとき。
-- cmoc 自体の開発規約、テスト規約、環境ルールなど、実装方針の正本仕様を探しているとき。
 
 ## hash
 
-- 8de94107ce9dd49c11f8672c66dcc2d2ddef0d7afb4c7f036d5e118cec4519ac
+- 45561ccdf742f1b3f4bd7957aae3a05c67bfa27949e4edbe036f819c8cb42bf9
 
 # `repo.py`
 
