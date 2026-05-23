@@ -1,3 +1,29 @@
+# `apply.md`
+
+## Summary
+
+- `cmoc apply` の調査・修正ループ、要修正点の抽出と改善、修正作業、レポート出力までを定義する正本仕様断片です。
+- `<repo-root>` の実装を `<repo-root>/oracles` と照合し、ベストエフォートで不整合や致命的問題の解消を試みる手順を扱います。
+- 実行条件、部分適用・全体適用モードの切り替え、反復回数の上限、Structured Output による要修正点管理、作業結果レポートと終了コードを含みます。
+
+## Read this when
+
+- `cmoc apply` の引数、事前条件、実行フロー、終了条件を実装または確認したいとき。
+- `oracles` と実装の不整合を調査し、要修正点の洗い出し・改善・修正を繰り返す処理を設計したいとき。
+- 部分適用と全体適用の切り替え条件、`<cmoc-branch>` 上の変更差分の扱い、ファイル単位での Codex CLI 呼び出し方を確認したいとき。
+- 作業レポートの保存先、内容、標準出力への表示、および収束・未収束・エラーの区別を確認したいとき。
+
+## Do not read this when
+
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など他のサブコマンド仕様だけを調べたいとき。
+- Codex CLI の一般的な呼び出し方法や、`INDEX.md` 自動生成の共通仕様だけを知りたいとき。
+- `cmoc` 自体の開発ルール、コーディング規約、テスト方針など、実行時仕様ではない開発者向けルールだけを確認したいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` などのファイルアクセス可否やリポジトリ運用ルールだけを確認したいとき。
+
+## hash
+
+- b9120ad73c35a6d25f608556e6390ea5585422126d2b9b3aba19a66fbc3efc15
+
 # `branch.md`
 
 ## Summary
@@ -29,27 +55,27 @@
 
 ## Summary
 
-- `oracles/app_specs/sub_commands/eval_oracles.md` は、`cmoc eval-oracles` サブコマンドの正本仕様断片です。
-- 現在の `<repo-root>/oracles` の仕様スナップショットに致命的な問題がないかを評価し、人間向けレポートとして保存・提示する挙動を定義しています。
-- 部分評価と全体評価の切り替え条件、`codex exec` によるファイル単位評価、評価時に読んでよい範囲、致命的問題の定義、レポート本文と yaml frontmatter、保存先と stdout 出力を扱います。
+- `cmoc eval-oracles` の正本仕様断片で、`<repo-root>/oracles` のスナップショットを仕様だけから評価してレポートする手順を定義します。
+- 部分評価・全体評価の切り替え条件、`codex exec` によるファイル単位評価、参照してよい `oracles` / `INDEX.md` の範囲を扱います。
+- 致命的問題の定義、評価レポートの YAML frontmatter と本文構成、保存先と stdout 出力の方針をまとめます。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実装・修正・テストを行うとき。
-- `cmoc eval-oracles` が部分評価モードと全体評価モードをどの条件で切り替えるか確認したいとき。
-- oracle ファイル評価時に `codex exec` へ渡す制約、読み取り可能ファイル、参照禁止ファイル、評価観点を確認したいとき。
-- 評価レポートの構成、保存先、標準出力に表示する内容を確認したいとき。
+- `cmoc eval-oracles` の実装、修正、テストを行うとき。
+- 部分評価モードと全体評価モードの切り替え条件を確認したいとき。
+- oracle ファイル評価時に `codex exec` へ渡す制約や、読んでよい `oracles` / `INDEX.md` の範囲を確認したいとき。
+- 評価レポートの構成、保存先、標準出力への表示内容を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc eval-oracles` 以外のサブコマンド仕様を調べているとき。
-- oracles の仕様評価ではなく、実装コードやテストコードを直接検証する処理を調べているとき。
-- cmoc 自体ではなく、cmoc を用いて開発する `<repo-root>` 側の個別アプリケーション仕様を調べているとき。
-- `INDEX.md` 自動生成や目次フォーマットそのものの仕様だけを確認したいとき。
+- `cmoc eval-oracles` 以外のサブコマンド仕様だけを調べたいとき。
+- 実装コードやテストコードを直接検証する処理を調べたいとき。
+- `INDEX.md` の自動生成規則や目次フォーマットそのものだけを確認したいとき。
+- cmoc ではなく `<repo-root>` 側の個別アプリケーション仕様を調べているとき。
 
 ## hash
 
-- 4e236a20ed84f93e0eaae87213fb935f329b58a66bd51e48a3ff71cabbd15a5b
+- c827cfcfdb1fcec425b80807d461dc8a06b3fe0dd772465135d4d2757d3bbe4d
 
 # `init.md`
 

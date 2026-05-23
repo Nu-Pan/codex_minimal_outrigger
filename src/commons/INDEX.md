@@ -115,33 +115,31 @@
 
 ## Summary
 
-- `INDEX.md` の自動メンテナンス処理を実装する共通モジュール。
-- `maintain_indexes` は `<repo-root>` 配下の配置対象ディレクトリへ `INDEX.md` を生成・更新し、必要な差分だけを自動コミットする。
-- 配置対象ディレクトリの列挙、除外条件、gitignore 判定、バイナリ判定、既存目次ブロックの再利用、子項目ハッシュに基づく更新判定を担う。
-- 目次情報の新規生成時は Codex CLI を Structured Output schema 付きで呼び出し、返却 JSON を検証して固定形式の Markdown ブロックへ変換する。
-- `<repo-root>/memo`、隠し項目、gitignore 対象、バイナリらしいファイル、特定の除外ディレクトリを INDEX 対象から外すロジックを含む。
+- `src/commons/indexing.py` は、`INDEX.md` の自動メンテナンス処理をまとめた共通モジュールです。
+- `maintain_indexes` が `<repo-root>` 配下の配置対象ディレクトリを列挙し、必要な `INDEX.md` を生成・更新して、差分があれば自動コミットします。
+- 配置対象ディレクトリの除外条件、`memo`・隠し項目・gitignore 対象・バイナリらしいファイル・`build` / `tmp` / `__pycache__` の扱いを実装しています。
+- 既存の `INDEX.md` ブロックを解析して再利用し、子項目のハッシュと固定フォーマットの一致を見て再生成要否を判定します。
+- 目次本文の新規生成では Codex CLI を Structured Output schema 付きで呼び出し、JSON 検証後に Markdown へ変換します。
 
 ## Read this when
 
-- `cmoc` 実行時に `INDEX.md` がどのディレクトリへ配置され、どの項目が目次生成対象になるかを確認したいとき。
-- `maintain_indexes` による `.cmoc` ignore 保証、INDEX 更新、変更パス限定コミットの流れを調べたいとき。
-- 既存 `INDEX.md` ブロックがハッシュ一致時に再利用される条件や、固定フォーマット検証の仕様を実装・修正したいとき。
-- ファイルやディレクトリの内容ハッシュ計算、ディレクトリハッシュに含める子項目の除外条件を確認したいとき。
-- INDEX 生成用 Codex CLI プロンプト、Structured Output schema、JSON 検証、Markdown 変換処理を変更したいとき。
-- `memo`、隠しディレクトリ、`build`、`tmp`、`__pycache__`、gitignore 対象、バイナリファイルの扱いを調査したいとき。
+- `INDEX.md` がどのディレクトリへ配置され、どの項目が目次生成対象になるかを確認したいとき。
+- `maintain_indexes` の処理順、`INDEX.md` 更新、変更パス限定の自動コミットの流れを調べたいとき。
+- 既存の `INDEX.md` がハッシュ一致時に再利用される条件や、固定フォーマット検証の仕様を確認したいとき。
+- `memo`、隠しディレクトリ、`build`、`tmp`、`__pycache__`、gitignore 対象、バイナリファイルの除外規則を確認したいとき。
+- INDEX 生成用の Codex CLI プロンプト、Structured Output schema、JSON 検証、Markdown 変換処理を変更したいとき.
 
 ## Do not read this when
 
-- 個別サブコマンドの CLI 引数、ユーザー向け出力、終了ステータスなどの仕様だけを調べたいとき。
-- Codex CLI 呼び出しの汎用ラッパー、JSON パース、モデル定数そのものの詳細を調べたいとき。
-- git コミット処理、`.gitignore` 更新、リポジトリ検出など、INDEX 以外の repo 共通処理だけを確認したいとき。
-- 特定の `INDEX.md` 目次本文の内容を読みたいだけで、生成・更新ロジックを調べる必要がないとき。
-- cmoc 自体の開発規約、テスト規約、環境構築ルールなど、実装方針の正本仕様を探しているとき。
-- README、AGENTS、oracles、memo の編集可否やアクセス制約だけを確認したいとき。
+- 個別サブコマンドの CLI 引数、ユーザー向け出力、終了ステータスだけを調べたいとき。
+- Codex CLI 呼び出しの汎用ラッパー、JSON パース、モデル定数の詳細だけを調べたいとき。
+- git コミット処理や `.gitignore` 更新、repo root 検出など、INDEX 以外の repo 共通処理だけを確認したいとき。
+- 特定の `INDEX.md` 目次本文だけを読みたい場合で、生成・更新ロジックを追う必要がないとき。
+- cmoc 自体の開発規約、テスト規約、環境ルールなど、実装方針の正本仕様を探しているとき.
 
 ## hash
 
-- 0783b777023b73c54db00dd6b067439f1c31998faa51974bdcbb289bc9bb8ef8
+- 7f77914cb9e5294ae06f7b4471912058ed5646aa142dea86879f2bc9a5979b32
 
 # `repo.py`
 
