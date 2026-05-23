@@ -4,6 +4,12 @@
 
 - cmoc からの Codex CLI 呼び出しは、すべて `codex exec` で行う
 
+## Codex CLI へのプロンプトの渡し方
+
+- run_codex_exec() は、プロンプト本文を argv に載せてはならない。
+- プロンプト本文は stdin 経由で `codex exec -` に渡す。
+- argv に載せてよいのは、フラグ、短い固定文字列、短いファイルパスのみとする。
+
 ## Codex CLI に渡すプロンプトの規約
 
 ### 構成
