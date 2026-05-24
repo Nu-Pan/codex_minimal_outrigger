@@ -12,9 +12,9 @@ from .codex import (
     parse_json_object,
     run_codex_exec,
 )
-from .repo import ensure_cmoc_ignored
 
 _INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
+_BINARY_DETECTION_CHUNK_SIZE = 8192
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -38,11 +38,7 @@ _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
 
 def maintain_indexes(repo_root: Path) -> bool:
     """配置対象ディレクトリへ `INDEX.md` を用意し、必要なら自動コミットする。"""
-    # `.cmoc` の ignore 保証を先に行い、INDEX メンテ差分と一緒に扱う。
     changed_paths: list[str] = []
-    if ensure_cmoc_ignored(repo_root):
-        changed_paths.append(".gitignore")
-        changed_paths.append(".cmoc")
 
     # 深い階層から順に INDEX.md を更新し、親の hash が最新子目次を反映するようにする。
     directories = _index_directories(repo_root)
@@ -146,6 +142,7 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
         run_codex_exec(
             repo_root,
             _index_prompt(repo_root, path, digest),
+            purpose=f"generate INDEX entry for {path.relative_to(repo_root)}",
             read_only=True,
             expect_json=True,
             output_schema=_INDEX_OUTPUT_SCHEMA,
@@ -230,12 +227,17 @@ def _looks_binary(path: Path) -> bool:
         return False
 
     # NUL byte と UTF-8 decode 可否を組み合わせてテキスト性を判定する。
-    sample = path.read_bytes()[:4096]
-    if b"\0" in sample:
-        return True
+    decoder = codecs.getincrementaldecoder("utf-8")()
     try:
-        decoder = codecs.getincrementaldecoder("utf-8")()
-        decoder.decode(sample, final=False)
+        with path.open("rb") as file:
+            for chunk in iter(
+                lambda: file.read(_BINARY_DETECTION_CHUNK_SIZE),
+                b"",
+            ):
+                if b"\0" in chunk:
+                    return True
+                decoder.decode(chunk, final=False)
+        decoder.decode(b"", final=True)
     except UnicodeDecodeError:
         return True
     return False
@@ -335,7 +337,8 @@ def _entry_hash(entry: str) -> str | None:
 
 def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
     """既存目次ブロックが仕様の固定フォーマットに一致するか判定する。"""
-    # 見出しと 4 セクションの順序、各説明欄の bullet 形式まで検査する。
+    # 見出しと 4 セクションの順序、説明欄の bullet 形式まで検査する。
+    # Structured Output schema は空配列を許容するため、bullet 0 件も有効。
     expected_heading = f"# `{name}`"
     if not entry.startswith(expected_heading + "\n"):
         return False
@@ -344,13 +347,13 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
         r"\A"
         rf"\# `{re.escape(name)}`\n\n"
         r"## Summary\n\n"
-        r"(?P<summary>(?:- .*\n)+)"
+        r"(?P<summary>(?:- .*\n)*)"
         r"\n"
         r"## Read this when\n\n"
-        r"(?P<read>(?:- .*\n)+)"
+        r"(?P<read>(?:- .*\n)*)"
         r"\n"
         r"## Do not read this when\n\n"
-        r"(?P<skip>(?:- .*\n)+)"
+        r"(?P<skip>(?:- .*\n)*)"
         r"\n"
         r"## hash\n\n"
         rf"- {digest}"

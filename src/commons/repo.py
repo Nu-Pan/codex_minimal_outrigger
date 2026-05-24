@@ -1,6 +1,5 @@
 """git リポジトリと cmoc 作業ディレクトリの共通処理。"""
 
-import fnmatch
 import os
 import shutil
 import subprocess
@@ -26,12 +25,12 @@ def find_repo_root(start: Path | None = None) -> Path:
         if (candidate / ".git").exists():
             return candidate
     raise CmocError(
-        "Git repository root was not found.",
+        "Git リポジトリのルートが見つかりませんでした。",
         [
-            "Move into a git-managed repository.",
-            "Run `git init` if this directory should be a repository.",
+            "git 管理下のリポジトリへ移動してください。",
+            "このディレクトリをリポジトリにする場合は `git init` を実行してください。",
         ],
-        f"Start path: {current}",
+        f"開始パス: {current}",
     )
 
 
@@ -100,31 +99,12 @@ def assert_no_uncommitted_changes(repo_root: Path) -> None:
     paths = changed_paths(repo_root)
     if paths:
         raise CmocError(
-            "Uncommitted changes exist.",
+            "未コミットの変更があります。",
             [
-                "Commit or stash the current changes.",
-                "Run the command again from a clean working tree.",
+                "現在の変更を commit または stash してください。",
+                "作業ツリーを clean にしてからコマンドを再実行してください。",
             ],
             "\n".join(paths),
-        )
-
-
-def assert_only_oracles_uncommitted(repo_root: Path) -> None:
-    """未コミット差分が `oracles` 配下だけであることを確認する。"""
-    # apply 前の許容差分を oracles 配下だけに制限する。
-    outside = [
-        path
-        for path in changed_paths(repo_root)
-        if not path.startswith("oracles/")
-    ]
-    if outside:
-        raise CmocError(
-            "Uncommitted changes outside oracles exist.",
-            [
-                "Commit or stash non-oracle changes.",
-                "Run `cmoc apply` after only oracle changes remain.",
-            ],
-            "\n".join(outside),
         )
 
 
@@ -137,11 +117,10 @@ def assert_paths_clean(repo_root: Path, paths: list[str]) -> None:
     )
     if result.stdout.strip():
         raise CmocError(
-            "Uncommitted initialization target changes exist.",
+            "初期化対象パスに未コミットの変更があります。",
             [
-                "Commit or stash the listed paths before running cmoc init.",
-                "Run the command again after initialization targets are "
-                "clean.",
+                "`cmoc init` を実行する前に、表示されたパスを commit または stash してください。",
+                "初期化対象パスを clean にしてからコマンドを再実行してください。",
             ],
             result.stdout.strip(),
         )
@@ -197,11 +176,10 @@ def commit_cmoc_initialization_changes(
             return False
         if diff.returncode != 1:
             raise CmocError(
-                "Failed to inspect initialization changes.",
+                "初期化差分の検査に失敗しました。",
                 [
-                    "Inspect git index state and retry cmoc init.",
-                    "Commit or stash unrelated changes, then run cmoc init "
-                    "again.",
+                    "git index の状態を確認してから `cmoc init` を再実行してください。",
+                    "無関係な変更を commit または stash してから `cmoc init` を再実行してください。",
                 ],
                 diff.stderr.strip(),
             )
@@ -262,10 +240,10 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
             return False
         if changed.returncode != 1:
             raise CmocError(
-                "Failed to inspect pathspec commit changes.",
+                "pathspec commit 用差分の検査に失敗しました。",
                 [
-                    "Inspect git index state and retry cmoc.",
-                    "Commit or stash unrelated changes, then run cmoc again.",
+                    "git index の状態を確認してから cmoc を再実行してください。",
+                    "無関係な変更を commit または stash してから cmoc を再実行してください。",
                 ],
                 changed.stderr.strip(),
             )
@@ -315,10 +293,10 @@ def _restore_index_after_init_commit(
         return
 
     raise CmocError(
-        "Failed to restore preexisting staged changes.",
+        "事前に stage されていた変更の復元に失敗しました。",
         [
-            "Inspect git index state before continuing.",
-            "Re-stage your previous changes if needed.",
+            "作業を続ける前に git index の状態を確認してください。",
+            "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
         ],
         result.stderr.strip(),
     )
@@ -654,10 +632,10 @@ def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
     path = branch_base_commit_path(repo_root, branch_name)
     if not path.exists():
         raise CmocError(
-            "cmoc branch base commit file was not found.",
+            "cmoc branch の作成元 commit ファイルが見つかりませんでした。",
             [
-                "Run `cmoc branch` before partial evaluation.",
-                "Run `cmoc eval-oracles --full` to evaluate all oracle files.",
+                "差分評価の前に `cmoc branch` を実行してください。",
+                "全 oracle ファイルを評価する場合は `cmoc eval-oracles --full` を実行してください。",
             ],
             str(path),
         )
@@ -732,10 +710,10 @@ def _restore_index_after_pathspec_commit(
         return
 
     raise CmocError(
-        "Failed to restore preexisting staged changes.",
+        "事前に stage されていた変更の復元に失敗しました。",
         [
-            "Inspect git index state before continuing.",
-            "Re-stage your previous changes if needed.",
+            "作業を続ける前に git index の状態を確認してください。",
+            "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
         ],
         result.stderr.strip(),
     )
@@ -842,13 +820,12 @@ def _assert_cmoc_ignore_guarantee(repo_root: Path) -> None:
     )
     if tracked or ignored.returncode != 0:
         raise CmocError(
-            "Failed to guarantee that .cmoc is untracked.",
+            ".cmoc を git 追跡対象外にする保証に失敗しました。",
             [
-                "Inspect .gitignore and the git index.",
-                "Remove tracked .cmoc files from the index, then run cmoc "
-                "again.",
+                ".gitignore と git index を確認してください。",
+                "追跡済みの .cmoc ファイルを index から外してから cmoc を再実行してください。",
             ],
-            "\n".join(tracked) or f"Probe was not ignored: {probe}",
+            "\n".join(tracked) or f"probe が ignore されませんでした: {probe}",
         )
 
 
@@ -901,10 +878,10 @@ def _root_gitignored_paths(
     # gitignore 評価自体の異常は利用者が復旧できる共通エラーに変換する。
     if result.returncode not in {0, 1}:
         raise CmocError(
-            "Failed to evaluate root .gitignore.",
+            "root .gitignore の評価に失敗しました。",
             [
-                "Inspect .gitignore syntax and retry the command.",
-                "Temporarily simplify root .gitignore, then run cmoc again.",
+                ".gitignore の構文を確認してからコマンドを再実行してください。",
+                "一時的に root .gitignore を単純化してから cmoc を再実行してください。",
             ],
             result.stderr.strip(),
         )
@@ -914,33 +891,32 @@ def _root_gitignored_paths(
 
 
 def _is_gitignored(repo_root: Path, relative_path: str) -> bool:
-    """gitignore 対象かを git check-ignore とローカル fallback で判定する。"""
-    # tracked 状態に依存しないよう `--no-index` で pattern 一致だけを見る。
+    """実リポジトリ全体の `.gitignore` ルールで ignore 対象か判定する。"""
+    # 単一 path の判定も集合判定の実装に揃える。
+    return relative_path in _gitignored_paths(repo_root, [relative_path])
+
+
+def _gitignored_paths(repo_root: Path, relative_paths: list[str]) -> set[str]:
+    """実リポジトリ全体の `.gitignore` ルールで ignore 対象を返す。"""
+    # nested .gitignore も含め、Git 自身の判定に path 集合をまとめて渡す。
+    if not relative_paths:
+        return set()
     result = run_git(
         repo_root,
-        ["check-ignore", "--no-index", "-q", "--", relative_path],
+        ["check-ignore", "--no-index", "--stdin"],
         check=False,
+        input_text="\n".join(relative_paths) + "\n",
     )
-    if result.returncode == 0:
-        return True
-    if result.returncode == 1:
-        return False
-
-    # git check-ignore 自体が失敗した場合だけ、単純な .gitignore fallback を使う。
-    gitignore = repo_root / ".gitignore"
-    if not gitignore.exists():
-        return False
-    for raw_line in gitignore.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        pattern = line.lstrip("/")
-        if (
-            fnmatch.fnmatch(relative_path, pattern)
-            or relative_path.startswith(pattern.rstrip("/") + "/")
-        ):
-            return True
-    return False
+    if result.returncode not in {0, 1}:
+        raise CmocError(
+            ".gitignore の評価に失敗しました。",
+            [
+                ".gitignore の構文を確認してからコマンドを再実行してください。",
+                "一時的に .gitignore を単純化してから cmoc を再実行してください。",
+            ],
+            result.stderr.strip(),
+        )
+    return set(result.stdout.splitlines())
 
 
 def run_git(

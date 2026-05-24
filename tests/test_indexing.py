@@ -151,6 +151,37 @@ def test_maintain_indexes_excludes_non_utf8_binary_without_nul(
     assert "# `image.bin`" not in content
 
 
+def test_maintain_indexes_excludes_binary_after_initial_chunk(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """先頭付近が UTF-8 でも後続に NUL があるファイルは目次対象から除外する。"""
+    repo = _init_repo(tmp_path)
+    binary = repo / "late_binary.dat"
+    binary.write_bytes(b"a" * 4096 + b"\0")
+    (repo / "kept.txt").write_text("kept\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "late binary")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo)
+
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    assert "# `kept.txt`" in content
+    assert "# `late_binary.dat`" not in content
+
+
 def test_maintain_indexes_keeps_utf8_when_sample_ends_mid_character(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -415,6 +446,77 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_reuses_current_index_with_empty_sections(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """schema 上有効な空配列由来の既存 INDEX は再生成しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `target.txt`",
+                "",
+                "## Summary",
+                "",
+                "",
+                "## Read this when",
+                "",
+                "",
+                "## Do not read this when",
+                "",
+                "",
+                "## hash",
+                "",
+                f"- {digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original_content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "current empty index sections")
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """空セクションの最新 INDEX では呼ばれてはいけない fake Codex CLI。"""
+        raise AssertionError(
+            "codex exec should not be called for empty INDEX sections"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    changed = maintain_indexes(repo)
+
+    assert changed is False
+    assert (repo / "INDEX.md").read_text(encoding="utf-8") == original_content
+
+
 def test_maintain_indexes_commits_only_maintenance_paths(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -452,6 +554,49 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     assert "?? user_work.txt" in status
     assert "INDEX.md" in last_commit_paths
     assert "user_work.txt" not in last_commit_paths
+
+
+def test_maintain_indexes_does_not_ensure_cmoc_ignore(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX メンテナンスは `.cmoc` の ignore 保証を担当しない。"""
+    repo = _init_repo(tmp_path)
+    cmoc_log = repo / ".cmoc" / "log.txt"
+    cmoc_log.parent.mkdir()
+    cmoc_log.write_text("log\n", encoding="utf-8")
+    _git(repo, "add", ".cmoc/log.txt")
+    _git(repo, "commit", "-m", "tracked cmoc log")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert not (repo / ".gitignore").exists()
+    assert _git(repo, "ls-files", ".cmoc/log.txt").stdout.strip() == (
+        ".cmoc/log.txt"
+    )
+    assert "INDEX.md" in last_commit_paths
+    assert ".gitignore" not in last_commit_paths
+    assert ".cmoc/log.txt" not in last_commit_paths
 
 
 def _init_repo(tmp_path: Path) -> Path:

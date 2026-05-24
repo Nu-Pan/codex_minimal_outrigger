@@ -3,10 +3,10 @@
 ## Summary
 
 - `cmoc` の実行時仕様をまとめるルーティング用ディレクトリの目次です。
-- `codex exec` の呼び出し規約、プロンプト構成、サンドボックス、Model / Reasoning Effort、Structured Output を扱います。
-- 標準出力とファイルのログ規則、共通エラーハンドリング、`<repo-root>` 上の `INDEX.md` 自動生成・更新仕様、横断的な補助仕様を案内します。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の各個別仕様への入口をまとめます。
-- `cmoc` の利用者向けワークフローとして、初期化から作業用ブランチ作成、oracle 評価、実装反映、マージまでを案内します。
+- `codex exec` の呼び出し規約、プロンプト構成、サンドボックス、Model / Reasoning Effort、Structured Output などの共通仕様への入口を案内します。
+- 標準出力とファイルのログ規則、共通エラーハンドリング、`<repo-root>` 上の `INDEX.md` 自動生成・更新仕様、横断的な補助仕様を集約しています。
+- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の各個別仕様への入口をまとめています。
+- `cmoc` 利用者向けの初期化から作業用ブランチ作成、oracle 評価、実装反映、マージまでの流れを横断して案内します。
 
 ## Read this when
 
@@ -26,7 +26,7 @@
 
 ## hash
 
-- 56a160083b9457253ccbf8162fcb2dd029702948bb669ca7c1ff0c7429cd5220
+- b8304143d53f3a83804830ec3795c44300f77ea64e77d74e49cca88940e412e0
 
 # `considered_alternatives`
 

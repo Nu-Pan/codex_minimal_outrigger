@@ -1,17 +1,32 @@
 """cmoc CLI エントリーポイント。"""
 
+import importlib.util
+from pathlib import Path
+from types import ModuleType
+
 import click
 import typer
 
+from commons.errors import CmocError
 from commons.errors import format_error_report
 from sub_commands.apply import cmoc_apply_impl
 from sub_commands.branch import cmoc_branch_impl
-from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.merge import cmoc_merge_impl
 
 
 app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=True)
+_EVAL_ORACLES_PATH = Path(__file__).parent / "sub_commands" / "eval-oracles.py"
+_EVAL_ORACLES_SPEC = importlib.util.spec_from_file_location(
+    "sub_commands.eval-oracles",
+    _EVAL_ORACLES_PATH,
+)
+if _EVAL_ORACLES_SPEC is None or _EVAL_ORACLES_SPEC.loader is None:
+    raise ImportError(f"cannot load subcommand module: {_EVAL_ORACLES_PATH}")
+_eval_oracles_module = importlib.util.module_from_spec(_EVAL_ORACLES_SPEC)
+assert isinstance(_eval_oracles_module, ModuleType)
+_EVAL_ORACLES_SPEC.loader.exec_module(_eval_oracles_module)
+cmoc_eval_oracles_impl = _eval_oracles_module.cmoc_eval_oracles_impl
 
 
 @app.command("init")
@@ -29,6 +44,7 @@ def branch_command() -> None:
 
 
 @app.command("eval-oracles")
+@app.command("eval-oracle", hidden=True)
 def eval_oracles_command(
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
@@ -39,12 +55,25 @@ def eval_oracles_command(
 
 @app.command("apply")
 def apply_command(
-    repeat: int = typer.Option(5, "--repeat", "-r"),
+    repeat_investigate_and_fix: int = typer.Option(
+        5,
+        "--repeat-investigate-and-fix",
+        "--repeat",
+        "-r",
+    ),
+    repeat_improove_fixing_list: int = typer.Option(
+        3,
+        "--repeat-improove-fixing-list",
+    ),
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Apply oracle requirements to implementation."""
     # CLI callback は apply の本体実装へ処理を委譲する。
-    cmoc_apply_impl(repeat=repeat, full=full)
+    cmoc_apply_impl(
+        repeat_investigate_and_fix=repeat_investigate_and_fix,
+        repeat_improove_fixing_list=repeat_improove_fixing_list,
+        full=full,
+    )
 
 
 @app.command("merge")
@@ -65,8 +94,25 @@ def main() -> None:
         raise SystemExit(exit_error.exit_code) from exit_error
     except click.ClickException as error:
         # CLI parse error は Click の exit_code を維持する。
-        print(format_error_report(error))
-        raise SystemExit(error.exit_code) from error
+        report_error: BaseException = error
+        exit_code = error.exit_code
+        if isinstance(error, click.exceptions.NoArgsIsHelpError):
+            report_error = CmocError(
+                "コマンドが指定されていません。",
+                [
+                    "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
+                    "`cmoc init`, `cmoc branch`, `cmoc eval-oracles`, "
+                    "`cmoc apply`, `cmoc merge` のいずれかを実行してください。",
+                ],
+                (
+                    "cmoc がサブコマンドなしで起動されました。"
+                    "実行する workflow を cmoc が判断するため、サブコマンドが必要です。"
+                ),
+                exit_code=error.exit_code,
+            )
+            exit_code = report_error.exit_code
+        print(format_error_report(report_error))
+        raise SystemExit(exit_code) from error
     except Exception as error:
         # 想定外エラーも共通形式で表示し、可能なら例外側の exit_code を使う。
         print(format_error_report(error))

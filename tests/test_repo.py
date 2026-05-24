@@ -7,7 +7,7 @@ import pytest
 
 from commons.errors import CmocError
 from commons.repo import (
-    assert_only_oracles_uncommitted,
+    assert_no_uncommitted_changes,
     branch_base_commit_path,
     changed_oracle_files,
     changed_implementation_files,
@@ -188,6 +188,50 @@ def test_list_implementation_files_excludes_specified_paths(
     assert relative_paths == [".gitignore", "README.md", "app.py"]
 
 
+def test_list_implementation_files_ignores_only_root_gitignore(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル列挙では nested .gitignore を除外判定に使わない。"""
+    repo = _init_repo(tmp_path)
+    cache_root = repo / ".pytest_cache"
+    cache_root.mkdir()
+    (cache_root / ".gitignore").write_text("*\n", encoding="utf-8")
+    (cache_root / "CACHEDIR.TAG").write_text("cache\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == [
+        ".pytest_cache/.gitignore",
+        ".pytest_cache/CACHEDIR.TAG",
+        "README.md",
+        "app.py",
+    ]
+
+
+def test_list_implementation_files_ignores_git_info_exclude(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル列挙では `.git/info/exclude` を除外判定に使わない。"""
+    repo = _init_repo(tmp_path)
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_text("/logs/\n", encoding="utf-8")
+    log_root = repo / "logs"
+    log_root.mkdir()
+    (log_root / "subcommand.log").write_text("log\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == ["README.md", "app.py", "logs/subcommand.log"]
+
+
 def test_changed_oracle_files_uses_cmoc_branch_base_and_uncommitted_changes(
     tmp_path: Path,
 ) -> None:
@@ -366,6 +410,37 @@ def test_changed_implementation_files_filters_to_implementation_targets(
     assert relative_paths == ["base.py", "new.py"]
 
 
+def test_changed_implementation_files_ignores_only_root_gitignore(
+    tmp_path: Path,
+) -> None:
+    """変更済み実装ファイルでは nested .gitignore を除外判定に使わない。"""
+    repo = _init_repo(tmp_path)
+    cache_root = repo / ".pytest_cache"
+    cache_root.mkdir()
+    (cache_root / ".gitignore").write_text("*\n", encoding="utf-8")
+    ignored = cache_root / "CACHEDIR.TAG"
+    ignored.write_text("base\n", encoding="utf-8")
+    _git(
+        repo,
+        "add",
+        "-f",
+        ".pytest_cache/.gitignore",
+        ".pytest_cache/CACHEDIR.TAG",
+    )
+    _git(repo, "commit", "-m", "track ignored cache")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    ignored.write_text("changed\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_implementation_files(repo, base_commit)
+    ]
+
+    assert relative_paths == [".pytest_cache/CACHEDIR.TAG", "app.py"]
+
+
 def test_has_deleted_implementation_files_detects_target_deletion(
     tmp_path: Path,
 ) -> None:
@@ -378,6 +453,32 @@ def test_has_deleted_implementation_files_detects_target_deletion(
     base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     deleted.unlink()
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_ignores_only_root_gitignore(
+    tmp_path: Path,
+) -> None:
+    """削除済み実装ファイルでは nested .gitignore を除外判定に使わない。"""
+    repo = _init_repo(tmp_path)
+    cache_root = repo / ".pytest_cache"
+    cache_root.mkdir()
+    (cache_root / ".gitignore").write_text("*\n", encoding="utf-8")
+    ignored = cache_root / "CACHEDIR.TAG"
+    ignored.write_text("base\n", encoding="utf-8")
+    _git(
+        repo,
+        "add",
+        "-f",
+        ".pytest_cache/.gitignore",
+        ".pytest_cache/CACHEDIR.TAG",
+    )
+    _git(repo, "commit", "-m", "track ignored cache")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    ignored.unlink()
+    _git(repo, "add", "-u", ".pytest_cache")
 
     assert has_deleted_implementation_files(repo, base_commit) is True
 
@@ -524,15 +625,20 @@ def test_has_deleted_oracle_files_ignores_gitignored_deletion(
     assert has_deleted_oracle_files(repo, base_commit) is False
 
 
-def test_assert_only_oracles_uncommitted_rejects_non_oracle_changes(
+def test_assert_no_uncommitted_changes_rejects_oracle_changes(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` の事前条件として oracles 外差分を拒否する。"""
+    """`cmoc apply` の事前条件として oracle 差分も拒否する。"""
     repo = _init_repo(tmp_path)
-    (repo / "app.py").write_text("print('changed')\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("changed\n", encoding="utf-8")
 
-    with pytest.raises(CmocError):
-        assert_only_oracles_uncommitted(repo)
+    with pytest.raises(CmocError) as error:
+        assert_no_uncommitted_changes(repo)
+
+    assert "未コミットの変更があります。" in error.value.message
+    assert "oracles/" in error.value.detail
 
 
 @pytest.mark.parametrize(
