@@ -24,28 +24,28 @@
 
 ## Summary
 
-- `cmoc apply` の本体実装で、不整合調査、要修正点の整理、個別適用、レポート保存までを一括で扱います。
-- `--full` を含む部分・全体適用モード判定、対象ファイルの絞り込み、反復回数制御を担当します。
-- Structured Output schema、要修正点の改善ループ、修正後の commit、編集禁止領域検査、apply レポート検証などの補助関数も含みます。
+- `cmoc apply` の本体実装をまとめるモジュールで、不整合調査、要修正点の整理、個別適用、レポート保存までの一連の処理を扱います。
+- 部分適用・全体適用の切り替え、対象ファイルの選別、反復回数制御、Structured Output の検証、編集禁止領域の確認、commit 処理などの補助関数も含みます。
+- `run_codex_exec` に渡す各種 prompt 生成や、apply レポートの内容検証・保存に関する実装を追いたいときの入口です。
 
 ## Read this when
 
-- `cmoc apply` の処理順、前提条件、終了コード、反復上限を実装・確認したいとき。
-- oracle と実装の不整合をどう検出し、Structured Output で要修正点をどの形で受け取るかを追いたいとき。
-- 部分適用と全体適用の切り替え、調査対象ファイルの列挙、既存変更だけに絞る条件を確認したいとき。
-- 修正後の commit、`INDEX.md` 保守、編集禁止パス検査、`.cmoc/reports/apply` へのレポート出力を確認したいとき。
-- このファイル内の prompt 生成関数やレポート検証関数の役割を把握したいとき。
+- `cmoc apply` の実装や挙動を確認したいとき。
+- 不整合調査の Structured Output schema や、要修正点の改善ループの実装を追いたいとき。
+- 部分適用と全体適用の切り替え条件、調査対象ファイルの絞り込み、修正後 commit の流れを確認したいとき。
+- `.cmoc/reports/apply` へのレポート出力や、レポート本文の必須項目チェックを確認したいとき。
+- このモジュール内の prompt 生成関数や検証関数の役割を把握したいとき。
 
 ## Do not read this when
 
-- 他のサブコマンドの本体実装だけを調べたいとき。
-- `codex exec` の共通ラッパー、ログ、`repo_root` 解決など `commons` 側の共通基盤だけを見たいとき。
-- `cmoc apply` の正本仕様そのものを `oracles/app_specs/sub_commands/apply.md` で確認したいとき。
-- 開発ルール、テスト規約、ディレクトリ構成の案内だけが必要なとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など他のサブコマンドの実装だけを調べたいとき。
+- `commons` 側の共通基盤、たとえば `run_codex_exec` や git ユーティリティの詳細だけを確認したいとき。
+- `oracles/app_specs/sub_commands/apply.md` にある正本仕様そのものを読みたいとき。
+- cmoc 全体の開発ルール、テスト規約、ディレクトリ構成の案内だけが必要なとき。
 
 ## hash
 
-- 5d2e281a1b90065f064298ffbdfa39ef37a87b509a3d816652b61c37b8c0c764
+- 3c9a37aa2198014e5209c0cbdae2567c435ee85fdd63cd93d41957138d4ccc4a
 
 # `branch.py`
 
