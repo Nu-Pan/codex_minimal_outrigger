@@ -101,7 +101,7 @@ def main() -> None:
                 "コマンドが指定されていません。",
                 [
                     "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
-                    "`cmoc init`, `cmoc branch`, `cmoc eval-oracles`, "
+                    "`cmoc init`, `cmoc session fork`, `cmoc eval-oracles`, "
                     "`cmoc apply`, `cmoc merge` のいずれかを実行してください。",
                 ],
                 (

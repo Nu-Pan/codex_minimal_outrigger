@@ -24,7 +24,7 @@
 
 以下の場合はエラー終了する。
 
-- 現在 branch が `<cmoc-session-branch>` ではない
+- 現在のブランチが `<cmoc-session-branch>` ではない
 - session metadata が存在しない
 - session metadata の `state` が `active` ではない
 - git 未コミット差分が存在する

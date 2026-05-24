@@ -316,7 +316,7 @@ def test_branch_creates_cmoc_branch_and_records_base_commit(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """`cmoc branch` は branch 作成と base commit 記録を行う。"""
+    """`cmoc session fork` は branch 作成と base commit 記録を行う。"""
     repo = _init_repo(tmp_path)
     base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
@@ -1762,7 +1762,7 @@ def test_user_facing_error_text_does_not_keep_known_english_phrases() -> None:
         "Uncommitted changes exist.",
         "Commit or stash",
         "cmoc apply must be run on a cmoc branch.",
-        "Run `cmoc branch` first.",
+        "Run `cmoc session fork` first.",
         "Failed to resolve cmoc branch automatically.",
         "Pass the cmoc branch name explicitly.",
         "Inspect git status manually.",

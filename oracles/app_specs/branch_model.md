@@ -5,7 +5,7 @@
 cmoc は、通常の `<local-branch>` から `<cmoc-session-branch>` を作り、必要に応じて `<cmoc-session-branch>` から `<cmoc-apply-branch>` を作る。
 
 `<repository-default-branch>` は特別扱いしない。
-ユーザーが `cmoc branch` を実行した時点で checkout している `<local-branch>` をその session の `<cmoc-session-home-branch>` とする。
+ユーザーが `cmoc session fork` を実行した時点で checkout している `<local-branch>` をその session の `<cmoc-session-home-branch>` とする。
 
 ## branch の種類
 
@@ -23,12 +23,12 @@ cmoc 管理ではない通常の remote-tracking branch。
 
 ### `<cmoc-session-home-branch>`
 
-`cmoc branch` を実行した時点で checkout されていた `<local-branch>`。
+`cmoc session fork` を実行した時点で checkout されていた `<local-branch>`。
 session の分岐元であり、最終的な merge 先でもある。
 
 ### `<cmoc-session-branch>`
 
-`cmoc branch` が作成する cmoc 管理 branch。
+`cmoc session fork` が作成する cmoc 管理 branch。
 命名規則は以下。
 
 `cmoc/session/<session-id>`

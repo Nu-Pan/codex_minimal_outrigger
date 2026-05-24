@@ -15,7 +15,7 @@
 ## Do not read this when
 
 - `cmoc apply` の具体的な実装手順やコード配置を知りたいとき。
-- `cmoc branch`、`cmoc merge`、`cmoc eval-oracles` など、別サブコマンドの仕様を調べたいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc eval-oracles` など、別サブコマンドの仕様を調べたいとき。
 - `cmoc` 全体の実行時仕様や共通ルールを広く把握したいだけで、この「採用しなかった案」の理由が不要なとき。
 
 ## hash
@@ -67,7 +67,7 @@
 ## Do not read this when
 
 - `cmoc apply` の具体的な実装手順や入出力仕様だけを調べたいとき。
-- `cmoc eval-oracles` や `cmoc merge` など、個別サブコマンドの操作仕様だけを確認したいとき。
+- `cmoc eval-oracles` や `cmoc session join` など、個別サブコマンドの操作仕様だけを確認したいとき。
 - cmoc 自体のコーディング規約、設計規約、テスト規約を調べたいとき。
 - `README.md` や `AGENTS.md`、`memo` などの編集可否や運用ルールだけを確認したいとき。
 

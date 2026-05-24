@@ -170,7 +170,7 @@ def cmoc_apply_impl(
         raise CmocError(
             "`cmoc apply` は cmoc branch 上で実行してください。",
             [
-                "先に `cmoc branch` を実行してください。",
+                "先に `cmoc session fork` を実行してください。",
                 "既存の cmoc branch を checkout してください。",
             ],
             f"現在の branch: {branch_name}",

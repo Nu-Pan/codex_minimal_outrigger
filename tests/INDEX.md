@@ -98,7 +98,7 @@
 
 - `commons.indexing` の実装本体だけを追いたいとき。
 - `INDEX.md` の正本仕様そのものを知りたいとき。仕様断片は `oracles/app_specs/indexing.md` を読むべきです。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` など個別サブコマンドの仕様を調べたいとき。
+- `cmoc init`、`cmoc session fork`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` など個別サブコマンドの仕様を調べたいとき。
 - Codex CLI 呼び出し共通仕様、ログ保存、エラーハンドリングなど `INDEX.md` メンテナンス以外の実行仕様を調べたいとき。
 - `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
@@ -147,7 +147,7 @@
 
 - `tests/test_subcommands.py` は、cmoc のサブコマンド実行制御と CLI 入口の決定論的な挙動を検証するテスト群の目次です。
 - `run_command` の stdout への tee、ファイルログ保存、終了コード反映、共通エラーレポート生成を横断して扱います。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の各フローに加えて、prompt、Structured Output、検証ヘルパー、補助関数の挙動をまとめています。
+- `cmoc init`、`cmoc session fork`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の各フローに加えて、prompt、Structured Output、検証ヘルパー、補助関数の挙動をまとめています。
 - `main.py` のコマンド登録と互換 alias、`bin/cmoc` の起動条件、`src` の Python ソースに future annotations を使わない制約も回帰対象です。
 
 ## Read this when
@@ -155,7 +155,7 @@
 - サブコマンドの CLI 入口がどの実装関数へ委譲されるか確認したいとき。
 - `run_command` の stdout とファイルへの tee、ログ保存、例外時の終了コードやエラーレポートを確認したいとき。
 - `cmoc init` の `.cmoc` ignore 追加、tracked ファイルの追跡解除、初期 commit の挙動を確認したいとき。
-- `cmoc branch` のブランチ作成、base commit 記録、ブランチ名生成と衝突時の再試行を確認したいとき。
+- `cmoc session fork` のブランチ作成、base commit 記録、ブランチ名生成と衝突時の再試行を確認したいとき。
 - `cmoc eval-oracles` の評価レポート、severity 集約、prompt 制約、削除済み oracle の扱いを確認したいとき。
 - `cmoc apply` の discrepancy 調査、修正ループ、Structured Output schema、commit 連鎖の挙動を確認したいとき。
 - `cmoc merge` の branch マージ、衝突解消 prompt、branch 削除条件を確認したいとき。

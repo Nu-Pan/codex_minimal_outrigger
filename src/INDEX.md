@@ -69,7 +69,7 @@
 ## Read this when
 
 - `cmoc init` の実行前提、`.cmoc` の ignore 保証、初期化コミットの挙動を確認したいとき。
-- `cmoc branch` のブランチ作成、命名規則、base commit 記録を確認したいとき。
+- `cmoc session fork` のブランチ作成、命名規則、base commit 記録を確認したいとき。
 - `cmoc apply` の不整合調査・修正ループ、レポート出力、終了コードを確認したいとき。
 - `cmoc eval-oracles` の oracle 評価モード、レポート生成、結果保存を確認したいとき。
 - `cmoc merge` の merge 前提条件、conflict 解消支援、ブランチ削除条件を確認したいとき。

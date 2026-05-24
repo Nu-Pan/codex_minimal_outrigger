@@ -49,7 +49,7 @@ def cmoc_merge_impl(
             raise CmocError(
                 "merge 対象は cmoc branch 名である必要があります。",
                 [
-                    "`cmoc branch` が作成した branch 名を指定してください。",
+                    "`cmoc session fork` が作成した branch 名を指定してください。",
                     "通常の branch を merge する場合は `git merge` を直接実行してください。",
                 ],
                 f"指定された branch: {source_branch}",

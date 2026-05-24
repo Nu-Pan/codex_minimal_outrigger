@@ -1,11 +1,12 @@
 ## branch, apply, merge 大工事の余波
 
 - 大工事の過程で、未コミット差分なしだと通らないようになったけど、これは戻したい
-- ブランチのメタ名は `<cmoc-...>` みたいにプリフィックス cmoc を付ける方向性で統一したい
 - `<cmoc-apply-branch>` の `<cmoc-session-branch>` へのマージ作業はサブコマンドとして導入したい
     - `cmoc apply fork`, `cmoc apply join` とかだろうか
     - であれば `<cmoc-session-branch>` の方は `cmoc session fork`, `cmoc session join` の方が良いだろう
     - git の branch, merge とは別概念なので、別ワードを割り当てたいという意図もある
+    - branch --> session fork
+    - merge --> session join
 - `cmoc session report` が必要
     - 今この瞬間に `cmoc session join` したら、どういう内容になるか？　をレポートさせる
     - このまま `cmoc session join` に進んでよいかの判断材料

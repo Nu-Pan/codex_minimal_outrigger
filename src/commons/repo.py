@@ -634,7 +634,7 @@ def read_branch_base_commit(repo_root: Path, branch_name: str) -> str:
         raise CmocError(
             "cmoc branch の作成元 commit ファイルが見つかりませんでした。",
             [
-                "差分評価の前に `cmoc branch` を実行してください。",
+                "差分評価の前に `cmoc session fork` を実行してください。",
                 "全 oracle ファイルを評価する場合は `cmoc eval-oracles --full` を実行してください。",
             ],
             str(path),

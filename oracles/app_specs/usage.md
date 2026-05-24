@@ -13,8 +13,8 @@
 1. 人間が `<local-branch>` に移動する
    - 例: `issue/123-fix-login`
    - `main` / `master` である必要はない
-2. 人間が `cmoc branch` を呼び出す
-   - cmoc は現在の branch を `<cmoc-session-home-branch>` として記録する
+2. 人間が `cmoc session fork` を呼び出す
+   - cmoc は現在のブランチを `<cmoc-session-home-branch>` として記録する
    - cmoc は `<cmoc-session-branch>` を作成して checkout する
 3. 記述・実装ループ
    1. 人間がやってほしいと思っている事を `/oracles` に反映する
@@ -28,5 +28,5 @@
    6. `<cmoc-apply-branch>` を `<cmoc-session-branch>` に取り込む
       - この取り込み方法は別仕様または通常の git merge に従う
    7. 人間が現状の実装で問題なしと判断したら、ループ終了
-4. 人間が `<cmoc-session-branch>` 上で `cmoc merge` を呼び出す
+4. 人間が `<cmoc-session-branch>` 上で `cmoc session join` を呼び出す
    - cmoc は session metadata に記録された `<cmoc-session-home-branch>` へ session を merge する

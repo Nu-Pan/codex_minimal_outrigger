@@ -1,4 +1,4 @@
-"""`cmoc branch` の本体処理。"""
+"""`cmoc session fork` の本体処理。"""
 
 from pathlib import Path
 from time import sleep
