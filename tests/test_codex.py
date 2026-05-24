@@ -19,6 +19,18 @@ _BOOLEAN_SCHEMA: dict[str, object] = {
     "required": ["ok"],
     "properties": {"ok": {"type": "boolean"}},
 }
+_ENUM_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["severity"],
+    "properties": {
+        "severity": {
+            "type": "string",
+            "enum": ["fatal", "warning", "inconclusive"],
+            "description": "問題点の分類。",
+        },
+    },
+}
 
 
 def test_run_codex_exec_retries_json_and_writes_full_log(
@@ -720,6 +732,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "  echo 'quota limit exhausted' >&2",
                 "  exit 1",
                 "  fi",
+                f"  if [ \"$(wc -l < {maintain_file})\" -lt 3 ]; then exit 3; fi",
                 "fi",
                 "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
                 f"  if [ \"$(wc -l < {maintain_file})\" -lt 2 ]; then exit 3; fi",
@@ -761,7 +774,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
         for path in sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
     ]
     assert output.strip() == "resumed"
-    assert calls == [repo, repo]
+    assert calls == [repo, repo, repo]
     assert len(log_contents) == 3
     assert all(
         content.count("## Codex Exec Call") == 1
@@ -884,7 +897,112 @@ def test_run_codex_exec_retries_schema_validation_failure(
         )
 
     assert state.read_text(encoding="utf-8").strip() == "3"
-    assert "type does not match schema" in error.value.detail
+    assert "'not boolean' is not of type 'boolean'" in error.value.detail
+
+
+def test_run_codex_exec_retries_enum_validation_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Structured Output の enum 不一致も cmoc 側 schema 検証でリトライする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                "if [ \"$COUNT\" -eq 1 ]; then",
+                "  echo '{\"severity\":\"severe\"}' > \"$LAST\"",
+                "else",
+                "  echo '{\"severity\":\"fatal\"}' > \"$LAST\"",
+                "fi",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    output = run_codex_exec(
+        repo,
+        "prompt",
+        read_only=True,
+        expect_json=True,
+        output_schema=_ENUM_SCHEMA,
+    )
+
+    assert output.strip() == '{"severity":"fatal"}'
+    assert state.read_text(encoding="utf-8").strip() == "2"
+
+
+def test_run_codex_exec_validates_json_schema_string_length(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """JSON Schema の文字列長制約も cmoc 側 schema 検証で検査する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo '{\"name\":\"x\"}' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    length_schema: dict[str, object] = {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "minLength": 2,
+            },
+        },
+    }
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=True,
+            expect_json=True,
+            output_schema=length_schema,
+        )
+
+    assert "'x' is too short" in error.value.detail
 
 
 def test_run_codex_exec_maintains_indexes_before_codex_call(
@@ -931,6 +1049,74 @@ def test_run_codex_exec_maintains_indexes_before_codex_call(
 
     assert output.strip() == "done"
     assert calls == [repo]
+
+
+def test_run_codex_exec_maintains_indexes_before_each_retry(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """レスポンス検証失敗後の retry でも Codex CLI 直前に INDEX.md を保守する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    maintain_file = tmp_path / "maintain.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                f"if [ \"$(wc -l < {maintain_file})\" -lt \"$COUNT\" ]; then",
+                "  exit 3",
+                "fi",
+                "if [ \"$COUNT\" -lt 3 ]; then",
+                "  echo 'not-json' > \"$LAST\"",
+                "else",
+                "  echo '{\"ok\": true}' > \"$LAST\"",
+                "fi",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    calls: list[Path] = []
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """Codex CLI retry 直前メンテナンスの呼び出しを記録する。"""
+        calls.append(repo_root)
+        with maintain_file.open("a", encoding="utf-8") as handle:
+            handle.write("maintain\n")
+        return False
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
+
+    output = run_codex_exec(
+        repo,
+        "prompt",
+        read_only=True,
+        expect_json=True,
+        output_schema=_BOOLEAN_SCHEMA,
+    )
+
+    assert output.strip() == '{"ok": true}'
+    assert calls == [repo, repo, repo]
 
 
 def test_run_codex_exec_can_skip_index_maintenance(

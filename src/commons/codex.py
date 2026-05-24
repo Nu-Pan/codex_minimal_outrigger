@@ -10,6 +10,9 @@ from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
+
 from .errors import CmocError
 from .subcommand_log import add_quota_wait
 from .timing import format_duration
@@ -59,12 +62,6 @@ def run_codex_exec(
         raise ValueError("expect_json=True requires output_schema.")
     _validate_model_options(model, reasoning_effort)
 
-    # 例外指定された INDEX 生成・merge conflict 解消以外は、Codex 実行直前に INDEX を保守する。
-    if not skip_index_maintenance and (repo_root / ".git").exists():
-        from .indexing import maintain_indexes
-
-        maintain_indexes(repo_root)
-
     # 必要なら output schema ファイルを準備する。call log と last message は実行単位で払い出す。
     command = _build_codex_command(
         read_only=read_only,
@@ -88,6 +85,7 @@ def run_codex_exec(
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec attempt ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
+        _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
         run = _run_codex_command(
             repo_root,
             command,
@@ -117,6 +115,7 @@ def run_codex_exec(
                         purpose,
                         attempt,
                         schema_path,
+                        skip_index_maintenance,
                     )
                     result = run.result
                     last_log_path = run.log_path
@@ -245,6 +244,7 @@ def _wait_for_quota_and_resume(
     purpose: str,
     attempt: int,
     schema_path: Path | None,
+    skip_index_maintenance: bool,
 ) -> _CodexCommandRun:
     """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
     # 復活確認は低コスト model/effort の最小 prompt で行う。
@@ -258,10 +258,7 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
         )
         poll_command.append("-")
-        if (repo_root / ".git").exists():
-            from .indexing import maintain_indexes
-
-            maintain_indexes(repo_root)
+        _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
         poll_run = _run_codex_command(
             repo_root,
             poll_command,
@@ -275,6 +272,7 @@ def _wait_for_quota_and_resume(
             poll_output = _read_last_message(poll_run.last_message_path)
             print(f"quota poll output: {_head80(poll_output)}")
             print("quota restored; resuming codex exec")
+            _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
             return _run_codex_command(
                 repo_root,
                 command,
@@ -286,6 +284,18 @@ def _wait_for_quota_and_resume(
         wait_started = perf_counter()
         time.sleep(_QUOTA_POLL_INTERVAL_SECONDS)
         add_quota_wait(perf_counter() - wait_started)
+
+
+def _maintain_indexes_before_codex(
+    repo_root: Path,
+    skip_index_maintenance: bool,
+) -> None:
+    """通常の Codex CLI 起動直前に INDEX.md メンテナンスを実行する。"""
+    if skip_index_maintenance or not (repo_root / ".git").exists():
+        return
+    from .indexing import maintain_indexes
+
+    maintain_indexes(repo_root)
 
 
 def _quota_poll_prompt(repo_root: Path) -> str:
@@ -663,84 +673,13 @@ def _read_optional_text(path: Path) -> str:
 
 
 def _validate_json_schema(value: object, schema: dict[str, object]) -> None:
-    """cmoc 側で使う JSON Schema subset を機械的に検査する。"""
+    """Codex CLI の Structured Output を JSON Schema として検査する。"""
     # Codex CLI の応答を cmoc 側でも機械的に再検証する。
-    _validate_schema_node(value, schema, "$")
-
-
-def _validate_schema_node(
-    value: object,
-    schema: dict[str, object],
-    path: str,
-) -> None:
-    """Structured Output schema の主要 subset を再帰的に検査する。"""
-    # 現在 node の type 制約を先に確認する。
-    expected_type = schema.get("type")
-    if expected_type is not None and not _matches_type(value, expected_type):
-        raise ValueError(f"{path} type does not match schema.")
-
-    # object では required、additionalProperties、properties の子 schema を検査する。
-    if isinstance(value, dict):
-        required = schema.get("required", [])
-        if not isinstance(required, list):
-            raise ValueError(f"{path} schema required must be a list.")
-        missing = [
-            key
-            for key in required
-            if isinstance(key, str) and key not in value
-        ]
-        if missing:
-            raise ValueError(
-                f"{path} missing required keys: {', '.join(missing)}."
-            )
-
-        properties = schema.get("properties", {})
-        if not isinstance(properties, dict):
-            raise ValueError(f"{path} schema properties must be an object.")
-        if schema.get("additionalProperties") is False:
-            extra = sorted(set(value) - set(properties))
-            if extra:
-                raise ValueError(
-                    f"{path} unexpected keys: {', '.join(extra)}."
-                )
-        for key, child_schema in properties.items():
-            if key not in value:
-                continue
-            if not isinstance(key, str) or not isinstance(child_schema, dict):
-                raise ValueError(f"{path} schema properties are invalid.")
-            _validate_schema_node(value[key], child_schema, f"{path}.{key}")
-
-    # array では items schema がある場合だけ各要素へ再帰する。
-    if isinstance(value, list):
-        item_schema = schema.get("items")
-        if item_schema is None:
-            return
-        if not isinstance(item_schema, dict):
-            raise ValueError(f"{path} schema items must be an object.")
-        for index, item in enumerate(value):
-            _validate_schema_node(item, item_schema, f"{path}[{index}]")
-
-
-def _matches_type(value: object, expected_type: object) -> bool:
-    """JSON Schema の type 指定に値が一致するか判定する。"""
-    # type 配列は候補のいずれかに一致すれば受理する。
-    if isinstance(expected_type, list):
-        return any(_matches_type(value, item) for item in expected_type)
-
-    # cmoc が使う JSON Schema type subset だけを厳密に判定する。
-    if expected_type == "object":
-        return isinstance(value, dict)
-    if expected_type == "array":
-        return isinstance(value, list)
-    if expected_type == "string":
-        return isinstance(value, str)
-    if expected_type == "integer":
-        return isinstance(value, int) and not isinstance(value, bool)
-    if expected_type == "boolean":
-        return isinstance(value, bool)
-    if expected_type == "null":
-        return value is None
-    return True
+    try:
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(value)
+    except (SchemaError, ValidationError) as error:
+        raise ValueError(error.message) from error
 
 
 def _head80(value: str) -> str:

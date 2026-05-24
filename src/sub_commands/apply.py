@@ -20,7 +20,6 @@ from commons.repo import (
     changed_paths,
     changed_implementation_files,
     commit_cmoc_initialization_changes,
-    commit_if_changed,
     current_branch,
     ensure_cmoc_ignored,
     gitignore_has_cmoc_rule,
@@ -177,7 +176,7 @@ def cmoc_apply_impl(
         )
     base_commit = read_branch_base_commit(repo_root, branch_name)
 
-    # `.cmoc` 保証差分と oracle 差分を先に分離 commit してから、他差分を拒否する。
+    # `.cmoc` 保証差分だけを分離 commit してから、ユーザー由来の差分を拒否する。
     start_step(timer, 1, 4, "validate repository state")
     had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
     preexisting_staged_diff = staged_diff_from_head(repo_root)
@@ -188,7 +187,6 @@ def cmoc_apply_impl(
         preexisting_staged_diff,
         "Ensure cmoc directory is ignored",
     )
-    commit_if_changed(repo_root, ["oracles"], "Update oracle files")
     assert_no_uncommitted_changes(repo_root)
 
     # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
@@ -260,7 +258,8 @@ def _investigate_discrepancies(
     """oracle ファイル・実装ファイルごとに不整合調査を実行する。"""
     # ループごとに部分・全体適用モードと調査対象を再評価する。
     discrepancies: list[dict[str, object]] = []
-    partial = _use_partial_mode(full)
+    # --full の有無だけで全体適用・部分適用を切り替える。
+    partial = not full
     oracle_files = _target_oracle_files(repo_root, base_commit, partial)
     implementation_files = _target_implementation_files(
         repo_root,
@@ -331,12 +330,6 @@ def _investigate_discrepancies(
         discrepancies,
         repeat_improove_fixing_list,
     )
-
-
-def _use_partial_mode(full: bool) -> bool:
-    """現在ループの部分・全体適用モードを判定する。"""
-    # --full の有無だけで全体適用・部分適用を切り替える。
-    return not full
 
 
 def _target_oracle_files(

@@ -6,6 +6,7 @@ from time import perf_counter
 
 import typer
 
+from .errors import CmocError
 from .errors import format_error_report
 from .repo import enter_repo_root
 from .subcommand_log import subcommand_log
@@ -26,6 +27,20 @@ def run_command(handler: Callable[[Path], int | None]) -> None:
                     exit_code = result
             except typer.Exit as exit_error:
                 exit_code = exit_error.exit_code or 0
+                if exit_code != 0:
+                    report_error = CmocError(
+                        "サブコマンドがエラー終了しました。",
+                        actions=[
+                            "直前の出力に個別の失敗理由がある場合は、その内容に従って入力値やリポジトリ状態を修正してください。",
+                            "原因が特定できない場合は、Detail と Call stack を確認してから cmoc を再実行してください。",
+                        ],
+                        detail=(
+                            "サブコマンド本体が "
+                            f"typer.Exit({exit_code}) を送出しました。"
+                        ),
+                        exit_code=exit_code,
+                    )
+                    print(format_error_report(report_error))
                 raise
             except Exception as error:
                 print(format_error_report(error))

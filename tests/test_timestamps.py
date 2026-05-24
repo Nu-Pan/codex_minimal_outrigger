@@ -1,7 +1,11 @@
 """タイムスタンプ仕様のテスト。"""
 
-from datetime import datetime
+import os
+import time
+from datetime import datetime, timezone
 from inspect import getsourcelines
+
+import pytest
 
 from commons.timing import current_timer, format_duration, report_current_timer
 from commons.timestamps import make_timestamp
@@ -12,6 +16,28 @@ def test_make_timestamp_uses_required_format() -> None:
     assert make_timestamp(datetime(2026, 5, 4, 3, 2, 1, 987654)) == (
         "2026-05-04_03-02_01_987"
     )
+
+
+def test_make_timestamp_converts_aware_datetime_to_local_timezone() -> None:
+    """aware datetime はローカルタイムゾーンに変換してから整形する。"""
+    tzset = getattr(time, "tzset", None)
+    if tzset is None:
+        pytest.skip("time.tzset is not available on this platform")
+
+    original_tz = os.environ.get("TZ")
+    os.environ["TZ"] = "Asia/Tokyo"
+    tzset()
+
+    try:
+        assert make_timestamp(datetime(2026, 5, 3, 18, 2, 1, 987654, timezone.utc)) == (
+            "2026-05-04_03-02_01_987"
+        )
+    finally:
+        if original_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = original_tz
+        tzset()
 
 
 def test_format_duration_uses_required_stdout_format() -> None:

@@ -416,6 +416,22 @@ def _write_report(
             continue
         for issue_id, issue in _numbered_issues(severity, issues):
             lines.extend(_issue_lines(issue_id, issue))
+    lines.extend(["## Specification-only basis", ""])
+    specification_basis_rows = _specification_only_basis_rows(
+        repo_root,
+        evaluations,
+    )
+    if specification_basis_rows:
+        lines.extend(
+            [
+                "| No. | Oracle file | Specification-only basis |",
+                "|---:|---|---|",
+            ]
+        )
+        lines.extend(specification_basis_rows)
+    else:
+        lines.append("No completed evaluations.")
+    lines.extend([""])
     lines.extend(["## Referenced files", ""])
     referenced_path_rows = _referenced_path_rows(repo_root, evaluations)
     if referenced_path_rows:
@@ -526,6 +542,22 @@ def _write_error_report(
             continue
         for issue_id, issue in _numbered_issues(severity, issues):
             lines.extend(_issue_lines(issue_id, issue))
+    lines.extend(["## Specification-only basis", ""])
+    specification_basis_rows = _specification_only_basis_rows(
+        repo_root,
+        evaluations,
+    )
+    if specification_basis_rows:
+        lines.extend(
+            [
+                "| No. | Oracle file | Specification-only basis |",
+                "|---:|---|---|",
+            ]
+        )
+        lines.extend(specification_basis_rows)
+    else:
+        lines.append("No completed evaluations.")
+    lines.extend([""])
     lines.extend(["## Referenced files", ""])
     referenced_path_rows = _referenced_path_rows(repo_root, evaluations)
     if referenced_path_rows:
@@ -666,6 +698,11 @@ def _evaluation_result(
 
 def _verdict_text(result: str) -> str:
     """result ごとの Verdict 本文を返す。"""
+    if result == "ok":
+        return (
+            "今回評価した範囲では問題点が検出されませんでした。"
+            "ただし、問題点の不存在を完全保証するものではありません。"
+        )
     if result == "fatal":
         return (
             "oracle スナップショットには、仕様だけから判断して主要ワークフロー、"
@@ -677,9 +714,14 @@ def _verdict_text(result: str) -> str:
         return "致命的ではありませんが、仕様品質・可読性・将来の実装安定性に問題があります。"
     if result == "no_targets":
         return "評価対象 oracle が 0 件だったため、問題点の評価は行われませんでした。"
+    if result == "error":
+        return (
+            "評価処理またはレポート生成に失敗したため、成功評価ではありません。"
+            "ログと例外情報を確認し、必要な修正または再実行を判断してください。"
+        )
     return (
-        "今回評価した範囲では問題点が検出されませんでした。"
-        "ただし、問題点の不存在を完全保証するものではありません。"
+        "未知の result のため、評価状態を成功として扱えません。"
+        "ログとレポート生成処理を確認してください。"
     )
 
 
@@ -749,6 +791,29 @@ def _line_range(issue: dict[str, object]) -> str:
     return f"{start}-{end}"
 
 
+def _specification_only_basis_rows(
+    repo_root: Path,
+    evaluations: list[dict[str, object]],
+) -> list[str]:
+    """評価ごとの specification_only_basis を表示行へ変換する。"""
+    result = []
+    for index, evaluation in enumerate(evaluations, start=1):
+        target_path = _display_path(
+            repo_root,
+            str(evaluation["target_oracle_path"]),
+        )
+        basis = _markdown_table_text(
+            str(evaluation["specification_only_basis"]),
+        )
+        result.append(
+            "| "
+            f"{index} | "
+            f"`{target_path}` | "
+            f"{basis} |"
+        )
+    return result
+
+
 def _referenced_path_rows(
     repo_root: Path,
     evaluations: list[dict[str, object]],
@@ -815,6 +880,11 @@ def _unique_strings(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _markdown_table_text(value: str) -> str:
+    """Markdown table のセル内で崩れない本文へ整形する。"""
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
 
 def _display_path(repo_root: Path, path_text: str) -> str:

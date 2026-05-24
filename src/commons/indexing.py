@@ -12,7 +12,6 @@ from .codex import (
     parse_json_object,
     run_codex_exec,
 )
-from .repo import ensure_cmoc_ignored
 
 _INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
 _BINARY_DETECTION_CHUNK_SIZE = 8192
@@ -39,11 +38,7 @@ _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
 
 def maintain_indexes(repo_root: Path) -> bool:
     """配置対象ディレクトリへ `INDEX.md` を用意し、必要なら自動コミットする。"""
-    # `.cmoc` の ignore 保証を先に行い、INDEX メンテ差分と一緒に扱う。
     changed_paths: list[str] = []
-    if ensure_cmoc_ignored(repo_root):
-        changed_paths.append(".gitignore")
-        changed_paths.append(".cmoc")
 
     # 深い階層から順に INDEX.md を更新し、親の hash が最新子目次を反映するようにする。
     directories = _index_directories(repo_root)

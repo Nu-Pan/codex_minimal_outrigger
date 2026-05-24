@@ -556,6 +556,49 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     assert "user_work.txt" not in last_commit_paths
 
 
+def test_maintain_indexes_does_not_ensure_cmoc_ignore(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX メンテナンスは `.cmoc` の ignore 保証を担当しない。"""
+    repo = _init_repo(tmp_path)
+    cmoc_log = repo / ".cmoc" / "log.txt"
+    cmoc_log.parent.mkdir()
+    cmoc_log.write_text("log\n", encoding="utf-8")
+    _git(repo, "add", ".cmoc/log.txt")
+    _git(repo, "commit", "-m", "tracked cmoc log")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert not (repo / ".gitignore").exists()
+    assert _git(repo, "ls-files", ".cmoc/log.txt").stdout.strip() == (
+        ".cmoc/log.txt"
+    )
+    assert "INDEX.md" in last_commit_paths
+    assert ".gitignore" not in last_commit_paths
+    assert ".cmoc/log.txt" not in last_commit_paths
+
+
 def _init_repo(tmp_path: Path) -> Path:
     """テスト用 git repo を作り、初期 commit を置く。"""
     repo = tmp_path / "repo"

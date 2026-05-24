@@ -1,14 +1,14 @@
 - `<cmoc-root>/bin`
     - エンドユーザー公開用バイナリディレクトリ
-- `<cmoc-root>/oracles/docs`
-    - cmoc の断片的な正本仕様の文章
-- `<cmoc-root>/oracles/docs/app_spec.md`
-    - cmoc のアプリケーション仕様を述べている
-- `<cmoc-root>/oracles/docs/code_design.md`
-    - cmoc のソフトウェア的な抽象設計を述べている
-- `<cmoc-root>/oracles/docs/coding_rule.md`
-    - cmoc を実装する上での基本的なコーディング規約を述べている
-- `<cmoc-root>/oracles/docs/development_environment.md`
-    - cmoc を開発する環境について述べている
+- `<cmoc-root>/oracles/INDEX.md`
+    - cmoc の断片的な正本仕様を調べるときの入口
+- `<cmoc-root>/oracles/app_specs/INDEX.md`
+    - cmoc の実行時仕様、Codex CLI 呼び出し、プロンプト、サンドボックス、Model / Reasoning Effort、Structured Output、ログ、共通エラーハンドリングなどの入口
+- `<cmoc-root>/oracles/app_specs/sub_commands/INDEX.md`
+    - `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の各サブコマンド仕様への入口
+- `<cmoc-root>/oracles/dev_rules/INDEX.md`
+    - cmoc 自体の Python コーディング規約、設計規約、テスト規約、開発環境ルールへの入口
+- `<cmoc-root>/oracles/considered_alternatives/INDEX.md`
+    - 採用しなかった設計案や運用案を確認するための入口
 - `<cmoc-root>/src`
     - ソースファイルの配置先
