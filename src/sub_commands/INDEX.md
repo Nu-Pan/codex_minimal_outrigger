@@ -24,27 +24,28 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の本体実装で、oracle と実装の不整合調査、要修正点リストの整理、個別適用、レポート保存までを一連で担います。
-- `cmoc` 作業ブランチ判定、`.cmoc` と `oracles` の先行 commit、`INDEX.md` メンテナンス、未コミット差分の拒否など、適用前の状態整備も含みます。
-- 不整合調査用・要修正点整理用・適用用・コミットメッセージ用の prompt 生成関数と、Structured Output schema / レポート検証関数も内包します。
+- `cmoc apply` の本体実装で、不整合調査、要修正点の整理、個別適用、レポート保存までを一括で扱う。
+- `--full` を含む部分・全体適用モード判定、対象ファイルの絞り込み、反復回数制御を担当する。
+- Structured Output schema、要修正点の改善ループ、修正後の commit、編集禁止領域検査、apply レポート検証などの補助関数も含む。
 
 ## Read this when
 
-- `cmoc apply` の処理順、前提条件、部分適用と全体適用の切り替え、反復回数、終了コードを確認したいとき。
-- oracle と実装の不整合調査に使う prompt、Structured Output schema、要修正点リストの改善ロジックを追いたいとき。
-- 変更の自動 commit、編集禁止領域の検査、`INDEX.md` の維持、apply レポートの生成と検証を確認したいとき。
-- このファイル内の補助関数の役割や、各処理がどの順番で呼ばれるかを把握したいとき。
+- `cmoc apply` の処理順、前提条件、終了コード、反復上限を実装・確認したいとき。
+- oracle と実装の不整合をどう検出し、Structured Output で要修正点をどの形で受け取るかを追いたいとき。
+- 部分適用と全体適用の切り替え、調査対象ファイルの列挙、既存変更だけに絞る条件を確認したいとき。
+- 修正後の commit、`INDEX.md` 保守、編集禁止パス検査、`.cmoc/reports/apply` へのレポート出力を確認したいとき。
+- このファイル内の prompt 生成関数やレポート検証関数の役割を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc merge` など他サブコマンドの実装だけを調べたいとき。
-- `codex exec` の共通呼び出し規約、ログ、共通エラーハンドリング、`INDEX.md` 自動生成の共通仕様だけを確認したいとき。
-- `oracles` 側の正本仕様そのものを読みたいとき。
-- 共通ユーティリティや git 操作ヘルパーだけを追いたいとき。
+- 他のサブコマンドの本体実装だけを調べたいとき。
+- `codex exec` の共通ラッパー、ログ、`repo_root` 解決など `commons` 側の共通基盤だけを見たいとき。
+- `cmoc apply` の正本仕様そのものを `oracles/app_specs/sub_commands/apply.md` で確認したいとき。
+- 開発ルール、テスト規約、ディレクトリ構成の案内だけが必要なとき。
 
 ## hash
 
-- 5dddb39401739050b4eb3970417a019f086ceaeb501a57a4fcc5e46d94ab117d
+- 3dd452d95ddc7aa7f8fc950a6ac705215c33bcda07c81572f19432258f2e99fa
 
 # `branch.py`
 
