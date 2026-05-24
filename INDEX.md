@@ -206,6 +206,7 @@
 - `src` は cmoc 本体の Python 実装が集まるルーティング用ディレクトリです。
 - `main.py` の CLI 起点、`commons` の共通基盤、`sub_commands` の各サブコマンド実装への入口をまとめています。
 - cmoc の実装コード全体の構成や、どのモジュールを読むべきかを判断するための目次です。
+- `src/commons` と `src/sub_commands` の役割分担を把握し、必要な実装ファイルへ素早く進むための案内です。
 
 ## Read this when
 
@@ -213,17 +214,19 @@
 - CLI 起動経路やサブコマンド登録、共通処理の配置を確認したいとき。
 - `src/commons` と `src/sub_commands` のどちらを先に読むべきか迷ったとき。
 - 実装ファイルの所在やモジュール構成をざっと把握したいとき。
+- `main.py`、共通基盤、サブコマンド本体のどこに目的の処理があるか判断したいとき。
 
 ## Do not read this when
 
 - `oracles` 側の正本仕様そのものを確認したいとき。
 - 開発ルール、設計ルール、テスト規約などの開発者向け情報だけを探しているとき。
-- 個別サブコマンドの詳細仕様や入出力だけを知りたいとき。
-- テストコードの配置やテスト方針だけを調べたいとき。
+- `README.md` や `AGENTS.md` の運用ルールだけを確認したいとき。
+- `tests` 配下の自動テストの構成やテストケースだけを調べたいとき。
+- 実装ではなく、利用者向けの実行時仕様だけを確認したいとき。
 
 ## hash
 
-- 4a6289df1b78e4f9853a3c375c424ae8ac1204b931a9223255ea3eea3781ef9a
+- a6c4313a0c8a996f6ceb70c2c90071d0694b2773a1d90e9135155ea2b940831d
 
 # `test.sh`
 
@@ -253,22 +256,22 @@
 
 ## Summary
 
-- pytest による cmoc の自動テスト群をまとめたディレクトリの目次です。
-- 共通 fixture の `conftest.py` と、Codex 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、サブコマンド制御、命名規則、タイムスタンプ仕様を扱う個別テストへの入口を案内します。
-- 実装そのものではなく、`src` 配下の決定論的な制御ロジックとルーティング規則を検証するための入口です。
+- `<cmoc-root>/tests` 配下の pytest テスト群のルーティング目次です。
+- `conftest.py` の共通設定、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py`、`test_file_naming.py` への入口をまとめます。
+- cmoc 本体の決定論的な制御ロジック、INDEX.md 生成、git 連携、サブコマンド実行、時刻表示、命名規則の回帰確認を横断して案内します。
 
 ## Read this when
 
-- cmoc のテストがどのファイルに分かれているか把握したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.timestamps`、`commons.timing`、`src/sub_commands` のどれに対応するテストか探したいとき。
-- pytest の共通設定や Fake Codex CLI を使うテストの入口を確認したいとき。
+- `tests` 配下のどのテストファイルを読むべきか判断したいとき。
+- pytest の共通設定やテスト補助の配置を把握したいとき。
+- `INDEX.md` 生成、git リポジトリ処理、サブコマンド制御、Codex 呼び出し、タイムスタンプ、ファイル命名規則のどれがどのテストで守られているか確認したいとき。
 
 ## Do not read this when
 
-- cmoc のユーザー向け CLI 仕様や `oracles` 側の正本仕様だけを知りたいとき。
-- 本体実装の設計やコーディング規約だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- cmoc の正本仕様断片そのものを探したいとき。
+- `src` 側の実装ロジックや `oracles` 側の仕様だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- 8c0eeabcfada65e239badb67a0eb2034365bb4a0b464e0bf8b2c523c0c23a32c
+- c3ee5bbfa4e7ed9a6b5db95df9008eb441452b1bb1da221e0b48538f0c640c4d

@@ -2,31 +2,28 @@
 
 ## Summary
 
-- `src/commons` は、`cmoc` 全体で共通利用する実装基盤モジュールをまとめるディレクトリです。
-- `codex.py` で `codex exec` の起動、Structured Output、再検証、リトライ、quota 待機を共通化しています。
-- `repo.py`、`indexing.py`、`subcommand_log.py`、`timing.py`、`timestamps.py` で `<repo-root>` 探索、`INDEX.md` 管理、ログ、経過時間、タイムスタンプを扱います。
-- `command_runner.py` と `errors.py` がサブコマンド実行制御と共通エラー整形の土台になります。
-- `__init__.py` は `src.commons` パッケージを宣言する最小モジュールです。
+- `src/commons` は、cmoc 全体で共通利用する基盤処理を集約したルーティング用ディレクトリです。
+- `codex exec` 呼び出し、共通エラーハンドリング、サブコマンド実行ラッパー、git リポジトリ操作、ログ出力、タイムスタンプ生成、経過時間計測、`INDEX.md` 生成処理への入口をまとめています。
+- 各サブコマンド本体を薄く保ち、実行制御や共通ユーティリティをこのディレクトリ側に分離して案内します。
 
 ## Read this when
 
-- `cmoc` の共通処理を実装・修正するとき。
-- `codex exec` 呼び出し、Structured Output、`--output-last-message`、リトライ、quota 待機を調べたいとき。
-- `<repo-root>` 探索、`git` 差分判定、`.cmoc` 追跡除外、`INDEX.md` 自動生成・更新を扱いたいとき。
-- サブコマンドログ、ステップ時間計測、経過時間表示、タイムスタンプ生成を確認したいとき。
-- サブコマンドの共通終了処理やエラーレポートの整形を確認したいとき。
+- `cmoc` の共通実行基盤として、どのモジュールを読むべきか判断したいとき。
+- `codex exec` の起動処理、Structured Output、リトライ、quota 待機、ログ保存の共通仕様を確認したいとき。
+- `cmoc` の共通エラー表示、終了コード、利用者向けレポート形式を確認したいとき。
+- `<repo-root>` の探索、git ブランチや `HEAD` の取得、`.cmoc` の追跡外保証、差分収集などの共通 git 処理を確認したいとき。
+- サブコマンドの標準出力・ログ、経過時間表示、`<time-stamp>` 生成、`INDEX.md` の目次生成・更新仕様を確認したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands` の個別仕様や各コマンドの業務ロジックだけを追いたいとき。
-- `oracles` 配下の個別正本仕様を直接調べたいとき。
-- Python のコーディング規約、設計規約、テスト規約など開発ルールだけを調べたいとき。
-- `README.md`、`AGENTS.md`、`memo` などの運用ルールだけを確認したいとき。
-- どの共通モジュールを読むべきか既に明確なとき。
+- cmoc 自体の Python コーディング規約、設計規約、テスト規約、開発環境ルールだけを調べたいとき。
+- 個別サブコマンドの入出力仕様や操作手順だけを知りたいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- `src/commons` ではなく、各サブコマンド本体や別ディレクトリの実装だけを追いたいとき。
 
 ## hash
 
-- 802a19fcc2b7a870eeddcbfe227f5052e7103cde8b0da88516a3aabc521cad6b
+- a143d65db945294fa5757f41fe1964476ca68e3d572199270bca9afed827a576
 
 # `main.py`
 
