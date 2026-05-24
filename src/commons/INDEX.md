@@ -133,17 +133,17 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、`<repo-root>` の探索と cwd 切り替え、`git` 実行の共通ラッパーをまとめるモジュールです。
-- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` 形式のブランチ判定、`cmoc branch` の作成元 commit 記録先を扱います。
+- `src/commons/repo.py` は、`<repo-root>` の探索と cwd の固定、`git` 実行の共通ラッパーをまとめるモジュールです。
+- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` 形式のブランチ判定、`cmoc branch` 用の base commit 記録を扱います。
 - `.cmoc` を `.gitignore` と git index の両面から追跡対象外に保つ保証処理と、その検証、既存 tracked 項目の除去を提供します。
-- `oracles` と実装ファイルの列挙、変更・削除検出、rename や untracked を含む差分収集、指定パスだけを commit する処理を提供します。
+- `oracles` と実装ファイルの列挙、変更・削除・rename・untracked を含む差分収集、指定パスだけを commit して既存 stage 差分を復元する処理を提供します。
 
 ## Read this when
 
 - `cmoc` が使う git リポジトリ root の探索、cwd 固定、`git` 呼び出しの共通化を修正・確認したいとき。
 - `cmoc branch`、`cmoc init`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` で使うブランチ名、`HEAD`、base commit、差分パスの扱いを確認したいとき。
 - `.cmoc` を追跡対象外にする保証、`/.cmoc/` の `.gitignore` 追加、tracked な `.cmoc` の index 解除を確認したいとき。
-- `oracles` / 実装ファイルの列挙規則、root `.gitignore` の評価、削除検出、rename や untracked を含む差分判定を確認したいとき。
+- `oracles` と実装ファイルの列挙規則、root `.gitignore` の評価、削除検出、rename や untracked を含む差分判定を確認したいとき。
 - 既存の stage 差分を壊さずに対象パスだけを commit する共通ロジックや、その復元処理を確認したいとき。
 
 ## Do not read this when
@@ -156,7 +156,7 @@
 
 ## hash
 
-- 82d137941e9f8706358cdfb6868c71e5b3e34a17c1b7c30393e5e443551aa400
+- 1f59d91bebdfa2d0cb6a9212525c9a5ab5e1e173c96edf9196e1704a85dcf14f
 
 # `subcommand_log.py`
 

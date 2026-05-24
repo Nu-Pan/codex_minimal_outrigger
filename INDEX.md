@@ -203,25 +203,29 @@
 
 ## Summary
 
-- `src` 配下の実装ファイルとサブパッケージへの入口をまとめる目次です。
-- `main.py`、`commons`、`sub_commands` の役割分担と参照先を案内します。
-- CLI の起点、共通基盤、各サブコマンド実装のどこを読むべきかを横断的に整理します。
+- `src` は cmoc 本体実装を置くルーティング用ディレクトリです。
+- `main.py` は `cmoc` CLI の Typer エントリーポイントとサブコマンド登録をまとめます。
+- `commons` は `codex exec` 呼び出し、共通エラー処理、repo / log / timing / indexing などの共通基盤をまとめます。
+- `sub_commands` は `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の本体実装をまとめます。
+- `src` 配下は CLI の入口から個別サブコマンド実装までの起点になります。
 
 ## Read this when
 
-- `src` 配下のどのファイルが CLI 起点・共通基盤・サブコマンド実装に対応するかを確認したいとき。
-- `cmoc` の実装本体を読む前に、`main.py`、`commons`、`sub_commands` の読み順を決めたいとき。
-- 機能ごとの実装位置をざっと把握して、詳細ファイルへ移動したいとき。
+- `cmoc` の CLI 入口やサブコマンド登録位置を確認したいとき。
+- 共通基盤が `src/commons` のどのモジュールに分かれているか知りたいとき。
+- 個別サブコマンド本体が `src/sub_commands` のどのファイルにあるか知りたいとき。
+- `src` 配下の実装全体の役割分担をざっと把握したいとき。
 
 ## Do not read this when
 
-- 個別モジュールの内部実装や関数単位の挙動を知りたいときは、それぞれのファイルを直接読むべきです。
-- `oracles` 側の正本仕様や開発ルールだけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- `src/commons` の個別モジュール仕様や `src/sub_commands` の処理詳細を追いたいとき。
+- `cmoc` のユーザー向け正本仕様だけを知りたいときは `oracles` 側を読むべきとき。
+- 開発規約、テスト規約、環境設定など実装配置以外のルールを確認したいとき。
+- すでに対象モジュールが決まっていて、ディレクトリ全体の案内が不要なとき。
 
 ## hash
 
-- 41c717477b102d5cc87319877eca75abf788054bd059b9f88828f7ce452fac8b
+- 8073cf1aa53b6bc9ea2b49dcb7a0686bc35d475827a3f1572cccab313833926c
 
 # `test.sh`
 
