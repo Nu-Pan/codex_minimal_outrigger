@@ -107,10 +107,10 @@
 
 ## Summary
 
-- `src/commons/indexing.py` は `<repo-root>` 配下の `INDEX.md` を列挙・生成・更新し、必要なら変更分を自動コミットする共通モジュールです。
+- `src/commons/indexing.py` は `<repo-root>` 配下の `INDEX.md` を列挙・再生成・更新し、必要なら自動コミットするための共通モジュールです。
 - 配置対象ディレクトリと直下項目を、`memo`、隠し項目、`build` / `tmp` / `__pycache__`、`gitignore` 対象、バイナリらしいファイルを除外しながら判定します。
-- 既存の `INDEX.md` ブロックを解析して再利用し、ハッシュ一致かつ固定フォーマット一致なら再生成を避けます。
-- 新規生成時は Codex CLI を Structured Output schema 付きで呼び出し、JSON を検証して Markdown の目次ブロックへ変換します。
+- 既存の `INDEX.md` から再利用可能な目次ブロックを解析し、ハッシュ一致かつ形式が妥当なら再生成を避けます。
+- 新規生成時は Codex CLI を Structured Output 付きで呼び出し、JSON を検証して Markdown の目次ブロックへ変換します。
 
 ## Read this when
 
@@ -128,7 +128,7 @@
 
 ## hash
 
-- 45561ccdf742f1b3f4bd7957aae3a05c67bfa27949e4edbe036f819c8cb42bf9
+- e0c1f67c7ec82088f6c4bdf11c72924bc1c505424e6a55852795ac86205a0078
 
 # `repo.py`
 

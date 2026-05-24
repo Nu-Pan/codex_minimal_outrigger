@@ -82,9 +82,9 @@
 
 ## Summary
 
-- `commons.indexing.maintain_indexes` による `INDEX.md` メンテナンス処理を検証する pytest テストの目次です。
-- gitignore 除外、空ディレクトリへの空 `INDEX.md` 作成、`build` / `tmp` の扱い、非 UTF-8 バイナリ除外、UTF-8 文字境界、`memo` ディレクトリの扱いを確認します。
-- 既存 `INDEX.md` の必須セクション欠落による再生成、Structured Output 不正時のリトライ、最新 `INDEX.md` では Codex CLI を呼ばない挙動、自動コミットの対象範囲を確認します。
+- `commons.indexing.maintain_indexes` による `INDEX.md` メンテナンス処理を検証する pytest テスト群です。
+- gitignore 除外、空ディレクトリへの空 `INDEX.md` 作成、`build` / `tmp` の目次掲載、非 UTF-8 バイナリ除外、UTF-8 文字境界、`memo` ディレクトリの扱いを確認します。
+- 既存 `INDEX.md` の不備による再生成、Structured Output のリトライ、最新 `INDEX.md` の再利用、自動コミット範囲、`.cmoc` ignore の責務境界を確認します。
 - テスト用 git リポジトリを作成する `_init_repo` と、git コマンドを実行する `_git` の補助関数を含みます。
 
 ## Read this when
@@ -106,7 +106,7 @@
 
 ## hash
 
-- 6383cc6754a4b18b2ce48438321bf510c759435e76b43b86e3c3d6132e4fa117
+- 1c90b7ee2b0b5c82bca7456807efba2c157a977aac9ad26d7dac41a96b812cdf
 
 # `test_repo.py`
 
