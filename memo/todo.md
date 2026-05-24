@@ -1,12 +1,7 @@
 ## branch, apply, merge 大工事の余波
 
 - 大工事の過程で、未コミット差分なしだと通らないようになったけど、これは戻したい
-- `<cmoc-apply-branch>` の `<cmoc-session-branch>` へのマージ作業はサブコマンドとして導入したい
-    - `cmoc apply fork`, `cmoc apply join` とかだろうか
-    - であれば `<cmoc-session-branch>` の方は `cmoc session fork`, `cmoc session join` の方が良いだろう
-    - git の branch, merge とは別概念なので、別ワードを割り当てたいという意図もある
-    - branch --> session fork
-    - merge --> session join
+- やっぱり `cmoc apply` でマージまでやらせたい
 - `cmoc session report` が必要
     - 今この瞬間に `cmoc session join` したら、どういう内容になるか？　をレポートさせる
     - このまま `cmoc session join` に進んでよいかの判断材料
@@ -19,6 +14,11 @@
     > `<cmoc-apply-branch>` を `<cmoc-session-branch>` に取り込む操作は、`cmoc merge` の責務ではない。
 - `<cmoc-apply-branch>` の削除ルール
     - 書いてない
+
+## Codex CLI が oracles を触っちゃったら話
+
+- `ownership_and_safety.md` で書いてる内容、他の箇所でも言及していた気がする
+- サンドボックスで強固にガードしたい
 
 ## cmoc が作業している間も oracles を編集したい
 

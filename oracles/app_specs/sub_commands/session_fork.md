@@ -43,8 +43,14 @@
 - `cmoc session fork` は任意の start point を受け取らない
 - 分岐元を変えたい場合は、ユーザーが事前に目的の `<local-branch>` へ移動してから `cmoc session fork` を実行する
 
-## `<cmoc-branch>`
+## レガシー要素
 
 - `cmoc_<time-stamp>` 形式のブランチは `<cmoc-branch>` と呼ばれるレガシーなブランチ仕様である
 - これに対する後方互換性を cmoc として保つ必要は無い
 - `<cmoc-branch>` 形式の痕跡を実装・テストに残してはいけない
+
+## `cmoc branch`
+
+- レガシーサブコマンドで `cmoc session fork` の旧名である
+- これに対する後方互換性を cmoc として保つ必要は無い
+- `cmoc branch` の痕跡を実装・テストに残してはいけない
