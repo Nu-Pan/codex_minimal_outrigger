@@ -28,17 +28,16 @@
 
 ## Summary
 
-- `cmoc` CLI の Typer エントリーポイントとサブコマンド登録をまとめる目次です。
-- `init`、`branch`、`eval-oracles`、`apply`、`merge` の各コマンド定義と、対応する `src/sub_commands` 実装への委譲関係を案内します。
-- Typer / Click の parse error、`NoArgsIsHelpError`、想定外例外を共通エラーレポートへ変換して終了コードを決める処理への入口です。
+- `src/main.py` は `cmoc` CLI の Typer エントリーポイントをまとめるルーティング用ファイルです。
+- `init`、`branch`、`eval-oracles`、`apply`、`merge` の各サブコマンド登録と、対応する `src/sub_commands` 実装への委譲関係を案内します。
+- Typer / Click の parse error、`NoArgsIsHelpError`、想定外例外を共通エラーレポートへ変換して終了コードを決める入口です。
 - `python src/main.py` で直接起動される経路も含めて、CLI 起動全体の入口を整理します。
 
 ## Read this when
 
 - `cmoc` のトップレベルコマンド一覧や、各サブコマンドの登録箇所を確認したいとき。
 - 各コマンドがどの `src/sub_commands` の実装関数へ渡されるかを調べたいとき。
-- `apply` の `--repeat`、`--repeat-inveatigate-and-fix`、`--full` などの引数定義や既定値を確認したいとき。
-- `eval-oracles` の `--full` や `eval-oracle` の互換 alias を含む CLI 挙動を確認したいとき。
+- `apply` の引数定義や既定値、`eval-oracles` の `--full` や互換 alias を含む CLI 挙動を確認したいとき。
 - Typer / Click の parse error や想定外例外が、どのようにエラーレポートと終了コードへ変換されるか確認したいとき。
 - `app` オブジェクトや `main()` の起動条件、`python src/main.py` での直接実行時挙動を調べたいとき。
 
@@ -46,19 +45,19 @@
 
 - 各サブコマンドの業務ロジックや `src/sub_commands` 配下の本体実装を追いたいとき。
 - 共通エラーレポートの本文生成や `commons.errors` の内部を詳しく確認したいとき。
-- `src/commons` の共通基盤仕様や `INDEX.md` 自動生成など、CLI 入口以外の横断仕様を調べたいとき。
+- `src/commons` の共通基盤や `INDEX.md` 自動生成など、CLI 入口以外の横断仕様を調べたいとき。
 - `cmoc` の利用手順全体や、`oracles` 側の正本仕様そのものを知りたいとき。
 
 ## hash
 
-- cb380259debbaae71cb88e4b9959201e67bf14dedef7073dec0c842bc4ad9a8b
+- 364d4061be59dadf7450ca3f98e034994463ff03257cae90b47575d6d9941568
 
 # `sub_commands`
 
 ## Summary
 
 - `src/sub_commands` は、cmoc の各サブコマンド実装をまとめるルーティング用ディレクトリです。
-- この配下には `__init__.py`、`apply.py`、`branch.py`、`eval_oracles.py`、`init.py`、`merge.py` があり、それぞれ `cmoc apply`、`cmoc branch`、`cmoc eval-oracles`、`cmoc init`、`cmoc merge` の本体実装への入口になります。
+- この配下には `__init__.py`、`apply.py`、`branch.py`、`eval-oracles.py`、`init.py`、`merge.py` があり、それぞれ `cmoc apply`、`cmoc branch`、`cmoc eval-oracles`、`cmoc init`、`cmoc merge` の本体実装への入口になります。
 - サブコマンドごとの業務ロジック、処理順、引数、終了条件を追うときの最初の案内所として機能します。
 
 ## Read this when

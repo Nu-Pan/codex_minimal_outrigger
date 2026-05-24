@@ -147,20 +147,20 @@
 ## Summary
 
 - `tests/test_subcommands.py` は、cmoc のサブコマンド実行と CLI 入口の決定論的な制御ロジックを検証するテスト目次です。
-- `run_command` の stdout への tee、ファイルログ保存、共通エラー報告、終了コード反映を横断して扱います。
-- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の各フローに加えて、prompt、Structured Output、補助関数、検証ヘルパーの挙動をまとめています。
-- `main.py` のコマンド登録、`--help`、`eval-oracle` と `eval-oracles` の互換 alias、`bin/cmoc` の起動条件、`src` 側で `from __future__ import annotations` を使っていないことも回帰対象です。
+- `run_command` の stdout への tee、ファイルログ保存、終了コード反映、共通エラー報告を横断して扱います。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の各フローに加えて、prompt、Structured Output、検証ヘルパー、補助関数の挙動をまとめています。
+- `main.py` のコマンド登録と互換 alias、`bin/cmoc` の起動条件、`src` の実装上の制約も回帰対象です。
 
 ## Read this when
 
 - サブコマンドの CLI 入口がどの実装関数へ委譲されるか確認したいとき。
 - `run_command` の stdout とファイルへの tee、ログ保存、例外時の終了コードやエラーレポートを確認したいとき。
 - `cmoc init` の `.cmoc` ignore 追加、tracked ファイルの追跡解除、初期 commit の挙動を確認したいとき。
-- `cmoc branch` のブランチ作成、base commit 記録、進捗表示を確認したいとき。
-- `cmoc eval-oracles` の部分・全体評価切り替え、レポート保存、severity 集約、prompt 制約を確認したいとき。
-- `cmoc apply` の不整合調査、要修正点の改善、修正 commit、レポート検証、Structured Output schema を確認したいとき。
-- `cmoc merge` の branch 自動解決、conflict marker 解消 prompt、ブランチ削除条件を確認したいとき。
-- `main.py` の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` のオプション表示を確認したいとき。
+- `cmoc branch` のブランチ作成と base commit 記録を確認したいとき。
+- `cmoc eval-oracles` の評価レポート、severity 集約、prompt 制約、削除済み oracle の扱いを確認したいとき。
+- `cmoc apply` の discrepancy 調査、修正ループ、Structured Output schema、commit 連鎖の挙動を確認したいとき。
+- `cmoc merge` の branch マージ、衝突解消 prompt、branch 削除条件を確認したいとき。
+- `main.py` の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` の表示を確認したいとき。
 - `bin/cmoc` の実行前提や、`src` の Python ソースに future annotations がないかを確認したいとき。
 
 ## Do not read this when
@@ -168,13 +168,13 @@
 - `src/sub_commands` の個別実装本体だけを追いたいとき。
 - `src/commons` の共通基盤仕様だけを知りたいとき。
 - `oracles` 側の正本仕様だけを確認したいとき。
-- 個別サブコマンドの仕様がすでに明確で、このテスト群の全体像が不要なとき。
-- `tests/test_repo.py` や `tests/test_indexing.py` など別テスト群の仕様を探しているとき。
+- 他のテスト群の仕様を探しているとき。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- `INDEX.md` の自動生成やメンテナンス仕様だけを知りたいとき。
 
 ## hash
 
-- 0b366f202708a22be4b45d5287ab28eac5f7e3ee1a9837177aee205639bcf158
+- f9a56ab76be2a188a3c2b5f5ec42c7b91d1d8b3590cea673bf6e4cd61a10ace0
 
 # `test_timestamps.py`
 
