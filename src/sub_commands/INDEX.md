@@ -79,7 +79,7 @@
 
 - `src/sub_commands/eval_oracles.py` は `cmoc eval-oracles` の本体実装で、oracle 断片の評価、Structured Output の検証、Markdown レポート生成をまとめて扱います。
 - 実行前に `.cmoc` の ignore 保証と `INDEX.md` メンテナンスを行い、`--full` とブランチ状態に応じて部分評価と全体評価を切り替えます。
-- 各 oracle ファイルごとに `codex exec` を読み取り専用で呼び出し、JSON schema と意味制約を検査したうえで、評価結果を `.cmoc/reports/eval-oracles/<timestamp>.md` に保存します。
+- 各 oracle ファイルごとに `codex exec` を読み取り専用で呼び出し、JSON schema と意味制約を検査したうえで評価結果を `.cmoc/reports/eval-oracles/<timestamp>.md` に保存します。
 - 評価失敗時は代替の error レポートを作成し、評価済みファイル数、対象ファイル数、issue 集計、失敗した処理段階も記録します。
 
 ## Read this when
@@ -88,6 +88,7 @@
 - `--full` の有無や `cmoc` ブランチ上かどうかで、どの oracle ファイルを評価するか知りたいとき。
 - 評価用 prompt、Structured Output schema、JSON 検証ロジック、issue の severity 順序や番号付けを確認したいとき。
 - 評価レポートの YAML frontmatter、本文構成、参照ファイル一覧、エラー時の代替出力を確認したいとき。
+- このファイル内の補助関数の役割や、各処理がどの順番で呼ばれるかを把握したいとき。
 
 ## Do not read this when
 
@@ -98,7 +99,7 @@
 
 ## hash
 
-- fa83935cc77452862897e51b386196bb51e14716087e66703ddb1e4f2402ff8c
+- e8e4f321cfab988758e4356054bb30f4ee2bc2db7514c601c3ce959fb8107d30
 
 # `init.py`
 
