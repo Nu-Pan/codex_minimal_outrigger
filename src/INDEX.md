@@ -2,31 +2,30 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で共通利用する実行制御、`codex exec` 呼び出し、git 操作、エラー表示、ログ、時間計測、時刻生成をまとめた基盤ディレクトリです。
-- `codex.py` は `codex exec` の共通起動処理を担当し、Structured Output、JSON 検証、再試行、quota 待機、詳細ログ保存を扱います。
-- `command_runner.py`、`errors.py`、`repo.py`、`subcommand_log.py`、`timing.py`、`timestamps.py` は、サブコマンド実行に必要な横断処理をそれぞれ分担します。
-- `indexing.py` は `<repo-root>` 配下の `INDEX.md` を列挙・再生成・更新し、必要に応じて自動コミットするための共通モジュールです。
-- `__init__.py` は `src.commons` パッケージの存在を示す最小構成のモジュールです。
+- `src/commons` 配下の共通基盤モジュールをまとめるルーティング用ディレクトリの目次です。
+- `codex exec` 呼び出し、共通エラー処理、`INDEX.md` 自動メンテナンス、`<repo-root>` 探索と git 操作、サブコマンド共通ログ、タイムスタンプ、経過時間表示の入口を案内します。
+- `__init__.py` を含む各共通モジュールへの入口を集約し、サブコマンド実装から再利用する横断機能の所在を整理します。
 
 ## Read this when
 
-- `src/commons` 配下のどの共通モジュールを読むべきか判断したいとき。
-- `cmoc` のサブコマンド入口、`repo_root` 解決、共通エラー処理、終了コード処理を確認したいとき。
-- `codex exec` の呼び出し方、Structured Output の schema、JSON 検証、再試行、quota 待機の挙動を確認したいとき。
-- `git` の root 探索、`HEAD` やブランチ取得、`.cmoc` の追跡除外、部分 commit、変更ファイル列挙の仕組みを確認したいとき。
-- 標準出力とログファイルの tee、経過時間表示、タイムスタンプ生成、`INDEX.md` 自動生成の流れを確認したいとき。
+- `src/commons` のどのモジュールを読むべきか判断したいとき。
+- `codex exec` の共通ラッパー、Structured Output、ログ保存、再試行、quota 待機の仕様を確認したいとき。
+- 共通エラー整形、終了コード、`typer.Exit` の扱いを確認したいとき。
+- `<repo-root>` の探索、`.cmoc` の追跡除外、変更差分の収集、ブランチ基準 commit の扱いを確認したいとき。
+- `INDEX.md` の自動生成・再利用・更新ルールや、目次対象の判定を確認したいとき。
+- サブコマンドの標準出力とファイルログの tee、ログ保存先、経過時間表示、タイムスタンプ形式を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや引数定義だけを調べたいとき。
-- `oracles` 配下の正本仕様や、ユーザー向け CLI 仕様そのものを探したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
-- `src/commons` 以外の実装やテストの配置を知りたいとき。
-- `INDEX.md` の生成・更新ルールではなく、特定機能の実装詳細だけを追いたいとき。
+- 個別サブコマンドの引数、入出力、操作手順だけを確認したいとき。
+- `oracles` 配下の正本仕様やサブコマンド固有仕様だけを確認したいとき。
+- `tests` 配下のテスト構成や個別テストケースの内容だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の編集可否や運用ルールだけを確認したいとき。
+- このディレクトリ全体ではなく、特定の `src/commons` モジュールの実装詳細だけを既に把握しているとき。
 
 ## hash
 
-- de3c670fcc7dbbbed5ab0f79608637c6e3b3ba203376d458f391f12af7779e92
+- 3173b6633e2dcd59f4f7eaf64c01f43fa98bef9dcccccb231ec2b6ba7cbdeb00
 
 # `main.py`
 
