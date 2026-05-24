@@ -255,24 +255,24 @@
 
 ## Summary
 
-- `tests` 配下の pytest テスト群を案内するルーティング用の目次です。
-- 共通 pytest 設定、Codex CLI 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、CLI サブコマンド、タイムスタンプ、ファイル命名規則までを横断して案内します。
-- 各テストファイルがどの仕様断片や実装領域に対応するかを、閲覧前の入口として整理します。
+- `tests` は cmoc 本体の pytest 自動テストをまとめたルーティング用ディレクトリです。
+- `commons.codex` の呼び出し、`commons.indexing` による `INDEX.md` メンテナンス、`commons.repo` の git 共通処理、`sub_commands` の制御ロジック、命名規則、タイムスタンプ仕様への入口を集約しています。
+- `conftest.py` による import path 設定と、各 `test_*.py` の個別回帰テストへの案内をまとめています。
 
 ## Read this when
 
-- `tests` 配下でどのテストファイルを読むべきか判断したいとき。
-- pytest の共通設定や補助関数の役割を把握したいとき。
-- Codex CLI 呼び出し、`INDEX.md` 生成、git 共通処理、CLI サブコマンド、タイムスタンプ、ファイル名規則のどれに関係するテストかを確認したいとき。
-- 個別テスト群の対象仕様を把握してから実装や修正に入りたいとき。
+- pytest のどのテストファイルを読むべきか判断したいとき。
+- `commons.codex`、`commons.indexing`、`commons.repo`、`sub_commands` のテスト位置を探したいとき。
+- `routing.md`、`INDEX.md`、タイムスタンプ、`conftest.py` の役割や検証観点を確認したいとき。
+- テスト共通設定や補助関数の位置づけを把握したいとき。
 
 ## Do not read this when
 
-- `src` 配下の実装本体だけを探したいとき。
-- `oracles` の正本仕様そのものを読みたいとき。
-- 開発者向けのコーディング規約や環境ルールだけを確認したいとき。
-- `README.md` や `AGENTS.md` などの運用ルールだけを確認したいとき。
+- cmoc の実装本体や CLI 実行仕様そのものを調べたいとき。
+- oracle 正本仕様や `oracles` 配下のルーティングを知りたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- 開発者向けのコーディング規約や設計規約だけを調べたいとき。
 
 ## hash
 
-- 5728afad335cabe4857c4ef6c7c7651990eeca247695ce1bc8d59cee182bfcc2
+- aab69e825c0cd78c6fffecee820580c04911bdf94a74d9ebabc52b7f0c47d29f
