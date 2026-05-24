@@ -133,18 +133,18 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、`<repo-root>` の探索、現在ブランチ名と `HEAD` commit の取得、`cmoc` 作業用ブランチ判定をまとめる共通モジュールです。
-- `.cmoc` を `.gitignore` と git index の両面から追跡対象外に保つ保証処理と、その検証・復元を扱います。
-- 未コミット差分の検査、指定パスだけを対象にした commit 作成、stage 済み差分の退避と復元を担います。
-- `oracles` と実装ファイルの列挙、変更済みファイルや削除済みファイルの収集、評価・適用モード切替のための path 判定を実装します。
-- `cmoc branch` の作成元 commit 記録の読み書きと、git 操作の共通ラッパーを提供する基盤です。
+- `src/commons/repo.py` は、`<repo-root>` の探索と cwd の切り替え、現在ブランチ名・`HEAD` commit の取得、`cmoc_<time-stamp>` 形式のブランチ判定をまとめる共通モジュールです。
+- `.cmoc` を `.gitignore` と git index の両面から追跡対象外に保つ保証処理と、その検証、既存 tracked `.cmoc` の除去を扱います。
+- 未コミット差分の検査、指定パスだけを対象にした commit 作成、stage 済み差分の退避と復元など、git 操作を安全に包む処理を提供します。
+- `oracles` と実装ファイルの列挙、変更済み・削除済みファイルの収集、rename や untracked を含む差分判定を実装しています。
+- `cmoc branch` の作成元 commit を記録・読み出しする `.cmoc/branch/<branch>.txt` の規則と、git 呼び出しの共通ラッパーを持つ基盤です。
 
 ## Read this when
 
 - `cmoc` の各サブコマンドから git リポジトリの root、現在ブランチ、`HEAD` commit、変更パスを取得したいとき。
 - .cmoc を git 追跡対象外にする保証、`.gitignore` への `/.cmoc/` 追加、tracked な `.cmoc` の index 除去を確認したいとき。
 - `cmoc init` などで、利用者が事前に stage していた差分を壊さずに初期化差分だけを commit する仕組みを確認したいとき。
-- oracle ファイルと実装ファイルの列挙規則、`INDEX.md` と `.git` の除外規則、root `.gitignore` の扱いを調べたいとき。
+- `oracles` と実装ファイルの列挙規則、`INDEX.md` と `.git` の除外規則、root `.gitignore` の扱いを調べたいとき。
 - 部分評価や部分適用のために、base commit 以降の commit 差分、working tree 差分、staging area 差分、untracked ファイルをどう集めるか確認したいとき。
 - oracle または実装ファイルの削除有無で full 評価・full 適用へ切り替える判定ロジックを確認したいとき。
 - `cmoc branch` の作成元 commit を記録・読み出しする `.cmoc/branch/<branch>.txt` の規則を確認したいとき。
@@ -160,7 +160,7 @@
 
 ## hash
 
-- fd6bde80e30e480fdedbf93b940fd282bcf05b5edca9b6fc77cde43cb8d64213
+- 95e5306838d4bf06d904e06dbbd8355359d15bd34e38fe9507b7b432d673ac38
 
 # `subcommand_log.py`
 

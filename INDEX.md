@@ -221,7 +221,7 @@
 
 ## hash
 
-- 54082750cf04694d8c24a0ef916077defa549bf24a269e49510a0cd66891dc3e
+- 49df22f61dd830a1ec9f6ea6ed11aa05c5313b67b7c7551b7f661a67277f720d
 
 # `test.sh`
 
@@ -251,22 +251,34 @@
 
 ## Summary
 
-- `tests` は cmoc の自動テストをまとめたルーティング用ディレクトリの目次です。
-- `conftest.py` による import path 設定と、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` への入口を案内します。
-- Codex CLI 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、サブコマンド制御ロジック、タイムスタンプ表示の各テスト観点を横断して整理します。
+- `tests` 配下の pytest 目次です。`conftest.py` の共通設定、`commons.codex` 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、サブコマンド制御、タイムスタンプ表示のテスト入口を案内します。
+- `conftest.py` は `src` を import path の先頭に追加する共通設定です。
+- `test_codex.py` は Codex CLI 呼び出しラッパーの再試行、Structured Output、通知、ログ保存を検証します。
+- `test_indexing.py` は `INDEX.md` の自動生成と更新、gitignore 除外、空ディレクトリ、バイナリ判定を検証します。
+- `test_repo.py` は repo 探索、`.cmoc` の ignore 保証、oracle / implementation ファイル列挙、差分検出を検証します。
+- `test_subcommands.py` は `cmoc` 主要サブコマンドと共通ランナーの制御ロジックを検証します。
+- `test_timestamps.py` はタイムスタンプ形式と経過時間表示の仕様を検証します。
 
 ## Read this when
 
-- どのテストファイルがどの機能を検証しているか、`tests` 全体の役割を把握したいとき。
-- pytest の共通設定や、`commons` / `sub_commands` のどの挙動に対するテストがあるか確認したいとき。
-- Codex CLI 呼び出し、`INDEX.md` 生成、git 操作、CLI サブコマンド、タイムスタンプ仕様のテスト入口を探したいとき。
+- `tests` 全体の構成と、各テストファイルが何を守っているかを把握したいとき。
+- pytest から `src` 配下モジュールを import できる理由を確認したいとき。
+- Codex CLI 呼び出しのリトライ、出力スキーマ、`--resume`、呼び出しログ、通知仕様を確認したいとき。
+- `INDEX.md` の生成対象、gitignore の扱い、空ディレクトリやバイナリの扱い、再生成条件を確認したいとき。
+- repo root の探索、`.cmoc` の ignore、oracle / 実装ファイル列挙、変更検出、削除検出の仕様を確認したいとき。
+- `cmoc init`、`cmoc branch`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の制御フローや共通エラーハンドリングを確認したいとき。
+- timestamp 文字列のゼロ埋め形式や、経過時間表示のフォーマットを確認したいとき。
 
 ## Do not read this when
 
-- cmoc のユーザー向け正本仕様だけを確認したいとき。
-- `src` 配下の実装コードや `oracles` 配下の仕様断片だけを調べたいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- 個別の実装コードや本番ロジックだけを追いたいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
+- `tests` 以外の配置ルールや開発者向けコーディング規約だけを調べたいとき。
+- `INDEX.md` の生成規則そのものではなく、別ディレクトリの内容を探したいとき。
+- `cmoc` のユーザー向け実行仕様や oracle 正本仕様だけを知りたいとき。
+- timestamp や `INDEX.md` と無関係な CLI 引数やサブコマンドの細部だけを調べたいとき。
+- `tests/test_*` のうち別ファイルの仕様だけを見たいとき。
 
 ## hash
 
-- 41f5bb116ab128a309a25c7a5c4bf3a5b06dd38b64347812c0ea44dec9bd666d
+- 1d684ff518a752a83aed0aca7a37b2daf6d440a1dea658f79f9f24ac6d9872d1
