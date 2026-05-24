@@ -2,30 +2,30 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で共有する基盤処理の目次です。Codex CLI 呼び出し、共通エラー処理、repo / git 操作、`INDEX.md` 自動生成、サブコマンドログ、タイムスタンプ、経過時間計測への入口をまとめます。
-- このディレクトリは `__init__.py`、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` に分かれています。
-- `codex.py` は `codex exec` の共通ラッパー、`command_runner.py` は CLI サブコマンドの共通実行制御、`errors.py` は共通例外とエラーレポート整形を扱います。
-- `indexing.py` は `<repo-root>` 配下の `INDEX.md` を列挙・生成・更新し、`repo.py` は repo root 探索や git 操作、`subcommand_log.py` は tee ログ、`timestamps.py` は `<time-stamp>`、`timing.py` はステップ別経過時間を担当します。
+- `src/commons` は、cmoc 全体で共有する基盤処理をまとめるディレクトリです。
+- `codex.py` は `codex exec` の共通ラッパー、`command_runner.py` はサブコマンドの共通実行制御、`errors.py` は共通例外とエラーレポートを扱います。
+- `repo.py` は `<repo-root>` 探索と git 操作、`indexing.py` は `<repo-root>` 配下の `INDEX.md` 保守、`subcommand_log.py` は tee ログを担当します。
+- `timestamps.py` は `<time-stamp>` 生成、`timing.py` はステップ別経過時間表示を担当します。
+- `__init__.py` は `src.commons` パッケージの入口だけを定義します。
 
 ## Read this when
 
-- 共通処理のうち、どのモジュールを読むべきか迷ったとき。
-- `codex exec` の引数、Structured Output、リトライ、JSON 検証、ログ保存の共通仕様を確認したいとき。
-- 共通エラーハンドリング、`<repo-root>` 探索、git 操作、`INDEX.md` メンテナンス、サブコマンドログ、タイムスタンプ、経過時間表示を確認したいとき。
-- CLI サブコマンドの共通実行制御や、`typer.Exit` を含む終了コードの扱いを確認したいとき。
-- `src/commons` 全体の役割を、パッケージ境界として把握したいとき。
+- 共通処理のうち、どのモジュールを読むべきか切り分けたいとき。
+- `codex exec` の共通引数、Structured Output、JSON 検証、リトライ、ログ保存を確認したいとき。
+- 共通エラーハンドリング、`<repo-root>` 探索、git 操作、`INDEX.md` 保守、サブコマンドログ、タイムスタンプ、経過時間表示を確認したいとき。
+- CLI サブコマンドの共通実行制御や終了コードの扱いを確認したいとき。
+- `src/commons` 全体の役割をパッケージ境界として把握したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを調べたいとき。
-- `src` 全体や `tests` 全体の設計方針、コーディング規約、開発環境ルールだけを調べたいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` などのリポジトリ運用ルールだけを確認したいとき。
-- 特定の共通モジュールの実装詳細だけを追いたいときで、このディレクトリ全体の案内が不要なとき。
-- サブコマンドごとの正本仕様やユーザー向け実行時仕様だけを確認したいとき。
+- 個別サブコマンドの業務ロジックや CLI 引数定義だけを追いたいとき。
+- `src/commons` の中でも特定モジュールの実装詳細だけを見たいときで、ディレクトリ全体の案内が不要なとき。
+- `src` 全体の設計規約やテスト規約、`oracles` の正本仕様だけを調べたいとき。
+- `README.md`、`AGENTS.md`、`memo` などの運用ルールだけを確認したいとき。
 
 ## hash
 
-- bb3896a736ba2f0fbda175bcc5e29e43c4bc179b665713758d81dedd74a1e863
+- d0d623ae83f44c8819e7ec6392c664646773f99c6ba8678c7df980475496e706
 
 # `main.py`
 
