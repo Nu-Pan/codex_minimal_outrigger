@@ -20,6 +20,7 @@ from commons.repo import (
     changed_paths,
     changed_implementation_files,
     commit_cmoc_initialization_changes,
+    commit_if_changed,
     current_branch,
     ensure_cmoc_ignored,
     gitignore_has_cmoc_rule,
@@ -176,7 +177,7 @@ def cmoc_apply_impl(
         )
     base_commit = read_branch_base_commit(repo_root, branch_name)
 
-    # `.cmoc` 保証差分を先に分離 commit してから、全てのユーザー由来差分を拒否する。
+    # `.cmoc` 保証差分と oracle 差分を先に分離 commit してから、他差分を拒否する。
     start_step(timer, 1, 4, "validate repository state")
     had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
     preexisting_staged_diff = staged_diff_from_head(repo_root)
@@ -187,6 +188,7 @@ def cmoc_apply_impl(
         preexisting_staged_diff,
         "Ensure cmoc directory is ignored",
     )
+    commit_if_changed(repo_root, ["oracles"], "Update oracle files")
     assert_no_uncommitted_changes(repo_root)
 
     # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
@@ -288,7 +290,9 @@ def _investigate_discrepancies(
                 reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
             )
         )
-        discrepancies.extend(_fixing_points_with_head_commit_hash(repo_root, payload))
+        discrepancies.extend(
+            _fixing_points_with_head_commit_hash(repo_root, payload)
+        )
 
     # 実装ファイルも 1 件ずつ独立に調査する。
     for index, implementation_file in enumerate(
@@ -318,7 +322,9 @@ def _investigate_discrepancies(
                 reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
             )
         )
-        discrepancies.extend(_fixing_points_with_head_commit_hash(repo_root, payload))
+        discrepancies.extend(
+            _fixing_points_with_head_commit_hash(repo_root, payload)
+        )
 
     return _improove_fixing_list(
         repo_root,
@@ -675,9 +681,13 @@ def _organize_prompt(
             f"`{repo_root}` の要修正点リストを整理してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "要修正点の内容の品質に明確な問題がない状態を目指してください。",
-            "重複する要修正点は 1 件にマージし、矛盾する修正方針は矛盾しない内容に調整してください。",
             (
-                f"git ブランチ `{branch_name}` の `{base_commit}..{head_commit_hash}` "
+                "重複する要修正点は 1 件にマージし、"
+                "矛盾する修正方針は矛盾しない内容に調整してください。"
+            ),
+            (
+                f"git ブランチ `{branch_name}` の "
+                f"`{base_commit}..{head_commit_hash}` "
                 "に含まれる過去の修正内容を確認し、その内容を考慮してください。"
             ),
             "False-Positive と判断できる要修正点は除外してください。",
@@ -719,6 +729,7 @@ def _apply_prompt(
         [
             "あなたはソフトウェア実装担当です。",
             f"`{repo_root}` の実装を、oracle 要求に追従するようベストエフォートで更新してください。",
+            "完了条件は、必要と判断した実装修正とテスト更新を終え、変更内容と残課題を報告することです。",
             "作業が必要と判断できる場合は、実装修正と必要なテスト更新を行ってください。",
             "以下の要修正点情報は作業のためのヒントです。",
             "絶対に従わなければならない指示書としては扱わないでください。",

@@ -57,8 +57,8 @@ def subcommand_log(repo_root: Path) -> Iterator[SubcommandLogContext]:
     _ensure_logs_excluded(repo_root)
     log_dir = repo_root / "logs" / "sub_commands"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{make_timestamp()}.log"
-    with log_path.open("a", encoding="utf-8") as log_file:
+    log_path, log_file = _create_unique_log_file(log_dir)
+    with log_file:
         context = SubcommandLogContext(
             repo_root=repo_root,
             path=log_path,
@@ -86,6 +86,16 @@ def add_quota_wait(duration_seconds: float) -> None:
 def current_subcommand_log() -> SubcommandLogContext | None:
     """現在のサブコマンドログ状態を返す。"""
     return _CURRENT_LOG.get()
+
+
+def _create_unique_log_file(log_dir: Path) -> tuple[Path, IO[str]]:
+    """未使用の `<time-stamp>.log` を排他的に新規作成する。"""
+    while True:
+        log_path = log_dir / f"{make_timestamp()}.log"
+        try:
+            return log_path, log_path.open("x", encoding="utf-8")
+        except FileExistsError:
+            continue
 
 
 def _ensure_logs_excluded(repo_root: Path) -> None:

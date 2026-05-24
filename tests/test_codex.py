@@ -149,6 +149,37 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
     assert " returncode=0" in log_content
 
 
+def test_subcommand_log_avoids_existing_timestamp_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """サブコマンドログは timestamp 衝突時に既存ファイルへ追記しない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    log_dir = repo / "logs" / "sub_commands"
+    log_dir.mkdir(parents=True)
+    existing_log = log_dir / "2026-05-04_03-02_01_001.log"
+    existing_log.write_text("existing log\n", encoding="utf-8")
+    timestamps = iter(
+        [
+            "2026-05-04_03-02_01_001",
+            "2026-05-04_03-02_01_002",
+        ]
+    )
+    monkeypatch.setattr(
+        "commons.subcommand_log.make_timestamp",
+        lambda: next(timestamps),
+    )
+
+    with subcommand_log(repo):
+        print("new invocation")
+
+    new_log = log_dir / "2026-05-04_03-02_01_002.log"
+    assert existing_log.read_text(encoding="utf-8") == "existing log\n"
+    assert new_log.exists()
+    assert "new invocation" in new_log.read_text(encoding="utf-8")
+
+
 def test_run_codex_exec_passes_output_schema_file(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -483,6 +514,57 @@ def test_run_codex_exec_retries_text_semantic_validation_failure(
         for index, content in enumerate(log_contents, 1)
     ]
     assert attempt_flags == [True, True, True]
+
+
+def test_run_codex_exec_retries_missing_last_message_without_validator(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """検証なしの非 JSON 呼び出しでも last message 欠落はリトライする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                "if [ \"$COUNT\" -ge 2 ]; then",
+                "  echo 'plain text result' > \"$LAST\"",
+                "fi",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    output = run_codex_exec(repo, "prompt", read_only=True)
+
+    log_files = sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    assert output.strip() == "plain text result"
+    assert state.read_text(encoding="utf-8").strip() == "2"
+    assert len(log_files) == 2
+    assert [
+        f"attempt: {index}" in path.read_text(encoding="utf-8")
+        for index, path in enumerate(log_files, 1)
+    ] == [True, True]
 
 
 def test_run_codex_exec_reports_text_semantic_validation_failure(

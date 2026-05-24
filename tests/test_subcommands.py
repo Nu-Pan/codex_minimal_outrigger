@@ -3,6 +3,7 @@
 import ast
 import inspect
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -280,7 +281,7 @@ def test_eval_oracles_writes_report_with_fake_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """`cmoc eval-oracle --full` は oracle 評価レポートを保存する。"""
+    """`cmoc eval-oracles --full` は oracle 評価レポートを保存する。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -358,7 +359,7 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert "- Failed stage: `evaluate oracle files`" in report
     assert "- Exception type: `RuntimeError`" in report
     assert "- Exception message: `fake evaluation failure`" in report
-    assert "# cmoc eval-oracle report" in report
+    assert "# cmoc eval-oracles report" in report
     assert "## Summary" in report
     assert "## Verdict" in report
     assert "## Evaluated oracle files" in report
@@ -511,7 +512,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     ).read_text(encoding="utf-8")
     for field in [
         "schema_version: 1",
-        "command: cmoc eval-oracle",
+        "command: cmoc eval-oracles",
         "generated_at:",
         f"repo_root: {repo.resolve()}",
         f"oracle_root: {oracle_root.resolve()}",
@@ -532,7 +533,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
         assert field in report
 
     expected_sections = [
-        "# cmoc eval-oracle report",
+        "# cmoc eval-oracles report",
         "## Summary",
         "## Verdict",
         "## Evaluated oracle files",
@@ -558,8 +559,11 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     )
     assert "| 1 | `oracles/a.md` | 2 |" in report
     assert "| 2 | `oracles/b.md` | 3 |" in report
-    assert "| `oracles/a.md` | `oracles/a.md`<br>`oracles/INDEX.md` |" in report
-    assert "| `oracles/b.md` | `oracles/b.md`<br>`oracles/INDEX.md` |" in report
+    assert "| No. | Referenced file |" in report
+    assert "| 1 | `oracles/a.md` |" in report
+    assert "| 2 | `oracles/INDEX.md` |" in report
+    assert "| 3 | `oracles/b.md` |" in report
+    assert report.count("| 2 | `oracles/INDEX.md` |") == 1
 
 
 def test_eval_oracles_result_precedence() -> None:
@@ -1127,6 +1131,31 @@ def test_apply_prompt_treats_discrepancy_as_optional_hint(
     assert "目的を達成した保証は不要" in prompt
 
 
+def test_apply_prompt_orders_completion_before_details() -> None:
+    """修正作業 prompt はロール、作業、完了条件、詳細指示の順にする。"""
+    prompt = _apply_prompt(
+        Path("/repo"),
+        {
+            "title": "sample",
+            "oracle_requirement": "oracle requirement",
+            "observed_implementation": "observed implementation",
+            "reason": "reason",
+            "suggested_fix": "suggested fix",
+            "evidences": [],
+        },
+    )
+    lines = prompt.splitlines()
+
+    assert lines[0] == "あなたはソフトウェア実装担当です。"
+    assert lines[1] == (
+        "`/repo` の実装を、oracle 要求に追従するようベストエフォートで更新してください。"
+    )
+    assert lines[2] == (
+        "完了条件は、必要と判断した実装修正とテスト更新を終え、変更内容と残課題を報告することです。"
+    )
+    assert lines.index("以下の要修正点情報は作業のためのヒントです。") > 2
+
+
 def test_apply_rejects_incomplete_report_from_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1205,11 +1234,11 @@ def test_apply_does_not_commit_preexisting_gitignore_changes(
     )
 
 
-def test_apply_rejects_oracle_changes_after_cmoc_guarantee(
+def test_apply_commits_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """`cmoc apply` は `.cmoc` 保証後も oracle 差分を自動 commit しない。"""
+    """`cmoc apply` は `.cmoc` 保証後に oracle 差分を自動 commit する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     cmoc_log = repo / ".cmoc" / "logs" / "poll.log"
@@ -1241,8 +1270,7 @@ def test_apply_rejects_oracle_changes_after_cmoc_guarantee(
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
-    with pytest.raises(CmocError) as error:
-        cmoc_apply_impl(repo)
+    exit_code = cmoc_apply_impl(repo)
 
     commit_subjects = _git(
         repo,
@@ -1250,21 +1278,26 @@ def test_apply_rejects_oracle_changes_after_cmoc_guarantee(
         "--pretty=%s",
         "-3",
     ).stdout.splitlines()
-    assert "未コミットの変更があります。" in error.value.message
-    assert "oracles/" in error.value.detail
-    assert commit_subjects[0] == "Ensure cmoc directory is ignored"
-    assert "Update oracle files" not in commit_subjects
-    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == (
-        "?? oracles/\n"
-    )
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout.splitlines()
+    assert exit_code == 0
+    assert commit_subjects[0] == "Update oracle files"
+    assert commit_subjects[1] == "Ensure cmoc directory is ignored"
+    assert last_commit_paths == ["oracles/spec.md"]
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
     assert _git(repo, "status", "--porcelain", "--", ".cmoc").stdout == ""
 
 
-def test_apply_rejects_preexisting_staged_oracles_after_cmoc_guarantee(
+def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """事前 stage 済み oracle 差分も `.cmoc` 保証後に拒否する。"""
+    """事前 stage 済み oracle 差分も `.cmoc` 保証後に自動 commit する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     oracle_root = repo / "oracles"
@@ -1294,8 +1327,7 @@ def test_apply_rejects_preexisting_staged_oracles_after_cmoc_guarantee(
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
-    with pytest.raises(CmocError) as error:
-        cmoc_apply_impl(repo)
+    exit_code = cmoc_apply_impl(repo)
 
     last_commit_paths = _git(
         repo,
@@ -1310,14 +1342,11 @@ def test_apply_rejects_preexisting_staged_oracles_after_cmoc_guarantee(
         "--pretty=%s",
         "-3",
     ).stdout.splitlines()
-    assert "未コミットの変更があります。" in error.value.message
-    assert "oracles/spec.md" in error.value.detail
-    assert last_commit_paths == [".gitignore"]
-    assert commit_subjects[0] == "Ensure cmoc directory is ignored"
-    assert "Update oracle files" not in commit_subjects
-    assert _git(repo, "status", "--porcelain").stdout == (
-        "A  oracles/spec.md\n"
-    )
+    assert exit_code == 0
+    assert last_commit_paths == ["oracles/spec.md"]
+    assert commit_subjects[0] == "Update oracle files"
+    assert commit_subjects[1] == "Ensure cmoc directory is ignored"
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
@@ -1470,23 +1499,14 @@ def test_cmoc_help_uses_cmoc_command_name() -> None:
     )
 
     assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." in result.stdout
-    assert "eval-oracle" in result.stdout
-    assert "eval-oracles" not in result.stdout
+    assert "eval-oracles" in result.stdout
+    assert re.search(r"\beval-oracle(?!s)\b", result.stdout) is None
 
 
-def test_cmoc_eval_oracle_command_and_compat_alias_are_registered() -> None:
-    """`eval-oracle` を正名にし、既存の `eval-oracles` も alias として残す。"""
+def test_cmoc_eval_oracles_command_and_compat_alias_are_registered() -> None:
+    """`eval-oracles` を正名にし、既存の `eval-oracle` も alias として残す。"""
     repo_root = Path(__file__).resolve().parents[1]
     env = {"PYTHONPATH": str(repo_root / "src")}
-    singular = subprocess.run(
-        [sys.executable, "-m", "main", "eval-oracle", "--help"],
-        cwd=repo_root,
-        env=env,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
     plural = subprocess.run(
         [sys.executable, "-m", "main", "eval-oracles", "--help"],
         cwd=repo_root,
@@ -1496,13 +1516,21 @@ def test_cmoc_eval_oracle_command_and_compat_alias_are_registered() -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-
-    assert singular.returncode == 0
+    singular = subprocess.run(
+        [sys.executable, "-m", "main", "eval-oracle", "--help"],
+        cwd=repo_root,
+        env=env,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     assert plural.returncode == 0
-    assert "Usage: cmoc eval-oracle [OPTIONS]" in singular.stdout
+    assert singular.returncode == 0
     assert "Usage: cmoc eval-oracles [OPTIONS]" in plural.stdout
-    assert singular.stderr == ""
+    assert "Usage: cmoc eval-oracle [OPTIONS]" in singular.stdout
     assert plural.stderr == ""
+    assert singular.stderr == ""
 
 
 def test_cmoc_apply_help_exposes_oracle_repeat_options() -> None:
@@ -1738,7 +1766,7 @@ def _eval_oracle_issue(
         "oracle_path": str(oracle_path.resolve()),
         "oracle_line_start": line_start,
         "oracle_line_end": line_end,
-        "affected_workflow": "cmoc eval-oracle",
+        "affected_workflow": "cmoc eval-oracles",
         "requirement": f"{title} requirement",
         "problem": f"{title} problem",
         "reason": f"{title} reason",

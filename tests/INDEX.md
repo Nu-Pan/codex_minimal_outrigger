@@ -52,6 +52,29 @@
 
 - 74950e737a3c65f85c2579990406180a17d922e5dd5ed2cfa85e5d2944ecb9c1
 
+# `test_file_naming.py`
+
+## Summary
+
+- `tests/test_file_naming.py` はリポジトリ構成のファイル名が命名規則に従うことを検証するテストです。
+- ルート直下のルーティングファイルが指定のないファイル名としてスネークケースの `routing.md` になっていることを確認します。
+- 旧名の `ROUTING.md` が残存していないことを確認します。
+
+## Read this when
+
+- リポジトリ直下のルーティングファイル名に関する回帰テストを確認したいとき。
+- `routing.md` と `ROUTING.md` の期待状態をテスト観点から確認したいとき。
+
+## Do not read this when
+
+- cmoc のサブコマンド仕様や Codex CLI 連携の挙動を確認したいとき。
+- Python 実装規約、INDEX.md メンテナンス、git 共通処理など別機能のテストを探しているとき。
+- README、AGENTS、oracles、memo などの編集可否やファイルアクセス規則だけを確認したいとき。
+
+## hash
+
+- 1ea1e10812e6c8e2e405f0f7ba850b2220259e9189b265fde235fad5e91072bb
+
 # `test_indexing.py`
 
 ## Summary

@@ -76,8 +76,8 @@ def run_codex_exec(
         command.extend(["--output-schema", str(schema_path)])
     command.append("-")
 
-    # JSON 以外でも意味検証がある呼び出しは最大 3 回リトライする。
-    attempts = 3 if expect_json or text_validator is not None else 1
+    # last message 欠落も Codex CLI レスポンス要件の失敗として最大 3 回試行する。
+    attempts = 3
     last_output = ""
     last_stdout_log = ""
     last_stderr = ""
@@ -609,6 +609,7 @@ def _codex_log_front_matter(
     model = _value_after(command, "--model")
     sandbox = _value_after(command, "--sandbox")
     reasoning_effort = _reasoning_effort_from_command(command)
+    output_schema = str(schema_path) if schema_path else None
     lines = [
         "---",
         "command:",
@@ -617,7 +618,7 @@ def _codex_log_front_matter(
         f"model: {_yaml_scalar(model)}",
         f"reasoning_effort: {_yaml_scalar(reasoning_effort)}",
         f"sandbox: {_yaml_scalar(sandbox)}",
-        f"output_schema: {_yaml_scalar(str(schema_path) if schema_path else None)}",
+        f"output_schema: {_yaml_scalar(output_schema)}",
         f"output_last_message: {_yaml_scalar(str(last_message_path))}",
         f"attempt: {attempt}",
         f"returncode: {returncode}",

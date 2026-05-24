@@ -1,4 +1,4 @@
-"""`cmoc eval-oracle` の本体処理。"""
+"""`cmoc eval-oracles` の本体処理。"""
 
 from pathlib import Path
 
@@ -106,7 +106,7 @@ _EVALUATION_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "string",
                         "description": (
                             "影響を受ける workflow / subcommand / concept。"
-                            "例: cmoc apply, cmoc eval-oracle, overall。"
+                            "例: cmoc apply, cmoc eval-oracles, overall。"
                         ),
                     },
                     "requirement": {
@@ -191,7 +191,10 @@ def cmoc_eval_oracles_impl(
     try:
         start_step(timer, 4, 5, "evaluate oracle files")
         for index, oracle_file in enumerate(oracle_files, start=1):
-            print(f"evaluate oracle ({index}/{len(oracle_files)}) {oracle_file}")
+            print(
+                f"evaluate oracle ({index}/{len(oracle_files)}) "
+                f"{oracle_file}"
+            )
             payload = parse_json_object(
                 run_codex_exec(
                     repo_root,
@@ -352,7 +355,7 @@ def _write_report(
     lines = [
         "---",
         "schema_version: 1",
-        "command: cmoc eval-oracle",
+        "command: cmoc eval-oracles",
         f"generated_at: {generated_at}",
         f"repo_root: {repo_root.resolve()}",
         f"oracle_root: {(repo_root / 'oracles').resolve()}",
@@ -373,7 +376,7 @@ def _write_report(
         f"result: {result}",
         "---",
         "",
-        "# cmoc eval-oracle report",
+        "# cmoc eval-oracles report",
         "",
         "## Summary",
         "",
@@ -418,8 +421,8 @@ def _write_report(
     if referenced_path_rows:
         lines.extend(
             [
-                "| Oracle file | Referenced files |",
-                "|---|---|",
+                "| No. | Referenced file |",
+                "|---:|---|",
             ]
         )
         lines.extend(referenced_path_rows)
@@ -454,7 +457,7 @@ def _write_error_report(
     lines = [
         "---",
         "schema_version: 1",
-        "command: cmoc eval-oracle",
+        "command: cmoc eval-oracles",
         f"generated_at: {generated_at}",
         f"repo_root: {repo_root.resolve()}",
         f"oracle_root: {(repo_root / 'oracles').resolve()}",
@@ -475,7 +478,7 @@ def _write_error_report(
         f"result: {result}",
         "---",
         "",
-        "# cmoc eval-oracle report",
+        "# cmoc eval-oracles report",
         "",
         "## Summary",
         "",
@@ -528,8 +531,8 @@ def _write_error_report(
     if referenced_path_rows:
         lines.extend(
             [
-                "| Oracle file | Referenced files |",
-                "|---|---|",
+                "| No. | Referenced file |",
+                "|---:|---|",
             ]
         )
         lines.extend(referenced_path_rows)
@@ -750,17 +753,19 @@ def _referenced_path_rows(
     repo_root: Path,
     evaluations: list[dict[str, object]],
 ) -> list[str]:
-    """評価対象ファイルごとの referenced_paths 表示行を返す。"""
+    """全評価結果の referenced_paths を重複排除した表示行を返す。"""
+    referenced_paths = _unique_strings(
+        [
+            path
+            for evaluation in evaluations
+            for path in _string_list(evaluation["referenced_paths"])
+        ]
+    )
     result = []
-    for evaluation in evaluations:
-        target = _display_path(repo_root, str(evaluation["target_oracle_path"]))
-        referenced_paths = _unique_strings(
-            _string_list(evaluation["referenced_paths"])
+    for index, path in enumerate(referenced_paths, start=1):
+        result.append(
+            f"| {index} | `{_display_path(repo_root, path)}` |"
         )
-        referenced = "<br>".join(
-            f"`{_display_path(repo_root, path)}`" for path in referenced_paths
-        )
-        result.append(f"| `{target}` | {referenced} |")
     return result
 
 
@@ -774,7 +779,9 @@ def _all_issues(
     return result
 
 
-def _evaluation_issues(evaluation: dict[str, object]) -> list[dict[str, object]]:
+def _evaluation_issues(
+    evaluation: dict[str, object],
+) -> list[dict[str, object]]:
     """検証済み evaluation から issues を取り出す。"""
     issues = evaluation["issues"]
     if not isinstance(issues, list):
