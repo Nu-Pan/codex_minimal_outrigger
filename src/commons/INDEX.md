@@ -23,31 +23,31 @@
 
 ## Summary
 
-- `codex exec` の共通呼び出し処理をまとめるモジュールです。
-- モデル指定、reasoning effort、`read-only` / `workspace-write` サンドボックス、Structured Output の設定を共通化しています。
+- `codex exec` の共通起動処理をまとめた `src/commons` の基盤モジュールです。
+- モデル指定、reasoning effort、`read-only` / `workspace-write` サンドボックス、Structured Output の指定と検証を共通化しています。
 - `--output-last-message` の回収、JSON / JSON Schema の再検証、意味的検証失敗時のリトライを扱います。
-- quota 枯渇時の待機と `--resume` 再開、`logs/codex_exec` 配下への呼び出しログ保存、進捗通知の出力を担います。
-- Codex CLI の応答を cmoc 側で安全に扱うための JSON object 解析、schema 検査、補助関数群も含みます.
+- quota 枯渇時の待機と `--resume` 再開、`logs/codex_exec` 配下への詳細ログ保存、進捗通知の出力を担います。
+- JSON object 解析、quota 判定、session id 抽出、YAML フロントマター生成など、Codex CLI 応答を安全に扱う補助関数群も含みます。
 
 ## Read this when
 
-- `codex exec` の実行フローや共通引数の組み立て方法を確認したいとき。
-- Structured Output 用の JSON schema ファイル生成や、JSON 応答の再検証方法を調べたいとき。
+- `cmoc` から `codex exec` を呼び出す共通処理や引数組み立てを修正・確認したいとき。
+- Structured Output 用の JSON schema を書き出す処理や、JSON 応答の再検証方法を確認したいとき。
+- `--output-last-message` の保存先、呼び出しログ、フロントマター付きログの保存規則を確認したいとき。
 - quota 枯渇時の待機、疎通確認、`--resume` 再開の挙動を確認したいとき。
-- 呼び出しログ、`--output-last-message`、フロントマター付きログの保存規則を確認したいとき。
-- `cmoc` から Codex CLI を呼ぶ共通処理を修正・拡張したいとき。
+- Codex CLI の出力を JSON object として読む処理や、出力値の前処理・検証を実装したいとき。
 
 ## Do not read this when
 
 - サブコマンド固有の入出力仕様やユーザー向け操作手順だけを調べたいとき。
-- `src/commons` 以外の実装配置やファイル構造を探したいとき。
-- Python の一般的な開発規約、設計規約、テスト規約だけを確認したいとき。
-- `codex exec` 以外のコマンド実装や、各サブコマンド本体の振る舞いだけを知りたいとき。
-- `INDEX.md` の生成・更新ロジックだけを調べたいとき。
+- `src/commons` の他モジュール、または `src/sub_commands` の業務ロジックだけを知りたいとき。
+- Python の一般的なコーディング規約、設計規約、テスト規約だけを確認したいとき。
+- `INDEX.md` の生成・更新ロジックや `<repo-root>` の探索規則だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
 
 ## hash
 
-- 0f114d42532b162a680d06811c30cda58613a38716e34e6c0fd23e08e8d5e3d4
+- ef719a53276ee84e2b1c88f2e0afffd67e2341529d558701c457ba6f28d3cd0a
 
 # `command_runner.py`
 

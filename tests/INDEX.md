@@ -28,29 +28,30 @@
 ## Summary
 
 - `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証するテスト群の目次です。
-- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗時のエラー表示、呼び出しログ、出力通知、`--resume` 再実行を扱います。
-- quota 枯渇時の待機・疎通確認・再開と、Codex 呼び出し前の `INDEX.md` 事前メンテナンスの有無も確認します。
-- ファイル末尾には、テスト用 git リポジトリを初期化して実行する `_git` 補助関数があります。
+- Structured Output の schema ファイル生成、JSON / テキスト出力の再試行、意味的検証失敗時のエラー表示、enum や文字列長を含むスキーマ検証を扱います。
+- 呼び出しログ、`subcommand_log` への通知、出力プレビューの表示、`--resume` 再実行、quota 枯渇時の待機と疎通確認を確認します。
+- Codex 呼び出し前の `INDEX.md` 事前メンテナンスの実施有無と、`skip_index_maintenance` による明示スキップも検証します。
+- ファイル末尾には、テスト用 git リポジトリを初期化して `git` を実行する `_git` 補助関数があります。
 
 ## Read this when
 
-- `run_codex_exec()` の引数や `--output-schema`、`--output-last-message`、`--resume` の扱いを確認したいとき。
-- Structured Output の構文検証と意味的検証が 3 回までリトライされる条件を確認したいとき。
-- 呼び出しログ、出力スキーマファイル、last message ファイル、標準出力通知の記録規則を確認したいとき。
-- quota 枯渇時の待機・疎通確認・再開、および Codex 呼び出し前の `INDEX.md` 事前メンテナンスの有無を確認したいとき。
+- `run_codex_exec()` の引数、`--output-schema`、`--output-last-message`、`--resume`、`skip_index_maintenance`、`reasoning_effort` の扱いを確認したいとき。
+- Structured Output の構文検証・意味的検証のリトライ条件や、JSON schema の `enum` / `minLength` などの制約検証を確認したいとき。
+- `logs/codex_exec` の呼び出しログ、`logs/sub_commands` の通知、標準出力の進捗表示や 80 文字の出力プレビュー規則を確認したいとき。
+- quota 枯渇時の待機・疎通確認・`--resume` 再開の流れや、Codex 呼び出し前後で `INDEX.md` を保守するかどうかを確認したいとき。
 - テスト用 git リポジトリを作る `_git` 補助関数の使い方を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` のユーザー向けサブコマンド仕様や oracle 正本仕様だけを知りたいとき。
-- pytest の共通 fixture や `tests` 全体の配置ルールを探したいとき。
-- `run_codex_exec()` 以外の `commons` 実装や git 共通処理の仕様を調べたいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
-- `INDEX.md` の生成規則やメンテナンス仕様そのものを調べたいとき。
+- `cmoc` のユーザー向けサブコマンド仕様や `oracles` 側の正本仕様だけを知りたいとき。
+- `tests` 全体の共通 fixture やディレクトリ配置規則だけを確認したいとき。
+- `commons.codex` 以外の共通モジュールや `src/sub_commands` の業務ロジックだけを調べたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- `INDEX.md` の生成・更新仕様そのものを調べたいとき。
 
 ## hash
 
-- 090a6d54a6682f62b5d3004a496ac0ee75013ff5e1129489028af51c92edbbe4
+- ea709bb75a71c8e85986430207a608550b3e592f5d7ea8446714dce792b3fafa
 
 # `test_file_naming.py`
 

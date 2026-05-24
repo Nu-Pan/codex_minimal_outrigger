@@ -204,7 +204,7 @@
 ## Summary
 
 - `src` は cmoc 本体の Python 実装が集まるルーティング用ディレクトリです。
-- CLI の起点となる `main.py`、共通処理をまとめる `commons`、各サブコマンド実装を置く `sub_commands` への入口を案内します。
+- `main.py` の CLI 起点、`commons` の共通基盤、`sub_commands` の各サブコマンド実装への入口をまとめています。
 - cmoc の実装コード全体の構成や、どのモジュールを読むべきかを判断するための目次です。
 
 ## Read this when
@@ -223,7 +223,7 @@
 
 ## hash
 
-- 5bc0e352a4415703cf92df0b8ce8b1390900355276ec7c73c635032f3c3c7760
+- 4a6289df1b78e4f9853a3c375c424ae8ac1204b931a9223255ea3eea3781ef9a
 
 # `test.sh`
 
@@ -253,26 +253,22 @@
 
 ## Summary
 
-- `tests` 配下の pytest テスト群をまとめるルーティング用ディレクトリの目次です。
-- `conftest.py` による import path 設定と、`test_codex.py`・`test_indexing.py`・`test_repo.py`・`test_subcommands.py`・`test_file_naming.py`・`test_timestamps.py` の各テスト群への入口を案内します。
-- cmoc 本体の挙動を、Fake Codex CLI や git リポジトリを使って決定論的に検証するテスト群を横断して整理しています。
-- `INDEX.md` の自動メンテナンス、リポジトリ探索、サブコマンド制御、タイムスタンプやファイル命名など、テスト観点ごとの入口を集約しています。
+- pytest による cmoc の自動テスト群をまとめたディレクトリの目次です。
+- 共通 fixture の `conftest.py` と、Codex 呼び出し、`INDEX.md` メンテナンス、git リポジトリ共通処理、サブコマンド制御、命名規則、タイムスタンプ仕様を扱う個別テストへの入口を案内します。
+- 実装そのものではなく、`src` 配下の決定論的な制御ロジックとルーティング規則を検証するための入口です。
 
 ## Read this when
 
-- `tests` 配下のどのテストファイルを読むべきか判断したいとき。
-- pytest の共通設定や、テスト用の import path 調整を確認したいとき。
-- Codex CLI 呼び出し、`INDEX.md` メンテナンス、git リポジトリ処理、サブコマンド制御など、特定のテスト観点を探したいとき。
-- テスト追加や修正の前に、既存のテスト群の担当範囲を把握したいとき。
+- cmoc のテストがどのファイルに分かれているか把握したいとき。
+- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.timestamps`、`commons.timing`、`src/sub_commands` のどれに対応するテストか探したいとき。
+- pytest の共通設定や Fake Codex CLI を使うテストの入口を確認したいとき。
 
 ## Do not read this when
 
-- cmoc の実装コードやサブコマンド本体の仕様だけを知りたいとき。
-- `oracles` 配下の正本仕様だけを調べたいとき。
-- `README.md`、`AGENTS.md`、`memo` などの運用ルールや編集可否だけを確認したいとき。
-- `tests` 全体の目次ではなく、すでに読むべき個別テストファイルが決まっているとき。
-- 開発環境やコーディング規約など、テスト以外の開発ルールだけを確認したいとき。
+- cmoc のユーザー向け CLI 仕様や `oracles` 側の正本仕様だけを知りたいとき。
+- 本体実装の設計やコーディング規約だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- d68e217e62ab192781354f8ac7ca43c7282f5e093c09ea95610bcedbc09f04bb
+- 8c0eeabcfada65e239badb67a0eb2034365bb4a0b464e0bf8b2c523c0c23a32c
