@@ -145,35 +145,26 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、cmoc のサブコマンド実行制御と CLI 入口の決定論的な挙動を検証するテスト群の目次です。
-- `run_command` の stdout への tee、ファイルログ保存、終了コード反映、共通エラーレポート生成を横断して扱います。
-- `cmoc init`、`cmoc session fork`、`cmoc eval-oracles`、`cmoc apply`、`cmoc merge` の各フローに加えて、prompt、Structured Output、検証ヘルパー、補助関数の挙動をまとめています。
-- `main.py` のコマンド登録と互換 alias、`bin/cmoc` の起動条件、`src` の Python ソースに future annotations を使わない制約も回帰対象です。
+- `tests/test_subcommands.py` の索引で、cmoc のサブコマンド制御ロジック全体を検証するテスト群をまとめている。
+- `init`、`branch`、`eval-oracles`、`apply`、`merge` の主要経路に加えて、`main` の登録、エラー処理、`bin/cmoc` の起動条件、conflict 関連の補助ロジックまで含む。
+- 実装の個別詳細ではなく、CLI の入口・出力・検証・例外処理の回帰確認を読むための案内である。
 
 ## Read this when
 
-- サブコマンドの CLI 入口がどの実装関数へ委譲されるか確認したいとき。
-- `run_command` の stdout とファイルへの tee、ログ保存、例外時の終了コードやエラーレポートを確認したいとき。
-- `cmoc init` の `.cmoc` ignore 追加、tracked ファイルの追跡解除、初期 commit の挙動を確認したいとき。
-- `cmoc session fork` のブランチ作成、base commit 記録、ブランチ名生成と衝突時の再試行を確認したいとき。
-- `cmoc eval-oracles` の評価レポート、severity 集約、prompt 制約、削除済み oracle の扱いを確認したいとき。
-- `cmoc apply` の discrepancy 調査、修正ループ、Structured Output schema、commit 連鎖の挙動を確認したいとき。
-- `cmoc merge` の branch マージ、衝突解消 prompt、branch 削除条件を確認したいとき。
-- `main.py` の `--help`、`eval-oracle` と `eval-oracles` の両立、`cmoc apply --help` の表示を確認したいとき。
-- `bin/cmoc` の実行前提や、`src` の Python ソースに future annotations がないかを確認したいとき。
+- `cmoc init` / `cmoc branch` / `cmoc eval-oracles` / `cmoc apply` / `cmoc merge` の回帰テストを追加・修正するとき
+- `run_command`、`main`、エラーレポート、CLI ラッパーの振る舞いを確認したいとき
+- 各サブコマンドのプロンプト生成、検証ヘルパー、conflict 判定ロジックの期待値を確認したいとき
+- サブコマンド全体の決定論的な制御ロジックをテスト観点から把握したいとき
 
 ## Do not read this when
 
-- `src/sub_commands` の個別実装本体だけを追いたいとき。
-- `src/commons` の共通基盤仕様だけを知りたいとき。
-- `oracles` 側の正本仕様だけを確認したいとき。
-- `tests/test_indexing.py` や `tests/test_repo.py` など、別のテスト群の仕様を探しているとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
-- `INDEX.md` の自動生成やメンテナンス仕様だけを知りたいとき。
+- `cmoc` の個別サブコマンドのユーザー向け仕様だけを確認したいとき
+- 実装本体の処理手順やデータ構造を、テストではなく仕様断片から確認したいとき
+- `oracles` 配下の正本仕様や開発ルールだけを確認したいとき
 
 ## hash
 
-- e91f758adbbf78c79c8233e6abc18965cfe566d0535dcfbdcbe1a34d27edb411
+- 61c0d5b86e1316d36926c94b3a9ed3a7477ecb2154d9ca2a2ff71fe7b27b22a4
 
 # `test_timestamps.py`
 

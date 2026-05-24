@@ -32,8 +32,8 @@
 
 - cmoc のコード設計方針を定める開発ルール。
 - CLI 実装では typer を使い、エントリーポイントと引数解釈を src/main.py、各サブコマンド本体を src/sub_commands/<sub command name>.py に置く。
-- 複数サブコマンドで共有する機能は src/commons 配下に置く。
-- 関数分割は基本的に許容するが、1 箇所からしか呼ばれない関数の安易な抽出は避け、同一ファイル内の関数順は caller first, callee last とする。
+- 共有機能は src/commons 配下に置く。
+- 関数分割は基本的に許容するが、単独呼び出しの安易な抽出は避け、同一ファイル内の関数順は caller first, callee last とする。
 
 ## Read this when
 
@@ -52,7 +52,7 @@
 
 ## hash
 
-- d697ddb85156a45dbace4170dc59d13710f941b8db621e38dd5e8e50013d50e9
+- 0bc612a5163280f28044abaa7d18839c7a132618ae47fd76c8804aaaf83b5bd7
 
 # `development_environment.md`
 

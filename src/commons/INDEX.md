@@ -133,30 +133,28 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、`<repo-root>` の探索と cwd の固定、`git` 実行の共通ラッパーをまとめるモジュールです。
-- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` 形式のブランチ判定、`cmoc session fork` 用の base commit 記録を扱います。
-- `.cmoc` を `.gitignore` と git index の両面から追跡対象外に保つ保証処理と、その検証、既存 tracked 項目の除去を提供します。
-- `oracles` と実装ファイルの列挙、変更・削除・rename・untracked を含む差分収集、指定パスだけを commit して既存 stage 差分を復元する処理を提供します。
+- git リポジトリのルート探索、cwd 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
+- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` ブランチ判定、`.cmoc/branch` 配下の base commit 記録パスを扱います。
+- `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分の検査を提供します。
+- oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定 commit 後の index 復元までを担います。
 
 ## Read this when
 
-- `cmoc` が使う git リポジトリ root の探索、cwd 固定、`git` 呼び出しの共通化を修正・確認したいとき。
-- `cmoc session fork`、`cmoc init`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` で使うブランチ名、`HEAD`、base commit、差分パスの扱いを確認したいとき。
-- `.cmoc` を追跡対象外にする保証、`/.cmoc/` の `.gitignore` 追加、tracked な `.cmoc` の index 解除を確認したいとき。
-- `oracles` と実装ファイルの列挙規則、root `.gitignore` の評価、削除検出、rename や untracked を含む差分判定を確認したいとき。
-- 既存の stage 差分を壊さずに対象パスだけを commit する共通ロジックや、その復元処理を確認したいとき。
+- `cmoc` が使う git リポジトリ root の探索や cwd 固定、`git` 実行の共通化を修正・確認したいとき。
+- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` 形式のブランチ判定、`cmoc session fork` 用の base commit 記録先を確認したいとき。
+- `.cmoc` を追跡対象外にする保証、root `.gitignore` の評価、未コミット差分の検査を確認したいとき。
+- oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定での commit と index 復元の流れを確認したいとき。
 
 ## Do not read this when
 
-- CLI 引数解析、サブコマンドの画面出力、ログ保存など、`repo.py` 以外の実行制御だけを調べたいとき。
-- `commons.codex`、`commons.indexing`、`commons.errors`、`commons.timing` など別の共通モジュールだけを追いたいとき。
-- `INDEX.md` の生成規則そのものや、`oracles` 側の正本仕様だけを調べたいとき。
-- `tests/test_repo.py` の期待値だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- CLI 引数解析、サブコマンドの画面出力、ログ保存など、`repo.py` 以外の実行制御だけを確認したいとき。
+- `commons.errors`、`commons.indexing`、`commons.timestamps`、`commons.timing` など別の共通モジュールだけを追いたいとき。
+- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを調べたいとき。
+- `tests/test_repo.py` の期待値やテスト実装だけを確認したいとき。
 
 ## hash
 
-- 1f59d91bebdfa2d0cb6a9212525c9a5ab5e1e173c96edf9196e1704a85dcf14f
+- 12beaacb1bc3ba01f3961d29d85756f908e47cc8363fc8a69f0799a70f7acdcc
 
 # `subcommand_log.py`
 
