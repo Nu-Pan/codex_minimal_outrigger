@@ -2,29 +2,27 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で共有する基盤処理を束ねるルーティング用ディレクトリです。
-- ここには `__init__.py`、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` が含まれます。
-- codex exec 呼び出し、共通エラー、git リポジトリ操作、サブコマンドログ、タイムスタンプ、経過時間計測、`INDEX.md` 更新を扱います。
-- サブコマンド本体から共通処理を切り離し、再利用可能な土台を提供します。
+- `cmoc` の共通処理を集約する `src/commons` パッケージの目次です。
+- Codex CLI 呼び出し、サブコマンド実行制御、共通エラー整形、リポジトリ探索、サブコマンドログ、タイムスタンプ、経過時間計測、`INDEX.md` 自動更新を扱います。
+- 各サブコマンド本体を薄く保ち、再利用する基盤機能への入口をまとめています。
 
 ## Read this when
 
-- cmoc の共通基盤処理を担当するモジュールの境界を確認したいとき。
-- `codex exec` の呼び出し、Structured Output、quota 待機、last message 保存の共通処理を確認したいとき。
-- サブコマンドの実行ラッパー、終了コード、共通エラー整形、ログ tee、経過時間表示を確認したいとき。
-- repo root 探索、git 操作、`.cmoc` や `logs` の除外、タイムスタンプ生成、`INDEX.md` の列挙・再生成規則を確認したいとき。
-- package-level の共通モジュール一覧を把握したいとき。
+- 共通モジュールの役割分担や、どの処理をどのファイルで追うべきか確認したいとき。
+- `codex exec` の呼び出し、Structured Output、ログ保存、リトライ、quota 待機の流れを確認したいとき。
+- git リポジトリのルート探索、`.cmoc` の追跡除外、サブコマンドの共通実行制御、共通エラー表示、タイムスタンプ生成、経過時間表示を調べたいとき。
+- `INDEX.md` の生成や更新の共通ロジックを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの入出力仕様や業務ロジックだけを調べたいとき。
-- 開発ルール、テスト規約、環境構築など `src/commons` 以外の正本仕様だけを確認したいとき。
-- ユーザー向け CLI の具体的な画面文言や、サブコマンドごとの処理フローだけを追いたいとき。
-- 実装ファイルの詳細やテストコードの期待値を直接確認したいとき。
+- 個別サブコマンドの業務ロジックや CLI 引数だけを調べたいとき。
+- `oracles` 側の正本仕様やサブコマンド個別仕様を先に読むべきとき。
+- このディレクトリに含まれないテストコードや実装コードの詳細を探しているとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
 
 ## hash
 
-- f8c783a3d8fc52b097f5a549b70d165e497749080b63a3982e92e4d27ebaef06
+- d8367196d28c4a5b2ef805414b138f066719f1b2f2d863ab0dc7cf1b1b0f539f
 
 # `main.py`
 
@@ -59,15 +57,15 @@
 
 ## Summary
 
-- `cmoc` のサブコマンド実装をまとめる `src/sub_commands` 配下のルーティング用目次です。
-- `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の各実装ファイルへの入口を案内します。
-- パッケージ境界を示す `__init__.py` と、各サブコマンドの本体実装モジュールを整理して見つけやすくします。
+- `src/sub_commands` は、cmoc の各サブコマンド実装をまとめるルーティング用ディレクトリです。
+- この配下には `__init__.py`、`apply.py`、`branch.py`、`eval_oracles.py`、`init.py`、`merge.py` があり、それぞれ `cmoc apply`、`cmoc branch`、`cmoc eval-oracles`、`cmoc init`、`cmoc merge` の本体実装への入口になります。
+- サブコマンドごとの業務ロジック、処理順、引数、終了条件を追うときの最初の案内所として機能します。
 
 ## Read this when
 
 - `src/sub_commands` 配下で、どのファイルがどのサブコマンドを担当しているかを確認したいとき。
 - `cmoc init`、`cmoc branch`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` の実装本体へ移動したいとき。
-- サブコマンド実装パッケージの境界や、各モジュールの役割を最小限把握したいとき。
+- サブコマンド実装パッケージの境界や、各モジュールの役割をざっと把握したいとき。
 
 ## Do not read this when
 
@@ -77,4 +75,4 @@
 
 ## hash
 
-- 79fee11a661b7271d5aedf05967cef166ee8913718f47aab14bee3f6f406e209
+- 05d25427815a6fea0d0959f24c25d773aa20c97904f5a59d4054409695f755cb

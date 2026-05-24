@@ -28,10 +28,9 @@
 ## Summary
 
 - `tests/test_codex.py` は `commons.codex.run_codex_exec()` の挙動を Fake Codex CLI で検証するテスト群の目次です。
-- Structured Output の schema ファイル生成、JSON / テキスト出力の再試行、意味的検証失敗時のエラー表示、enum や文字列長を含むスキーマ検証を扱います。
-- 呼び出しログ、`subcommand_log` への通知、出力プレビューの表示、`--resume` 再実行、quota 枯渇時の待機と疎通確認を確認します。
-- Codex 呼び出し前の `INDEX.md` 事前メンテナンスの実施有無と、`skip_index_maintenance` による明示スキップも検証します。
-- ファイル末尾には、テスト用 git リポジトリを初期化して `git` を実行する `_git` 補助関数があります。
+- Structured Output の schema ファイル生成、JSON / テキスト出力の再試行、意味的検証失敗時のエラー表示、`enum` や文字列長制約を含む schema 検証を扱います。
+- 呼び出しログ、`subcommand_log` への通知、出力プレビュー、`--resume` 再実行、quota 枯渇時の待機と疎通確認、`INDEX.md` 事前メンテナンスと `skip_index_maintenance` の扱いも確認します。
+- ファイル末尾には、テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_git` があります。
 
 ## Read this when
 
@@ -51,7 +50,7 @@
 
 ## hash
 
-- 9bccfa0a90ea558a62b0c9470a7abd2f6ad774dfe285d3531c91dd4ae2433f05
+- bb67a5afb844602d4b3a50bf64a29321499e14e1f33e9b6d0828e8895bbdc38b
 
 # `test_file_naming.py`
 
@@ -175,21 +174,21 @@
 
 ## hash
 
-- 0896a0cb0e343cc9aaeacd057766eba5a6d7faca9647f2b3b0e88885f3d1fb9b
+- 0b366f202708a22be4b45d5287ab28eac5f7e3ee1a9837177aee205639bcf158
 
 # `test_timestamps.py`
 
 ## Summary
 
-- `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群です。
+- `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群の目次です。
 - タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式にゼロ埋めされることを検証します。
-- `format_duration` の固定幅表示と、小数 1 桁の切り捨て、さらに同一ファイル内の補助関数の並び順が caller first, callee last になっていることを確認します。
+- `format_duration` の固定幅表示、小数 1 桁の切り捨て、そして同一ファイル内の補助関数が caller first, callee last で並ぶことを確認します。
 
 ## Read this when
 
 - タイムスタンプ生成の書式、ミリ秒表現、aware datetime のローカルタイムゾーン変換を確認したいとき。
 - サブコマンドなどで使う経過時間表示の書式や丸め方を確認したいとき。
-- `commons.timestamps` や `commons.timing` の変更が、このテスト群に影響するか判断したいとき。
+- `commons.timestamps` や `commons.timing` の変更がこのテスト群に影響するか判断したいとき。
 - テスト内の関数配置順や `inspect.getsourcelines()` を使った順序検証の意図を確認したいとき。
 
 ## Do not read this when
@@ -201,4 +200,4 @@
 
 ## hash
 
-- 0476e21cee3921440401d780c8e710f5688569e9abc92e030a5e0a4273e4ce90
+- 86539d333fc59e712b7d1da968c1e89542375bc49ee7fef7e0ce81b4dc030a01

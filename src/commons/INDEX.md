@@ -52,7 +52,7 @@
 
 ## Summary
 
-- `src/commons/command_runner.py` は、Typer から呼ばれるサブコマンド共通の実行ラッパーをまとめるモジュールです。
+- Typer から呼ばれるサブコマンド共通の実行ラッパーをまとめるモジュールです。
 - `enter_repo_root()` で `<repo-root>` を解決し、その `Path` を各サブコマンド本体に渡して実行します。
 - `typer.Exit` と通常例外を共通方針で終了コード化し、必要に応じて `format_error_report()` で利用者向けレポートを出します。
 - `subcommand_log` と `timing` と連携して、サブコマンド全体の経過時間、待機時間、戻り値を最後に出力します。
@@ -74,7 +74,7 @@
 
 ## hash
 
-- 1a30a308606e2791c48b17833e7e0427c5b04e7e3ca6ecfe8a6880de7f9ab4b0
+- 91e786b1b014745b3dab7584c52ad3b2f4cb6901ba7acc84868a34179cd12826
 
 # `errors.py`
 
