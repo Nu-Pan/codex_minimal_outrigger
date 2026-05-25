@@ -106,25 +106,29 @@
 
 ## Summary
 
-- `app_specs` は、`cmoc` の使用方法、主要ワークフロー、共通ルール、各サブコマンド仕様への入口をまとめる索引。
-- `considered_alternatives` は、採用しなかった設計案とその不採用理由をまとめた補足索引。
-- `dev_rules` は、コーディング規則、設計規則、開発環境、テスト規約をまとめる開発ルール索引。
+- `cmoc` のアプリ仕様断片をまとめた入口で、branch model、Codex CLI 呼び出し、ログ出力、エラーハンドリング、`INDEX.md` 生成、雑多な基礎規約、`oracles` の扱い、利用方法を案内します。
+- `app_specs` は共通仕様の入口です。
+- `considered_alternatives` は採用しなかった設計案とその理由をまとめた入口です。
+- `dev_rules` は Python 実装のコーディング規約、設計方針、開発環境、テスト規約をまとめた入口です。
+- `sub_commands` は `apply`、`session`、`eval-oracles`、`init` など個別サブコマンドの入口です。
+- `usage` は `cmoc` のユーザー向け利用方法をまとめた入口です。
+- `oracles` や `indexing`、`misc_specs` は、目次生成やファイル探索などの基礎規約を案内する入口です。
 
 ## Read this when
 
-- `cmoc` 全体の利用フローや、仕様ファイルの入口を確認したいとき。
-- `apply` / `eval-oracles` / `init` / `session` 系の仕様へ辿り始めるとき。
-- Codex 呼び出し、ログ、エラー処理、INDEX 運用などの共通ルールを横断確認したいとき。
+- `cmoc` の共通仕様や、その参照先となる正本断片を確認したいとき。
+- `apply`、`session`、`eval-oracles` などの前提になるルールを横断的に見直したいとき。
+- どの仕様ファイルを読むべきか、`app_specs` 配下の案内から判断したいとき。
 
 ## Do not read this when
 
-- `oracles` 配下の個別仕様をすでに把握しており、対象ファイルへ直接進むとき。
-- `README.md` / `AGENTS.md` / `memo` だけの運用確認が目的のとき。
-- `oracles` 以外の実装コードやテスト配置を調べたいとき。
+- 個別サブコマンドの手順だけを確認したいときは、`sub_commands/INDEX.md` から該当文書へ直接進むべきです。
+- 実装コードやテストコードだけで足りる場合は、このディレクトリの案内を読む必要はありません。
+- この配下の単独仕様の本文だけを読みたいときは、該当する `*.md` を直接参照すべきです。
 
 ## hash
 
-- 4c6410e0ea8d50ce640df7ca08def43c0d56a26939431805d23e3484fea1c74d
+- 5638a0e78f0b9dc926a492631fc32970a0dfa578c9ccc38c1e53ad596bfd10aa
 
 # `pyproject.toml`
 

@@ -60,25 +60,25 @@
 
 - cmoc 開発で使う標準環境、ファイルエンコード、Python 実行環境、仮想環境管理の方針を扱う正本仕様断片です。
 - WSL2 Ubuntu 24.04 on Windows 11、VS Code Remote Development、指定 workspace、Codex CLI 利用可能環境を前提にします。
-- UTF-8 BOM なしの統一、python3>=3.12.3、<cmoc-root>/.venv の使用、pip 実行方法、依存追加時の手順を定めます。
+- UTF-8 BOM なしの統一、python3>=3.12.3、<cmoc-root>/.venv の使用、pip の実行方法、依存追加時の手順を定めます.
 
 ## Read this when
 
 - cmoc 自体の開発環境、前提 OS、エディタ、workspace、Codex CLI 利用前提を確認したいとき。
-- Python コマンド、pip コマンド、仮想環境パス、システム Python 使用可否を判断したいとき。
-- `.venv` を新規作成するとき、`.venv` に cmoc をインストールするとき、新しい Python 依存パッケージを追加するとき。
+- Python コマンド、pip コマンド、仮想環境パス、システム Python の使用可否を判断したいとき。
+- .venv を新規作成するとき、.venv に cmoc をインストールするとき、新しい Python 依存パッケージを追加するとき。
 - ファイル作成・編集時の文字コード方針を確認したいとき。
 
 ## Do not read this when
 
-- cmoc のサブコマンド仕様、ワークフロー仕様、CLI 挙動仕様を調べたいとき。
-- 実装方針、設計ルール、コーディング規約など、開発環境以外の開発ルールを調べたいとき。
-- 特定機能のテスト仕様、入出力仕様、エラー仕様を調べたいとき。
+- cmoc のサブコマンド仕様、ワークフロー仕様、CLI の振る舞いだけを調べたいとき。
+- 実装方針、設計ルール、コーディング規約など、開発環境以外のルールを確認したいとき。
+- テスト仕様、入出力仕様、エラー仕様など、個別機能の仕様を確認したいとき。
 - README、AGENTS、oracles の編集可否やリポジトリ全体のファイルアクセス規則を確認したいとき。
 
 ## hash
 
-- 86996302b0a27d51c9d2b5ba3de5621739f672b8bd20280da6afb3587a4d70f2
+- 445d7aebcbb7bfff316937b900022ca51a44bcd853728a2c22959e941e89ef01
 
 # `test_rules.md`
 

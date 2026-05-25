@@ -1,0 +1,78 @@
+# `app_specs`
+
+## Summary
+
+- `cmoc` のアプリ仕様断片をまとめた入口です。
+- branch model、Codex CLI 呼び出し、ログ出力、エラーハンドリング、`INDEX.md` 生成、雑多な基礎規約、`oracles` の扱い、利用方法を扱います。
+- 個別サブコマンドの入口は `sub_commands/INDEX.md` からたどります。
+
+## Read this when
+
+- `cmoc` の共通仕様や、その参照先となる正本断片を確認したいとき。
+- `apply`、`session`、`eval-oracles` などの前提になるルールを横断的に見直したいとき。
+- どの仕様ファイルを読むべきか、`app_specs` 配下の案内から判断したいとき。
+
+## Do not read this when
+
+- 個別サブコマンドの手順だけを確認したいときは、`sub_commands/INDEX.md` から該当文書へ直接進むべきです。
+- 実装コードやテストコードだけで足りる場合は、このディレクトリの案内を読む必要はありません。
+- この配下の単独仕様の本文だけを読みたいときは、該当する `*.md` を直接参照すべきです。
+
+## hash
+
+- fa79364fe891535270848e4eb98b09a7e177301728ec26ae0a38df5ca4749158
+
+# `considered_alternatives`
+
+## Summary
+
+- cmoc において採用しなかった設計案や、その不採用理由をまとめた文書群です。
+- AI-generated kaizen の自動注入を採用しない理由、作業計画レビューを採らなかった背景、`cmoc apply` で修正点リスト完成後に別途計画を立てない判断を扱います。
+- それぞれ `memory_alternative.md`、`working_plan_review.md`、`apply_behavior.md` に分かれています。
+
+## Read this when
+
+- AI の改善案を次回実行へ自動反映しない方針の理由を確認したいとき
+- `tgbt plan` や `/plan` のような計画レビュー方式を採らなかった背景を確認したいとき
+- `cmoc apply` で修正点リストの後に別途作業計画を立てない判断を確認したいとき
+- 設計案の比較検討や、不採用にした代替案の整理を読みたいとき
+
+## Do not read this when
+
+- 各サブコマンドの実装手順、引数、出力形式などの正本仕様を確認したいとき
+- `cmoc` 全体の共通ルールや `INDEX.md` 生成規約だけを確認したいとき
+- 採用済みの仕様や手順をそのまま実装・修正したいだけのとき
+- branch model、テスト、開発環境など、別系統の仕様を確認したいとき
+
+## hash
+
+- bcf28dba25d16038c99f7ffd3f93fe14a061e8da2ff82b110c1a24034e62c0e3
+
+# `dev_rules`
+
+## Summary
+
+- cmoc の開発ルールをまとめたディレクトリで、Python 実装のコーディング規約、CLI と共通機能の設計方針、開発環境の前提、テスト規約を扱う。
+- `coding_rules.md` は型ヒント、import、docstring、コメント、ログメッセージ、非公開識別子などのコーディング規則を定める。
+- `design_rules.md` は `src/main.py`、`src/sub_commands`、`src/commons` の配置方針と、関数分割・並び順の考え方を定める。
+- `development_environment.md` は対象 OS、Python バージョン、`.venv` の扱い、文字コードなどの開発環境前提を定める。
+- `test_rules.md` は pytest を使った自動テストの書き方、配置先、Fake Codex CLI の扱いを定める。
+
+## Read this when
+
+- cmoc の Python 実装やレビューで、基本的なコーディング規約を確認したいとき。
+- CLI のエントリーポイント、サブコマンド配置、共有機能の置き場所、関数分割方針を決めたいとき。
+- 開発環境、Python バージョン、仮想環境、文字コードなどの前提を確認したいとき。
+- pytest ベースの自動テスト方針や、Fake Codex CLI を使う可否を確認したいとき。
+- 実装やテストが dev_rules のどの規則に従うべきかを切り分けたいとき。
+
+## Do not read this when
+
+- `cmoc` のユーザー向けコマンド手順や各サブコマンドの仕様だけを確認したいとき。
+- `branch_model`、`apply`、`eval-oracles` などの個別仕様だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいとき。
+- コーディング、設計、開発環境、テストのうち特定の 1 領域だけを深掘りしたいとき。
+
+## hash
+
+- ff8eb6f24848cb422b8c87d383080b516ce81dd734c6130aeeabf55825bbb1cf
