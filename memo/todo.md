@@ -1,22 +1,11 @@
 ## branch, apply, merge 大工事の余波
 
-- 大工事の過程で、未コミット差分なしだと通らないようになったけど、これは戻したい
-- やっぱり `cmoc apply` でマージまでやらせたい
-    - 結構な大工事になってしまった
-    - `oracles` ファイルについての記述は１つのファイルにまとめた方が良い
-    - `apply_run` っていう言い方やめたい
 - `cmoc session report` が必要
     - 今この瞬間に `cmoc session join` したら、どういう内容になるか？　をレポートさせる
     - このまま `cmoc session join` に進んでよいかの判断材料
-- スキーマをどこにも書いてない
-    - `<repo-root>/.cmoc/sessions/<session-id>/session.json`
-    - `<repo-root>/.cmoc/sessions/<session-id>/apply-runs/<apply-run-id>.json`
 - oracles として用語集が必要
     - 用語関係は将来的には cmoc の機能にしたいが、直近は oracles に手作業で書く
-- どこに書くのん
-    > `<cmoc-apply-branch>` を `<cmoc-session-branch>` に取り込む操作は、`cmoc merge` の責務ではない。
-- `<cmoc-apply-branch>` の削除ルール
-    - 書いてない
+
 
 # `eval-oracles` に用語統一機能を組み込みたい
 
