@@ -160,6 +160,7 @@
     "type": "object",
     "additionalProperties": false,
     "required": [
+        "git_head_commit_hash",
         "fixing_points"
     ],
     "properties": {
