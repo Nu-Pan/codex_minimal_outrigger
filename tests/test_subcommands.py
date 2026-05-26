@@ -1580,6 +1580,82 @@ def test_apply_abandon_rejects_ready_state_without_cleanup(
     assert state["apply"]["state"] == "ready"
 
 
+def test_apply_abandon_accepts_error_state(
+    tmp_path: Path,
+) -> None:
+    """apply.state が error の apply run も成果物を破棄できる。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "error"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    cmoc_apply_abandon_impl(repo)
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["apply"]["state"] == "ready"
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+
+
+def test_apply_abandon_rejects_running_state_without_cleanup(
+    tmp_path: Path,
+) -> None:
+    """実行中 apply process の停止確認ができない running state は破棄しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "running"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(repo)
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert "running 状態" in error_info.value.message
+    assert state["apply"]["state"] == "running"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
+def test_apply_abandon_rejects_unknown_state_without_cleanup(
+    tmp_path: Path,
+) -> None:
+    """未知の apply.state は state 破損として扱い cleanup しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "paused"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(repo)
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert "apply.state が不正" in error_info.value.message
+    assert state["apply"]["state"] == "paused"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
 def test_apply_uses_investigate_repeat_option_for_loop_limit(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

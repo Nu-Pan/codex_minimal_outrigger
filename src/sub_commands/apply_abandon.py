@@ -44,10 +44,6 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
 
     start_step(timer, 2, 3, "cleanup apply artifacts")
     warnings = _cleanup_apply_artifacts(cmoc_root, abandon_state)
-    if abandon_state.previous_apply_state == "running":
-        warnings.append(
-            "apply.state was running, but no apply process id is recorded in state"
-        )
 
     start_step(timer, 3, 3, "record ready apply state")
     _mark_apply_ready(cmoc_root, session_id, state)
@@ -115,6 +111,24 @@ def _validate_abandonable_state(
         raise CmocError(
             "apply state を session state から特定できませんでした。",
             ["session state の apply.state を確認してください。"],
+            f"apply.state: {apply_state}",
+        )
+    if apply_state == "running":
+        raise CmocError(
+            "running 状態の apply run を安全に破棄できません。",
+            [
+                "現在の実装では実行中 apply プロセスの停止と終了確認に必要な情報を保持していません。",
+                "apply プロセスの終了を確認して state を completed または error に復旧してから再実行してください。",
+            ],
+            f"apply.state: {apply_state}",
+        )
+    if apply_state not in {"completed", "error"}:
+        raise CmocError(
+            "session state ファイルの apply.state が不正です。",
+            [
+                "apply.state は ready/running/completed/error のいずれかである必要があります。",
+                "破損した session state を復旧してから再実行してください。",
+            ],
             f"apply.state: {apply_state}",
         )
     apply_branch = apply.get("apply_branch")
