@@ -140,28 +140,29 @@
 
 ## Summary
 
-- `cmoc` のサブコマンド本体に対する決定論的な制御ロジックをまとめて検証するテスト群の入口。
-- `init`、`session fork`、`eval-oracles`、`apply`、`merge` の実行結果、レポート生成、branch/state 更新、エラー処理を確認する。
-- 公開 CLI の登録状態、互換コマンド名、ランチャーの前提条件、共通エラーレポート、プロンプトや JSON schema の整合性も含む。
-- `oracles` 編集禁止や conflict marker 検査のような共通ルールを守っているかを、このファイルのテストで追える。
+- `tests/test_subcommands.py` は cmoc のサブコマンド本体、CLI 登録、共通エラー表示を横断して検証するテスト群の入口です。
+- `init` / `session fork` / `eval-oracles` / `apply` / `merge` の実行結果、branch/state 更新、report 生成、commit 挙動を確認します。
+- Structured Output schema、prompt 文、conflict marker 検査、`bin/cmoc` の起動条件、互換コマンド名も扱います。
 
 ## Read this when
 
-- `cmoc` のサブコマンド実装を変更して、それに対応するテストの期待値を確認したいとき。
+- `cmoc` のサブコマンド実装を変更して、それに対応するテスト期待値を確認したいとき。
 - `init`、`session fork`、`eval-oracles`、`apply`、`merge` の branch/state/report/commit の挙動を追いたいとき。
-- `main` の CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラー整形を確認したいとき。
-- プロンプト文、Structured Output schema、discrepancy 検証、conflict marker 検査などの補助ロジックのテスト位置を知りたいとき。
+- `main` の CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラーレポートを確認したいとき。
+- Structured Output schema、prompt 文、discrepancy 検証、conflict marker 検査などの補助ロジックのテスト位置を知りたいとき。
+- テスト内のヘルパー関数や、`eval-oracles` 実装ファイル名の制約を確認したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/*.py` の実装本体だけを追いたいときは、まず `src` 側の該当モジュールを読む。
-- `tests/test_indexing.py` や `tests/test_codex.py` など、別責務のテストを探しているとき。
-- `oracles` の正本仕様を確認したいだけで、テスト側の期待値は不要なとき。
-- ルーティング文書の生成規約や `INDEX.md` の書式だけを確認したいとき。
+- 個別サブコマンドの実装本体だけを追いたいときは、`src/sub_commands/*.py` 側を直接読むべきです。
+- `tests/test_indexing.py` や `tests/test_codex.py` など、別責務のテストを確認したいときはこのファイルではありません。
+- `oracles` の正本仕様だけを確認したいときは、`oracles/app_specs` 側の文書を読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいときは、このテストファイルを読む必要はありません。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- e4b38ff8cfdb0e3777501ddd8e60b8dfb1c2b14d67542330a690303a1ed1f826
+- 0dcea2c131cedccef073f021f04e69ea96b4717ab475a686021658341eb95e4d
 
 # `test_timestamps.py`
 

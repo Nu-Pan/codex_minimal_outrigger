@@ -125,22 +125,24 @@
 
 ## Summary
 
-- `cmoc session fork` の本体処理を実装しており、現在の local branch を session home branch として session branch を作成し、session state を記録する。
-- detached HEAD、remote-tracking branch、未コミット差分、`cmoc` 管理 branch、既存 active session などの事前条件チェックを行う。
-- `.cmoc` の ignore 保証、session branch 作成の再試行、作成結果と home branch の標準出力表示を扱う。
+- `cmoc session fork` の実装本体で、現在 checkout している local branch を session home branch として session branch を作成し、session state を保存します。
+- detached HEAD、remote-tracking branch、commit hash、cmoc 管理 branch、未コミット差分、既存 active session などの事前条件チェックを行います。
+- `.cmoc` の追跡対象外保証、session branch 作成の最大 10 回リトライ、作成結果と home branch の標準出力表示までを扱います。
 
 ## Read this when
 
-- `cmoc session fork` の挙動やエラー条件を実装・修正・レビューしたいとき。
-- 現在の branch から session branch を作る前提や、session state の保存処理を確認したいとき。
-- branch 判定、`.cmoc` の扱い、session branch 名の生成方法を追いたいとき。
+- cmoc session fork の挙動やエラー条件を実装・修正・レビューしたいとき。
+- session home branch の決め方、session branch の命名規則、session state の初期保存処理を確認したいとき。
+- detached HEAD や remote-tracking branch からの起動、未コミット差分、既存 active session の扱いを追いたいとき。
+- `.cmoc` の ignore 保証や、session branch 作成失敗時の再試行ロジックを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session join`、`cmoc session abandon`、`cmoc apply` など別サブコマンドの流れだけを確認したいとき。
-- `cmoc` 全体の利用方法や branch model の概要だけを確認したいとき。
-- 実装コードではなく、`session_fork` の正本仕様断片だけを確認したいとき。
+- cmoc session join、cmoc session abandon、cmoc apply など別サブコマンドの流れだけを確認したいとき。
+- cmoc 全体の branch model の概要だけを確認したいときは、`oracles/app_specs/branch_model.md` を読むべきです。
+- session state のスキーマや初期値だけを確認したいときは、`oracles/app_specs/session_state.md` を直接読むべきです。
+- 実装コードではなく、`cmoc session fork` の正本仕様断片だけを確認したいとき。
 
 ## hash
 
-- 2c5226845f7803912fa3146d9732d7c499b4080a9b6b2dec4519d6438c85686f
+- 79cffa7ff3de334560cef693809731381cea09af27d8772c2f144bfa632c01b0
