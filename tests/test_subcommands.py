@@ -2807,6 +2807,100 @@ def test_session_join_stops_non_conflict_merge_failure_without_codex(
     assert session_branch in branches
 
 
+def test_session_join_rejects_codex_change_outside_conflict_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が conflict 対象外を変更した場合は merge commit しない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """conflict を解消しつつ、対象外ファイルを誤って変更する。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / "README.md").write_text("tampered\n", encoding="utf-8")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "conflict 対象外" in error.value.message
+    assert "README.md" in error.value.detail
+    assert state["session"]["state"] == "active"
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
+def test_session_join_rejects_codex_rewrite_of_auto_merged_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """同じ status の非 conflict path でも内容変更は検出する。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """自動 merge 済みファイルを status 変化なしで書き換える。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / "auto.txt").write_text("tampered\n", encoding="utf-8")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "conflict 対象外" in error.value.message
+    assert "auto.txt" in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
+def test_session_join_rejects_codex_change_in_forbidden_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が禁止領域を作成した場合も merge commit しない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """conflict 解消後に禁止 path を誤って作る。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / ".agents").mkdir()
+        (repo_root / ".agents" / "note.txt").write_text(
+            "forbidden\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "禁止領域" in error.value.message
+    assert ".agents/note.txt" in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
 def test_session_abandon_marks_state_and_force_deletes_branch(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -3417,6 +3511,28 @@ def _checkout_session_branch(repo: Path) -> None:
     )
     exclude = repo / ".git" / "info" / "exclude"
     exclude.write_text(f"{exclude.read_text(encoding='utf-8')}\n.cmoc/\n")
+
+
+def _repo_with_session_join_conflict(tmp_path: Path) -> Path:
+    """session join で conflict と自動 merge path が発生する repo を作る。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    (repo / "conflict.txt").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "conflict.txt")
+    _git(repo, "commit", "-m", "prepare session")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "conflict.txt").write_text("session\n", encoding="utf-8")
+    (repo / "auto.txt").write_text("session auto\n", encoding="utf-8")
+    _git(repo, "add", "conflict.txt", "auto.txt")
+    _git(repo, "commit", "-m", "session change")
+    _git(repo, "switch", home_branch)
+    (repo / "conflict.txt").write_text("home\n", encoding="utf-8")
+    _git(repo, "add", "conflict.txt")
+    _git(repo, "commit", "-m", "home change")
+    _git(repo, "switch", session_branch)
+    return repo
 
 
 def _add_oracle_snapshot(repo: Path) -> str:

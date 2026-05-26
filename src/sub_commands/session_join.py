@@ -179,6 +179,9 @@ def _resolve_conflicts(repo_root: Path) -> None:
                 "merge 状態を解消してから cmoc を再実行してください。",
             ],
         )
+    _assert_no_forbidden_conflict_paths(unmerged)
+    _assert_no_forbidden_pending_paths(repo_root)
+    protected_snapshot = _protected_conflict_snapshot(repo_root, unmerged)
 
     # conflict 解消用 Codex 呼び出しは INDEX メンテナンス例外として実行する。
     run_codex_exec(
@@ -188,6 +191,15 @@ def _resolve_conflicts(repo_root: Path) -> None:
         read_only=False,
         expect_json=False,
         skip_index_maintenance=True,
+    )
+
+    _assert_no_forbidden_pending_paths(repo_root)
+
+    # conflict 対象外の差分は Codex 呼び出し前と同一でなければならない。
+    _assert_protected_conflict_snapshot_unchanged(
+        repo_root,
+        unmerged,
+        protected_snapshot,
     )
 
     # Codex が conflict 対象外へ marker を残した場合も、add 前に検出する。
@@ -282,6 +294,118 @@ def _files_with_conflict_markers(
                 matches.append(relative)
                 break
     return matches
+
+
+def _assert_no_forbidden_conflict_paths(unmerged: list[str]) -> None:
+    """Codex に渡せない禁止領域が conflict 対象に含まれないことを確認する。"""
+    forbidden = [
+        path
+        for path in unmerged
+        if _is_forbidden_conflict_path(path)
+    ]
+    if forbidden:
+        raise CmocError(
+            "Codex CLI に依頼できない禁止領域で conflict が発生しました。",
+            [
+                "表示された path を手動で確認してください。",
+                "禁止領域の扱いを判断したうえで、merge を手動で解消してください。",
+            ],
+            "\n".join(forbidden),
+        )
+
+
+def _is_forbidden_conflict_path(path: str) -> bool:
+    """session join の自動 conflict 解消で編集禁止の path か判定する。"""
+    return path == ".agents" or path.startswith(".agents/") or (
+        path == "memo" or path.startswith("memo/")
+    )
+
+
+def _assert_no_forbidden_pending_paths(repo_root: Path) -> None:
+    """禁止領域の未コミット差分が merge 中に残っていないことを確認する。"""
+    forbidden = [
+        path
+        for _status, path in _porcelain_status_entries(repo_root)
+        if _is_forbidden_conflict_path(path)
+    ]
+    if forbidden:
+        raise CmocError(
+            "session join の禁止領域に未コミット差分があります。",
+            [
+                "merge commit は作成していません。",
+                "表示された path の扱いを判断し、merge を手動で解消してください。",
+            ],
+            "\n".join(sorted(forbidden)),
+        )
+
+
+def _protected_conflict_snapshot(
+    repo_root: Path,
+    unmerged: list[str],
+) -> dict[str, tuple[str, bytes | None]]:
+    """conflict 対象外の未コミット状態と作業ツリー内容を保存する。"""
+    unmerged_set = set(unmerged)
+    snapshot: dict[str, tuple[str, bytes | None]] = {}
+    for status, path in _porcelain_status_entries(repo_root):
+        if path in unmerged_set:
+            continue
+        snapshot[path] = (status, _read_snapshot_bytes(repo_root, path))
+    return snapshot
+
+
+def _assert_protected_conflict_snapshot_unchanged(
+    repo_root: Path,
+    unmerged: list[str],
+    before: dict[str, tuple[str, bytes | None]],
+) -> None:
+    """Codex が conflict 対象外 path を変更していないことを確認する。"""
+    after = _protected_conflict_snapshot(repo_root, unmerged)
+    if after == before:
+        return
+
+    changed_paths = sorted(set(before) | set(after))
+    details = []
+    for path in changed_paths:
+        if before.get(path) == after.get(path):
+            continue
+        details.append(path)
+
+    raise CmocError(
+        "Codex CLI が conflict 対象外の path を変更しました。",
+        [
+            "merge commit は作成していません。",
+            "表示された path の変更を手動で確認し、merge を手動で解消してください。",
+        ],
+        "\n".join(details),
+    )
+
+
+def _porcelain_status_entries(repo_root: Path) -> list[tuple[str, str]]:
+    """git status porcelain から status と path を取得する。"""
+    result = run_git(
+        repo_root,
+        ["status", "--porcelain", "--untracked-files=all"],
+    )
+    entries: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        if not line:
+            continue
+        status = line[:2]
+        path = line[3:]
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        entries.append((status, path))
+    return entries
+
+
+def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
+    """存在する通常ファイルの内容を snapshot 用に読む。"""
+    if _is_forbidden_conflict_path(relative_path):
+        return None
+    path = repo_root / relative_path
+    if not path.exists() or not path.is_file():
+        return None
+    return path.read_bytes()
 
 
 def _unmerged_paths(repo_root: Path) -> list[str]:
