@@ -56,7 +56,7 @@ def run_codex_exec(
     model: str = _DEFAULT_MODEL,
     reasoning_effort: str = _DEFAULT_REASONING_EFFORT,
 ) -> str:
-    """`codex exec` を実行し、フルログを `logs/codex_exec` に保存する。"""
+    """`codex exec` を実行し、フルログを `.cmoc/logs/codex_exec` に保存する。"""
     # Structured Output を要求する呼び出しは schema ファイルを必須にする。
     if expect_json and output_schema is None:
         raise ValueError("expect_json=True requires output_schema.")
@@ -577,7 +577,7 @@ def _write_output_schema(
         separators=(",", ":"),
     )
     schema_hash = sha256(schema_body.encode("utf-8")).hexdigest()
-    schema_dir = repo_root / "logs" / "codex_exec" / "output_schemae"
+    schema_dir = repo_root / ".cmoc" / "logs" / "codex_exec" / "output_schema"
     schema_dir.mkdir(parents=True, exist_ok=True)
     schema_path = schema_dir / f"{schema_hash}.log"
     if not schema_path.exists():
@@ -587,7 +587,7 @@ def _write_output_schema(
 
 def _prepare_codex_exec_paths(repo_root: Path) -> dict[str, Path]:
     """codex exec の call log と last message の保存先を準備する。"""
-    base_dir = repo_root / "logs" / "codex_exec"
+    base_dir = repo_root / ".cmoc" / "logs" / "codex_exec"
     call_dir = base_dir / "call"
     last_message_dir = base_dir / "output_last_message"
     call_dir.mkdir(parents=True, exist_ok=True)

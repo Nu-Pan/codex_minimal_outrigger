@@ -83,7 +83,9 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
         output_schema=_BOOLEAN_SCHEMA,
     )
 
-    log_files = sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
     log_contents = [path.read_text(encoding="utf-8") for path in log_files]
     assert output.strip() == '{"ok": true}'
     assert state.read_text(encoding="utf-8").strip() == "3"
@@ -146,11 +148,13 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
         )
 
     captured = capsys.readouterr().out
-    subcommand_logs = list((repo / "logs" / "sub_commands").glob("*.log"))
+    subcommand_logs = list(
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
+    )
     log_content = subcommand_logs[0].read_text(encoding="utf-8")
     notification_head = (
         "codex exec: unit test codex call "
-        "log=logs/codex_exec/call/"
+        "log=.cmoc/logs/codex_exec/call/"
     )
     assert output == "ok\n"
     assert notification_head in captured
@@ -168,7 +172,7 @@ def test_subcommand_log_avoids_existing_timestamp_file(
     """サブコマンドログは timestamp 衝突時に既存ファイルへ追記しない。"""
     repo = tmp_path / "repo"
     repo.mkdir()
-    log_dir = repo / "logs" / "sub_commands"
+    log_dir = repo / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True)
     existing_log = log_dir / "2026-05-04_03-02_01_001.log"
     existing_log.write_text("existing log\n", encoding="utf-8")
@@ -234,7 +238,7 @@ def test_run_codex_exec_passes_output_schema_file(
         output_schema=_BOOLEAN_SCHEMA,
     )
     schema_files = list(
-        (repo / "logs" / "codex_exec" / "output_schemae").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "output_schema").glob("*.log")
     )
     second_output = run_codex_exec(
         repo,
@@ -250,7 +254,9 @@ def test_run_codex_exec_passes_output_schema_file(
     last_message_path = Path(args[args.index("--output-last-message") + 1])
     log_contents = [
         path.read_text(encoding="utf-8")
-        for path in (repo / "logs" / "codex_exec" / "call").glob("*.log")
+        for path in (
+            repo / ".cmoc" / "logs" / "codex_exec" / "call"
+        ).glob("*.log")
     ]
     schema_body = json.dumps(
         _BOOLEAN_SCHEMA,
@@ -264,7 +270,7 @@ def test_run_codex_exec_passes_output_schema_file(
     assert "--json" in args
     assert "--output-last-message" in args
     assert last_message_path.parent == (
-        repo / "logs" / "codex_exec" / "output_last_message"
+        repo / ".cmoc" / "logs" / "codex_exec" / "output_last_message"
     )
     assert last_message_path.suffix == ".log"
     assert "--model" in args
@@ -275,12 +281,17 @@ def test_run_codex_exec_passes_output_schema_file(
     assert 'model_reasoning_effort="medium"' in args
     assert "--output-schema" in args
     assert schema_path == (
-        repo / "logs" / "codex_exec" / "output_schemae" / f"{schema_hash}.log"
+        repo
+        / ".cmoc"
+        / "logs"
+        / "codex_exec"
+        / "output_schema"
+        / f"{schema_hash}.log"
     )
     assert schema_path.read_text(encoding="utf-8") == schema_body
     assert schema_files == [schema_path]
     assert list(
-        (repo / "logs" / "codex_exec" / "output_schemae").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "output_schema").glob("*.log")
     ) == [schema_path]
     assert any(
         f"output_schema: \"{schema_path}\"" in content
@@ -392,7 +403,7 @@ def test_run_codex_exec_retries_json_semantic_validation_failure(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
         )
     ]
     assert output.strip() == '{"ok": true}'
@@ -515,7 +526,7 @@ def test_run_codex_exec_retries_text_semantic_validation_failure(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
         )
     ]
     assert output.strip() == "complete report"
@@ -573,7 +584,9 @@ def test_run_codex_exec_retries_missing_last_message_without_validator(
 
     output = run_codex_exec(repo, "prompt", read_only=True)
 
-    log_files = sorted((repo / "logs" / "codex_exec" / "call").glob("*.log"))
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
     assert output.strip() == "plain text result"
     assert state.read_text(encoding="utf-8").strip() == "2"
     assert len(log_files) == 2
@@ -784,7 +797,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
         )
     ]
     assert output.strip() == "resumed"

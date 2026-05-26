@@ -53,9 +53,9 @@ class _TeeTextIO:
 
 @contextmanager
 def subcommand_log(repo_root: Path) -> Iterator[SubcommandLogContext]:
-    """stdout/stderr を `<repo-root>/logs/sub_commands` へ tee する。"""
+    """stdout/stderr を `<repo-root>/.cmoc/logs/sub_commands` へ tee する。"""
     _ensure_logs_excluded(repo_root)
-    log_dir = repo_root / "logs" / "sub_commands"
+    log_dir = repo_root / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path, log_file = _create_unique_log_file(log_dir)
     with log_file:
@@ -99,17 +99,17 @@ def _create_unique_log_file(log_dir: Path) -> tuple[Path, IO[str]]:
 
 
 def _ensure_logs_excluded(repo_root: Path) -> None:
-    """`logs/` がサブコマンド自身の未コミット差分にならないようにする。"""
+    """`.cmoc/logs/` がサブコマンド自身の未コミット差分にならないようにする。"""
     exclude_path = repo_root / ".git" / "info" / "exclude"
     if not exclude_path.exists():
         return
 
     content = exclude_path.read_text(encoding="utf-8")
     lines = [line.strip() for line in content.splitlines()]
-    if "/logs/" in lines:
+    if "/.cmoc/logs/" in lines:
         return
 
     prefix = content
     if prefix and not prefix.endswith("\n"):
         prefix += "\n"
-    exclude_path.write_text(f"{prefix}/logs/\n", encoding="utf-8")
+    exclude_path.write_text(f"{prefix}/.cmoc/logs/\n", encoding="utf-8")

@@ -98,7 +98,7 @@ def test_run_command_tees_subcommand_output_and_summary(
         run_command(handler)
 
     captured = capsys.readouterr()
-    log_files = list((repo / "logs" / "sub_commands").glob("*.log"))
+    log_files = list((repo / ".cmoc" / "logs" / "sub_commands").glob("*.log"))
     log_content = log_files[0].read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 2
     assert captured.err == ""
@@ -112,7 +112,7 @@ def test_run_command_tees_subcommand_output_and_summary(
     assert "subcommand total elapsed:" in log_content
     assert "subcommand quota wait elapsed:" in log_content
     assert "subcommand return code: 2" in log_content
-    assert "/logs/" in (repo / ".git" / "info" / "exclude").read_text(
+    assert "/.cmoc/logs/" in (repo / ".git" / "info" / "exclude").read_text(
         encoding="utf-8"
     )
     assert _git(repo, "status", "--porcelain").stdout == ""
@@ -136,7 +136,7 @@ def test_run_command_logs_summary_on_exception(
         run_command(handler)
 
     log_content = next(
-        (repo / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
     assert "ERROR" in log_content
@@ -166,7 +166,7 @@ def test_run_command_reports_nonzero_typer_exit(
 
     captured = capsys.readouterr()
     log_content = next(
-        (repo / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 7
     assert captured.err == ""
