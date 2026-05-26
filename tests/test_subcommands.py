@@ -1229,6 +1229,70 @@ def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
     assert "| 1 | `oracles/existing.md` | 0 |" in report
 
 
+def test_eval_oracles_uses_full_mode_on_apply_branch(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """apply branch 上の `eval-oracles` は `--full` なしでも全体評価する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    changed_oracle = oracle_root / "changed.md"
+    unchanged_oracle = oracle_root / "unchanged.md"
+    changed_oracle.write_text("before\n", encoding="utf-8")
+    unchanged_oracle.write_text("unchanged\n", encoding="utf-8")
+    _git(repo, "add", "oracles")
+    _git(repo, "commit", "-m", "add oracles")
+    _git(
+        repo,
+        "checkout",
+        "-b",
+        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123",
+    )
+    changed_oracle.write_text("after\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+    evaluated_targets: list[Path] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """評価 prompt 内の対象 oracle に対応した結果を返す。"""
+        prompt = str(args[1])
+        target = (
+            changed_oracle
+            if str(changed_oracle.resolve()) in prompt
+            else unchanged_oracle
+        )
+        evaluated_targets.append(target)
+        return json.dumps(
+            {
+                "target_oracle_path": str(target.resolve()),
+                "referenced_paths": [str(target.resolve())],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            ensure_ascii=False,
+        )
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+
+    cmoc_eval_oracles_impl(repo, full=False)
+
+    report = next(
+        (repo / ".cmoc" / "reports" / "eval-oracles").glob("*.md")
+    ).read_text(encoding="utf-8")
+    assert evaluated_targets == [changed_oracle, unchanged_oracle]
+    assert "mode: full" in report
+    assert "full_requested: false" in report
+    assert "is_cmoc_branch: true" in report
+    assert "base_commit: null" in report
+    assert "deleted_oracles_detected: false" in report
+    assert "oracle_count: 2" in report
+
+
 def test_eval_oracles_body_uses_subcommand_file_name() -> None:
     """`eval-oracles` の本体はサブコマンド名と同じファイル名に置く。"""
     repo_root = Path(__file__).resolve().parents[1]

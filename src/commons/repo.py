@@ -820,18 +820,18 @@ def has_deleted_oracle_files(repo_root: Path, base_commit: str) -> bool:
     commands = [
         [
             "log",
-            "--name-only",
+            "--name-status",
             "-M",
-            "--diff-filter=D",
+            "--diff-filter=DR",
             "--format=",
             f"{base_commit}..HEAD",
         ],
-        ["diff", "--name-only", "-M", "--diff-filter=D", "HEAD"],
-        ["diff", "--cached", "--name-only", "-M", "--diff-filter=D"],
+        ["diff", "--name-status", "-M", "--diff-filter=DR", "HEAD"],
+        ["diff", "--cached", "--name-status", "-M", "--diff-filter=DR"],
     ]
     for command in commands:
-        result = run_git(repo_root, [*command, "--", "oracles"])
-        if _deleted_oracle_file_paths(repo_root, result.stdout):
+        result = run_git(repo_root, [*command, "--", "."])
+        if _deleted_oracle_changes_from_name_status(repo_root, result.stdout):
             return True
     return False
 
@@ -861,16 +861,28 @@ def has_deleted_implementation_files(
     return False
 
 
-def _deleted_oracle_file_paths(repo_root: Path, output: str) -> list[str]:
-    """削除 path から oracle 列挙対象外のものを除外する。"""
-    # INDEX.md と root .gitignore 対象は oracle ファイル削除として扱わない。
-    relatives = [
-        line
-        for line in output.splitlines()
-        if line.startswith("oracles/") and Path(line).name != "INDEX.md"
-    ]
-    ignored = _root_gitignored_paths(repo_root, relatives)
-    return [relative for relative in relatives if relative not in ignored]
+def _deleted_oracle_changes_from_name_status(
+    repo_root: Path,
+    output: str,
+) -> list[str]:
+    """`git name-status` から oracle 削除相当の変更を取り出す。"""
+    # oracle から非 oracle への rename は、oracle 集合から見れば削除である。
+    deleted: list[str] = []
+    for line in output.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status = parts[0]
+        if status == "D":
+            deleted.extend(filter_oracle_file_paths(repo_root, [parts[1]]))
+            continue
+        if not status.startswith("R") or len(parts) < 3:
+            continue
+        source_oracles = filter_oracle_file_paths(repo_root, [parts[1]])
+        destination_oracles = filter_oracle_file_paths(repo_root, [parts[2]])
+        if source_oracles and not destination_oracles:
+            deleted.extend(source_oracles)
+    return deleted
 
 
 def _deleted_implementation_file_paths(

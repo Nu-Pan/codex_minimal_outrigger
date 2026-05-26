@@ -12,6 +12,7 @@ from commons.repo import (
     has_deleted_oracle_files,
     head_commit,
     is_cmoc_branch,
+    is_session_branch,
     list_oracle_files,
     read_session_start_commit,
 )
@@ -179,9 +180,10 @@ def cmoc_eval_oracles_impl(
         start_step(timer, 3, 5, "select oracle files")
         branch_name = current_branch(repo_root)
         cmoc_branch = is_cmoc_branch(branch_name)
-        partial = cmoc_branch and not full
+        session_branch = is_session_branch(branch_name)
+        partial = session_branch and not full
         mode = "partial" if partial else "full"
-        if cmoc_branch:
+        if session_branch:
             base_commit = read_session_start_commit(repo_root, branch_name)
             deleted_oracles = has_deleted_oracle_files(repo_root, base_commit)
         else:

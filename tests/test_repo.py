@@ -455,6 +455,47 @@ def test_committed_oracle_rename_does_not_count_as_deletion(
     assert has_deleted_oracle_files(repo, base_commit) is False
 
 
+def test_has_deleted_oracle_files_detects_committed_rename_out_of_oracles(
+    tmp_path: Path,
+) -> None:
+    """committed oracle 外 rename は旧 oracle path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    docs_root = repo / "docs"
+    oracle_root.mkdir()
+    docs_root.mkdir()
+    old_path = oracle_root / "old.md"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "oracles/old.md", "docs/old.md")
+    _git(repo, "commit", "-m", "move oracle out")
+
+    assert has_deleted_oracle_files(repo, base_commit) is True
+
+
+def test_has_deleted_oracle_files_detects_staged_rename_out_of_oracles(
+    tmp_path: Path,
+) -> None:
+    """staged oracle 外 rename は旧 oracle path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    docs_root = repo / "docs"
+    oracle_root.mkdir()
+    docs_root.mkdir()
+    old_path = oracle_root / "old.md"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "oracles/old.md", "docs/old.md")
+
+    assert has_deleted_oracle_files(repo, base_commit) is True
+
+
 def test_changed_oracle_files_excludes_gitignored_files(
     tmp_path: Path,
 ) -> None:
