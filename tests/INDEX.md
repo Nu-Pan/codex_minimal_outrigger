@@ -98,7 +98,7 @@
 
 - `commons.indexing` の実装本体だけを追いたいとき。
 - `INDEX.md` の正本仕様そのものを知りたいとき。仕様断片は `oracles/app_specs/indexing.md` を読むべきです。
-- `cmoc init`、`cmoc session fork`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` など個別サブコマンドの仕様を調べたいとき。
+- `cmoc init`、`cmoc session fork`、`cmoc session join`、`cmoc apply`、`cmoc eval-oracles` など個別サブコマンドの仕様を調べたいとき。
 - Codex CLI 呼び出し共通仕様、ログ保存、エラーハンドリングなど `INDEX.md` メンテナンス以外の実行仕様を調べたいとき。
 - `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
@@ -140,29 +140,29 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は cmoc のサブコマンド本体、CLI 登録、共通エラー表示を横断して検証するテスト群の入口です。
-- `init` / `session fork` / `eval-oracles` / `apply` / `merge` の実行結果、branch/state 更新、report 生成、commit 挙動を確認します。
-- Structured Output schema、prompt 文、conflict marker 検査、`bin/cmoc` の起動条件、互換コマンド名も扱います。
+- cmoc のサブコマンド実装と CLI 登録を横断的に検証する pytest テスト群の入口です。
+- `init`、`session fork`、`session join`、`eval-oracles`、`apply` の branch/state/report/commit 挙動を確認します。
+- prompt 文、Structured Output schema、conflict marker 検査、`bin/cmoc` 起動条件、共通エラーレポートや互換コマンド名も扱います。
 
 ## Read this when
 
-- `cmoc` のサブコマンド実装を変更して、それに対応するテスト期待値を確認したいとき。
-- `init`、`session fork`、`eval-oracles`、`apply`、`merge` の branch/state/report/commit の挙動を追いたいとき。
-- `main` の CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラーレポートを確認したいとき。
-- Structured Output schema、prompt 文、discrepancy 検証、conflict marker 検査などの補助ロジックのテスト位置を知りたいとき。
-- テスト内のヘルパー関数や、`eval-oracles` 実装ファイル名の制約を確認したいとき。
+- サブコマンド実装を変更して、テストの期待値や回帰範囲を確認したいとき。
+- `init`、`session fork`、`session join`、`eval-oracles`、`apply` の branch/state/report/commit 挙動を追いたいとき。
+- CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラー表示を確認したいとき。
+- Structured Output schema、prompt 文、要修正点の検証、conflict marker 検査のテスト位置を知りたいとき。
+- テスト用リポジトリ作成ヘルパーや、`_discrepancy_json`、`_eval_oracle_issue`、`_git` のような補助関数を参照したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの実装本体だけを追いたいときは、`src/sub_commands/*.py` 側を直接読むべきです。
-- `tests/test_indexing.py` や `tests/test_codex.py` など、別責務のテストを確認したいときはこのファイルではありません。
+- 個別サブコマンドの実装本体だけを追いたいときは、`src/sub_commands/*.py` を直接読むべきです。
+- 別責務のテスト、たとえば `test_indexing.py` や `test_repo.py` だけを確認したいときはこのファイルではありません。
 - `oracles` の正本仕様だけを確認したいときは、`oracles/app_specs` 側の文書を読むべきです。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいときは、このテストファイルを読む必要はありません。
 - `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- 0dcea2c131cedccef073f021f04e69ea96b4717ab475a686021658341eb95e4d
+- 42c183339f388923064c69879d5748b394c91896221287a4d2c434bb3005485b
 
 # `test_timestamps.py`
 

@@ -14,7 +14,7 @@
 ## Do not read this when
 
 - 個別のサブコマンド実装や実行フローを確認したいときは、`src/sub_commands/init.py` などの具体的なモジュールを読む。
-- `cmoc init`、`cmoc apply`、`cmoc eval-oracles`、`cmoc merge` などの挙動そのものを調べたいとき。
+- `cmoc init`、`cmoc apply`、`cmoc eval-oracles`、`cmoc session join` などの挙動そのものを調べたいとき。
 - `commons` 配下の共通処理やテスト仕様だけを確認したいとき。
 
 ## hash
@@ -38,7 +38,7 @@
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc session fork`、`cmoc session join`、`cmoc merge` など、`cmoc apply` 以外のサブコマンド仕様だけを確認したいとき。
+- `cmoc init`、`cmoc session fork`、`cmoc session join` など、`cmoc apply` 以外のサブコマンド仕様だけを確認したいとき。
 - `cmoc apply` の中でも、調査・修正ループや report 生成ではなく、branch や session の運用仕様だけを見たいとき。
 - `INDEX.md` の一般的な生成ルールや、`oracles` 配下の仕様断片そのものだけを読みたいとき。
 - `cmoc apply` の実装ではなく、ユーザー向けの使い方全体をざっくり把握したいだけのとき。
@@ -97,30 +97,6 @@
 
 - 766eb4ef5567a176766be2bb55dbc8f955c55af92c1ddc3f64043c1be4bda4ee
 
-# `merge.py`
-
-## Summary
-
-- `src/sub_commands/merge.py` は `cmoc merge` の実装本体で、cmoc 管理ブランチを現在の HEAD に `git merge --no-ff` する処理をまとめています。
-- 対象ブランチが未指定の場合は未マージの cmoc 管理ブランチを 1 件に絞って自動選択し、cmoc 形式でない名前はエラーにします。
-- merge 失敗時は Codex CLI に conflict marker の解消を依頼し、成功後は安全なら元ブランチを削除して処理時間も報告します。
-
-## Read this when
-
-- `cmoc merge` の実行条件、対象ブランチの決め方、標準出力・エラー出力の挙動を確認したいとき。
-- `git merge --no-ff` と conflict 解消支援、merge commit 作成、ブランチ削除の流れを追いたいとき。
-- `cmoc merge` のエラー処理や、merge 開始後に手動解消が必要な場合の案内文を確認したいとき。
-
-## Do not read this when
-
-- `cmoc init`、`cmoc apply`、`cmoc eval-oracles` など、他サブコマンドの仕様だけを確認したいとき。
-- `src/commons` の共通基盤や `INDEX.md` 生成ロジックだけを確認したいとき。
-- `cmoc session fork` や `cmoc session join` の session 管理仕様だけを確認したいとき。
-
-## hash
-
-- 6fbb49e7479bcd76e29c34c151ebdd39f0a88829283845f59955044aff90fb3d
-
 # `session_fork.py`
 
 ## Summary
@@ -146,3 +122,27 @@
 ## hash
 
 - 79cffa7ff3de334560cef693809731381cea09af27d8772c2f144bfa632c01b0
+
+# `session_join.py`
+
+## Summary
+
+- `src/sub_commands/session_join.py` は `cmoc session join` の実装本体で、現在の session branch を session state に記録された home branch へ `git merge --no-ff` する処理をまとめています。
+- 現在 branch、session state、apply state、home branch、未コミット差分などの前提条件を検証し、home branch へ switch してから merge します。
+- merge 失敗時は Codex CLI に conflict marker の解消を依頼し、成功後は session state を joined に更新し、安全なら session branch を削除します。
+
+## Read this when
+
+- `cmoc session join` の実行条件、session state の検証、標準出力・エラー出力の挙動を確認したいとき。
+- `git switch` から `git merge --no-ff`、conflict 解消、merge commit 作成、session branch 削除までの流れを追いたいとき。
+- merge 開始後に手動解消が必要になった場合の案内文や、conflict 対応の実装を確認したいとき。
+
+## Do not read this when
+
+- `cmoc init`、`cmoc apply`、`cmoc eval-oracles` など、他サブコマンドの実装や手順だけを確認したいとき。
+- `src/commons` の共通基盤や `INDEX.md` 生成ロジックだけを確認したいとき。
+- `cmoc session fork` の開始処理や session 管理の別フェーズだけを確認したいとき。
+
+## hash
+
+- 14595336ef117e01c9897b727971c2fc3f77a5571bce4576ea8e3a53faf47177
