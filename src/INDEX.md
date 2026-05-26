@@ -55,24 +55,22 @@
 
 ## Summary
 
-- cmoc のサブコマンド実装をまとめたパッケージです。
-- apply.py は oracle と実装の不整合調査・修正・レポート作成の実行本体です。
-- eval-oracles.py は oracles の評価と結果レポート生成の実行本体です。
-- init.py はリポジトリ初期化処理を担当し、session_fork.py / session_join.py / session_abandon.py は session の開始・完了・破棄を担当します。
-- __init__.py はパッケージ初期化用の最小ファイルです。
+- `src/sub_commands` は `cmoc` のサブコマンド実装をまとめるディレクトリで、パッケージ宣言用の `__init__.py` と、各コマンド本体の `apply.py`、`eval-oracles.py`、`init.py`、`session_abandon.py`、`session_fork.py`、`session_join.py` を案内します。
+- この `INDEX.md` は、どのファイルに各サブコマンドの実装があるかをたどるための入口です。
+- ここからは実装の詳細には踏み込まず、目的に応じて各モジュールへ直接進むための案内を担います。
 
 ## Read this when
 
-- 各サブコマンドの実装フロー、分岐条件、補助関数の役割を確認したいとき。
-- apply、eval-oracles、init、session 系のコマンド実装を修正・レビュー・テストしたいとき。
-- branch、worktree、state ファイル、レポート生成などの処理をソースコード側から追いたいとき。
+- `src/sub_commands` 配下の各サブコマンド実装を、どのファイルに置くか判断したいとき。
+- `cmoc init`、`cmoc apply`、`cmoc eval-oracles`、`cmoc session fork`、`cmoc session join`、`cmoc session abandon` の入口を整理したいとき。
+- `src/sub_commands` のルーティング文書を作成・更新したいとき。
 
 ## Do not read this when
 
-- 正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` から該当文書へ進むべきです。
-- 利用手順や概念整理だけが目的なら、`oracles/app_specs/usage.md` や `oracles/app_specs/INDEX.md` を読むべきです。
-- 共通規約だけを見たいときは、`oracles/app_specs/branch_model.md`、`oracles/app_specs/codex_call.md`、`oracles/app_specs/indexing.md` などの別文書を読むべきです。
+- `cmoc apply` や `cmoc session fork` など、個別サブコマンドの具体的な実装だけを確認したいときは、各モジュールを直接読むべきです。
+- `src/sub_commands` 全体の入口や、この配下にあるファイル一覧だけを把握したいときは、ここではなくこのディレクトリの `INDEX.md` を参照すべきです。
+- 共通機能や設計ルールだけを確認したいときは、`src/commons` や `oracles/app_specs` 側の文書を読むべきです。
 
 ## hash
 
-- 6b8fc27547e5581290af8e2338a3aeff11b635104438ea60d961f3249383ecb4
+- 44a4e4921124249444bca413dcc49df0639a3c034dd2a923e2acc0a0204edd1e
