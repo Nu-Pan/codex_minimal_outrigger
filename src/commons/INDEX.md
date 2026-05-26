@@ -130,28 +130,29 @@
 
 ## Summary
 
-- git リポジトリのルート探索と `cwd` 固定、`git` 実行の共通処理をまとめたモジュールです。
-- `cmoc/session/<session-id>` と `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定と、branch から session id を取り出す処理を提供します。
-- .cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を扱います。
+- git リポジトリのルート探索と `cwd` 固定、`git` コマンド実行の共通処理をまとめたモジュールです。
+- `cmoc/session/<session-id>` と `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定、および branch から session id を取り出す処理を提供します。
+- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を扱います。
 - `.cmoc` の ignore 保証、未コミット差分や pathspec 単位の clean 判定、oracle / 実装ファイルの列挙と削除検出、部分 commit と staged 差分の復元を実装します。
 
 ## Read this when
 
-- リポジトリルート探索や、`cwd` をルートに固定する処理を確認・修正したいとき。
-- `cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定と session id 抽出を扱いたいとき。
-- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を確認したいとき。
-- `.cmoc` の追跡対象外保証、未コミット差分や pathspec 単位の clean 判定、oracle / 実装ファイルの列挙、削除検出、部分 commit と staged 差分の復元を追いたいとき.
+- リポジトリルート探索と `cwd` を固定する処理を実装・修正したいとき。
+- `cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定と session id 抽出を確認したいとき。
+- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を扱いたいとき。
+- `.cmoc` の追跡対象外保証、未コミット差分の検出、pathspec 単位の clean 判定、削除ファイル判定を確認したいとき。
+- `oracles` / 実装ファイルの列挙、部分 commit、staged 差分の復元、`git` 呼び出しの共通処理を追いたいとき。
 
 ## Do not read this when
 
-- CLI 引数定義やサブコマンド本体の業務ロジックだけを確認したいとき。
-- `commons.errors` のエラーレポート整形や `commons.subcommand_log`、`commons.timestamps` など別の共通機能だけを追いたいとき。
-- `INDEX.md` の生成・更新ルールや `oracles` 側の正本仕様だけを確認したいとき。
-- 個別のサブコマンド実装やテストだけを見れば十分で、git リポジトリ共通処理が不要なとき。
+- CLI の引数定義やサブコマンド本体の処理だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールだけを追いたいとき。
+- `commons.errors`、`commons.indexing`、`commons.subcommand_log` など他の共通モジュールだけを確認したいとき。
+- `oracles` 側の正本仕様や個別サブコマンド仕様だけを見れば足りるとき。
 
 ## hash
 
-- 19a86eecd00fd6674a8f73aabec380d5995b866721701c10bb97aa1d1d85f6d5
+- a5670e6cab535dbeff1293fcf0cf6d658c0090c9ad42242532f26e1b6a5969fd
 
 # `subcommand_log.py`
 

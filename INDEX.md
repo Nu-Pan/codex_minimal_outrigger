@@ -179,27 +179,27 @@
 
 ## Summary
 
-- `cmoc` の実装本体をまとめた `src` ディレクトリの入口です。CLI エントリーポイント、共通基盤、サブコマンド実装への案内を集約します。
-- `main.py` は Typer ベースの CLI ルーティングと起動処理を担当します。
-- `commons/` は複数サブコマンドで共有する基盤処理、`sub_commands/` は `apply`・`session`・`init`・`eval-oracles` などの実装本体を収めます。
+- `src` は `cmoc` の実装本体をまとめたルートで、CLI エントリーポイント、共通基盤、サブコマンド実装の三つに大きく分かれます。
+- `main.py` は CLI の起点で、`commons` は複数コマンドで共有する処理、`sub_commands` は各サブコマンドの本体実装を収めます。
+- この目次は `src` 配下の入口を案内するためのもので、細かな仕様本文は各モジュールや各ディレクトリの `INDEX.md` に委ねます。
 
 ## Read this when
 
-- `cmoc` の実装全体で、どこに CLI 入口・共通基盤・サブコマンド本体があるかを整理したいとき。
-- トップレベルの CLI ルーティングが `main.py`、共有処理が `commons/`、各コマンド実装が `sub_commands/` のどこに置かれているか確認したいとき。
-- 新しい実装や修正を始める前に、`src` 配下の責務分担を俯瞰したいとき。
-- `src` 配下のどのディレクトリを読めばよいか、入口を判断したいとき。
+- `src` 配下のどこに CLI 起点、共通処理、サブコマンド実装があるかを整理したいとき。
+- `cmoc` のトップレベル入口から `main.py`、`commons`、`sub_commands` へどう分かれるかを把握したいとき。
+- 新しいコードを置く場所を判断したいときや、既存の機能がどの階層に属するかを確認したいとき。
+- `src` ディレクトリ全体のルーティング文書として、まずどの入口を読むべきかを決めたいとき。
 
 ## Do not read this when
 
-- `src/main.py` だけの起動処理や例外変換だけを確認したいときは、このディレクトリ全体ではなく該当モジュールを直接読むべきです。
-- 共有ユーティリティの実装だけを追いたいときは、`commons/` の各モジュールを直接読むべきです。
-- 各サブコマンドの業務ロジックや状態遷移だけを確認したいときは、`sub_commands/` 配下の該当ファイルを直接読むべきです。
-- 自動生成物やキャッシュ類の有無だけを見たいときは、この `INDEX.md` ではなくファイルシステム上の実体を確認すべきです。
+- `src/main.py` の起動処理や Typer のルーティングだけを確認したいときは、この目次ではなく該当モジュールを直接読むべきです。
+- `src/commons` の共通処理だけを追いたいときは、このディレクトリ全体ではなく個別の共通モジュールを読むべきです。
+- `src/sub_commands` の個別コマンド実装だけを見たいときは、この入口ではなく該当サブコマンドのモジュールへ進むべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`src/commons/indexing.py` と `oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- 50597ec6e35df8ff4478a98787aaba246ba4bf96dccbe614ce6c5b11362f345c
+- 222b70a1c1e5de39db2334ab54e3ff8e9177a58180d91e17b41afc17cbd99e82
 
 # `test.sh`
 
@@ -229,30 +229,24 @@
 
 ## Summary
 
-- `tests` 配下の pytest 自動テスト群の入口で、各テストファイルが何を検証するかをまとめる。
-- `conftest.py` は `<cmoc-root>/src` を import path に追加し、テストから本体モジュールを直接 import できるようにする。
-- `test_codex.py` は `commons.codex.run_codex_exec()` の Structured Output、再試行、ログ通知、`--resume` などを検証する。
-- `test_file_naming.py` は旧ルーティングファイル `routing.md` / `ROUTING.md` が残っていないことを確認する。
-- `test_indexing.py` は `commons.indexing.maintain_indexes` の `INDEX.md` 生成・更新、gitignore、空ディレクトリ、バイナリ除外などを確認する。
-- `test_repo.py` は `commons.repo` の git 共有処理、`.cmoc` の ignore、oracle / 実装ファイル列挙、session state を検証する。
-- `test_subcommands.py` は `init`、`session`、`apply`、`eval-oracles`、`main` の CLI 制御ロジックを検証する。
-- `test_timestamps.py` はタイムスタンプ生成と経過時間表示の書式を検証する。
+- `tests` ディレクトリの入口です。pytest の共通設定と、`commons.codex`、`commons.indexing`、`commons.repo`、CLI サブコマンド、タイムスタンプ、ファイル命名規則を扱う各テスト群への案内をまとめます。
+- `conftest.py` は import path の共通設定を担い、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py`、`test_file_naming.py` がそれぞれ対応機能の回帰テスト入口です。
+- `tests` 配下の個別テストを探すときや、どのテストがどの実装領域を守っているかを確認したいときのルーティング起点になります。
 
 ## Read this when
 
-- `tests` 配下でどの機能がどのテストに対応しているかを素早く把握したいとき。
-- `src` 側の変更がどのテスト群に影響するか見極めたいとき。
-- `INDEX.md` やルーティング文書の更新がテスト観点で妥当か確認したいとき。
-- `cmoc` の CLI、git 共有処理、インデックス生成、時間表示の回帰テストを探したいとき。
-- 個別テストファイルへ進む前に、`tests` 全体の役割分担を整理したいとき。
+- `tests` 配下にどのテストファイルがあり、それぞれ何を検証しているかを把握したいとき。
+- pytest 共通設定、`INDEX.md` メンテナンス、`commons.repo`、`commons.codex`、CLI サブコマンド、タイムスタンプ関連のどこにテストがあるか整理したいとき。
+- `cmoc` の回帰テストの入口を探していて、目的の機能に対応するテスト群へ素早く移動したいとき。
+- `tests/INDEX.md` を更新する前提で、配下ファイルの役割分担を一覧したいとき。
 
 ## Do not read this when
 
-- 個別の実装ロジックだけを追いたいときは、この目次ではなく `src` 側の本体コードを読むべきです。
-- `oracles` の正本仕様そのものを確認したいときは、この目次ではなく `oracles` 配下の該当文書を読むべきです。
-- 特定のテストケースの詳細な期待値だけを見たいときは、対応する `tests/test_*.py` を直接読むべきです。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
+- 個別のテストケースや期待値だけを確認したいときは、該当する `test_*.py` を直接読むべきです。
+- `cmoc` の仕様本文や実装ロジックそのものを確認したいときは、このテスト目次ではなく `oracles` や `src` を参照すべきです。
+- `INDEX.md` の生成・更新ルールだけを知りたいときは、`tests` 配下の個別テストではなく `oracles/app_specs/indexing.md` を読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次の対象ではありません。
 
 ## hash
 
-- 9e3f461194c930eeff93d4439cd58e6ddb21f6ac659a88385e7039f04d1a29b8
+- 52dd7e83ebbe58df02959be5100330778f3c1b87d0df0232b6e3bb2d54961d2c
