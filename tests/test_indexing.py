@@ -596,6 +596,56 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     assert "user_work.txt" not in last_commit_paths
 
 
+def test_maintain_indexes_preserves_preexisting_staged_index_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """同じ INDEX.md の既存 staged-only 差分を自動 commit 後も残す。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("before\n", encoding="utf-8")
+    _git(repo, "add", "target.txt")
+    _git(repo, "commit", "-m", "target")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo)
+    head_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+    (repo / "INDEX.md").write_text(
+        "staged note\n" + head_index,
+        encoding="utf-8",
+    )
+    _git(repo, "add", "INDEX.md")
+    (repo / "INDEX.md").write_text(head_index, encoding="utf-8")
+    target.write_text("after\n", encoding="utf-8")
+
+    changed = maintain_indexes(repo)
+    status = _git(repo, "status", "--porcelain").stdout
+    staged_index = _git(repo, "diff", "--cached", "--", "INDEX.md").stdout
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "MM INDEX.md" in status
+    assert "+staged note" in staged_index
+    assert "INDEX.md" in last_commit_paths
+
+
 def test_maintain_indexes_does_not_ensure_cmoc_ignore(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

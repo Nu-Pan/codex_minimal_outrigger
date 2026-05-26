@@ -486,8 +486,9 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     if not diff_result.stdout.strip():
         return False
 
-    # 呼び出し前から stage 済みの無関係差分を、対象 commit へ混ぜない。
+    # 呼び出し前から stage 済みの差分を、対象 commit 後の index へ戻す。
     staged_outside_paths = _staged_diff_excluding_paths(repo_root, paths)
+    staged_inside_paths = _staged_diff_for_paths(repo_root, paths)
     parent_hash = _head_commit_or_none(repo_root)
     with tempfile.TemporaryDirectory(
         prefix="cmoc-pathspec-index-",
@@ -536,7 +537,10 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     if parent_hash is not None:
         update_ref_args.append(parent_hash)
     run_git(repo_root, update_ref_args)
-    _restore_index_after_pathspec_commit(repo_root, staged_outside_paths)
+    _restore_index_after_pathspec_commit(
+        repo_root,
+        staged_outside_paths + staged_inside_paths,
+    )
     return True
 
 
@@ -987,11 +991,27 @@ def _staged_diff_excluding_paths(repo_root: Path, paths: list[str]) -> str:
     return result.stdout
 
 
+def _staged_diff_for_paths(repo_root: Path, paths: list[str]) -> str:
+    """指定 pathspec の既存 staged 差分を patch として返す。"""
+    result = run_git(
+        repo_root,
+        [
+            "diff",
+            "--cached",
+            "--binary",
+            "--full-index",
+            "--",
+            *paths,
+        ],
+    )
+    return result.stdout
+
+
 def _restore_index_after_pathspec_commit(
     repo_root: Path,
     staged_diff: str,
 ) -> None:
-    """pathspec commit 後、対象外の既存 staged 差分だけを index に戻す。"""
+    """pathspec commit 後、既存 staged 差分を index に戻す。"""
     # 作業ツリーは触らず index だけを新しい HEAD に合わせる。
     run_git(repo_root, ["read-tree", "--reset", "HEAD"])
     if not staged_diff:
