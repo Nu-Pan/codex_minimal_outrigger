@@ -29,6 +29,7 @@ from sub_commands.apply import _DISCREPANCY_OUTPUT_SCHEMA
 from sub_commands.apply import _commit_all_changes
 from sub_commands.apply import _organize_prompt
 from sub_commands.apply import _validate_discrepancy_payload
+from sub_commands.apply_join import cmoc_apply_join_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.session_abandon import cmoc_session_abandon_impl
 from sub_commands.session_fork import cmoc_session_fork_impl
@@ -1041,6 +1042,82 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert "変更内容の意味論に基づき" in codex_prompts[-1]
     assert "「カテゴリ」という語" in codex_prompts[-1]
     assert "<cmoc-branch>" not in codex_prompts[-1]
+
+
+def test_apply_join_merges_completed_apply_branch_and_resets_state(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`cmoc apply join` は apply branch を session branch へ merge する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_cmoc_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement feature")
+
+    cmoc_apply_join_impl(repo)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert state["apply"] == {
+        "apply_branch": None,
+        "apply_worktree": None,
+        "completed": None,
+        "discrepancy_counts": None,
+        "oracle_snapshot_commit": None,
+        "report_path": None,
+        "state": "ready",
+    }
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_123"
+    )
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+    assert report_path.exists()
+    assert "joined apply branch:" in output
+
+
+def test_apply_join_stops_on_unexpected_diff_in_normal_mode(
+    tmp_path: Path,
+) -> None:
+    """通常モードの apply join は想定外差分を報告して停止する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_cmoc_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "oracles" / "spec.md").write_text(
+        "unexpected oracle edit\n",
+        encoding="utf-8",
+    )
+    _git(apply_worktree, "add", "oracles/spec.md")
+    _git(apply_worktree, "commit", "-m", "edit oracle unexpectedly")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: oracles/spec.md" in error_info.value.detail
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert state["apply"]["state"] == "completed"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
 
 
 def test_apply_uses_investigate_repeat_option_for_loop_limit(
@@ -2266,6 +2343,54 @@ def _checkout_cmoc_branch(repo: Path) -> None:
     )
     exclude = repo / ".git" / "info" / "exclude"
     exclude.write_text(f"{exclude.read_text(encoding='utf-8')}\n.cmoc/\n")
+
+
+def _add_oracle_snapshot(repo: Path) -> str:
+    """テスト用 oracle snapshot commit を作る。"""
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "add oracle")
+    return _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
+def _create_completed_apply_run(
+    repo: Path,
+    oracle_snapshot: str,
+) -> tuple[str, Path, Path]:
+    """completed apply run の branch/worktree/state を作る。"""
+    session_id = "2026-05-10_22-21_10_123"
+    apply_branch = f"cmoc/apply/{session_id}/2026-05-10_22-22_10_123"
+    apply_worktree = (
+        repo
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / session_id
+        / "2026-05-10_22-22_10_123"
+    )
+    report_path = repo / ".cmoc" / "reports" / "apply" / "fork" / "report.md"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text("report\n", encoding="utf-8")
+    _git(repo, "branch", apply_branch, oracle_snapshot)
+    _git(repo, "worktree", "add", str(apply_worktree), apply_branch)
+    state = json.loads(
+        (repo / ".cmoc" / "sessions" / f"{session_id}.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    state["apply"] = {
+        "state": "completed",
+        "apply_branch": apply_branch,
+        "apply_worktree": str(apply_worktree),
+        "oracle_snapshot_commit": oracle_snapshot,
+        "completed": True,
+        "discrepancy_counts": [0],
+        "report_path": str(report_path),
+    }
+    write_session_state(repo, session_id, state)
+    return apply_branch, apply_worktree, report_path
 
 
 def _session_state_paths(repo: Path) -> list[Path]:
