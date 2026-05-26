@@ -16,6 +16,14 @@ from sub_commands.merge import cmoc_merge_impl
 
 
 app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=True)
+session_app: typer.Typer = typer.Typer(
+    name="session",
+    no_args_is_help=True,
+)
+apply_app: typer.Typer = typer.Typer(
+    name="apply",
+    no_args_is_help=True,
+)
 _EVAL_ORACLES_PATH = Path(__file__).parent / "sub_commands" / "eval-oracles.py"
 _EVAL_ORACLES_SPEC = importlib.util.spec_from_file_location(
     "sub_commands.eval-oracles",
@@ -28,6 +36,9 @@ assert isinstance(_eval_oracles_module, ModuleType)
 _EVAL_ORACLES_SPEC.loader.exec_module(_eval_oracles_module)
 cmoc_eval_oracles_impl = _eval_oracles_module.cmoc_eval_oracles_impl
 
+app.add_typer(session_app, name="session")
+app.add_typer(apply_app, name="apply")
+
 
 @app.command("init")
 def init_command() -> None:
@@ -36,11 +47,31 @@ def init_command() -> None:
     cmoc_init_impl()
 
 
-@app.command("branch")
-def branch_command() -> None:
-    """Create a cmoc work branch."""
-    # CLI callback は branch の本体実装へ処理を委譲する。
+@session_app.command("fork")
+def session_fork_command() -> None:
+    """Start a cmoc session."""
+    # CLI callback は session fork の本体実装へ処理を委譲する。
     cmoc_branch_impl()
+
+
+@session_app.command("join")
+def session_join_command() -> None:
+    """Join the active cmoc session."""
+    # CLI callback は session join の本体実装へ処理を委譲する。
+    cmoc_merge_impl()
+
+
+@session_app.command("abandon")
+def session_abandon_command() -> None:
+    """Abandon the active cmoc session."""
+    raise CmocError(
+        "`cmoc session abandon` は未実装です。",
+        [
+            "現時点では手動で session branch を整理してください。",
+            "先に必要な apply run がないことを確認してください。",
+        ],
+        "CLI 入口のみ登録されていますが、session state 管理の実装がまだありません。",
+    )
 
 
 @app.command("eval-oracles")
@@ -53,8 +84,8 @@ def eval_oracles_command(
     cmoc_eval_oracles_impl(full=full)
 
 
-@app.command("apply")
-def apply_command(
+@apply_app.command("fork")
+def apply_fork_command(
     repeat_investigate_and_fix: int = typer.Option(
         5,
         "--repeat-investigate-and-fix",
@@ -68,7 +99,7 @@ def apply_command(
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Apply oracle requirements to implementation."""
-    # CLI callback は apply の本体実装へ処理を委譲する。
+    # CLI callback は apply fork の本体実装へ処理を委譲する。
     cmoc_apply_impl(
         repeat_investigate_and_fix=repeat_investigate_and_fix,
         repeat_improove_fixing_list=repeat_improove_fixing_list,
@@ -76,11 +107,27 @@ def apply_command(
     )
 
 
-@app.command("merge")
-def merge_command(cmoc_branch: str | None = typer.Argument(None)) -> None:
-    """Merge a cmoc branch into the current branch."""
-    # CLI callback は merge の本体実装へ処理を委譲する。
-    cmoc_merge_impl(cmoc_branch=cmoc_branch)
+@apply_app.command("join")
+def apply_join_command(
+    force_resolve: bool = typer.Option(False, "--force-resolve"),
+) -> None:
+    """Join the last completed apply run."""
+    # 既存の merge 実装は force resolve の分岐をまだ持たない。
+    del force_resolve
+    cmoc_merge_impl()
+
+
+@apply_app.command("abandon")
+def apply_abandon_command() -> None:
+    """Abandon the active apply run."""
+    raise CmocError(
+        "`cmoc apply abandon` は未実装です。",
+        [
+            "現時点では手動で apply branch と worktree を整理してください。",
+            "`cmoc apply join` 前の成果物を破棄する場合は、関連 branch を確認してください。",
+        ],
+        "CLI 入口のみ登録されていますが、apply run state 管理の実装がまだありません。",
+    )
 
 
 def main() -> None:
@@ -102,7 +149,8 @@ def main() -> None:
                 [
                     "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
                     "`cmoc init`, `cmoc session fork`, `cmoc eval-oracles`, "
-                    "`cmoc apply`, `cmoc merge` のいずれかを実行してください。",
+                    "`cmoc apply fork`, `cmoc apply join`, "
+                    "`cmoc session join` のいずれかを実行してください。",
                 ],
                 (
                     "cmoc がサブコマンドなしで起動されました。"

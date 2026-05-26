@@ -1610,7 +1610,7 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     assert "cmoc_eval_oracles_impl(full=full)" in source
     assert "repeat_investigate_and_fix=repeat_investigate_and_fix" in source
     assert "repeat_improove_fixing_list=repeat_improove_fixing_list" in source
-    assert "cmoc_merge_impl(cmoc_branch=cmoc_branch)" in source
+    assert "cmoc_merge_impl()" in source
 
 
 def test_cmoc_help_uses_cmoc_command_name() -> None:
@@ -1627,7 +1627,11 @@ def test_cmoc_help_uses_cmoc_command_name() -> None:
     )
 
     assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." in result.stdout
+    assert "session" in result.stdout
+    assert "apply" in result.stdout
     assert "eval-oracles" in result.stdout
+    assert re.search(r"\bbranch\b", result.stdout) is None
+    assert re.search(r"\bmerge\b", result.stdout) is None
     assert re.search(r"\beval-oracle(?!s)\b", result.stdout) is None
 
 
@@ -1661,11 +1665,11 @@ def test_cmoc_eval_oracles_command_and_compat_alias_are_registered() -> None:
     assert singular.stderr == ""
 
 
-def test_cmoc_apply_help_exposes_oracle_repeat_options() -> None:
-    """`cmoc apply --help` は oracle で定義された正式オプションを表示する。"""
+def test_cmoc_apply_fork_help_exposes_oracle_repeat_options() -> None:
+    """`cmoc apply fork --help` は oracle で定義された正式オプションを表示する。"""
     repo_root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
-        [sys.executable, "-m", "main", "apply", "--help"],
+        [sys.executable, "-m", "main", "apply", "fork", "--help"],
         cwd=repo_root,
         env={"PYTHONPATH": str(repo_root / "src")},
         check=True,
@@ -1679,6 +1683,64 @@ def test_cmoc_apply_help_exposes_oracle_repeat_options() -> None:
     assert "--full" in result.stdout
 
 
+def test_cmoc_session_and_apply_workflow_commands_are_registered() -> None:
+    """公開 CLI は session/apply の階層コマンドを登録する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    env = {"PYTHONPATH": str(repo_root / "src")}
+    commands = [
+        ("session", "fork"),
+        ("session", "join"),
+        ("session", "abandon"),
+        ("apply", "fork"),
+        ("apply", "join"),
+        ("apply", "abandon"),
+    ]
+
+    for command_group, command_name in commands:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "main",
+                command_group,
+                command_name,
+                "--help",
+            ],
+            cwd=repo_root,
+            env=env,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert result.returncode == 0
+        assert (
+            f"Usage: cmoc {command_group} {command_name} [OPTIONS]"
+            in result.stdout
+        )
+        assert result.stderr == ""
+
+
+def test_cmoc_legacy_branch_and_merge_are_not_registered() -> None:
+    """legacy 旧名の top-level command は公開 CLI に登録しない。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    env = {"PYTHONPATH": str(repo_root / "src")}
+
+    for command_name in ["branch", "merge"]:
+        result = subprocess.run(
+            [sys.executable, "-m", "main", command_name, "--help"],
+            cwd=repo_root,
+            env=env,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert result.returncode != 0
+        assert "No such command" in result.stdout
+        assert result.stderr == ""
+
+
 def test_main_returns_nonzero_for_subcommand_error() -> None:
     """サブコマンド内エラーはプロセス終了コードへ反映される。"""
     repo_root = Path(__file__).resolve().parents[1]
@@ -1688,6 +1750,7 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
             "-m",
             "main",
             "apply",
+            "fork",
             "--repeat-investigate-and-fix",
             "-1",
         ],
