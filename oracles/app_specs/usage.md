@@ -21,11 +21,13 @@
    2. 人間が `cmoc eval-oracles` を呼び出して、評価レポートを読む
    3. 人間が必要に応じて `<repo-root>/oracles` を修正する
    4. 人間が `<repo-root>/oracles` の変更を commit する
-   5. 人間が `cmoc apply` を呼び出す
-      - `cmoc apply` は、呼び出された時点の `<oracle-snapshot-commit>` 上の `<repo-root>/oracles` に、実装を追従させる作業を行う
+   5. 人間が `cmoc apply fork` を呼び出す
+      - cmoc は、呼び出された時点の `<oracle-snapshot-commit>` 上の `<repo-root>/oracles` に、実装を追従させる作業を行う
       - 実装追従作業は apply worktree 上で長時間作業かけて行われる
-      - 通常系においては、 `cmoc apply` が完了した時点で、作業結果が `<cmoc-session-branch>` に merge されている
-      - `cmoc apply` 実行中も、人間は `<cmoc-session-branch>` 側で `<repo-root>/oracles` の改訂を進めてよいが、その内容は既に実行を開始した `cmoc apply` には反映されない（よって、普通はもう１周必要）
+      - 通常系においては、 `cmoc apply fork` が完了した時点で、作業結果が `<cmoc-apply-branch>` にコミットされている
+      - `cmoc apply fork` 実行中も、人間は `<cmoc-session-branch>` 側で `<repo-root>/oracles` の改訂を進めてよいが、その内容は既に実行を開始した `cmoc apply fork` には反映されない（よって、普通はもう１周必要）
+   6. 人間が `cmoc apply join` を呼び出す
+      - cmoc は `<cmoc-apply-branch>` を `<cmoc-session-branch>` へマージする
    5. 人間が現状の実装で問題なしと判断したら、ループ終了
 4. 人間が `<cmoc-session-branch>` 上で `cmoc session join` を呼び出す
-   - cmoc は session metadata に記録された `<cmoc-session-home-branch>` へ session を merge する
+   - cmoc は `<cmoc-session-branch>` を `<cmoc-session-home-branch>` へマージする

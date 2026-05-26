@@ -26,7 +26,7 @@
 - 現在のブランチが `<cmoc-session-branch>` ではない
 - 対応する `<cmoc-session-state-file>` が存在しない
 - 対応する `<cmoc-session-state-file>` の `session.state` が `active` ではない
-- 対応する `<cmoc-session-state-file>` の `apply.state` が `joined` ではない
+- 対応する `<cmoc-session-state-file>` の `apply.state` が `ready` ではない
 - git 未コミット差分が存在する
 
 ## 実行作業
@@ -35,8 +35,9 @@
 2. 現在の `<cmoc-session-branch>` HEAD を `<oracle-snapshot-commit>` として取得する
 3. 一意な `<apply-run-id>` を生成する
 4. `<oracle-snapshot-commit>` から `<cmoc-apply-branch>` を作成する
-5. `<cmoc-apply-branch>` を checkout した専用 `<apply-worktree>` を作成する
-6. `<apply-worktree>` 上で調査・修正ループを実行する
+5. `<cmoc-apply-branch>` を checkout した専用 `<cmoc-apply-worktree>` を作成する
+6. `<cmoc-session-state-file>` の `apply.state` を `running` に更新する
+7. `<cmoc-apply-worktree>` 上で調査・修正ループを実行する
     1. 調査対象となる oracles ファイル・実装ファイルを列挙する
     2. Codex CLI に、列挙したファイルリストを元に要修正点をリストアップさせる
     3. 要修正点リスト改善ループ (最大 M 回)
@@ -49,8 +50,7 @@
         2. `<repo-root>/oracles` などの編集禁止ディレクトリに未コミット差分が有る場合はエラー終了
         3. 全ての未コミット差分を git にコミット（コミットメッセージは Codex CLI で適切なものを生成）
     6. 調査・修正ループ先頭に戻る
-7. `<cmoc-apply-branch>` を `<cmoc-session-branch>` にマージする
-8. 使用済みの `<cmoc-apply-branch>` を削除する
+8. `<cmoc-session-state-file>` の `apply.state` を `completed` に更新する
 9. 作業結果をレポートする
 
 ## `cmoc apply` の責務境界
@@ -61,9 +61,15 @@
 - ループが回数上限に達した場合も、コマンド実行としては正常系として扱う
 - 回数上限到達後にさらに `cmoc apply` を再実行するか、`cmoc eval-oracles` や人手レビューを行うか、作業を打ち切るかは人間が判断する
 
+## `<cmoc-session-state-file>` 状態遷移
+
+- 処理開始時に `apply.state` を `running` に遷移させる
+- 全ての処理が正常に完了出来た場合 `apply.state` を `completed` に遷移させる
+- 途中でエラーが発生して処理を中止した場合 `apply.state` を `error` に遷移させる
+
 ## git worktree と編集操作
 
-- `<apply-worktree>` 上の `oracles/` は編集禁止である。
+- `<cmoc-apply-worktree>` 上の `oracles/` は編集禁止である。
 - Codex CLI による実装修正が `<apply-worktree>/oracles` を変更した場合はエラー終了する。
 - 一方、apply 実行中にユーザーが `<cmoc-session-branch>` 側で `oracles/` を編集・commit しても、実行中の apply には取り込まれない。
 

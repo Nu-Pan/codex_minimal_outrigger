@@ -61,7 +61,7 @@
 
 ## 使用済みブランチの削除
 
-- 以下の条件を満たす場合 cmoc は `<cmoc-apply-branch>` と `<apply-worktree>` を削除してよい
+- 以下の条件を満たす場合 cmoc は `<cmoc-apply-branch>` と `<cmoc-apply-worktree>` を削除してよい
     - 対応する `<cmoc-session-state-file>` の `apply.state` が `ready` である
     - `<cmoc-apply-branch>` の HEAD が `<cmoc-session-branch>` から到達可能である
     - レポートが保存済みである

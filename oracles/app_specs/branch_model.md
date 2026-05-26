@@ -89,6 +89,7 @@ cmoc は、通常の `<local-branch>` から `<cmoc-session-branch>` を作り�
     "session_head_after_merge": "...",
     "merge_commit": "...",
     "state": "ready | running | completed | error",
+    "pid": "...",
     "session_advanced_during_apply": true,
     "session_advanced_paths_kind": "oracles_only | oracles_not_included | none"
   }

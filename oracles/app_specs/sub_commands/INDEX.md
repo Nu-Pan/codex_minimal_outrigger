@@ -30,7 +30,7 @@
 ## Read this when
 
 - `cmoc apply` の引数、事前条件、実行フロー、完了条件を確認したいとき。
-- `<cmoc-apply-branch>` と `<apply-worktree>` の生成・利用・削除ルールを確認したいとき。
+- `<cmoc-apply-branch>` と `<cmoc-apply-worktree>` の生成・利用・削除ルールを確認したいとき。
 - 開始時点の `<oracle-snapshot-commit>` に固定した調査・修正ループや、要修正点リストの Structured Output 仕様を確認したいとき。
 - 部分適用モードと全体適用モードの違い、反復回数のデフォルト値、レポート内容を確認したいとき。
 
@@ -53,7 +53,7 @@
 - `cmoc apply join` は、`apply fork` で作成された成果物をセッション本流に取り込むコマンドの仕様を定義する。
 - 処理対象はブランチの checkout、想定外の差分の記録または revert、`git merge --no-ff` による統合、セッション状態ファイルの更新、結果レポートである。
 - マージコンフリクトは原則想定せず、発生時は解決せずにユーザーへ報告する。
-- 一定条件を満たした場合にのみ、`<cmoc-apply-branch>` と `<apply-worktree>` を削除できる。
+- 一定条件を満たした場合にのみ、`<cmoc-apply-branch>` と `<cmoc-apply-worktree>` を削除できる。
 
 ## Read this when
 
