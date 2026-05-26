@@ -140,29 +140,25 @@
 
 ## Summary
 
-- cmoc のサブコマンド実装と CLI 登録を横断的に検証する pytest テスト群の入口です。
-- `init`、`session fork`、`session join`、`eval-oracles`、`apply` の branch/state/report/commit 挙動を確認します。
-- prompt 文、Structured Output schema、conflict marker 検査、`bin/cmoc` 起動条件、共通エラーレポートや互換コマンド名も扱います。
+- `cmoc` のサブコマンド本体に対する決定論的な制御ロジックのテストをまとめたファイルです。
+- `run_command` の出力 tee、`init`、`session`、`apply`、`eval-oracles`、CLI 登録とヘルプ、エラー報告、補助プロンプトや検証ヘルパーの挙動を検証しています。
+- Git 状態、ブランチ操作、state file 更新、プロンプト生成、差分コミット、conflict 取り扱いなど、LLM そのものではなく cmoc 側の制御を確認するためのテスト群です。
 
 ## Read this when
 
-- サブコマンド実装を変更して、テストの期待値や回帰範囲を確認したいとき。
-- `init`、`session fork`、`session join`、`eval-oracles`、`apply` の branch/state/report/commit 挙動を追いたいとき。
-- CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラー表示を確認したいとき。
-- Structured Output schema、prompt 文、要修正点の検証、conflict marker 検査のテスト位置を知りたいとき。
-- テスト用リポジトリ作成ヘルパーや、`_discrepancy_json`、`_eval_oracle_issue`、`_git` のような補助関数を参照したいとき。
+- `tests/test_subcommands.py` のカバー範囲や、どのサブコマンド群の決定論的制御ロジックを検証しているか確認したいとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply`、`cmoc eval-oracles`、CLI 入口の登録やエラー表示のテスト観点を見直したいとき。
+- サブコマンド実装の修正に伴って、関連テストの追加・修正・レビュー方針を整理したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの実装本体だけを追いたいときは、`src/sub_commands/*.py` を直接読むべきです。
-- 別責務のテスト、たとえば `test_indexing.py` や `test_repo.py` だけを確認したいときはこのファイルではありません。
-- `oracles` の正本仕様だけを確認したいときは、`oracles/app_specs` 側の文書を読むべきです。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいときは、このテストファイルを読む必要はありません。
-- `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
+- 各サブコマンドの仕様本文だけを確認したいときは、`oracles/app_specs/sub_commands/` の該当文書を直接読むべきです。
+- pytest 全般の書き方や配置規約だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
+- 実装コードの振る舞いだけで足りる場合は、このテストファイルを読む必要はありません。
 
 ## hash
 
-- 42c183339f388923064c69879d5748b394c91896221287a4d2c434bb3005485b
+- bac729982fdd9b401f0037a1fa87a84315760b0b3d2ad09ecb5484b5c134c47e
 
 # `test_timestamps.py`
 

@@ -97,6 +97,30 @@
 
 - 766eb4ef5567a176766be2bb55dbc8f955c55af92c1ddc3f64043c1be4bda4ee
 
+# `session_abandon.py`
+
+## Summary
+
+- `src/sub_commands/session_abandon.py` は `cmoc session abandon` の本体処理を実装するモジュールです。
+- 現在 checkout している session branch を検証し、session state と apply state を確認したうえで、home branch へ切り替えて session を abandoned として記録し、session branch を削除します。
+- 直接呼び出し時の共通 runner 委譲、`.cmoc` の非追跡保証、cleanup 失敗時の復元処理も含みます。
+
+## Read this when
+
+- `cmoc session abandon` の実装・修正・レビューを行いたいとき。
+- 現在の session branch を merge せずに破棄する前提条件、state 検証、`git switch`、`git branch -D` の流れを確認したいとき。
+- cleanup 失敗時の state 復元や、session branch / session state の整合性確認を追いたいとき。
+
+## Do not read this when
+
+- `cmoc session join` や `cmoc session fork` など、他の session サブコマンドの挙動だけを確認したいとき。
+- `cmoc apply abandon` を含む apply 側の破棄手順だけを確認したいとき。
+- `src/commons` の共通基盤や `INDEX.md` 生成ロジックだけを確認したいとき。
+
+## hash
+
+- e76c36a188ae7ebd5d36f7f92b74c8061219f8f98d8f6352dc0fb764abb50db1
+
 # `session_fork.py`
 
 ## Summary
