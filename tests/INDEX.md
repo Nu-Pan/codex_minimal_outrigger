@@ -140,28 +140,27 @@
 ## Summary
 
 - `tests/test_subcommands.py` は、`cmoc` のサブコマンド本体と共通実行基盤の決定論的な挙動を検証するテスト集の目次です。
-- `run_command` の tee 出力、ログ保存、例外処理、終了コード、`main` の登録や `bin/cmoc` ランチャーまで横断して確認できます。
-- `init`、`session`、`apply`、`eval-oracles` の主要分岐に加えて、prompt・schema・conflict 解消補助・補助関数の順序規約も扱います。
+- `run_command`、`init`、`session`、`apply`、`eval-oracles`、`main`、`bin/cmoc` を横断して、ログ・終了コード・登録状態・エラー表示を確認します。
+- 後半では prompt・schema・conflict 解消補助・補助関数の並び順・`future annotations` 禁止など、周辺の制御規約も扱います。
 
 ## Read this when
 
-- `run_command`、`init`、`session`、`apply`、`eval-oracles` の挙動を横断して確認したいとき。
+- `run_command` の tee 出力、ログ保存、例外処理、終了コードの扱いを確認したいとき。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要分岐や state 更新を確認したいとき。
 - `main` の CLI 登録、`eval-oracles` と `eval-oracle` の互換 alias、`bin/cmoc` の起動経路を確認したいとき。
 - 要修正点リストや評価レポートの schema 検証、prompt 文字列、コミット順序、レポート保存の仕様を確認したいとき。
-- `session fork` / `join` / `abandon` の state 更新、branch 操作、conflict 解消補助、前提条件エラーの扱いを確認したいとき。
-- 共通エラーレポート、ログ tee、終了コード、補助関数の並び順など、サブコマンド周辺の制御ロジックを追いたいとき。
-- Python ソースで `future annotations` を使わない規約の確認対象を把握したいとき。
+- 共通エラーレポート、`commons.errors` の整形、`commons.repo` の状態補助、`commons.timing` の helper 順序、`future annotations` 禁止の確認をしたいとき。
 
 ## Do not read this when
 
-- 個別の `src/sub_commands/*.py` 実装の細部だけを確認したいとき。
-- `oracles` 側の正本仕様そのものや、`INDEX.md` の生成・更新ルールだけを確認したいとき。
-- `README.md` や各サブコマンドの説明文など、ユーザー向け手順だけを確認したいとき。
-- `run_command` 以外の共通モジュールや、`tests` 全体の配置規則だけを確認したいとき。
+- `src/sub_commands/*.py` の個別実装の細部だけを確認したいとき。
+- `oracles` 側の正本仕様そのものや、`INDEX.md` 生成・更新ルールだけを確認したいとき。
+- `tests` 全体の配置規則や、他のテストファイルだけを追いたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- 4e016803cac5f6d1eded0b52e9fa230959922f7aa38ce47515a3f393245c519a
+- b5d229ec01362b25623b0aa45955fd8ca3b27a1d33c8a31501a3d4751f5380ac
 
 # `test_timestamps.py`
 
