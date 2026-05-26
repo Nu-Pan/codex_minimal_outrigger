@@ -1,5 +1,6 @@
 """`cmoc apply join` の本体処理。"""
 
+import json
 import os
 from pathlib import Path
 
@@ -98,8 +99,14 @@ def cmoc_apply_join_impl(
         )
 
     start_step(timer, 5, 5, "record ready apply state")
+    cleanup_evidence = _snapshot_cleanup_evidence(cmoc_root, join_state)
     _mark_apply_ready(cmoc_root, session_id, state)
-    warnings = _cleanup_apply_artifacts(cmoc_root, join_state, state)
+    warnings = _cleanup_apply_artifacts(
+        cmoc_root,
+        join_state,
+        state,
+        cleanup_evidence,
+    )
     print(f"joined apply branch: {join_state.apply_branch}")
     print(f"session branch: {join_state.session_branch}")
     for warning in warnings:
@@ -122,6 +129,21 @@ class _JoinState:
         self.apply_branch = apply_branch
         self.apply_worktree = apply_worktree
         self.oracle_snapshot_commit = oracle_snapshot_commit
+
+
+class _CleanupEvidence:
+    """ready 遷移前に確認した cleanup 用証跡。"""
+
+    def __init__(
+        self,
+        *,
+        report_saved: bool,
+        result_saved: bool,
+        warnings: list[str],
+    ) -> None:
+        self.report_saved = report_saved
+        self.result_saved = result_saved
+        self.warnings = warnings
 
 
 def _validate_joinable_state(
@@ -388,15 +410,99 @@ def _mark_apply_ready(
     write_session_state(repo_root, session_id, state)
 
 
+def _snapshot_cleanup_evidence(
+    repo_root: Path,
+    join_state: _JoinState,
+) -> _CleanupEvidence:
+    """apply artifact 削除前に report/result 保存済み証跡を取得する。"""
+    report_path, metadata = _find_apply_report(repo_root, join_state.apply_branch)
+    warnings: list[str] = []
+    if report_path is None:
+        warnings.append(
+            "apply cleanup skipped: saved apply report was not found for "
+            f"{join_state.apply_branch}"
+        )
+        return _CleanupEvidence(
+            report_saved=False,
+            result_saved=False,
+            warnings=warnings,
+        )
+
+    result = metadata.get("result")
+    result_saved = isinstance(result, str) and result.strip() != ""
+    if not result_saved:
+        warnings.append(
+            "apply cleanup skipped: saved apply report does not contain result "
+            f"metadata: {report_path}"
+        )
+    return _CleanupEvidence(
+        report_saved=True,
+        result_saved=result_saved,
+        warnings=warnings,
+    )
+
+
+def _find_apply_report(
+    repo_root: Path,
+    apply_branch: str,
+) -> tuple[Path | None, dict[str, str]]:
+    """該当 apply branch の保存済み report と metadata を探す。"""
+    report_dir = repo_root / ".cmoc" / "reports" / "apply" / "fork"
+    if not report_dir.exists():
+        return None, {}
+
+    candidates = sorted(report_dir.glob("*.md"), reverse=True)
+    for path in candidates:
+        try:
+            report = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        metadata = _split_yaml_front_matter(report)
+        if metadata.get("cmoc_apply_branch") == apply_branch:
+            return path, metadata
+    return None, {}
+
+
+def _split_yaml_front_matter(report: str) -> dict[str, str]:
+    """apply report の YAML Front Matter を軽量に取り出す。"""
+    if not report.startswith("---\n"):
+        return {}
+    front_matter_end = report.find("\n---\n", 4)
+    if front_matter_end == -1:
+        return {}
+
+    front_matter: dict[str, str] = {}
+    for line in report[4:front_matter_end].splitlines():
+        if ":" not in line:
+            continue
+        key, raw_value = line.split(":", 1)
+        value = raw_value.strip()
+        if value.startswith('"') and value.endswith('"'):
+            try:
+                loaded = json.loads(value)
+            except json.JSONDecodeError:
+                loaded = value[1:-1]
+            if isinstance(loaded, str):
+                front_matter[key.strip()] = loaded
+                continue
+        front_matter[key.strip()] = value
+    return front_matter
+
+
 def _cleanup_apply_artifacts(
     repo_root: Path,
     join_state: _JoinState,
     state: dict[str, object],
+    cleanup_evidence: _CleanupEvidence,
 ) -> list[str]:
     """安全条件を満たす場合だけ apply worktree と branch を削除する。"""
-    warnings: list[str] = []
-    if not _cleanup_preconditions_hold(repo_root, join_state, state):
-        return ["apply artifacts were kept because cleanup preconditions failed"]
+    warnings: list[str] = [*cleanup_evidence.warnings]
+    if not _cleanup_preconditions_hold(repo_root, join_state, state, cleanup_evidence):
+        if not warnings:
+            warnings.append(
+                "apply artifacts were kept because cleanup preconditions failed"
+            )
+        return warnings
 
     if join_state.apply_worktree is not None and join_state.apply_worktree.exists():
         if _is_safe_apply_worktree(repo_root, join_state.apply_worktree):
@@ -429,10 +535,13 @@ def _cleanup_preconditions_hold(
     repo_root: Path,
     join_state: _JoinState,
     state: dict[str, object],
+    cleanup_evidence: _CleanupEvidence,
 ) -> bool:
     """apply artifact 削除の安全条件を検証する。"""
     apply = state.get("apply")
     if not isinstance(apply, dict) or apply.get("state") != "ready":
+        return False
+    if not cleanup_evidence.report_saved or not cleanup_evidence.result_saved:
         return False
     ancestor = run_git(
         repo_root,

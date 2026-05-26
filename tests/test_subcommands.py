@@ -1408,6 +1408,52 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     assert "joined apply branch:" in output
 
 
+def test_apply_join_keeps_artifacts_when_report_result_is_missing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """result 保存済みを確認できない場合、merge 後も apply artifacts は残す。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    expected_apply_branch = (
+        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123"
+    )
+    apply_branch, apply_worktree, report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+        report_text="\n".join(
+            [
+                "---",
+                f'cmoc_apply_branch: "{expected_apply_branch}"',
+                "---",
+                "",
+                "## 作業結果",
+                "収束",
+                "",
+            ]
+        ),
+    )
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement feature")
+
+    cmoc_apply_join_impl(repo)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert state["apply"]["state"] == "ready"
+    assert apply_branch in _git(repo, "branch", "--list", apply_branch).stdout
+    assert apply_worktree.exists()
+    assert report_path.exists()
+    assert "warning: apply cleanup skipped:" in output
+
+
 def test_apply_join_ignores_worktree_local_log_cmoc(
     tmp_path: Path,
 ) -> None:
@@ -3255,6 +3301,8 @@ def _add_oracle_snapshot(repo: Path) -> str:
 def _create_completed_apply_run(
     repo: Path,
     oracle_snapshot: str,
+    *,
+    report_text: str | None = None,
 ) -> tuple[str, Path, Path]:
     """completed apply run の branch/worktree/state を作る。"""
     session_id = "2026-05-10_22-21_10_123"
@@ -3269,7 +3317,20 @@ def _create_completed_apply_run(
     )
     report_path = repo / ".cmoc" / "reports" / "apply" / "fork" / "report.md"
     report_path.parent.mkdir(parents=True)
-    report_path.write_text("report\n", encoding="utf-8")
+    if report_text is None:
+        report_text = "\n".join(
+            [
+                "---",
+                f'cmoc_apply_branch: "{apply_branch}"',
+                'result: "収束"',
+                "---",
+                "",
+                "## 作業結果",
+                "収束",
+                "",
+            ]
+        )
+    report_path.write_text(report_text, encoding="utf-8")
     _git(repo, "branch", apply_branch, oracle_snapshot)
     _git(repo, "worktree", "add", str(apply_worktree), apply_branch)
     state = json.loads(
