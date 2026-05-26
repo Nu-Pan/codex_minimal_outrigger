@@ -557,6 +557,96 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert "## Referenced files" in report
 
 
+def test_eval_oracles_writes_error_report_when_preparation_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """前処理に失敗した場合も、取得済み範囲で error レポートを保存する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    def fake_maintain_indexes(_repo_root: Path) -> bool:
+        """INDEX.md メンテナンス中の失敗を模擬する。"""
+        raise RuntimeError("fake preparation failure")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        fake_maintain_indexes,
+    )
+
+    with pytest.raises(RuntimeError, match="fake preparation failure"):
+        cmoc_eval_oracles_impl(repo, full=True)
+
+    reports = list((repo / ".cmoc" / "reports" / "eval-oracles").glob("*.md"))
+    assert len(reports) == 1
+    report = reports[0].read_text(encoding="utf-8")
+    assert "result: error" in report
+    assert "mode: unknown" in report
+    assert "branch: null" in report
+    assert "head_commit: null" in report
+    assert "deleted_oracles_detected: null" in report
+    assert "oracle_count_total: null" in report
+    assert "oracle_count_evaluated: 0" in report
+    assert "- Failed stage: `maintain INDEX.md files`" in report
+    assert "| - | No completed evaluations. | - |" in report
+    assert "No requested oracle files remained unevaluated." in report
+
+
+def test_eval_oracles_error_report_separates_unevaluated_files(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """途中失敗時、未評価 file を issue 0 の評価済み行として表示しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle_a = oracle_root / "a.md"
+    oracle_b = oracle_root / "b.md"
+    oracle_a.write_text("a\n", encoding="utf-8")
+    oracle_b.write_text("b\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+    calls = 0
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """1 件目だけ成功し、2 件目の評価で失敗する。"""
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("fake second evaluation failure")
+        return json.dumps(
+            {
+                "target_oracle_path": str(oracle_a.resolve()),
+                "referenced_paths": [str(oracle_a.resolve())],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            ensure_ascii=False,
+        )
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(RuntimeError, match="fake second evaluation failure"):
+        cmoc_eval_oracles_impl(repo, full=True)
+
+    report = next(
+        (repo / ".cmoc" / "reports" / "eval-oracles").glob("*.md")
+    ).read_text(encoding="utf-8")
+    assert "oracle_count_total: 2" in report
+    assert "oracle_count_evaluated: 1" in report
+    assert "| 1 | `oracles/a.md` | 0 |" in report
+    assert "| 2 | `oracles/b.md` | 0 |" not in report
+    assert "Not evaluated oracle files:" in report
+    assert "1. `oracles/b.md`" in report
+
+
 def test_eval_oracles_writes_error_report_when_report_generation_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -867,6 +957,55 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
     assert "mode: partial" in report
     assert "deleted_oracles_detected: true" in report
     assert "oracle_count: 1" in report
+
+
+def test_eval_oracles_full_mode_reports_deleted_oracles_on_cmoc_branch(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """cmoc branch 上では full mode でも削除済み oracle 有無を metadata に出す。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    existing_oracle = oracle_root / "existing.md"
+    deleted_oracle = oracle_root / "deleted.md"
+    existing_oracle.write_text("existing\n", encoding="utf-8")
+    deleted_oracle.write_text("deleted\n", encoding="utf-8")
+    _git(repo, "add", "oracles")
+    _git(repo, "commit", "-m", "add oracles")
+    _checkout_cmoc_branch(repo)
+    deleted_oracle.unlink()
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """full mode の既存 oracle 評価結果を返す。"""
+        return json.dumps(
+            {
+                "target_oracle_path": str(existing_oracle.resolve()),
+                "referenced_paths": [str(existing_oracle.resolve())],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            ensure_ascii=False,
+        )
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+
+    cmoc_eval_oracles_impl(repo, full=True)
+
+    report = next(
+        (repo / ".cmoc" / "reports" / "eval-oracles").glob("*.md")
+    ).read_text(encoding="utf-8")
+    assert "mode: full" in report
+    assert "full_requested: true" in report
+    assert "is_cmoc_branch: true" in report
+    assert "deleted_oracles_detected: true" in report
+    assert "| 1 | `oracles/existing.md` | 0 |" in report
 
 
 def test_eval_oracles_body_uses_subcommand_file_name() -> None:

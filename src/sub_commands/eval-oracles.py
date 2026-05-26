@@ -151,44 +151,57 @@ def cmoc_eval_oracles_impl(
         )
         return
 
-    # 評価前に `.cmoc` の ignore 保証を済ませる。
     timer = StepTimer("eval-oracles")
-    start_step(timer, 1, 5, "ensure .cmoc is ignored")
-    ensure_cmoc_ignored(repo_root)
-
-    # 既存のユーザー向けステップとして INDEX.md メンテナンスを実行する。
-    start_step(timer, 2, 5, "maintain INDEX.md files")
-    maintain_indexes(repo_root)
-
-    # branch 状態と `--full` だけから、部分評価か全体評価かを決める。
-    start_step(timer, 3, 5, "select oracle files")
-    branch_name = current_branch(repo_root)
-    cmoc_branch = is_cmoc_branch(branch_name)
+    mode = None
+    branch_name = None
+    cmoc_branch = None
     base_commit = None
-    deleted_oracles = False
-    if cmoc_branch and not full:
-        base_commit = read_branch_base_commit(repo_root, branch_name)
-        deleted_oracles = has_deleted_oracle_files(repo_root, base_commit)
-    partial = cmoc_branch and not full
-
-    # 評価モードに応じて Codex CLI に渡す oracle ファイル一覧を作る。
-    all_oracle_files = list_oracle_files(repo_root)
-    if partial:
-        assert base_commit is not None
-        changed_files = set(changed_oracle_files(repo_root, base_commit))
-        oracle_files = [
-            path for path in all_oracle_files if path in changed_files
-        ]
-        mode = "partial"
-    else:
-        oracle_files = all_oracle_files
-        mode = "full"
-    commit_hash = head_commit(repo_root)
-
-    # oracle ファイルごとに Codex CLI 評価を実行する。
+    commit_hash = None
+    deleted_oracles = None
+    all_oracle_files: list[Path] = []
+    all_oracle_files_known = False
+    oracle_files: list[Path] = []
     evaluations = []
-    failed_stage = "evaluate oracle files"
+    failed_stage = "initialize eval-oracles"
     try:
+        # 評価前に `.cmoc` の ignore 保証を済ませる。
+        failed_stage = "ensure .cmoc is ignored"
+        start_step(timer, 1, 5, "ensure .cmoc is ignored")
+        ensure_cmoc_ignored(repo_root)
+
+        # 既存のユーザー向けステップとして INDEX.md メンテナンスを実行する。
+        failed_stage = "maintain INDEX.md files"
+        start_step(timer, 2, 5, "maintain INDEX.md files")
+        maintain_indexes(repo_root)
+
+        # branch 状態と `--full` だけから、部分評価か全体評価かを決める。
+        failed_stage = "select oracle files"
+        start_step(timer, 3, 5, "select oracle files")
+        branch_name = current_branch(repo_root)
+        cmoc_branch = is_cmoc_branch(branch_name)
+        partial = cmoc_branch and not full
+        mode = "partial" if partial else "full"
+        if cmoc_branch:
+            base_commit = read_branch_base_commit(repo_root, branch_name)
+            deleted_oracles = has_deleted_oracle_files(repo_root, base_commit)
+        else:
+            deleted_oracles = False
+
+        # 評価モードに応じて Codex CLI に渡す oracle ファイル一覧を作る。
+        all_oracle_files = list_oracle_files(repo_root)
+        all_oracle_files_known = True
+        if partial:
+            assert base_commit is not None
+            changed_files = set(changed_oracle_files(repo_root, base_commit))
+            oracle_files = [
+                path for path in all_oracle_files if path in changed_files
+            ]
+        else:
+            oracle_files = all_oracle_files
+        commit_hash = head_commit(repo_root)
+
+        # oracle ファイルごとに Codex CLI 評価を実行する。
+        failed_stage = "evaluate oracle files"
         start_step(timer, 4, 5, "evaluate oracle files")
         for index, oracle_file in enumerate(oracle_files, start=1):
             print(
@@ -242,7 +255,7 @@ def cmoc_eval_oracles_impl(
             base_commit,
             commit_hash,
             deleted_oracles,
-            len(all_oracle_files),
+            len(all_oracle_files) if all_oracle_files_known else None,
             oracle_files,
             evaluations,
             failed_stage,
@@ -450,14 +463,14 @@ def _write_report(
 
 def _write_error_report(
     repo_root: Path,
-    mode: str,
+    mode: str | None,
     full_requested: bool,
-    branch_name: str,
-    cmoc_branch: bool,
+    branch_name: str | None,
+    cmoc_branch: bool | None,
     base_commit: str | None,
-    commit_hash: str,
-    deleted_oracles: bool,
-    oracle_count_total: int,
+    commit_hash: str | None,
+    deleted_oracles: bool | None,
+    oracle_count_total: int | None,
     oracle_files: list[Path],
     evaluations: list[dict[str, object]],
     failed_stage: str,
@@ -477,15 +490,15 @@ def _write_error_report(
         f"generated_at: {generated_at}",
         f"repo_root: {repo_root.resolve()}",
         f"oracle_root: {(repo_root / 'oracles').resolve()}",
-        f"mode: {mode}",
+        f"mode: {mode or 'unknown'}",
         f"full_requested: {str(full_requested).lower()}",
-        f"branch: {branch_name}",
-        f"is_cmoc_branch: {str(cmoc_branch).lower()}",
+        f"branch: {_yaml_nullable(branch_name)}",
+        f"is_cmoc_branch: {_yaml_bool_nullable(cmoc_branch)}",
         f"base_commit: {_yaml_nullable(base_commit)}",
-        f"head_commit: {commit_hash}",
-        f"commit: {commit_hash}",
-        f"deleted_oracles_detected: {str(deleted_oracles).lower()}",
-        f"oracle_count_total: {oracle_count_total}",
+        f"head_commit: {_yaml_nullable(commit_hash)}",
+        f"commit: {_yaml_nullable(commit_hash)}",
+        f"deleted_oracles_detected: {_yaml_bool_nullable(deleted_oracles)}",
+        f"oracle_count_total: {_yaml_int_nullable(oracle_count_total)}",
         f"oracle_count_evaluated: {len(evaluations)}",
         f"oracle_count: {len(evaluations)}",
         f"fatal_issue_count: {issue_counts['fatal']}",
@@ -499,7 +512,7 @@ def _write_error_report(
         "## Summary",
         "",
         f"- Result: `{result}`",
-        f"- Mode: `{mode}`",
+        f"- Mode: `{mode or 'unknown'}`",
         f"- Evaluated oracle files: `{len(evaluations)}`",
         f"- Requested oracle files: `{len(oracle_files)}`",
         f"- Fatal issues: `{issue_counts['fatal']}`",
@@ -523,12 +536,28 @@ def _write_error_report(
         "|---:|---|---:|",
     ]
     issue_count_by_target = _issue_count_by_target(evaluations)
-    for index, oracle_file in enumerate(oracle_files, start=1):
-        target = str(oracle_file.resolve())
+    evaluated_files = _evaluated_oracle_files(evaluations)
+    for index, oracle_file in enumerate(evaluated_files, start=1):
+        target = str(oracle_file)
         lines.append(
-            f"| {index} | `{oracle_file.relative_to(repo_root)}` | "
+            f"| {index} | `{_display_path(repo_root, str(oracle_file))}` | "
             f"{issue_count_by_target.get(target, 0)} |"
         )
+    if not evaluated_files:
+        lines.append("| - | No completed evaluations. | - |")
+    not_evaluated_files = _not_evaluated_oracle_files(
+        repo_root,
+        oracle_files,
+        evaluations,
+    )
+    lines.extend(["", "Not evaluated oracle files:", ""])
+    if not_evaluated_files:
+        for index, oracle_file in enumerate(not_evaluated_files, start=1):
+            lines.append(
+                f"{index}. `{_display_path(repo_root, str(oracle_file))}`"
+            )
+    else:
+        lines.append("No requested oracle files remained unevaluated.")
     lines.extend([""])
     for severity, heading in [
         ("fatal", "## Fatal issues"),
@@ -732,8 +761,31 @@ def _issue_count_by_target(
     result = {}
     for evaluation in evaluations:
         issues = _evaluation_issues(evaluation)
-        result[str(evaluation["target_oracle_path"])] = len(issues)
+        target = Path(str(evaluation["target_oracle_path"])).resolve()
+        result[str(target)] = len(issues)
     return result
+
+
+def _evaluated_oracle_files(evaluations: list[dict[str, object]]) -> list[Path]:
+    """完了した評価結果に含まれる対象 oracle ファイルを返す。"""
+    return [
+        Path(str(evaluation["target_oracle_path"])).resolve()
+        for evaluation in evaluations
+    ]
+
+
+def _not_evaluated_oracle_files(
+    repo_root: Path,
+    oracle_files: list[Path],
+    evaluations: list[dict[str, object]],
+) -> list[Path]:
+    """依頼対象のうち評価完了していない oracle ファイルを返す。"""
+    evaluated = set(_evaluated_oracle_files(evaluations))
+    return [
+        oracle_file.resolve()
+        for oracle_file in oracle_files
+        if oracle_file.resolve() not in evaluated
+    ]
 
 
 def _issues_for_severity(
@@ -868,6 +920,20 @@ def _yaml_nullable(value: str | None) -> str:
     if value is None:
         return "null"
     return value
+
+
+def _yaml_bool_nullable(value: bool | None) -> str:
+    """YAML frontmatter 用に nullable bool を返す。"""
+    if value is None:
+        return "null"
+    return str(value).lower()
+
+
+def _yaml_int_nullable(value: int | None) -> str:
+    """YAML frontmatter 用に nullable int を返す。"""
+    if value is None:
+        return "null"
+    return str(value)
 
 
 def _unique_strings(values: list[str]) -> list[str]:
