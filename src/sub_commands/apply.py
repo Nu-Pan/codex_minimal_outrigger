@@ -234,6 +234,11 @@ def cmoc_apply_impl(
 
             _apply_discrepancies(apply_worktree, discrepancies)
 
+        # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定してから
+        # report を生成する。
+        _assert_forbidden_paths_clean(apply_worktree)
+        _commit_all_changes(apply_worktree)
+
         # 実行結果を人間向け report と exit code に変換する。
         start_step(timer, 6, 6, "write report")
         report_path = _write_apply_report(
@@ -862,7 +867,6 @@ def _write_apply_report(
             "ファイル編集は禁止です。",
         ]
     )
-    maintain_indexes(repo_root)
     report = run_codex_exec(
         repo_root,
         prompt,
@@ -871,6 +875,7 @@ def _write_apply_report(
         expect_json=False,
         model=COST_PERFORMANCE_MODEL,
         reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
+        skip_index_maintenance=True,
         text_validator=lambda value: _validate_apply_report(
             value,
             branch_name,

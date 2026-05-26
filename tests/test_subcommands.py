@@ -1288,6 +1288,87 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert "「カテゴリ」という語" in codex_prompts[-1]
 
 
+def test_apply_commits_index_changes_when_no_discrepancies(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """不整合 0 件でも apply worktree の INDEX 差分を commit して完了する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    maintained_roots: list[Path] = []
+
+    def fake_maintain_indexes(repo_root: Path) -> bool:
+        """apply worktree の初回 INDEX メンテナンスだけ差分を作る。"""
+        maintained_roots.append(repo_root)
+        if not (repo_root / ".git").is_file():
+            return False
+        index_path = repo_root / "docs" / "INDEX.md"
+        if index_path.exists():
+            return False
+        index_path.parent.mkdir()
+        index_path.write_text("# `docs`\n", encoding="utf-8")
+        return True
+
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        fake_maintain_indexes,
+    )
+    codex_kwargs: list[dict[str, object]] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査、commit message、レポート生成を目的別に返す。"""
+        codex_kwargs.append(kwargs)
+        if kwargs.get("purpose") == "generate commit message":
+            return "Maintain apply indexes"
+        if kwargs.get("expect_json") is True:
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        return _apply_report(str(args[1]), "収束", [0])
+
+    monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
+
+    exit_code = cmoc_apply_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    apply_run_id = state["apply"]["apply_branch"].rsplit("/", 1)[1]
+    apply_worktree = (
+        repo
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / "2026-05-10_22-21_10_123"
+        / apply_run_id
+    )
+    report_kwargs = [
+        kwargs
+        for kwargs in codex_kwargs
+        if kwargs.get("purpose") == "write apply report"
+    ]
+
+    assert exit_code == 0
+    assert state["apply"]["state"] == "completed"
+    assert _git(apply_worktree, "status", "--porcelain").stdout == ""
+    assert _git(apply_worktree, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Maintain apply indexes"
+    )
+    assert _git(apply_worktree, "show", "HEAD:docs/INDEX.md").stdout == (
+        "# `docs`\n"
+    )
+    assert len(report_kwargs) == 1
+    assert report_kwargs[0]["skip_index_maintenance"] is True
+    assert maintained_roots.count(apply_worktree) == 2
+
+
 def test_apply_join_merges_completed_apply_branch_and_resets_state(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
