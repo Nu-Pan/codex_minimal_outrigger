@@ -111,58 +111,57 @@
 ## Summary
 
 - `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の目次です。
-- .cmoc の ignore 保証、既に tracked な `.cmoc` 配下ファイルの index 解除、cmoc ブランチ判定、branch base commit の保存先を扱います。
+- .cmoc の ignore 保証、tracked な `.cmoc` 配下ファイルの index 解除、cmoc ブランチ判定、branch base commit の保存先を扱います。
 - oracle ファイル列挙では `INDEX.md` の除外、root `.gitignore` のみを使う判定、`/` 付き pattern、`**` pattern、tracked な ignored file の扱いを確認します。
 - 実装ファイル列挙では `oracles`、`.git`、`INDEX.md`、gitignore 対象を除外して、実装対象だけを返すことを確認します。
 - 変更・削除検出では、base commit からの oracle / 実装の差分抽出、rename、未追跡ディレクトリ、履歴上の戻し、削除判定、`assert_no_uncommitted_changes` を確認します。
 
 ## Read this when
 
-- `commons.repo` の git リポジトリ探索や `.cmoc` ignore 保証のテスト観点を確認したいとき。
-- `.cmoc` 配下に既に tracked なファイルがある場合に、index から外す挙動を確認したいとき。
-- oracle ファイル列挙で `INDEX.md`、root `.gitignore`、`/` 付き pattern、`**` pattern をどう扱うか確認したいとき。
-- 実装ファイル列挙で `oracles` や `INDEX.md` を除外し、実装対象だけを返す条件を確認したいとき。
-- `changed_oracle_files` が base commit と working tree / staged / committed 変更をどう拾うか確認したいとき。
-- rename 後の oracle を削除ではなく変更として扱うか、削除検出とどう分かれるか確認したいとき。
-- `has_deleted_oracle_files` と `has_deleted_implementation_files` の削除判定条件を確認したいとき。
-- `cmoc apply` の前提条件として、未コミット差分を拒否する `assert_no_uncommitted_changes` の挙動を確認したいとき。
-- cmoc ブランチ名の判定規則や、branch base commit の保存パスを確認したいとき。
-- テスト用 git リポジトリを作る `_init_repo` と、そこで git コマンドを実行する `_git` の補助実装を見たいとき。
+- `commons.repo` の git リポジトリ共通処理がどうテストされているか確認したいとき。
+- `.cmoc` の ignore 保証、既存 tracked ファイルの index 解除、cmoc ブランチ判定、branch base commit の読み出しを確認したいとき。
+- oracle ファイル列挙や実装ファイル列挙で、`INDEX.md`、`.git`、`.gitignore`、gitignore パターンの扱いを確認したいとき。
+- base commit 以降の変更検出、rename、未追跡ディレクトリ、削除検出、`assert_no_uncommitted_changes` の挙動を確認したいとき。
+- テスト用 git リポジトリを作る `_init_repo` と、そこで `git` を実行する `_git` の補助実装を見たいとき。
 
 ## Do not read this when
 
-- `cmoc` のユーザー向け CLI 仕様やサブコマンドの入出力だけを知りたいとき。
-- `commons.repo` 以外の本体実装や別モジュールのテストを探しているとき。
-- oracle 正本仕様そのものを知りたいとき。仕様断片は `oracles/app_specs` 側を読むべきです。
-- `INDEX.md` の自動生成やメンテナンス仕様だけを知りたいとき。
+- `cmoc` のユーザー向け CLI 仕様やサブコマンドの入出力だけを確認したいとき。
+- `commons.repo` 以外の本体実装や、別モジュールのテストだけを追いたいとき。
+- oracle の正本仕様そのものを確認したいときは、`oracles/app_specs` 側を読むべきです。
+- `INDEX.md` の自動生成やメンテナンス仕様だけを確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- 5a7be4c42e04c978dec15c037abb1f5efc9d5cef15bf7b5acbfad4caa9801200
+- cbde839bc42f3d06d6797398f0f286615966bbcac2d9c15d8850e3f1380545c9
 
 # `test_subcommands.py`
 
 ## Summary
 
-- `cmoc` のサブコマンド群と CLI 入口の決定論的な制御ロジックを検証するテスト集です。
-- `init`、`branch`、`apply`、`eval-oracles`、`merge`、`session` 系、`main` のコマンド登録、`bin/cmoc` ランチャー、共通エラー報告や prompt 生成の振る舞いをまとめています。
+- `cmoc` のサブコマンド本体に対する決定論的な制御ロジックをまとめて検証するテスト群の入口。
+- `init`、`session fork`、`eval-oracles`、`apply`、`merge` の実行結果、レポート生成、branch/state 更新、エラー処理を確認する。
+- 公開 CLI の登録状態、互換コマンド名、ランチャーの前提条件、共通エラーレポート、プロンプトや JSON schema の整合性も含む。
+- `oracles` 編集禁止や conflict marker 検査のような共通ルールを守っているかを、このファイルのテストで追える。
 
 ## Read this when
 
-- `tests/test_subcommands.py` を修正・追加して、回帰を防ぎたいとき。
-- `cmoc` のサブコマンド登録、help 表示、エラー報告、prompt 生成、report 生成などの CLI 制御ロジックを確認したいとき。
-- `init`、`branch`、`apply`、`eval-oracles`、`merge`、`session` 系と `main`、`bin/cmoc` をまたぐ横断的な挙動を検証したいとき。
+- `cmoc` のサブコマンド実装を変更して、それに対応するテストの期待値を確認したいとき。
+- `init`、`session fork`、`eval-oracles`、`apply`、`merge` の branch/state/report/commit の挙動を追いたいとき。
+- `main` の CLI 登録、`eval-oracles` の互換 alias、`bin/cmoc` の起動条件、共通エラー整形を確認したいとき。
+- プロンプト文、Structured Output schema、discrepancy 検証、conflict marker 検査などの補助ロジックのテスト位置を知りたいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの正本仕様だけを確認したいときは、このテストではなく `oracles/app_specs/sub_commands/*.md` を直接読むべきです。
-- `src/sub_commands/*.py` の実装アルゴリズムや内部ロジックだけを確認したいときは、このテスト集を先に読む必要はありません。
-- `main` や `bin/cmoc` を含まない局所的な修正で、CLI 全体の配線確認が不要なときはこのファイルは後回しで構いません。
+- `src/sub_commands/*.py` の実装本体だけを追いたいときは、まず `src` 側の該当モジュールを読む。
+- `tests/test_indexing.py` や `tests/test_codex.py` など、別責務のテストを探しているとき。
+- `oracles` の正本仕様を確認したいだけで、テスト側の期待値は不要なとき。
+- ルーティング文書の生成規約や `INDEX.md` の書式だけを確認したいとき。
 
 ## hash
 
-- 543b110729aff31a9f3f7bd4f7ba7ccb277efd5312007d085a4bbadafaf26553
+- e4b38ff8cfdb0e3777501ddd8e60b8dfb1c2b14d67542330a690303a1ed1f826
 
 # `test_timestamps.py`
 

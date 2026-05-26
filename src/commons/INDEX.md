@@ -134,27 +134,27 @@
 ## Summary
 
 - git リポジトリのルート探索、cwd 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
-- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` ブランチ判定、`.cmoc/branch` 配下の base commit 記録パスを扱います。
+- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`.cmoc/sessions` 配下の session state を扱います。
 - `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分の検査を提供します。
 - oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定 commit 後の index 復元までを担います。
 
 ## Read this when
 
-- `cmoc` が使う git リポジトリ root の探索や cwd 固定、`git` 実行の共通化を修正・確認したいとき。
-- 現在ブランチ名、`HEAD` commit、`cmoc_<time-stamp>` 形式のブランチ判定、`cmoc session fork` 用の base commit 記録先を確認したいとき。
+- `cmoc` が使う git リポジトリ root の探索、cwd 固定、`git` 実行の共通化を修正・確認したいとき。
+- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`cmoc session fork` 用の session state を確認したいとき。
 - `.cmoc` を追跡対象外にする保証、root `.gitignore` の評価、未コミット差分の検査を確認したいとき。
 - oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定での commit と index 復元の流れを確認したいとき。
 
 ## Do not read this when
 
-- CLI 引数解析、サブコマンドの画面出力、ログ保存など、`repo.py` 以外の実行制御だけを確認したいとき。
-- `commons.errors`、`commons.indexing`、`commons.timestamps`、`commons.timing` など別の共通モジュールだけを追いたいとき。
+- CLI の引数解析、サブコマンドの画面出力、終了コード変換だけを確認したいとき。
+- `commons.errors` や `commons.indexing`、`commons.subcommand_log`、`commons.timing` など別の共通モジュールだけを追いたいとき。
 - `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを調べたいとき。
 - `tests/test_repo.py` の期待値やテスト実装だけを確認したいとき。
 
 ## hash
 
-- 12beaacb1bc3ba01f3961d29d85756f908e47cc8363fc8a69f0799a70f7acdcc
+- 560d378ec3b338c2cd1fb658e0792644fd79f62b42bffcf5b520e35438e5209f
 
 # `subcommand_log.py`
 
