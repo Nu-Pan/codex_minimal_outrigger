@@ -25,28 +25,28 @@
 
 ## Summary
 
-- `cmoc apply` の本体実装で、session state の検証から apply worktree / apply branch の作成、要修正点の調査・改善・適用、レポート保存までをまとめます。
-- 要修正点リストの Structured Output schema、調査対象ファイルの選定、Codex CLI への問い合わせ、commit 生成、`INDEX.md` メンテナンスの補助関数群も含みます。
-- `--full` と部分適用モードの切り替え、禁止パス検査、終了コードや report の生成・検証も担います。
+- 「cmoc apply」の本体実装です。session state の検証、apply worktree/branch の作成、要修正点の調査・改善反復、commit と report 保存までをまとめます。
+- 要修正点の Structured Output schema、調査対象の選定、Codex CLI への問い合わせ、レポート用 YAML Front Matter 生成、禁止パス検査などの補助処理も含みます。
+- 部分適用/全体適用の切り替え、`apply.state` の遷移、終了コード、`INDEX.md` メンテナンスの流れを追うときの入口です。
 
 ## Read this when
 
-- `cmoc apply` の本体処理、状態遷移、worktree 作成、調査・修正ループ、レポート生成を実装・修正・レビューしたいとき。
-- session state の検証、`apply.state` の `ready` / `running` / `completed` / `error` の扱い、開始失敗時のエラー処理を確認したいとき。
-- 要修正点リストの Structured Output schema、oracle ファイルと実装ファイルの調査対象選定、Codex CLI への調査・修正依頼の流れを確認したいとき。
-- 不整合の改善ループ、要修正点ごとの修正適用、commit 作成、`INDEX.md` メンテナンス、apply report の front matter と本文の生成・検証を追いたいとき。
-- `--full` と部分適用モードの対象ファイル選定、禁止パス検査、レポート保存先や終了コードの扱いを確認したいとき。
+- 「cmoc apply」の実行フロー全体を実装・修正・レビューしたいとき。
+- session branch の検証、`apply.state` の `ready` / `running` / `completed` / `error` の遷移、開始失敗時の例外処理を確認したいとき。
+- apply worktree / apply branch の作成、要修正点の調査、修正適用、commit 生成、レポート出力の流れを追いたいとき。
+- 部分適用と `--full` の切り替え、調査対象ファイルの選定、Structured Output の検証を確認したいとき。
+- `INDEX.md` の自動更新や、禁止パス検査、レポート保存の補助処理を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` のマージ処理や `cmoc apply abandon` の破棄処理だけを確認したいとき。
-- `cmoc session fork` / `cmoc session join` / `cmoc session abandon` など、session 側の開始・統合・破棄だけを確認したいとき。
-- `INDEX.md` の生成・更新ルールだけを確認したいときは、この実装ファイルではなく `src/commons/indexing.py` や `oracles/app_specs/indexing.md` を読むべきです。
-- 要修正点リストの正本仕様だけを確認したいときは、この実装ファイルではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- `cmoc apply join` や `cmoc apply abandon` だけを確認したいときは、それぞれの実装・仕様へ進むべきです。
+- `cmoc session fork` / `cmoc session join` / `cmoc session abandon` など、session 側の開始・統合・破棄だけを見たいとき。
+- 要修正点リストの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`src/commons/indexing.py` や `oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- e4b86cf214208d846284883e711096ec3dfd70982d718182394982783ef81c53
+- 005e484ce657980d05fd0d3afdfde49f833bbaa81b1115af66d7386c3d138eae
 
 # `apply_abandon.py`
 
