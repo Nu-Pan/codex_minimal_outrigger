@@ -47,6 +47,30 @@
 
 - 9da37e860569d5a2c30b9b497945598e83854bbaf2517ac5036d5076a52d7447
 
+# `apply_join.py`
+
+## Summary
+
+- `cmoc apply join` の本体処理を定義しており、完了済みの apply branch を session branch へ merge する流れを扱います。
+- state の検証、想定外の差分の検出、通常モードと強制モードの分岐、merge conflict 時の扱いを実装しています。
+- merge 後には `apply.state` を ready に戻し、条件を満たす場合に apply worktree と apply branch の削除まで行います。
+
+## Read this when
+
+- `cmoc apply join` の実装・修正・レビューをするとき。
+- 想定外の差分の検出、`--force-resolve` による強制解決、マージ後の state 更新や削除条件を確認したいとき。
+- `<cmoc-apply-branch>` を `<cmoc-session-branch>` に取り込む処理の前提条件と実行順序を把握したいとき。
+
+## Do not read this when
+
+- `cmoc apply fork` の生成処理や調査・修正ループだけを確認したいとき。
+- `cmoc session join` や `cmoc session abandon` など、session 側の完了・破棄手順だけを確認したいとき。
+- `cmoc apply join` の実装ではなく、一般的な `git merge` の説明だけで足りるとき。
+
+## hash
+
+- 28801482feca085814f6a23528dbe812d89e3f70918a2dbe928a5f8759462da4
+
 # `eval-oracles.py`
 
 ## Summary
