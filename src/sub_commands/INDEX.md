@@ -222,11 +222,11 @@
 
 ## Do not read this when
 
-- `cmoc session fork` や `cmoc session abandon` の開始・破棄フローだけを確認したいとき。
-- `cmoc apply` 系の要修正点整理や apply branch/worktree の運用だけを確認したいとき。
-- `cmoc init` や `cmoc eval-oracles` など、別サブコマンドの実装だけを見たいとき。
+- `cmoc session fork` の開始手順や session branch 作成だけを確認したいときは、この実装ではなく `src/sub_commands/session_fork.py` を読むべきです。
+- `cmoc session abandon` の破棄手順や rollback だけを確認したいときは、この実装は適しません。
+- `cmoc apply` 系の要修正点整理や apply branch / apply worktree の運用だけを確認したいときは、この実装ではなく apply 側のモジュールを読むべきです。
 - `cmoc session join` の正本仕様そのものを確認したいときは、実装ではなく `oracles/app_specs/sub_commands/session_join.md` を読むべきです。
 
 ## hash
 
-- bcdefe8883ac556357fbedc04f396dc14831026057c83c0ed3d70c5d0a5c2782
+- b80ff5c863f0b3f075806618fd056f20b3c64626683bba55146e1b4d4023b93b
