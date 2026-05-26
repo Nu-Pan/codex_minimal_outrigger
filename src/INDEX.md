@@ -53,24 +53,24 @@
 
 ## Summary
 
-- `src/sub_commands` ディレクトリの入口です。cmoc の各サブコマンド実装をまとめ、`apply`、`session`、`eval-oracles`、`init` の本体モジュールとパッケージ定義への案内を行います。
-- このディレクトリでは `apply.py`、`apply_join.py`、`apply_abandon.py`、`session_fork.py`、`session_join.py`、`session_abandon.py`、`init.py`、`eval-oracles.py`、`__init__.py` が対象です。
-- 各モジュールは対応するコマンドの実行本体と状態検証、cleanup、merge、report 出力などを担当します。
+- `src/sub_commands` 配下のサブコマンド実装をまとめる入口です。
+- `apply` 系、`session` 系、`eval-oracles`、`init`、およびパッケージ宣言用の `__init__.py` への案内をまとめます。
+- 個別サブコマンドの詳細仕様や実装本文へ進むための目次として使います。
 
 ## Read this when
 
-- cmoc のサブコマンド実装全体の配置や役割分担を確認したいとき。
-- `apply`、`session`、`init`、`eval-oracles` のどの実装モジュールを読むべきか判断したいとき。
-- パッケージ境界や `src/sub_commands` 全体のルーティングを整えたいとき。
-- サブコマンド共通の入口を把握してから個別実装へ進みたいとき。
+- `src/sub_commands` 配下の各サブコマンド実装への入口をまとめて把握したいとき。
+- `apply.py`、`apply_abandon.py`、`apply_join.py`、`eval-oracles.py`、`init.py`、`session_abandon.py`、`session_fork.py`、`session_join.py` のどれを読むべきか整理したいとき。
+- `cmoc` のサブコマンド実装の配置方針や、各モジュールの役割分担を確認したいとき。
+- `src/sub_commands` パッケージ全体のルーティング文書を作成・更新したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの詳細仕様だけを確認したいときは、このディレクトリ全体ではなく対応する `*.py` を直接読むべきです。
-- `src/sub_commands` ではなく、`commons` など別ディレクトリの共通機能を調べたいときはこの目次は適していません。
-- コマンドの利用方法や正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` 側を参照すべきです。
-- `__init__.py` のような最小モジュール単体の役割だけを確認したいときは、対象ファイルを直接読むべきです。
+- `src/sub_commands` 全体の入口だけで足りるときは、個別モジュールを読む必要はありません。
+- `cmoc apply`、`cmoc session fork/join/abandon`、`cmoc eval-oracles`、`cmoc init` の具体的な挙動だけを確認したいときは、対応する `.py` を直接読むべきです。
+- `src/commons` の共通処理や `oracles` 側の正本仕様だけを確認したいときは、この目次ではなく該当ディレクトリの文書を読むべきです。
+- パッケージ宣言の有無だけを確認したいときは、`__init__.py` のみで十分です。
 
 ## hash
 
-- caef25ce36a8d0894178865f7c06a5d19d91b7ab7573cfa1b4ce0b96f42c6525
+- 3f8e0c5c3b6179230b9508d97dbac3d826a6d0e72d918457c247a56206b03859

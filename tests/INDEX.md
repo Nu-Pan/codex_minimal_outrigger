@@ -146,19 +146,19 @@
 - `run_command` の tee 出力、ログ保存、例外処理、終了コードの扱いを確認したいとき。
 - `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要分岐や state 更新を確認したいとき。
 - `main` の CLI 登録、`eval-oracles` と `eval-oracle` の互換 alias、`bin/cmoc` の起動経路を確認したいとき。
-- 要修正点リストや評価レポートの schema 検証、prompt 文字列、コミット順序、レポート保存の仕様を確認したいとき。
+- 要修正点リストや評価レポートの schema 検証、prompt 文字列、レポート保存の仕様を確認したいとき。
 - 共通エラーレポート、`commons.errors` の整形、`commons.repo` の状態補助、`commons.timing` の helper 順序、`future annotations` 禁止の確認をしたいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/*.py` の個別実装の細部だけを確認したいとき。
-- `oracles` 側の正本仕様そのものや、`INDEX.md` 生成・更新ルールだけを確認したいとき。
-- `tests` 全体の配置規則や、他のテストファイルだけを追いたいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
+- `src/sub_commands/*.py` の個別実装だけを追いたいときは、このテスト目次ではなく対応する本体モジュールを読むべきです。
+- `tests` 全体の配置規則や、他のテストファイルだけを確認したいときは、このファイルでは目的外です。
+- `oracles` 側の正本仕様そのものや `INDEX.md` 生成・更新ルールだけを確認したいときは、別の仕様文書を読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいときは、このテストファイルではありません。
 
 ## hash
 
-- b5d229ec01362b25623b0aa45955fd8ca3b27a1d33c8a31501a3d4751f5380ac
+- 24188b24eaa3c8b95922af781172f66d180109284cedaca42efa5923309090d5
 
 # `test_timestamps.py`
 
