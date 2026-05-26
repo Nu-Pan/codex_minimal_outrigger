@@ -156,25 +156,27 @@
 
 ## Summary
 
-- `cmoc session abandon` は、現在の `<cmoc-session-branch>` を merge せずに破棄するための仕様です。
-- session を完了させる `cmoc session join` とは異なり、成果物を本流に取り込まず、`session.joined_at` を更新しないまま branch を削除します。
-- 実行条件、破棄してよいもの・してはいけないもの、実行手順、`session.state` の遷移をまとめています。
+- `src/sub_commands/session_abandon.py` は `cmoc session abandon` の本体処理を定義するモジュールです。
+- 現在の session branch を検証し、session state と home branch の前提条件を確認したうえで、`cmoc session abandon` の破棄手順を実行します。
+- `.cmoc` の無視保証、home branch への `git switch`、session state を `abandoned` へ更新する処理、session branch の強制削除、cleanup 失敗時の rollback を扱います。
 
 ## Read this when
 
-- 現在の `<cmoc-session-branch>` を `<cmoc-session-home-branch>` に merge せず破棄したいとき。
-- `session.state`、`apply.state`、未コミット差分、home branch の存在など、破棄前の前提条件を確認したいとき。
 - `cmoc session abandon` の実装、修正、テスト、レビューを行いたいとき。
+- 現在の `<cmoc-session-branch>` を `<cmoc-session-home-branch>` に merge せず破棄する前提条件や実行順序を確認したいとき。
+- session state の `active` / `ready` 判定、home branch の存在確認、未コミット差分の検査を追いたいとき。
+- cleanup 失敗時の rollback、`session.state` を `abandoned` に更新する流れ、標準出力と timing report の出し方を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session fork` の開始条件や session branch 作成手順だけを確認したいとき。
-- `cmoc session join` の merge 完了手順や conflict 解消の流れだけを確認したいとき。
-- `cmoc apply abandon` など、apply run の破棄仕様だけを確認したいとき。
+- `cmoc session abandon` の仕様本文だけを確認したいときは、`oracles/app_specs/sub_commands/session_abandon.md` を読むべきです。
+- `cmoc session join` の merge 処理や conflict 解消の流れだけを確認したいときは、このモジュールではなく `session_join.py` を読むべきです。
+- `cmoc apply abandon` の破棄手順だけを確認したいときは、このモジュールではなく `apply_abandon.py` を読むべきです。
+- 共通の `run_command`、`CmocError`、`git` ラッパーの詳細だけを追いたいときは、この実装ファイルではなく `commons` 配下を読むべきです。
 
 ## hash
 
-- 72cdd1b905f55411908bf6de1f27d57c0c9589833089fb2185e38e184b78206a
+- 8984fd00d2520da960f140181aea341ab7135fc30b1e6afdbbdd4e8848a4160b
 
 # `session_fork.py`
 

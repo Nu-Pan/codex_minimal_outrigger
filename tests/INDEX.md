@@ -131,27 +131,28 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `cmoc` のサブコマンド実装に対する回帰テストの目次です。
-- `init`、`session`、`apply`、`eval-oracles` の制御フロー、状態遷移、ブランチ操作、レポート生成、ログ出力をまとめて扱います。
-- `run_command`、`format_error_report`、各種 prompt 生成、Structured Output schema、`main` の Typer ルーティング委譲の整合性も検証します。
+- `tests/test_subcommands.py` は `cmoc` の各サブコマンドと CLI 入口の回帰テスト目次です。
+- `init`、`session`、`apply`、`eval-oracles` の制御フロー、状態遷移、レポート生成、Structured Output、branch / worktree 管理をまとめて検証します。
+- `run_command`、`format_error_report`、`main` の Typer ルーティング、`bin/cmoc`、補助関数の順序や conflict 文字列検査も含みます。
 
 ## Read this when
 
-- `src/main.py` と `src/sub_commands/*` のルーティングや各 impl の入出力を変更・レビューしたいとき。
-- `session` / `apply` の state 遷移、branch / worktree 管理、`join` / `abandon` の前提条件を見直したいとき。
-- `run_command` のログ tee、`format_error_report`、`eval-oracles` / `apply` の prompt や Structured Output schema を修正したいとき。
-- `main` の Typer 委譲、hidden alias、引数伝搬、`from __future__ import annotations` の禁止を確認したいとき。
+- `src/main.py` と `src/sub_commands/*` のルーティングや引数委譲を変更・レビューしたいとき。
+- `init`、`session`、`apply`、`eval-oracles` の state 遷移、branch / worktree 操作、report 生成、Structured Output schema を確認したいとき。
+- `run_command` の tee ログ、`format_error_report`、`bin/cmoc` の起動挙動、`main` のエラーハンドリングを確認したいとき。
+- `session join` の conflict prompt、`eval-oracles` の評価 prompt、helper 関数の並び順やサブコマンド登録の回帰を確認したいとき。
 
 ## Do not read this when
 
-- `src/commons/*` の実装詳細だけを追いたいとき。
-- `oracles/app_specs/*` の正本仕様だけを読みたいとき。
-- `INDEX.md` の生成・更新ルールそのものを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- `src/commons/*` の実装詳細だけを追いたいときは、このテスト目次ではなく共通モジュール本体を読むべきです。
+- `oracles/app_specs/*` の正本仕様だけを確認したいときは、このテストファイルではなく該当仕様文書を読むべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、このテストファイルではなく `indexing.md` を読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用規則だけを確認したいときは、このテストファイルを読む必要はありません。
+- 別のテストファイルの観点だけを追いたいときは、この回帰テスト目次は目的外です。
 
 ## hash
 
-- e23add9e64f13d7fbdc5f8dee3c695e20ac64485c554e58c55273a3e18424946
+- 5f7f6565ba607fae0f6cb9652ad492ba29797b4677213821d04c784733f1004a
 
 # `test_timestamps.py`
 
