@@ -35,22 +35,21 @@
 ## Read this when
 
 - `run_codex_exec()` の引数、`--output-schema`、`--output-last-message`、`--resume`、`skip_index_maintenance`、`reasoning_effort` の扱いを確認したいとき。
-- Structured Output の構文検証・意味的検証のリトライ条件や、JSON schema の `enum` / `minLength` などの制約検証を確認したいとき。
-- `logs/codex_exec` の呼び出しログ、`logs/sub_commands` の通知、標準出力の進捗表示や 80 文字の出力プレビュー規則を確認したいとき。
+- Structured Output の構文検証・意味的検証のリトライ条件や、JSON Schema の `enum` や文字列長制約の検査を確認したいとき。
+- `logs/codex_exec` の呼び出しログ、`logs/sub_commands` への通知、標準出力の進捗表示、80 文字の出力プレビュー規則を確認したいとき。
 - quota 枯渇時の待機・疎通確認・`--resume` 再開の流れや、Codex 呼び出し前後で `INDEX.md` を保守するかどうかを確認したいとき。
-- テスト用 git リポジトリを作る `_git` 補助関数の使い方を確認したいとき。
+- テストファイル末尾の `_git` 補助関数を使って、テスト用 git リポジトリを初期化する方法を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` のユーザー向けサブコマンド仕様や `oracles` 側の正本仕様だけを知りたいとき。
-- `tests` 全体の共通 fixture やディレクトリ配置規則だけを確認したいとき。
-- `commons.codex` 以外の共通モジュールや `src/sub_commands` の業務ロジックだけを調べたいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
-- `INDEX.md` の生成・更新仕様そのものを調べたいとき。
+- `cmoc` のユーザー向けサブコマンド仕様や `oracles` 側の正本仕様だけを確認したいときは、このテスト目次ではなく該当する仕様文書を読むべきです。
+- `tests` 全体の共通 fixture や、他のテストファイルの観点だけを追いたいときは、このファイルを読む必要はありません。
+- `commons.codex` 以外の共通モジュールや `src/sub_commands` の実装ロジックだけを調べたいときは、このテスト群は目的外です。
+- `INDEX.md` の生成・更新ルールそのものや、`README.md` / `AGENTS.md` / `memo` の運用ルールだけを確認したいときは、このファイルではなく別の案内を読むべきです。
 
 ## hash
 
-- bb67a5afb844602d4b3a50bf64a29321499e14e1f33e9b6d0828e8895bbdc38b
+- 0fa11b125d16764c600142b1389a6c318dda1e1e02cd9cb3961469a1aaa9794a
 
 # `test_file_naming.py`
 
@@ -162,7 +161,7 @@
 
 ## hash
 
-- eb170127002be7574e475a5a92cc88588de7bd8dc700162fe34b223af04652a3
+- 4e016803cac5f6d1eded0b52e9fa230959922f7aa38ce47515a3f393245c519a
 
 # `test_timestamps.py`
 

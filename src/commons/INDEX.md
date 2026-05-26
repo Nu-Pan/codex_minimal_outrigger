@@ -23,30 +23,26 @@
 
 ## Summary
 
-- `src/commons/codex.py` は、cmoc から `codex exec` を呼び出す共通処理をまとめた基盤モジュールです。
-- model / reasoning effort / sandbox / `--output-last-message` / Structured Output / 呼び出しログ / last message の保存を共通化しています。
-- Structured Output 用の JSON Schema 保存、JSON の再検証、quota 枯渇時の待機と `--resume` 再開も扱います。
-- JSON object の解析、quota 判定、session id 抽出、YAML Front Matter 生成などの補助関数も含みます。
+- `codex exec` を実行する共通処理をまとめたモジュールです。モデル・reasoning effort の検査、コマンド組み立て、Structured Output の schema 出力、last message の回収を担当します。
+- quota 枯渇時は最小プロンプトでの疎通確認を挟み、復旧後に元セッションへ `--resume` で戻す再開処理を含みます。
+- 1 回ごとの呼び出しログを Markdown で残し、JSON Schema 検証を含む Structured Output の妥当性確認もこのファイル内で行います。
 
 ## Read this when
 
-- cmoc から `codex exec` を起動する共通処理や引数組み立てを修正・確認したいとき。
-- Structured Output の schema ファイル生成、JSON 再検証、`parse_json_object` の挙動を確認したいとき。
-- `--output-last-message` の保存先、呼び出しログ、YAML Front Matter に何を残すか確認したいとき。
-- quota 枯渇時の待機、ポーリング、`--resume` による再開挙動を確認したいとき。
-- `codex exec` の前に `INDEX.md` メンテナンスを挟む条件や流れを確認したいとき。
+- `codex exec` の起動方法、`--json` / `--output-last-message` / `--output-schema` の扱いを確認したいとき。
+- Structured Output の JSON 検証、last message の読み取り、失敗時のリトライ仕様を追いたいとき。
+- quota 枯渇時の待機・疎通確認・`--resume` 再開の流れを確認したいとき。
+- `codex exec` の呼び出しログ、schema ファイル、last message ファイルの保存規約を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを調べたいとき。
-- `src/commons` の他モジュールや `src/sub_commands` の処理だけを調べたいとき。
-- Python の一般的なコーディング規約、設計規約、テスト規約だけを確認したいとき。
-- `INDEX.md` 自動生成そのものの仕様や `<repo-root>` 探索規則だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`oracles`、`memo` の運用ルールだけを確認したいとき。
+- `cmoc` の個別サブコマンド本体の処理だけを確認したいときは、`src/sub_commands` 側を直接読むべきです。
+- `codex exec` の共通実行・Structured Output・quota 復帰・ログ保存と無関係な修正をしているときは、このファイルを読む必要はありません。
+- `src/commons` の他の共通ユーティリティだけを扱う場合は、まず該当モジュールを優先して読むべきです。
 
 ## hash
 
-- ef5821dc2d8a01f22d593421c8be3852fcfe5ced6ee124b99abc69616a351a4e
+- 95d14bc23e319b811512baacca15ca25610efb9453682433c7820be5709ee7f0
 
 # `command_runner.py`
 
@@ -160,27 +156,27 @@
 
 ## Summary
 
-- `src/commons/subcommand_log.py` は、各サブコマンド実行の標準出力と標準エラー出力をコンソールと `<repo-root>/logs/sub_commands/<time-stamp>.log` の両方へ tee する共通ログ管理モジュールです。
+- `src/commons/subcommand_log.py` は、各サブコマンド実行の標準出力と標準エラー出力をコンソールと `<repo-root>/.cmoc/logs/sub_commands/<time-stamp>.log` の両方へ tee する共通ログ管理モジュールです。
 - `SubcommandLogContext` と `current_subcommand_log()` で現在のサブコマンドログ状態を共有し、`add_quota_wait()` で quota 回復待ち時間を累積できます。
-- `subcommand_log()` は一意なログファイル作成と開始メッセージ表示を担い、`_ensure_logs_excluded()` は `logs/` が git の未コミット差分にならないよう `.git/info/exclude` を更新します。
+- `subcommand_log()` は一意なログファイル作成と開始メッセージ表示を担い、`_ensure_logs_excluded()` は `.git/info/exclude` を更新して `.cmoc/logs/` が未コミット差分にならないようにします。
 
 ## Read this when
 
-- サブコマンドの stdout / stderr をコンソールとログファイルへ同時保存する仕組みを確認したいとき。
+- サブコマンドの標準出力と標準エラー出力をコンソールとログファイルへ同時保存する仕組みを確認したいとき。
 - 現在実行中のサブコマンドのログ状態や、quota 回復待ち時間の加算方法を確認したいとき。
 - ログファイルの保存先、ファイル名の払い出し方法、開始時に表示される相対パスのメッセージを確認したいとき。
 - `logs/` をサブコマンド自身の差分として扱わないための除外設定の挙動を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジック、引数解析、実行手順だけを調べたいとき。
-- `INDEX.md` の自動生成や更新の仕組みだけを調べたいとき。
+- 個別サブコマンドの業務ロジックや引数解析だけを確認したいとき。
+- `INDEX.md` の自動生成や更新ルールだけを確認したいとき。
 - タイムスタンプ生成や経過時間表示など、別の共通ユーティリティを調べたいとき。
 - エラー整形や共通エラーハンドリング全体だけを調べたいとき。
 
 ## hash
 
-- 36cdcf848fb187db08ca3eb3235152049037f79bec4eed84d3c1a46382fedb67
+- ee836b6e43a710666e30a2c70dbf7817ef3a2ffbcc6da3fd36a3401e5690ed5e
 
 # `timestamps.py`
 
