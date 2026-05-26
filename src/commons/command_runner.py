@@ -50,6 +50,9 @@ def run_command(handler: Callable[[Path], int | None]) -> None:
                 exit_code = getattr(error, "exit_code", 1)
                 raise typer.Exit(exit_code) from error
             finally:
+                # 途中経過ログと終了時の集計ブロックを視覚的に分ける。
+                print("")
+                print("== Command completion report ==")
                 report_current_timer()
                 print(
                     "subcommand total elapsed: "

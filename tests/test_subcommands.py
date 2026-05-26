@@ -107,6 +107,11 @@ def test_run_command_tees_subcommand_output_and_summary(
     assert "sample (1/1) first step" not in captured.out
     assert "(1/1) first step" in log_content
     assert "sample (1/1) first step" not in log_content
+    assert "== Command completion report ==" in captured.out
+    assert "== Command completion report ==" in log_content
+    assert log_content.index("== Command completion report ==") < log_content.index(
+        "sample step timings:"
+    )
     assert "sample step timings:" in log_content
     assert "- first step:" in log_content
     assert "subcommand total elapsed:" in log_content
@@ -143,6 +148,10 @@ def test_run_command_logs_summary_on_exception(
     assert "boom" in log_content
     assert "(1/1) failing step" in log_content
     assert "sample (1/1) failing step" not in log_content
+    assert "== Command completion report ==" in log_content
+    assert log_content.index("== Command completion report ==") < log_content.index(
+        "sample step timings:"
+    )
     assert "sample step timings:" in log_content
     assert "- failing step:" in log_content
     assert "subcommand return code: 1" in log_content
@@ -177,9 +186,11 @@ def test_run_command_reports_nonzero_typer_exit(
     assert "Detail:" in captured.out
     assert "typer.Exit(7)" in captured.out
     assert "Call stack:" in captured.out
+    assert "== Command completion report ==" in captured.out
     assert "subcommand return code: 7" in captured.out
     assert "ERROR" in log_content
     assert "typer.Exit(7)" in log_content
+    assert "== Command completion report ==" in log_content
     assert "subcommand return code: 7" in log_content
 
 
