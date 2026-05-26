@@ -30,6 +30,7 @@ from sub_commands.apply import _commit_all_changes
 from sub_commands.apply import _organize_prompt
 from sub_commands.apply import _validate_discrepancy_payload
 from sub_commands.init import cmoc_init_impl
+from sub_commands.session_abandon import cmoc_session_abandon_impl
 from sub_commands.session_fork import cmoc_session_fork_impl
 from sub_commands.session_join import cmoc_session_join_impl
 from sub_commands.session_join import _conflict_prompt
@@ -1712,6 +1713,102 @@ def test_session_join_precondition_failure_does_not_print_manual_resolution(
     assert "手動解消が必要です" not in captured.err
 
 
+def test_session_abandon_marks_state_and_force_deletes_branch(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`cmoc session abandon` は session branch を merge せず破棄する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_cmoc_branch(repo)
+    (repo / "feature.txt").write_text("feature\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "session-only feature")
+
+    cmoc_session_abandon_impl(repo)
+
+    captured = capsys.readouterr()
+    branches = _git(
+        repo,
+        "branch",
+        "--format=%(refname:short)",
+    ).stdout.splitlines()
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert state["session"]["state"] == "abandoned"
+    assert state["session"].get("joined_at") is None
+    assert "cmoc/session/2026-05-10_22-21_10_123" not in branches
+    assert (repo / "feature.txt").exists() is False
+    assert (
+        "abandoned session branch: cmoc/session/2026-05-10_22-21_10_123"
+        in captured.out
+    )
+
+
+def test_session_abandon_rejects_apply_run_before_cleanup(
+    tmp_path: Path,
+) -> None:
+    """apply run が ready でなければ branch/state を変更しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    _checkout_cmoc_branch(repo)
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "active"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state_after = json.loads(state_path.read_text(encoding="utf-8"))
+    branches = _git(
+        repo,
+        "branch",
+        "--format=%(refname:short)",
+    ).stdout.splitlines()
+    assert "apply run" in error.value.message
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_123"
+    )
+    assert state_after["session"]["state"] == "active"
+    assert "cmoc/session/2026-05-10_22-21_10_123" in branches
+
+
+def test_session_abandon_rejects_uncommitted_changes_before_switch(
+    tmp_path: Path,
+) -> None:
+    """未コミット差分がある場合は home branch へ戻らず停止する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    _checkout_cmoc_branch(repo)
+    (repo / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "未コミットの変更" in error.value.message
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_123"
+    )
+    assert state["session"]["state"] == "active"
+
+
 def test_main_typer_functions_delegate_only_to_impls() -> None:
     """Typer 対応関数は共通 runner ではなく対応する impl 呼び出しだけを持つ。"""
     import main
@@ -1733,6 +1830,7 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     assert "repeat_investigate_and_fix=repeat_investigate_and_fix" in source
     assert "repeat_improove_fixing_list=repeat_improove_fixing_list" in source
     assert "cmoc_session_join_impl()" in source
+    assert "cmoc_session_abandon_impl()" in source
 
 
 def test_cmoc_help_uses_cmoc_command_name() -> None:
@@ -1939,6 +2037,7 @@ def test_user_facing_error_text_does_not_keep_known_english_phrases() -> None:
         repo_root / "src" / "commons" / "errors.py",
         repo_root / "src" / "commons" / "repo.py",
         repo_root / "src" / "sub_commands" / "apply.py",
+        repo_root / "src" / "sub_commands" / "session_abandon.py",
         repo_root / "src" / "sub_commands" / "session_join.py",
     ]
     forbidden_fragments = [

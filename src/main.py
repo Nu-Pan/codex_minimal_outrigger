@@ -11,6 +11,7 @@ from commons.errors import CmocError
 from commons.errors import format_error_report
 from sub_commands.apply import cmoc_apply_impl
 from sub_commands.init import cmoc_init_impl
+from sub_commands.session_abandon import cmoc_session_abandon_impl
 from sub_commands.session_fork import cmoc_session_fork_impl
 from sub_commands.session_join import cmoc_session_join_impl
 
@@ -64,14 +65,8 @@ def session_join_command() -> None:
 @session_app.command("abandon")
 def session_abandon_command() -> None:
     """Abandon the active cmoc session."""
-    raise CmocError(
-        "`cmoc session abandon` は未実装です。",
-        [
-            "現時点では手動で session branch を整理してください。",
-            "先に必要な apply run がないことを確認してください。",
-        ],
-        "CLI 入口のみ登録されていますが、session state 管理の実装がまだありません。",
-    )
+    # CLI callback は session abandon の本体実装へ処理を委譲する。
+    cmoc_session_abandon_impl()
 
 
 @app.command("eval-oracles")
