@@ -129,9 +129,9 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、git リポジトリのルート探索、`cwd` 固定、`git` 実行の共通ラッパーをまとめるモジュールです。
-- ブランチ判定、session id 抽出、session state の読み書きと検証、`session_start_commit` の参照を扱います。
-- `.cmoc` を追跡対象外に保つ保証、`.gitignore` の判定、未コミット差分や pathspec ごとの clean 判定を提供します。
+- git リポジトリのルート探索、`cwd` の固定、`git` 実行をまとめる共通モジュールです。
+- cmoc 管理ブランチの判定、session id 抽出、`session state` の読み書きと固定スキーマ検証を扱います。
+- `.cmoc` を追跡対象外に保つ保証、`.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を提供します。
 - `oracles` と実装ファイルの列挙、変更・削除検出、working tree / staging area からの差分抽出を行います。
 - `commit_if_changed` と `commit_cmoc_initialization_changes` で、一時 index を使った部分 commit と staged 差分の復元を実現します。
 
@@ -143,7 +143,6 @@
 - `.cmoc` を git 追跡対象外に保つ保証、root `.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を実装したいとき。
 - `oracles` ファイルや実装ファイルの列挙、変更・削除検出、working tree と staging area の差分収集を追いたいとき。
 - `commit_if_changed` や `commit_cmoc_initialization_changes` のように、一時 index を使って特定パスだけを commit し、既存の staged 差分を復元する挙動を確認したいとき。
-- root `.gitignore` の wildmatch 判定や、`git check-ignore` を使った除外判定の実装を確認したいとき。
 
 ## Do not read this when
 
@@ -154,7 +153,7 @@
 
 ## hash
 
-- 5feb78b16e6ed20176ede8611ac999cbb2ae19ae416cc13838530921f73037c0
+- c429fba5ef648365ee5ec1c7acb2901c5df754d24094f5a3c9768d1bf0599448
 
 # `subcommand_log.py`
 

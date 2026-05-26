@@ -89,13 +89,13 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の要修正点抽出や調査・修正ループだけを確認したいときは、このモジュールではなく `src/sub_commands/apply.py` や対応する正本仕様を読むべきです。
+- `cmoc apply fork` の要修正点抽出や調査・修正ループだけを確認したいときは、このモジュールではなく [`src/sub_commands/apply.py`](/home/happy/codex_minimal_outrigger_cli_stage1/src/sub_commands/apply.py) や対応する正本仕様を読むべきです。
 - `cmoc session join` / `cmoc session abandon` など、session 側の開始・終了・破棄だけを確認したいときは、このモジュールは適しません。
 - 一般的な `git merge` の解説だけで足りるときや、`INDEX.md` の生成ルールそのものだけを確認したいときは、この実装ファイルを読む必要はありません。
 
 ## hash
 
-- ea00e36832cd44e392e6364df88692c773554ab767755c4ca9d21be880d7f100
+- 873ce192533a75fbd927b6531ea8bc5aaa6d04d067c1e8e7207ee57f5de7fa66
 
 # `eval-oracles.py`
 
