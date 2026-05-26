@@ -2246,6 +2246,57 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     assert _git(repo, "status", "--porcelain").stdout
 
 
+def test_apply_implementation_files_at_commit_excludes_root_memo(
+    tmp_path: Path,
+) -> None:
+    """apply の実装調査対象は read-only 禁止領域の root memo を含めない。"""
+    repo = _init_repo(tmp_path)
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
+    nested_memo = repo / "docs" / "memo"
+    nested_memo.mkdir(parents=True)
+    (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "implementation targets")
+    commit_hash = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in apply_module._implementation_files_at_commit(
+            repo,
+            commit_hash,
+        )
+    ]
+
+    assert "memo/note.md" not in relative_paths
+    assert relative_paths == ["README.md", "app.py", "docs/memo/note.md"]
+
+
+def test_commit_all_changes_rejects_memo_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """workspace-write prompt の読み書き禁止領域 memo は commit 前に検出する。"""
+    repo = _init_repo(tmp_path)
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
+    (repo / "app.py").write_text("changed\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "sub_commands.apply.maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    with pytest.raises(CmocError) as error:
+        _commit_all_changes(repo)
+
+    assert "編集禁止パス" in error.value.message
+    assert "memo/" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+
+
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
     """不整合調査 JSON は仕様 schema の必須項目不足を意味的失敗として扱う。"""
     with pytest.raises(ValueError):

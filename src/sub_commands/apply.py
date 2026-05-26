@@ -667,6 +667,8 @@ def _is_excluded_implementation_path(relative_path: str) -> bool:
     return (
         relative_path == "oracles"
         or relative_path.startswith("oracles/")
+        or relative_path == "memo"
+        or relative_path.startswith("memo/")
         or relative_path == ".git"
         or relative_path.startswith(".git/")
         or relative_path == ".cmoc"
@@ -803,11 +805,11 @@ def _commit_all_changes(repo_root: Path) -> None:
 
 def _assert_forbidden_paths_clean(repo_root: Path) -> None:
     """Codex CLI が編集禁止領域を変更していないことを確認する。"""
-    # oracles と .agents に差分があれば、commit 前に中断する。
+    # prompt 上の禁止領域に差分があれば、commit 前に中断する。
     forbidden = [
         path
         for path in changed_paths(repo_root)
-        if path.startswith("oracles/") or path.startswith(".agents/")
+        if _is_forbidden_changed_path(path)
     ]
     if forbidden:
         raise CmocError(
@@ -818,6 +820,18 @@ def _assert_forbidden_paths_clean(repo_root: Path) -> None:
             ],
             "\n".join(forbidden),
         )
+
+
+def _is_forbidden_changed_path(relative_path: str) -> bool:
+    """workspace-write prompt で禁止した変更 path か判定する。"""
+    return (
+        relative_path == "oracles"
+        or relative_path.startswith("oracles/")
+        or relative_path == ".agents"
+        or relative_path.startswith(".agents/")
+        or relative_path == "memo"
+        or relative_path.startswith("memo/")
+    )
 
 
 def _write_apply_report(

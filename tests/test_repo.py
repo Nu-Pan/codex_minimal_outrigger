@@ -211,12 +211,15 @@ def test_list_oracle_files_keeps_nested_file_for_rooted_basename_pattern(
 def test_list_implementation_files_excludes_specified_paths(
     tmp_path: Path,
 ) -> None:
-    """実装ファイル列挙は oracles、.git、INDEX.md、gitignore 対象を除外する。"""
+    """実装ファイル列挙は oracles、memo、INDEX.md、gitignore 対象を除外する。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
     (repo / "app.py").write_text("app\n", encoding="utf-8")
     (repo / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     (repo / "INDEX.md").write_text("index\n", encoding="utf-8")
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
@@ -227,6 +230,23 @@ def test_list_implementation_files_excludes_specified_paths(
     ]
 
     assert relative_paths == [".gitignore", "README.md", "app.py"]
+
+
+def test_list_implementation_files_excludes_only_root_memo(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル列挙の memo 除外は repo root 直下だけに限定する。"""
+    repo = _init_repo(tmp_path)
+    nested_memo = repo / "docs" / "memo"
+    nested_memo.mkdir(parents=True)
+    (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == ["README.md", "docs/memo/note.md"]
 
 
 def test_list_implementation_files_ignores_only_root_gitignore(
@@ -429,7 +449,7 @@ def test_changed_oracle_files_excludes_gitignored_files(
 def test_changed_implementation_files_filters_to_implementation_targets(
     tmp_path: Path,
 ) -> None:
-    """変更済み実装ファイルは oracles や INDEX.md を除外して返す。"""
+    """変更済み実装ファイルは oracles、memo、INDEX.md を除外して返す。"""
     repo = _init_repo(tmp_path)
     (repo / "base.py").write_text("base\n", encoding="utf-8")
     _git(repo, "add", ".")
@@ -439,6 +459,9 @@ def test_changed_implementation_files_filters_to_implementation_targets(
     (repo / "base.py").write_text("changed\n", encoding="utf-8")
     (repo / "new.py").write_text("new\n", encoding="utf-8")
     (repo / "INDEX.md").write_text("index\n", encoding="utf-8")
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
