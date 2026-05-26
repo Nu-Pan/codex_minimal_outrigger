@@ -131,28 +131,28 @@
 
 - git リポジトリのルート探索、`cwd` 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
 - 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`session state` の読み書きと参照を扱います。
-- .cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を提供します。
+- `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を提供します。
 - oracle / 実装ファイルの列挙、変更・削除検出、一時 index を使った commit と index 復元までを担います。
 
 ## Read this when
 
-- `cmoc` が使う git リポジトリのルート探索や、`cwd` をルートへ固定する処理を確認・修正したいとき。
+- git リポジトリのルート探索や、`cwd` をルートへ固定する処理を確認・修正したいとき。
 - 現在ブランチ名、`HEAD` commit、`cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` の判定、session id 抽出を扱いたいとき。
-- `.cmoc/sessions` の session state の読み書き、`cmoc session fork` 直後の初期状態、session start commit の参照を確認したいとき。
-- `.cmoc` を追跡対象外に保つ保証、root `.gitignore` の判定、未コミット差分の検査や pathspec ごとの clean 判定を実装したいとき。
+- `.cmoc/sessions` の session state の読み書き、active session の列挙、`cmoc session fork` 後の初期状態や session start commit の参照を確認したいとき。
+- `.cmoc` を追跡対象外に保つ保証、root `.gitignore` の判定、未コミット差分や pathspec ごとの clean 判定を実装したいとき。
 - oracle ファイルや実装ファイルの列挙、変更・削除検出、untracked も含めた差分収集、`INDEX.md` 自動更新前後の差分管理を追いたいとき。
 - `commit_if_changed` や `commit_cmoc_initialization_changes` のように、対象パスだけを一時 index で commit し、その後に既存の staged 差分を復元する挙動を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` の CLI 引数解析や画面出力だけを確認したいときは、この共通処理ではなく各サブコマンド側を読むべきです。
-- `commons.errors`、`commons.indexing`、`commons.subcommand_log`、`commons.timing` など、別の共通モジュールだけを追いたいときはこのファイルを読む必要はありません。
+- サブコマンドの引数定義、画面出力、ユーザー向けフローだけを確認したいときは、この共通モジュールではなく各 `src/sub_commands/*` を読むべきです。
+- `commons.errors`、`commons.indexing`、`commons.subcommand_log`、`commons.timing` など、別の共通モジュールだけを追いたいときは、このファイルを読む必要はありません。
 - `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを確認したいときは、`oracles` 配下の該当文書を読むべきです。
-- git リポジトリ探索、ブランチ判定、session state、差分列挙、pathspec commit の流れに関心がない場合は、このファイルは不要です。
+- git の一般的な操作手順だけが目的で、repo root 探索、cmoc ブランチ判定、session state、差分列挙、pathspec commit に関心がないときは、このファイルは不要です。
 
 ## hash
 
-- a65e99cc41639d0cf7c96e001e7d2008169e27c79c8523624a356e4f13788c14
+- 6e700fac626efeea0072e25dac90c136cb56a7ec8c2c78e78210370cf13178cd
 
 # `subcommand_log.py`
 

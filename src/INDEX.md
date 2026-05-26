@@ -2,28 +2,36 @@
 
 ## Summary
 
-- `cmoc` の共通処理をまとめるディレクトリで、コマンド実行制御、エラー整形、git リポジトリ操作、ログ、時刻、計測、`INDEX.md` 管理を集約します。
-- `codex.py` は Codex CLI 呼び出しと Structured Output 検証、quota 待機再開、出力ログ保存を扱います。
-- `command_runner.py`、`errors.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py`、`indexing.py` が横断機能を分担します。
-- `__init__.py` は `src.commons` パッケージを宣言するだけの最小モジュールです。
+- `src/commons` は、cmoc 全体で使う共通ユーティリティ群の入口です。
+- `codex.py` は Codex CLI 呼び出し、Structured Output 検証、quota 待機、ログ保存をまとめます。
+- `command_runner.py` はサブコマンド共通の実行制御、終了コード化、エラー表示、集計出力を担います。
+- `errors.py` は共通例外と利用者向けエラーレポート整形を提供します。
+- `indexing.py` は `INDEX.md` の列挙・再生成・更新を担当します。
+- `repo.py` は repo root 探索、cmoc 管理ブランチ、session state、git 差分収集などの共通処理を持ちます。
+- `subcommand_log.py` は標準出力・標準エラーの tee ログと quota 待ち時間の集約を扱います。
+- `timestamps.py` は `<time-stamp>` 文字列生成を提供します。
+- `timing.py` はステップ経過時間の計測・表示を提供します。
+- `__init__.py` は `src.commons` パッケージを宣言するだけの薄いモジュールです。
 
 ## Read this when
 
-- 共通の実行制御やエラーレポートの流れを確認したいとき。
-- `codex exec` の呼び出し、Structured Output、quota 待機再開、ログ保存の挙動を追いたいとき。
-- git ルート探索、session/apply ブランチ判定、`.cmoc` の追跡除外、session state の読み書きを確認したいとき。
-- `INDEX.md` の生成・更新、サブコマンドの tee ログ、タイムスタンプ、ステップ計測を扱いたいとき。
+- `cmoc` の複数サブコマンドで共通に使う基盤処理を確認したいとき。
+- Codex CLI 呼び出し、Structured Output 検証、quota 待機、ログ保存の流れを追いたいとき。
+- repo root 探索、cmoc 管理ブランチ判定、session state、git 差分、作業ツリー管理を確認したいとき。
+- `INDEX.md` の生成ルールやタイムスタンプ、経過時間表示、共通エラー表示を確認したいとき。
+- サブコマンドの実行ラッパーや標準出力・標準エラーの tee ログを修正したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや引数定義だけを確認したいときは、`src/sub_commands` 側を読むべきです。
-- ユーザー向けのルーティング仕様やサブコマンド別の正本断片を確認したいときは、`oracles` 側を読むべきです。
-- 実装やテストの配置方針だけを確認したいときは、`src` 全体や `tests` の方針を見れば足ります。
-- `INDEX.md` の生成・更新ルールだけを確認したいときは、このディレクトリではなく `src/commons/indexing.py` を読むべきです。
+- 個別サブコマンドの業務ロジックや CLI 引数定義だけを追いたいときは、各 `src/sub_commands/*` を読むべきです。
+- `commons` のうち特定の 1 モジュールだけを確認したいときは、ディレクトリ全体ではなく該当ファイルを直接読むべきです。
+- `cmoc` のユーザー向け仕様や `oracles` の正本断片だけを確認したいときは、この共通実装側ではなく `oracles` を読むべきです。
+- テストだけが目的なら、`tests` 側を先に確認すべきです。
+- `INDEX.md` の維持方針だけを確認したいときは、`indexing.py` だけで足ります。
 
 ## hash
 
-- 51c5823f2776168a1285d5c1105157ba1b38c8e686e5f7119c7ef1c5b63d56a1
+- d1ff1c95514aa3a0e5be6445f8e5cf2a2292ceaf73560f4cc45282e93169773b
 
 # `main.py`
 
