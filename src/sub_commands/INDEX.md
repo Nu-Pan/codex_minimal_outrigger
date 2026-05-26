@@ -25,9 +25,9 @@
 
 ## Summary
 
-- `cmoc apply` の本体処理をまとめた実装ファイルです。
-- session state の検証、apply worktree と apply branch の作成、oracle snapshot の固定、要修正点の調査・改善・修正ループ、レポート保存までを扱います。
-- 要修正点リストの Structured Output schema、対象ファイルの列挙、Codex CLI への問い合わせ、commit 生成、レポート整形、補助プロンプト生成の関数群も含みます。
+- `cmoc apply` の本体実装で、session state の検証から apply worktree / apply branch の作成、要修正点の調査・改善・適用、レポート保存までをまとめます。
+- 要修正点リストの Structured Output schema、調査対象ファイルの選定、Codex CLI への問い合わせ、commit 生成、`INDEX.md` メンテナンスの補助関数群も含みます。
+- `--full` と部分適用モードの切り替え、禁止パス検査、終了コードや report の生成・検証も担います。
 
 ## Read this when
 
@@ -46,7 +46,7 @@
 
 ## hash
 
-- 731a81c788c5d5d9e758c0a66d1c48272f2c3ea63981f24651b729b14e13ddc1
+- a03de945140a696cfba8590c211c1ac8b538d95bf175ed77dfac46bc0d85f2fe
 
 # `apply_abandon.py`
 
