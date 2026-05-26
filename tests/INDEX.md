@@ -108,24 +108,26 @@
 ## Summary
 
 - `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の目次です。
-- .cmoc の ignore 保証、既存 tracked ファイルの index 解除、cmoc ブランチ判定、session state の保存・読込を扱います。
-- oracle ファイル列挙と実装ファイル列挙での `INDEX.md`・`.gitignore`・`.git/info/exclude`・`memo` の扱い、さらに base commit からの変更検出と削除検出を確認します。
+- .cmoc の ignore 保証、tracked な `.cmoc` ファイルの index 解除、cmoc ブランチ判定、session state の保存・読込を扱います。
+- oracle / 実装ファイルの列挙、変更検出、削除検出、`INDEX.md`・`.gitignore`・`.git/info/exclude`・`memo` の扱いを確認します。
 
 ## Read this when
 
-- `commons.repo` の git リポジトリ共通処理がどのようにテストされているか確認したいとき。
+- commons.repo の git リポジトリ共通処理がどのようにテストされているか確認したいとき。
 - .cmoc の ignore 保証、tracked な `.cmoc` ファイルの index 解除、cmoc ブランチ判定を見直したいとき。
 - oracle / 実装ファイルの列挙、変更検出、削除検出、session state の読み書きと検証条件を確認したいとき。
+- テスト用 git リポジトリの初期化や、`_init_repo` / `_git` の補助関数の役割を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc` の CLI 仕様や各サブコマンドの入出力だけを確認したいとき。
-- `commons.repo` 以外の実装や、別モジュールのテストだけを追いたいとき。
+- cmoc の CLI 仕様や各サブコマンドの入出力だけを確認したいとき。
+- commons.repo 以外の実装や、別モジュールのテストだけを追いたいとき。
 - `INDEX.md` の自動生成ルールそのものや、`README.md`・`AGENTS.md`・`memo` の運用を確認したいとき。
+- Python 標準ライブラリの `git` 呼び出し方法やテスト補助関数の一般論だけを知りたいとき。
 
 ## hash
 
-- 57e1bc4a748ead9690ab6cac7f9c7fa9c903a1e9b38287a954d9c19adabfdcb0
+- 11b68eb823297dc740227b2167eb9c3ccd7a848caf69cbd30116c6c4d7841c5d
 
 # `test_subcommands.py`
 

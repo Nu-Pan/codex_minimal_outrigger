@@ -132,27 +132,26 @@
 
 - git リポジトリのルート探索と `cwd` 固定、`git` 実行の共通処理をまとめたモジュールです。
 - `cmoc/session/<session-id>` と `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定と、branch から session id を取り出す処理を提供します。
-- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を扱います。
+- .cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を扱います。
 - `.cmoc` の ignore 保証、未コミット差分や pathspec 単位の clean 判定、oracle / 実装ファイルの列挙と削除検出、部分 commit と staged 差分の復元を実装します。
 
 ## Read this when
 
-- リポジトリルートの探索や、`cwd` をルートに固定する処理を確認・修正したいとき。
-- `cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定、session id 抽出を扱いたいとき。
-- `.cmoc/sessions/<session-id>.json` の読み書きや、固定スキーマ検証、active session の列挙を確認したいとき。
-- `.cmoc` の追跡対象外保証、`.gitignore` 判定、未コミット差分や pathspec 単位の clean 判定を実装したいとき。
-- oracle ファイルや実装ファイルの列挙、削除検出、working tree と staging area の差分収集、部分 commit と staged 差分復元を追いたいとき。
+- リポジトリルート探索や、`cwd` をルートに固定する処理を確認・修正したいとき。
+- `cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` のブランチ判定と session id 抽出を扱いたいとき。
+- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session の列挙、session start commit の参照を確認したいとき。
+- `.cmoc` の追跡対象外保証、未コミット差分や pathspec 単位の clean 判定、oracle / 実装ファイルの列挙、削除検出、部分 commit と staged 差分の復元を追いたいとき.
 
 ## Do not read this when
 
-- CLI 引数定義やサブコマンドの実行手順だけを確認したいとき。
-- エラーレポート整形、標準出力ログ、タイムスタンプ生成など、別の共通機能だけを調べたいとき。
-- `INDEX.md` の生成・更新ルールそのものや、`oracles` の正本仕様だけを追いたいとき。
-- 個別のサブコマンド実装やテストだけを見れば足りるとき。
+- CLI 引数定義やサブコマンド本体の業務ロジックだけを確認したいとき。
+- `commons.errors` のエラーレポート整形や `commons.subcommand_log`、`commons.timestamps` など別の共通機能だけを追いたいとき。
+- `INDEX.md` の生成・更新ルールや `oracles` 側の正本仕様だけを確認したいとき。
+- 個別のサブコマンド実装やテストだけを見れば十分で、git リポジトリ共通処理が不要なとき。
 
 ## hash
 
-- 692b758834b7d94ac0ff896c1f5edf9d6d4f4e013b3667bd4f027b33ba427f18
+- 19a86eecd00fd6674a8f73aabec380d5995b866721701c10bb97aa1d1d85f6d5
 
 # `subcommand_log.py`
 
