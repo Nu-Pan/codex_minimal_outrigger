@@ -43,13 +43,13 @@
 ## Do not read this when
 
 - `cmoc` のユーザー向けサブコマンド仕様や `oracles` 側の正本仕様だけを確認したいときは、このテスト目次ではなく該当する仕様文書を読むべきです。
-- `tests` 全体の共通 fixture や、他のテストファイルの観点だけを追いたいときは、このファイルを読む必要はありません。
+- `tests` 全体の共通 fixture や他のテストファイルの観点だけを追いたいときは、このファイルを読む必要はありません。
 - `commons.codex` 以外の共通モジュールや `src/sub_commands` の実装ロジックだけを調べたいときは、このテスト群は目的外です。
 - `INDEX.md` の生成・更新ルールそのものや、`README.md` / `AGENTS.md` / `memo` の運用ルールだけを確認したいときは、このファイルではなく別の案内を読むべきです。
 
 ## hash
 
-- 0fa11b125d16764c600142b1389a6c318dda1e1e02cd9cb3961469a1aaa9794a
+- b218fda9e9398154cebcae82c5763379b1e34e6c4c7c94ed9c9c0ddc2075d774
 
 # `test_file_naming.py`
 

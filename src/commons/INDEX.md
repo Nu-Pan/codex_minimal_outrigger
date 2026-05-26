@@ -23,26 +23,26 @@
 
 ## Summary
 
-- `codex exec` を実行する共通処理をまとめたモジュールです。モデル・reasoning effort の検査、コマンド組み立て、Structured Output の schema 出力、last message の回収を担当します。
-- quota 枯渇時は最小プロンプトでの疎通確認を挟み、復旧後に元セッションへ `--resume` で戻す再開処理を含みます。
-- 1 回ごとの呼び出しログを Markdown で残し、JSON Schema 検証を含む Structured Output の妥当性確認もこのファイル内で行います。
+- Codex CLI 呼び出しの共通ラッパー。
+- Structured Output 検証、quota 待機再開、実行ログ保存をまとめて扱う。
+- `codex exec` のコマンド組み立てと補助関数群を収録する。
 
 ## Read this when
 
-- `codex exec` の起動方法、`--json` / `--output-last-message` / `--output-schema` の扱いを確認したいとき。
-- Structured Output の JSON 検証、last message の読み取り、失敗時のリトライ仕様を追いたいとき。
-- quota 枯渇時の待機・疎通確認・`--resume` 再開の流れを確認したいとき。
-- `codex exec` の呼び出しログ、schema ファイル、last message ファイルの保存規約を確認したいとき。
+- `codex exec` を起動する共通処理を実装・修正するとき
+- Structured Output の JSON Schema 保存・検証・再試行の流れを確認したいとき
+- quota 枯渇時の待機・再開、`--resume`、`--output-last-message`、ログ保存の挙動を追いたいとき
+- model / reasoning effort の制約や `codex exec` の実行オプションを確認したいとき
 
 ## Do not read this when
 
-- `cmoc` の個別サブコマンド本体の処理だけを確認したいときは、`src/sub_commands` 側を直接読むべきです。
-- `codex exec` の共通実行・Structured Output・quota 復帰・ログ保存と無関係な修正をしているときは、このファイルを読む必要はありません。
-- `src/commons` の他の共通ユーティリティだけを扱う場合は、まず該当モジュールを優先して読むべきです。
+- Codex CLI の呼び出しや出力検証とは無関係な機能を変更するとき
+- `codex.py` 以外の共通処理や別サブコマンドの実装だけを確認したいとき
+- INDEX.md の維持や他ディレクトリのルーティングだけを更新したいとき
 
 ## hash
 
-- 95d14bc23e319b811512baacca15ca25610efb9453682433c7820be5709ee7f0
+- 9e13bc369f3a0e79e1528a69323ee133fb15824e98be327f2232104278ec1c29
 
 # `command_runner.py`
 
