@@ -2,14 +2,14 @@
 
 ## 概要
 
-- `cmoc apply` は、Codex CLI による調査・修正ループを開始する
+- `cmoc apply fork` は、Codex CLI による調査・修正ループを開始する
 - この調査・修正ループは以下の状態を目標とする
     - `<repo-root>` の実装を `<repo-root>/oracles` の正本仕様断片と一致している
     - `<repo-root>` の実装が最低限度の品質を満たしている
-- `cmoc apply` が正常に実行完了したからといって、目標達成が保証されるわけではない
-    - あくまで、調査・修正ループの実行し、目標達成のために努力する所までが `cmoc apply` の責任範囲である
+- `cmoc apply fork` が正常に実行完了したからといって、目標達成が保証されるわけではない
+    - あくまで、調査・修正ループの実行し、目標達成のために努力する所までが `cmoc apply fork` の責任範囲である
     - i.e. ベストエフォート的な振る舞いで良い
-- `cmoc apply` は `<cmoc-session-branch>` と作業用コピーを直接汚すことはしない
+- `cmoc apply fork` は `<cmoc-session-branch>` と作業用コピーを直接汚すことはしない
     - `<cmoc-apply-branch>` を作成し、そこにコミットを積み上げる
 
 ## 引数
@@ -36,7 +36,7 @@
 3. 一意な `<apply-run-id>` を生成する
 4. `<oracle-snapshot-commit>` から `<cmoc-apply-branch>` を作成する
 5. `<cmoc-apply-branch>` を checkout した専用 `<cmoc-apply-worktree>` を作成する
-6. `<cmoc-session-state-file>` の `apply.state` を `running` に更新する
+6. `<cmoc-session-state-file>` の状態を更新
 7. `<cmoc-apply-worktree>` 上で調査・修正ループを実行する
     1. 調査対象となる oracles ファイル・実装ファイルを列挙する
     2. Codex CLI に、列挙したファイルリストを元に要修正点をリストアップさせる
@@ -50,22 +50,28 @@
         2. `<repo-root>/oracles` などの編集禁止ディレクトリに未コミット差分が有る場合はエラー終了
         3. 全ての未コミット差分を git にコミット（コミットメッセージは Codex CLI で適切なものを生成）
     6. 調査・修正ループ先頭に戻る
-8. `<cmoc-session-state-file>` の `apply.state` を `completed` に更新する
+8. `<cmoc-session-state-file>` の状態を更新
 9. 作業結果をレポートする
 
-## `cmoc apply` の責務境界
+## `cmoc apply fork` の責務境界
 
-- `cmoc apply` の責務は、指定された最大回数の範囲で調査・修正ループを実行し、その結果を人間が判断できる形でレポートすることである
-- `cmoc apply` は、要修正点が残っていないことを保証しない
-- `cmoc apply` は、全ての要修正点を漏れなく発見することは保証しない（あくまでベストエフォート的に振る舞う）
+- `cmoc apply fork` の責務は、指定された最大回数の範囲で調査・修正ループを実行し、その結果を人間が判断できる形でレポートすることである
+- `cmoc apply fork` は、要修正点が残っていないことを保証しない
+- `cmoc apply fork` は、全ての要修正点を漏れなく発見することは保証しない（あくまでベストエフォート的に振る舞う）
 - ループが回数上限に達した場合も、コマンド実行としては正常系として扱う
-- 回数上限到達後にさらに `cmoc apply` を再実行するか、`cmoc eval-oracles` や人手レビューを行うか、作業を打ち切るかは人間が判断する
+- 回数上限到達後にさらに `cmoc apply fork` を再実行するか、`cmoc eval-oracles` や人手レビューを行うか、作業を打ち切るかは人間が判断する
 
 ## `<cmoc-session-state-file>` 状態遷移
 
-- 処理開始時に `apply.state` を `running` に遷移させる
-- 全ての処理が正常に完了出来た場合 `apply.state` を `completed` に遷移させる
-- 途中でエラーが発生して処理を中止した場合 `apply.state` を `error` に遷移させる
+- 調査・修正ループ開始直前
+    - `apply.state` を `running` に遷移させる
+    - `apply` セクションに必要な情報 (e.g. `<apply-run-id>`, `<cmoc-apply-branch>`, `<cmoc-apply-worktree>`, `<oracle-snapshot-commit>`, ...) を保存する
+- 調査・修正ループ完了直後
+    - i.e. 全ての処理が正常に完了出来た場合
+    - `apply.state` を `completed` に遷移させる
+    - `apply` セクションに必要な情報 (e.g. `apply_head_before_merge`, ...) を保存する
+- 途中でエラーが発生して処理を中止した場合
+    - `apply.state` を `error` に遷移させる
 
 ## git worktree と編集操作
 
@@ -86,12 +92,12 @@
 
 ### 対象となる git スナップショット
 
-`cmoc apply` の評価対象は開始時点の `<oracle-snapshot-commit>` に固定される。
-つまり、例えば、 `cmoc apply` の実行開始後にユーザーによって oracles ファイルの編集が `<cmoc-session-branch>` へ commit された場合、その編集内容は既に実行開始した `cmoc apply` の調査対象には含まれない。
+`cmoc apply fork` の評価対象は開始時点の `<oracle-snapshot-commit>` に固定される。
+つまり、例えば、 `cmoc apply fork` の実行開始後にユーザーによって oracles ファイルの編集が `<cmoc-session-branch>` へ commit された場合、その編集内容は既に実行開始した `cmoc apply fork` の調査対象には含まれない。
 
 ### 部分適用モード・全体適用モード
 
-`cmoc apply` は以下の２つのモードを持つ
+`cmoc apply fork` は以下の２つのモードを持つ
 
 - `--full` が付いている場合は全体適用モード
 - `--full` が付いていない場合は部分適用モード
@@ -138,7 +144,7 @@
     - 要修正点を先頭から順番に対応した時に、それが作業順序として適切であること
     - 要修正点リスト改善の過程で発見した「漏れ」が要修正点リストに追加されていること
 - 改善後の要修正点リストが空の場合のみ「検出された要修正点なし」と扱う
-    - これは「この調査結果においては」という但し書きが付くが、要修正点の完全解消は `cmoc apply` の目的ではないので、これでよい
+    - これは「この調査結果においては」という但し書きが付くが、要修正点の完全解消は `cmoc apply fork` の目的ではないので、これでよい
 - 改善語の要修正点リストは Structured Output で受け取る
 
 ## 要修正点リストの Structured Output schema
@@ -260,22 +266,13 @@
         - 収束 : 「検出された要修正点リストが空」によりループを終了した
         - 未収束 : 「回数上限に達した」によりループを終了した
         - エラー : 途中でエラーが起きてループを正常に終了出来なかった
-    - マージ結果
-        - マージ済み : `cmoc apply` の作業結果が正常にマージされた
-        - コンフリクト : マージコンフリクトが発生した
-        - スキップ : 必要がなかったのでマージを行わなかった
-        - エラー : 途中でエラーが起きて正常にマージが出来なかった
-    - `cmoc apply` 作業中に進んだ `<cmoc-session-branch>` の内訳
-        - oracles のみ : oracles ファイルにのみ変更があった
-        - oracles 以外 : oracles 以外の実装ファイルに変更があった
-        - なし : `<cmoc-session-branch>` は進んでいなかった
     - 要修正点件数の推移
         - ループごとに何件の要修正点を見つけたかを書く
         - 「未収束」の場合は、まだ要修正点が残っている可能性を追記する
     - `<cmoc-apply-branch>` 上の全ての変更内容に対する要約
-        - この `cmoc apply` で行った作業内容だけの要約に限定する
+        - この `cmoc apply fork` で行った作業内容だけの要約に限定する
         - 変更内容の意味論に基づいたカテゴリ分けを行うこと
-- レポート本体は `<repo-root>/.cmoc/reports/apply/<time-stamp>.md` にファイルに保存する
+- レポート本体は `<repo-root>/.cmoc/reports/apply/fork/<time-stamp>.md` にファイルに保存する
 - 作成したレポートのフルパスを標準出力に流す
 
 ## サブコマンドの終了コード

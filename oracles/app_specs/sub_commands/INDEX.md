@@ -1,25 +1,3 @@
-# `apply_abandon.md`
-
-## Summary
-
-- `cmoc apply abandon` の仕様入口です。未 join の apply run を破棄する条件、破棄対象、状態遷移、cleanup 失敗時の扱いを確認するときに読む文書です。
-
-## Read this when
-
-- 現在の session に紐づく未 join の apply run を破棄する `cmoc apply abandon` の仕様を確認したいとき
-- `apply.state` の遷移、破棄対象の branch/worktree、cleanup 手順を実装・修正したいとき
-- warning や report 出力、終了コードの扱いを確認したいとき
-
-## Do not read this when
-
-- `cmoc apply` 以外の apply 系サブコマンドの仕様を確認したいとき
-- session の終了や破棄、あるいは join/fork の挙動を確認したいとき
-- branch model や共通エラー処理など、apply 破棄と直接関係しない仕様を確認したいとき
-
-## hash
-
-- 65a56fe5bb8b38e641adf42fd80069b16cca0e2d78c698aecf00f015f9a2789a
-
 # `apply_fork.md`
 
 ## Summary
@@ -71,32 +49,6 @@
 ## hash
 
 - 9920b25b80bed7bc2e7afa1e4f7745bc7784ff9712f46e4b14c638614dcf926e
-
-# `eval_oracles.md`
-
-## Summary
-
-- 現在の `<repo-root>/oracles` スナップショットを仕様だけで評価し、致命的問題の有無を人間に報告する `cmoc eval-oracles` の仕様である。
-- 部分評価・全体評価の切り替え、対象 oracle の列挙と絞り込み、1 ファイルずつの評価、レポート集約の流れを定める。
-- 評価レポートの Structured Output schema、Markdown レポートの必須セクション、結果の表示方法を定める。
-
-## Read this when
-
-- `cmoc eval-oracles` の挙動、引数、実行モード、終了時のレポート形式を確認したいとき。
-- oracles ファイル群を `oracles/INDEX.md` からたどって、どの関連仕様を評価根拠に読むべきか判断したいとき。
-- 致命的問題の定義や、ファイルごとの評価結果をどの Structured Output で返すかを確認したいとき。
-- 評価レポートの項目、集約順序、保存先ディレクトリの仕様を確認したいとき。
-
-## Do not read this when
-
-- `cmoc apply`、`cmoc session fork`、`cmoc session join`、`cmoc session abandon` など、評価以外のサブコマンド仕様を知りたいとき。
-- 実装ファイルやテストファイルを読んで挙動を推測したいとき。
-- oracles 自体の編集方針や内容を決めたいときは、各対象 oracle とその `INDEX.md` を読むべきであり、このファイルは読まなくてよい。
-- `INDEX.md` メンテナンス処理そのものの仕様を確認したいときは、`app_specs/indexing.md` を参照すべきであり、このファイルは主目的ではない。
-
-## hash
-
-- c6fc1a9a9f7c102b3ebdb603e5b87fd0e8a872880670743334f0a2af949b8ab5
 
 # `init.md`
 

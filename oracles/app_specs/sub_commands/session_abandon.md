@@ -45,35 +45,23 @@
 
 ## 実行手順
 
-1. 現在の `<cmoc-session-branch>` から `<session-id>` を特定する。
-2. `<cmoc-session-state-file>` を読み込む。
-3. `session.state` が `active` であることを確認する。
-4. `apply.state` が `ready` であることを確認する。
-5. metadata から `<cmoc-session-home-branch>` を取得する。
-6. `<cmoc-session-home-branch>` が local branch として存在することを確認する。
-7. `<cmoc-session-branch>` 側の worktree に git 未コミット差分が存在しないことを確認する。
-8. `<repo-root>/.cmoc` が git の追跡対象外であることを保証する。
-9. `git switch <cmoc-session-home-branch>` を実行する。
-10. `<cmoc-session-state-file>` の `session.state` を `abandoned` に更新する。
-11. `session.joined_at` は `null` のままとする。
-12. `<cmoc-session-branch>` を強制削除する。
-    - `<cmoc-session-branch>` が `<cmoc-session-home-branch>` に merge 済みであることは要求しない。
-13. 結果を標準出力に表示する。
+1. 事前検証
+    - 事前条件を満たしている事を確認する
+2. `<repo-root>/.cmoc` が git の追跡対象外であることを保証する。
+3. クリーンアップ
+    1. `git switch <cmoc-session-home-branch>` を実行する。
+    2. `<cmoc-session-state-file>` の `session.state` を `abandoned` に更新する。
+    3. `session.joined_at` は `null` のままとする。
+    4. `<cmoc-session-branch>` を強制削除する。
+4. 結果を標準出力に表示する。
 
 ## 状態遷移
 
-`cmoc session abandon` が正常終了した場合、`session.state` は `abandoned` になる。
+- `cmoc session abandon` が正常終了した場合、`session.state` は `abandoned` になる。
+- `abandoned` になった session は active session ではない。
+- したがって、同じ `<cmoc-session-home-branch>` から新しい `cmoc session fork` を実行してよい。
 
-`abandoned` になった session は active session ではない。
+## クリーンアップの途中で失敗した場合
 
-したがって、同じ `<cmoc-session-home-branch>` から新しい `cmoc session fork` を実行してよい。
-
-## active apply run が残っている場合
-
-`cmoc session abandon` は active apply run を暗黙に破棄しない。
-
-`apply.state` が `ready` ではない場合はエラー終了し、ユーザーに先に以下を実行するよう案内する。
-
-```bash
-cmoc apply abandon
-```
+- クリーンアップで行った操作をロールバックし、再実行可能な状態にする
+- ユーザーに「問題の手動解決したうえで `cmoc session abandon` 再実行」を促す

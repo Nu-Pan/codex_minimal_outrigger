@@ -129,7 +129,7 @@
           },
           "affected_workflow": {
             "type": "string",
-            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply, cmoc eval-oracles, overall。"
+            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply fork, cmoc eval-oracles, overall。"
           },
           "requirement": {
             "type": "string",

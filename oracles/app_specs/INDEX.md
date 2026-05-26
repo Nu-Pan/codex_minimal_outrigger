@@ -1,27 +1,3 @@
-# `branch_model.md`
-
-## Summary
-
-- cmoc の branch model を定義する仕様断片です。
-- `<local-branch>`、`<cmoc-session-branch>`、`<cmoc-apply-branch>` の役割と命名規則をまとめています。
-- `cmoc apply` の snapshot 原則と `<cmoc-session-state-file>` のスキーマを扱います。
-
-## Read this when
-
-- `<local-branch>`、`<cmoc-session-branch>`、`<cmoc-apply-branch>` の関係と命名規則を確認したいとき
-- `cmoc session fork` の起点になる `<cmoc-session-home-branch>` の決め方や active session の扱いを確認したいとき
-- `cmoc apply` の snapshot 固定ルールや、開始後に session が進んだ場合の扱いを確認したいとき
-- `<cmoc-session-state-file>` の役割や、session/apply の状態遷移に使う保存情報を確認したいとき
-
-## Do not read this when
-
-- `cmoc session fork`、`cmoc session join`、`cmoc apply` など個別サブコマンドの詳細な手順だけを確認したいとき
-- `cmoc init` や開発環境、コーディング規約、テスト規約など、branch model 以外の仕様を確認したいとき
-- `<cmoc-session-state-file>` の保存形式よりも、状態遷移やコマンド出力の詳細を別仕様で確認したいとき
-
-## hash
-
-- fdf81ca55cbe760c430ccd22d8330d3f66dd7c428df776408d1e85888ded26e9
 
 # `codex_call.md`
 
@@ -169,37 +145,6 @@
 ## hash
 
 - 846f75a87ba5831d36df56aa4f44028b2b6c01f4fd11932d0dac73376382191b
-
-# `sub_commands`
-
-## Summary
-
-- `cmoc app_specs/sub_commands` 配下のサブコマンド仕様への入口です。
-- `apply_abandon.md` は未 join の apply run を破棄する `cmoc apply abandon` の入口です。
-- `apply_fork.md` は調査・修正ループを開始する `cmoc apply` の入口です。
-- `apply_join.md` は `apply fork` の成果物を session 本流へ取り込む `cmoc apply join` の入口です。
-- `eval_oracles.md` は現在の `<repo-root>/oracles` スナップショットを仕様だけで評価する `cmoc eval-oracles` の入口です。
-- `init.md` は `<repo-root>` を cmoc 作業可能状態に初期化する `cmoc init` の入口です。
-- `session_abandon.md` は `cmoc-session-branch` を home branch へ merge せず破棄する `cmoc session abandon` の入口です。
-- `session_fork.md` は現在の local branch から `cmoc/session/...` を作る `cmoc session fork` の入口です。
-- `session_join.md` は `cmoc-session-branch` を home branch へ merge する `cmoc session join` の入口です。
-- レガシーな `cmoc branch` は `session_fork.md`、レガシーな `cmoc merge` は `session_join.md` で扱います。
-
-## Read this when
-
-- `cmoc apply` 系・`cmoc session` 系・`cmoc eval-oracles`・`cmoc init` のどの正本仕様へ進むべきか判断したいとき。
-- `apply_abandon.md`、`apply_fork.md`、`apply_join.md`、`session_abandon.md`、`session_fork.md`、`session_join.md` のいずれかの入口を探したいとき。
-- `cmoc branch` や `cmoc merge` のレガシー扱いを含めて、どの文書が対応先かを確認したいとき。
-
-## Do not read this when
-
-- 個別サブコマンドの仕様がすでに決まっていて、該当する `*.md` を直接読めば足りるとき。
-- `app_specs/INDEX.md` や `dev_rules` など、他系統の入口だけを追いたいとき。
-- 実装コードやテストコードを確認するだけで、サブコマンド仕様の入口案内が不要なとき。
-
-## hash
-
-- bae55b16547e7977d6de678969bd807498e4abe87f9446496549f8f793a4e952
 
 # `usage.md`
 

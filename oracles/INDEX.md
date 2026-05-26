@@ -23,32 +23,6 @@
 
 - 3a42159d1c3bccbdc2941d0687a562aee823b8187ec53a69ceda04accd3cfe3a
 
-# `considered_alternatives`
-
-## Summary
-
-- cmoc において採用しなかった設計案や、その不採用理由をまとめた文書群です。
-- AI-generated kaizen の自動注入を採用しない理由、作業計画レビューを採らなかった背景、`cmoc apply` で修正点リスト完成後に別途計画を立てない判断を扱います。
-- それぞれ `memory_alternative.md`、`working_plan_review.md`、`apply_behavior.md` に分かれています。
-
-## Read this when
-
-- AI の改善案を次回実行へ自動反映しない方針の理由を確認したいとき
-- `tgbt plan` や `/plan` のような計画レビュー方式を採らなかった背景を確認したいとき
-- `cmoc apply` で修正点リストの後に別途作業計画を立てない判断を確認したいとき
-- 設計案の比較検討や、不採用にした代替案の整理を読みたいとき
-
-## Do not read this when
-
-- 各サブコマンドの実装手順、引数、出力形式などの正本仕様を確認したいとき
-- `cmoc` 全体の共通ルールや `INDEX.md` 生成規約だけを確認したいとき
-- 採用済みの仕様や手順をそのまま実装・修正したいだけのとき
-- branch model、テスト、開発環境など、別系統の仕様を確認したいとき
-
-## hash
-
-- bcf28dba25d16038c99f7ffd3f93fe14a061e8da2ff82b110c1a24034e62c0e3
-
 # `dev_rules`
 
 ## Summary
