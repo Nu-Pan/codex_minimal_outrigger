@@ -456,6 +456,30 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
     ]
 
 
+def test_session_fork_rejects_malformed_session_state_before_branch_creation(
+    tmp_path: Path,
+) -> None:
+    """壊れた session state がある場合は active guard を fail closed にする。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    broken_path = repo / ".cmoc" / "sessions" / "broken.json"
+    broken_path.parent.mkdir(parents=True)
+    broken_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(repo)
+
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert "JSON が不正" in error.value.message
+    assert str(broken_path) in error.value.detail
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert "cmoc/session/" not in branches
+    assert _session_state_paths(repo) == [broken_path]
+
+
 def test_eval_oracles_writes_report_with_fake_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

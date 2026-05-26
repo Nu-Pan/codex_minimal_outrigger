@@ -8,6 +8,7 @@ import pytest
 
 from commons.errors import CmocError
 from commons.repo import (
+    active_session_ids_for_home_branch,
     assert_no_uncommitted_changes,
     changed_oracle_files,
     changed_implementation_files,
@@ -736,6 +737,43 @@ def test_write_session_state_persists_only_oracle_schema(
             "oracle_snapshot_commit": "def456",
         },
     }
+
+
+def test_active_session_scan_fails_on_malformed_state_json(
+    tmp_path: Path,
+) -> None:
+    """active session 判定では壊れた state JSON を無視しない。"""
+    repo = _init_repo(tmp_path)
+    state_root = repo / ".cmoc" / "sessions"
+    state_root.mkdir(parents=True)
+    malformed_path = state_root / "broken.json"
+    malformed_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        active_session_ids_for_home_branch(repo, "main")
+
+    assert "JSON が不正" in error.value.message
+    assert str(malformed_path) in error.value.detail
+
+
+def test_active_session_scan_fails_on_schema_invalid_state(
+    tmp_path: Path,
+) -> None:
+    """active session 判定では session/apply セクション不正を無視しない。"""
+    repo = _init_repo(tmp_path)
+    state_root = repo / ".cmoc" / "sessions"
+    state_root.mkdir(parents=True)
+    invalid_path = state_root / "broken.json"
+    invalid_path.write_text(
+        json.dumps({"session": "broken", "apply": {"state": "ready"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error:
+        active_session_ids_for_home_branch(repo, "main")
+
+    assert "形式が不正" in error.value.message
+    assert str(invalid_path) in error.value.detail
 
 
 def _init_repo(tmp_path: Path) -> Path:

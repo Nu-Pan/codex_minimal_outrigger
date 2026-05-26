@@ -157,7 +157,10 @@ def _session_state_payload(state: dict[str, object]) -> dict[str, object]:
     if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session/apply セクションを確認してください。"],
+            [
+                "state JSON の session/apply セクションを確認してください。",
+                "破損した session state を復旧してください。",
+            ],
         )
     return {
         "session": {
@@ -185,14 +188,126 @@ def read_session_state(repo_root: Path, session_id: str) -> dict[str, object]:
             ],
             str(path),
         )
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    return _read_existing_session_state(path)
+
+
+def _read_existing_session_state(path: Path) -> dict[str, object]:
+    """存在する session state JSON を読み、固定スキーマを検証する。"""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise CmocError(
+            "session state ファイルを読めませんでした。",
+            [
+                ".cmoc/sessions 配下のファイル権限と状態を確認してください。",
+                "破損した session state を復旧または退避してから再実行してください。",
+            ],
+            f"{path}\n{error}",
+        ) from error
+    except json.JSONDecodeError as error:
+        raise CmocError(
+            "session state ファイルの JSON が不正です。",
+            [
+                ".cmoc/sessions 配下の JSON を確認してください。",
+                "破損した session state を復旧または退避してから再実行してください。",
+            ],
+            f"{path}\n{error}",
+        ) from error
+
     if not isinstance(payload, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の内容を確認してください。"],
+            [
+                "state JSON の内容を確認してください。",
+                "破損した session state を復旧または退避してから再実行してください。",
+            ],
             str(path),
         )
+    _validate_session_state_schema(payload, path)
     return payload
+
+
+def _validate_session_state_schema(
+    payload: dict[str, object],
+    path: Path,
+) -> None:
+    """session state の固定スキーマに必要な構造だけを検証する。"""
+    session = payload.get("session")
+    apply = payload.get("apply")
+    if not isinstance(session, dict) or not isinstance(apply, dict):
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            [
+                "state JSON の session/apply セクションを確認してください。",
+                "破損した session state を復旧または退避してから再実行してください。",
+            ],
+            str(path),
+        )
+
+    _validate_required_string(
+        session,
+        "state",
+        "session.state",
+        path,
+    )
+    _validate_required_string(
+        session,
+        "session_home_branch",
+        "session.session_home_branch",
+        path,
+    )
+    _validate_required_string(
+        session,
+        "session_start_commit",
+        "session.session_start_commit",
+        path,
+    )
+    _validate_required_string(apply, "state", "apply.state", path)
+    _validate_optional_string(apply, "apply_branch", "apply.apply_branch", path)
+    _validate_optional_string(
+        apply,
+        "oracle_snapshot_commit",
+        "apply.oracle_snapshot_commit",
+        path,
+    )
+
+
+def _validate_required_string(
+    section: dict[object, object],
+    key: str,
+    label: str,
+    path: Path,
+) -> None:
+    """必須 string field が session state に存在することを検証する。"""
+    value = section.get(key)
+    if not isinstance(value, str) or not value:
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            [
+                f"{label} を確認してください。",
+                "破損した session state を復旧してください。",
+            ],
+            f"{path}\n{label}: {value}",
+        )
+
+
+def _validate_optional_string(
+    section: dict[object, object],
+    key: str,
+    label: str,
+    path: Path,
+) -> None:
+    """任意 string field が null または string であることを検証する。"""
+    value = section.get(key)
+    if value is not None and not isinstance(value, str):
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            [
+                f"{label} を確認してください。",
+                "破損した session state を復旧してください。",
+            ],
+            f"{path}\n{label}: {value}",
+        )
 
 
 def active_session_ids_for_home_branch(
@@ -206,13 +321,8 @@ def active_session_ids_for_home_branch(
 
     session_ids: list[str] = []
     for path in sorted(session_root.glob("*.json")):
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        session = payload.get("session")
-        if not isinstance(session, dict):
-            continue
+        payload = _read_existing_session_state(path)
+        session = payload["session"]
         if (
             session.get("state") == "active"
             and session.get("session_home_branch") == session_home_branch
