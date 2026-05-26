@@ -294,6 +294,32 @@ def test_list_implementation_files_ignores_git_info_exclude(
     assert relative_paths == ["README.md", "app.py", "logs/subcommand.log"]
 
 
+def test_list_implementation_files_ignores_system_excludes_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実装ファイル列挙では system config の excludesFile を除外判定に使わない。"""
+    external_ignore = tmp_path / "system-excludes"
+    external_ignore.write_text("/system-only.txt\n", encoding="utf-8")
+    system_config = tmp_path / "system-gitconfig"
+    system_config.write_text(
+        f"[core]\n\texcludesFile = {external_ignore.as_posix()}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", system_config.as_posix())
+
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("# root only\n", encoding="utf-8")
+    (repo / "system-only.txt").write_text("kept\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == [".gitignore", "README.md", "system-only.txt"]
+
+
 def test_changed_oracle_files_uses_session_start_and_uncommitted_changes(
     tmp_path: Path,
 ) -> None:

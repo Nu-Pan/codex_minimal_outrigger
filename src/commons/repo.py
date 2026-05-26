@@ -1210,6 +1210,7 @@ def _root_gitignored_paths(
         return set()
 
     # 一時 git repository に root `.gitignore` だけを複製して評価環境を作る。
+    env = _root_gitignore_git_env()
     with tempfile.TemporaryDirectory(prefix="cmoc-gitignore-") as temp_name:
         temp_root = Path(temp_name)
         shutil.copyfile(gitignore, temp_root / ".gitignore")
@@ -1219,17 +1220,25 @@ def _root_gitignored_paths(
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
         )
         # `--stdin` で渡した root 相対 path を Git の ignore 実装に判定させる。
         result = subprocess.run(
-            ["git", "check-ignore", "--no-index", "--stdin"],
+            [
+                "git",
+                "-c",
+                f"core.excludesFile={os.devnull}",
+                "check-ignore",
+                "--no-index",
+                "--stdin",
+            ],
             cwd=temp_root,
             check=False,
             input="\n".join(relative_paths) + "\n",
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull},
+            env=env,
         )
 
     # gitignore 評価自体の異常は利用者が復旧できる共通エラーに変換する。
@@ -1245,6 +1254,15 @@ def _root_gitignored_paths(
 
     # `git check-ignore` が出力した path だけを ignore 対象集合として返す。
     return set(result.stdout.splitlines())
+
+
+def _root_gitignore_git_env() -> dict[str, str]:
+    """root `.gitignore` 評価用に外部 Git ignore 設定を遮断した env を返す。"""
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_SYSTEM"] = os.devnull
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    return env
 
 
 def _is_gitignored(repo_root: Path, relative_path: str) -> bool:
