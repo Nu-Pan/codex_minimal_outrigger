@@ -116,7 +116,7 @@
 ## Read this when
 
 - `commons.repo` の git リポジトリ共通処理がどうテストされているか確認したいとき。
-- `.cmoc` の ignore 保証、既存 tracked ファイルの index 解除、cmoc ブランチ判定、branch base commit の読み出しを確認したいとき。
+- .cmoc の ignore 保証、既存 tracked ファイルの index 解除、cmoc ブランチ判定、branch base commit の読み出しを確認したいとき。
 - oracle ファイル列挙や実装ファイル列挙で、`INDEX.md`、`.git`、`.gitignore`、gitignore パターンの扱いを確認したいとき。
 - base commit 以降の変更検出、rename、未追跡ディレクトリ、削除検出、`assert_no_uncommitted_changes` の挙動を確認したいとき。
 - テスト用 git リポジトリを作る `_init_repo` と、そこで `git` を実行する `_git` の補助実装を見たいとき。
@@ -125,21 +125,21 @@
 
 - `cmoc` のユーザー向け CLI 仕様やサブコマンドの入出力だけを確認したいとき。
 - `commons.repo` 以外の本体実装や、別モジュールのテストだけを追いたいとき。
-- oracle の正本仕様そのものを確認したいときは、`oracles/app_specs` 側を読むべきです。
+- `oracles` の正本仕様そのものを確認したいときは、`oracles/app_specs` 側を読むべきです。
 - `INDEX.md` の自動生成やメンテナンス仕様だけを確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用ルールや編集可否だけを確認したいとき。
 
 ## hash
 
-- cbde839bc42f3d06d6797398f0f286615966bbcac2d9c15d8850e3f1380545c9
+- d28fe7ab47b84acce592861eec8be37f2b43db328f466cd6f340cc663f4a82b7
 
 # `test_subcommands.py`
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` のサブコマンド本体と共通実行基盤の決定論的な挙動を検証するテスト集の目次です。
-- `run_command`、`init`、`session`、`apply`、`eval-oracles`、`main`、`bin/cmoc` を横断して、ログ・終了コード・登録状態・エラー表示を確認します。
-- 後半では prompt・schema・conflict 解消補助・補助関数の並び順・`future annotations` 禁止など、周辺の制御規約も扱います。
+- `tests/test_subcommands.py` は `cmoc` のサブコマンド本体と共通実行基盤の決定論的な挙動をまとめたテスト目次です。
+- `run_command`、`init`、`session`、`apply`、`eval-oracles`、`main`、`bin/cmoc` を横断して、ログ、終了コード、状態更新、エラー表示を確認します。
+- 後半では prompt、Structured Output schema、衝突解消補助、補助関数の並び順、`future annotations` 禁止などの周辺規約も扱います。
 
 ## Read this when
 
@@ -147,7 +147,7 @@
 - `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要分岐や state 更新を確認したいとき。
 - `main` の CLI 登録、`eval-oracles` と `eval-oracle` の互換 alias、`bin/cmoc` の起動経路を確認したいとき。
 - 要修正点リストや評価レポートの schema 検証、prompt 文字列、レポート保存の仕様を確認したいとき。
-- 共通エラーレポート、`commons.errors` の整形、`commons.repo` の状態補助、`commons.timing` の helper 順序、`future annotations` 禁止の確認をしたいとき。
+- 共通エラーレポート、`commons.errors` の整形、`commons.repo` の状態補助、`commons.timing` の helper 順序、`future annotations` 禁止を確認したいとき。
 
 ## Do not read this when
 
@@ -158,7 +158,7 @@
 
 ## hash
 
-- 24188b24eaa3c8b95922af781172f66d180109284cedaca42efa5923309090d5
+- 0d3202da20b68d40adef7dc9274e5bc4d993f4d3e378d2d75340cdcfa0b547aa
 
 # `test_timestamps.py`
 

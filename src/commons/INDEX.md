@@ -129,28 +129,30 @@
 
 ## Summary
 
-- git リポジトリのルート探索、cwd 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
-- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`.cmoc/sessions` 配下の session state を扱います。
-- `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分の検査を提供します。
-- oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定 commit 後の index 復元までを担います。
+- git リポジトリのルート探索、`cwd` 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
+- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`session state` の読み書きと参照を扱います。
+- `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を提供します。
+- oracle / 実装ファイルの列挙、変更・削除検出、一時 index を使った commit と index 復元までを担います。
 
 ## Read this when
 
-- `cmoc` が使う git リポジトリ root の探索、cwd 固定、`git` 実行の共通化を修正・確認したいとき。
-- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`cmoc session fork` 用の session state を確認したいとき。
-- `.cmoc` を追跡対象外にする保証、root `.gitignore` の評価、未コミット差分の検査を確認したいとき。
-- oracle / 実装ファイルの列挙、変更・削除検出、pathspec 指定での commit と index 復元の流れを確認したいとき。
+- `cmoc` が使う git リポジトリのルート探索や、`cwd` をルートへ固定する処理を確認・修正したいとき。
+- 現在ブランチ名、`HEAD` commit、`cmoc/session/<session-id>` や `cmoc/apply/<session-id>/<apply-run-id>` の判定、session id 抽出を扱いたいとき。
+- `.cmoc/sessions` の session state の読み書き、`cmoc session fork` 直後の初期状態、session start commit の参照を確認したいとき。
+- `.cmoc` を追跡対象外に保つ保証、root `.gitignore` の判定、未コミット差分の検査や pathspec ごとの clean 判定を実装したいとき。
+- oracle ファイルや実装ファイルの列挙、変更・削除検出、untracked も含めた差分収集、`INDEX.md` 自動更新前後の差分管理を追いたいとき。
+- `commit_if_changed` や `commit_cmoc_initialization_changes` のように、対象パスだけを一時 index で commit し、その後に既存の staged 差分を復元する挙動を確認したいとき。
 
 ## Do not read this when
 
-- CLI の引数解析、サブコマンドの画面出力、終了コード変換だけを確認したいとき。
-- `commons.errors` や `commons.indexing`、`commons.subcommand_log`、`commons.timing` など別の共通モジュールだけを追いたいとき。
-- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを調べたいとき。
-- `tests/test_repo.py` の期待値やテスト実装だけを確認したいとき。
+- `cmoc` の CLI 引数解析や画面出力だけを確認したいときは、この共通処理ではなく各サブコマンド側を読むべきです。
+- `commons.errors`、`commons.indexing`、`commons.subcommand_log`、`commons.timing` など、別の共通モジュールだけを追いたいときはこのファイルを読む必要はありません。
+- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを確認したいときは、`oracles` 配下の該当文書を読むべきです。
+- git リポジトリ探索、ブランチ判定、session state、差分列挙、pathspec commit の流れに関心がない場合は、このファイルは不要です。
 
 ## hash
 
-- 560d378ec3b338c2cd1fb658e0792644fd79f62b42bffcf5b520e35438e5209f
+- 06a392b356a2419d9034d3875f03e183de6ef8d29853fc0eb1146a1e44b04c4a
 
 # `subcommand_log.py`
 

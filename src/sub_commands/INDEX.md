@@ -25,27 +25,25 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の実行本体で、session branch 上の前提検証から apply 用 worktree / branch の作成、不整合調査、修正適用、commit、レポート出力までをまとめています。
-- 不整合リストの Structured Output schema、調査・整理用 prompt、対象ファイルの列挙、要修正点の検証と改善処理も含みます。
-- `INDEX.md` 維持、編集禁止領域の検査、apply state の更新、終了コードの決定など、`cmoc apply` の周辺制御もこのモジュールに集約されています。
+- `cmoc apply` の本体実装で、session state の検証、apply worktree の作成、oracle/実装の不整合調査、apply report 生成と state 更新をまとめています。
+- Codex CLI に渡す調査・追従・レポート生成用の prompt、Structured Output schema、検証関数も含みます。
+- 実装対象のファイルは `oracles` そのものではなく、`cmoc apply` の orchestration と周辺の機械的な補助ロジックです。
 
 ## Read this when
 
-- `cmoc apply` の起動条件、前提検証、処理順、終了コード、report 保存を確認したいとき。
-- oracle と実装の差分をどう列挙し、部分適用・全体適用をどう切り替えるかを追いたいとき。
-- Structured Output schema、調査用 prompt、要修正点の検証・改善ロジックを変更したいとき。
-- apply run における `.cmoc` の追跡対象外保証、`INDEX.md` の維持、編集禁止領域チェックを実装・修正したいとき。
-- session state の `apply.state` 更新や、apply worktree / apply branch の作成・削除条件を確認したいとき。
+- `cmoc apply` の実行フロー、session state の検証、apply worktree の作成、終了コードや state 更新までの実装・修正・レビューを行うとき。
+- oracle と実装の差分調査、`codex exec` への Structured Output 依頼、要修正点の整理・再整理ロジックを確認したいとき。
+- `INDEX.md` の自動メンテナンス、apply report の YAML Front Matter と必須セクションの検証、レポート保存前の整形処理を扱いたいとき。
 
 ## Do not read this when
 
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` など、apply 以外のサブコマンド仕様だけを確認したいとき。
-- `INDEX.md` の一般的な生成ルールや `oracles` 全体の扱いだけを確認したいとき。
-- `cmoc apply` の中でも、調査・修正ループや report 生成ではなく、branch や session の運用仕様だけを見たいとき。
+- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の各サブコマンド仕様だけを確認したいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` など、apply 以外の session 運用だけを確認したいとき。
+- `oracles` 配下の正本仕様本文や、`INDEX.md` の生成ルールだけを確認したいとき。
 
 ## hash
 
-- 9da37e860569d5a2c30b9b497945598e83854bbaf2517ac5036d5076a52d7447
+- c554f36a841cb043d41da8ceef710d88337df3f1479efa43948231924803812a
 
 # `apply_abandon.py`
 
@@ -99,27 +97,31 @@
 
 ## Summary
 
-- `src/sub_commands/eval-oracles.py` は `cmoc eval-oracles` の本体実装で、`--full` とブランチ状態に応じた部分評価・全体評価の切り替え、oracle ファイル列挙、Codex CLI による評価実行、レポート保存までをまとめています。
-- Structured Output schema の検証、評価用 prompt の組み立て、問題点の集約、Markdown レポート生成もこのモジュールに含まれます。
-- 評価前の `.cmoc` の ignore 保証や `INDEX.md` メンテナンスなど、前処理と周辺処理も扱います。
+- `cmoc eval-oracles` コマンド本体の実装をまとめた Python モジュールです。
+- `oracles` 配下の評価対象を列挙し、現在ブランチと `--full` に応じて部分評価または全体評価を選びます。
+- 評価前に `.cmoc` の ignore 保証と `INDEX.md` のメンテナンスを行い、`codex exec` で各 oracle を個別に評価します。
+- 各評価結果の Structured Output を検証し、最終的に Markdown レポートまたはエラーレポートを `.cmoc/reports/eval-oracles` に保存します。
+- レポート生成、issue 集約、番号付け、参照ファイル一覧化、失敗時の代替レポート作成までを含む、`cmoc eval-oracles` の中核処理です。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実装・修正・レビューを行いたいとき。
-- 部分評価と全体評価の切り替え条件、削除済み oracle の検知、評価対象ファイルの選び方を確認したいとき。
-- Codex CLI に渡す評価 prompt、Structured Output schema、失敗時を含むレポート出力の挙動を確認したいとき。
-- `.cmoc/reports/eval-oracles` への保存や、評価前後の前処理を追いたいとき。
+- `cmoc eval-oracles` の実装・修正・テスト・レビューを行いたいとき。
+- 部分評価・全体評価の切り替え条件、`--full` の扱い、現在ブランチ判定、セッション開始コミット参照の流れを確認したいとき。
+- 評価前に `.cmoc` の非追跡保証を行う処理や、`INDEX.md` を先にメンテナンスする順序を確認したいとき。
+- oracle ファイルの列挙、変更差分による部分評価の絞り込み、`codex exec` に渡す評価プロンプトと Structured Output 検証の実装を見たいとき。
+- 評価結果の Markdown レポート生成、エラーレポート生成、集計結果の出力や保存先を確認したいとき。
+- 評価に使う補助関数や、JSON パース・バリデーション・レポート書式の内部仕様を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply`、`cmoc init`、`cmoc session fork/join/abandon` など、別サブコマンドの本体実装だけを確認したいとき。
-- `oracles` 配下の個別仕様断片そのものを読みたいときは、対応する oracle 文書を直接読むべきです。
-- `cmoc eval-oracles` のコマンド登録や `eval-oracle` の互換 alias だけを確認したいときは、`src/main.py` を見るべきです。
-- `INDEX.md` の一般ルールや `oracles` 全体の扱いだけを確認したいとき。
+- `cmoc apply`、`cmoc session`、`cmoc init` など他のサブコマンドの実装だけを確認したいとき。
+- `cmoc eval-oracles` の仕様本文やルーティングだけを確認したいときは、`oracles/app_specs/sub_commands/eval_oracles.md` を読むべきで、この実装ファイルを読む必要はありません。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、このファイルではなく `oracles/app_specs/indexing.md` を読むべきです。
+- `cmoc` の共通仕様や `oracles` 全体の入口だけを確認したいときは、この実装ファイルではなく各 `INDEX.md` を読むべきです。
 
 ## hash
 
-- cb07978fac91a33a91698f89ffc5d9d2bfc0f7cf00ddd53bcde0bad5917c3915
+- 97b1f78d613417748f0aec0d08c887ff3ced9c3d6738b316eff9e858aafd7726
 
 # `init.py`
 
