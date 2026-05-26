@@ -13,6 +13,7 @@ from commons.repo import (
     assert_no_uncommitted_changes,
     changed_oracle_files,
     changed_implementation_files,
+    commit_if_changed,
     ensure_cmoc_ignored,
     find_repo_root,
     has_deleted_implementation_files,
@@ -503,6 +504,30 @@ def test_changed_implementation_files_ignores_only_root_gitignore(
     ]
 
     assert relative_paths == [".pytest_cache/CACHEDIR.TAG", "app.py"]
+
+
+def test_commit_if_changed_keeps_index_when_staged_restore_fails(
+    tmp_path: Path,
+) -> None:
+    """復元失敗時も、事前の staged blob を reset 済み index で壊さない。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "target.txt")
+    _git(repo, "commit", "-m", "target base")
+
+    target.write_text("staged\n", encoding="utf-8")
+    _git(repo, "add", "target.txt")
+    target.write_text("internal\n", encoding="utf-8")
+
+    with pytest.raises(CmocError):
+        commit_if_changed(repo, ["target.txt"], "internal target")
+
+    assert _git(repo, "show", ":target.txt").stdout == "staged\n"
+    assert _git(repo, "diff", "--cached", "--name-only").stdout == (
+        "target.txt\n"
+    )
+    assert _git(repo, "show", "HEAD:target.txt").stdout == "internal\n"
 
 
 def test_has_deleted_implementation_files_detects_target_deletion(

@@ -556,39 +556,12 @@ def _restore_index_after_init_commit(
     preexisting_staged_diff: str,
 ) -> None:
     """init commit 後の index を HEAD ベースに戻し、既存 staged 差分を復元する。"""
-    # 作業ツリーは触らず index だけを新しい HEAD に合わせる。
-    run_git(repo_root, ["read-tree", "--reset", "HEAD"])
-    if not preexisting_staged_diff:
-        return
-
-    with tempfile.NamedTemporaryFile(
-        "w",
-        encoding="utf-8",
-        delete=False,
-    ) as patch_file:
-        patch_file.write(preexisting_staged_diff)
-        patch_path = Path(patch_file.name)
-    try:
-        result = run_git(
-            repo_root,
-            ["apply", "--cached", "--3way", str(patch_path)],
-            check=False,
-        )
-    finally:
-        patch_path.unlink(missing_ok=True)
-    if result.returncode == 0:
-        _remove_cmoc_from_index(repo_root, {})
-        _assert_cmoc_ignore_guarantee(repo_root)
-        return
-
-    raise CmocError(
-        "事前に stage されていた変更の復元に失敗しました。",
-        [
-            "作業を続ける前に git index の状態を確認してください。",
-            "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
-        ],
-        result.stderr.strip(),
+    _restore_index_after_internal_commit(
+        repo_root,
+        preexisting_staged_diff,
+        remove_cmoc=True,
     )
+    _assert_cmoc_ignore_guarantee(repo_root)
 
 
 def _head_commit_or_none(repo_root: Path) -> str | None:
@@ -1029,11 +1002,48 @@ def _restore_index_after_pathspec_commit(
     staged_diff: str,
 ) -> None:
     """pathspec commit 後、既存 staged 差分を index に戻す。"""
-    # 作業ツリーは触らず index だけを新しい HEAD に合わせる。
-    run_git(repo_root, ["read-tree", "--reset", "HEAD"])
-    if not staged_diff:
-        return
+    _restore_index_after_internal_commit(
+        repo_root,
+        staged_diff,
+        remove_cmoc=bool(staged_diff),
+    )
 
+
+def _restore_index_after_internal_commit(
+    repo_root: Path,
+    staged_diff: str,
+    *,
+    remove_cmoc: bool,
+) -> None:
+    """内部 commit 後の index を一時 index で復元し、成功後だけ本体へ反映する。"""
+    with tempfile.TemporaryDirectory(prefix="cmoc-restore-index-") as temp_name:
+        temp_index = Path(temp_name) / "index"
+        env = {"GIT_INDEX_FILE": str(temp_index)}
+        run_git(repo_root, ["read-tree", "--reset", "HEAD"], env=env)
+
+        if staged_diff:
+            result = _apply_staged_diff_to_index(repo_root, staged_diff, env)
+            if result.returncode != 0:
+                raise CmocError(
+                    "事前に stage されていた変更の復元に失敗しました。",
+                    [
+                        "作業を続ける前に git index の状態を確認してください。",
+                        "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
+                    ],
+                    result.stderr.strip(),
+                )
+
+        if remove_cmoc:
+            _remove_cmoc_from_index(repo_root, env)
+        _replace_git_index(repo_root, temp_index)
+
+
+def _apply_staged_diff_to_index(
+    repo_root: Path,
+    staged_diff: str,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    """保存済み staged patch を指定 index に適用する。"""
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="utf-8",
@@ -1046,21 +1056,23 @@ def _restore_index_after_pathspec_commit(
             repo_root,
             ["apply", "--cached", "--3way", str(patch_path)],
             check=False,
+            env=env,
         )
     finally:
         patch_path.unlink(missing_ok=True)
-    if result.returncode == 0:
-        _remove_cmoc_from_index(repo_root, {})
-        return
+    return result
 
-    raise CmocError(
-        "事前に stage されていた変更の復元に失敗しました。",
-        [
-            "作業を続ける前に git index の状態を確認してください。",
-            "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
-        ],
-        result.stderr.strip(),
+
+def _replace_git_index(repo_root: Path, source_index: Path) -> None:
+    """通常 index を復元済み一時 index で置き換える。"""
+    index_path = Path(
+        run_git(
+            repo_root,
+            ["rev-parse", "--path-format=absolute", "--git-path", "index"],
+        ).stdout.strip()
     )
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source_index, index_path)
 
 
 def _stage_gitignore_with_cmoc_rule_from_head(
