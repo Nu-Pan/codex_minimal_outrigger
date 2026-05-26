@@ -664,7 +664,7 @@ def _require_absolute_oracle_path(
     repo_root: Path,
     label: str,
 ) -> Path:
-    """JSON 値を oracles 配下の絶対パスとして検査する。"""
+    """JSON 値を参照可能な oracle / INDEX ファイル path として検査する。"""
     if not isinstance(value, str):
         raise ValueError(f"{label} must be a string.")
     path = Path(value)
@@ -676,6 +676,16 @@ def _require_absolute_oracle_path(
         resolved_path.relative_to(oracle_root)
     except ValueError as error:
         raise ValueError(f"{label} must be under oracles.") from error
+    if not resolved_path.exists():
+        raise ValueError(f"{label} must exist.")
+    if not resolved_path.is_file():
+        raise ValueError(f"{label} must be a file.")
+    if resolved_path.name == "INDEX.md":
+        return resolved_path
+
+    oracle_files = {path.resolve() for path in list_oracle_files(repo_root)}
+    if resolved_path not in oracle_files:
+        raise ValueError(f"{label} must be an oracle file or INDEX.md.")
     return resolved_path
 
 

@@ -974,6 +974,145 @@ def test_eval_oracles_result_precedence() -> None:
     ) == "ok"
 
 
+def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
+    tmp_path: Path,
+) -> None:
+    """評価 payload は実在する oracle / INDEX file の参照を受理する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle_index = oracle_root / "INDEX.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    oracle_index.write_text("index\n", encoding="utf-8")
+
+    eval_oracles_module._validate_evaluation_payload(
+        {
+            "target_oracle_path": str(oracle.resolve()),
+            "referenced_paths": [
+                str(oracle.resolve()),
+                str(oracle_index.resolve()),
+            ],
+            "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+            "issues": [
+                _eval_oracle_issue("warning", "warning", oracle, 1, 1),
+            ],
+        },
+        repo,
+        oracle,
+    )
+
+
+def test_eval_oracles_payload_rejects_missing_referenced_path(
+    tmp_path: Path,
+) -> None:
+    """referenced_paths は存在しない oracles 配下 path を受理しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="referenced_paths\\[1\\] must exist"):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "target_oracle_path": str(oracle.resolve()),
+                "referenced_paths": [
+                    str(oracle.resolve()),
+                    str((oracle_root / "missing.md").resolve()),
+                ],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_directory_referenced_path(
+    tmp_path: Path,
+) -> None:
+    """referenced_paths は directory を参照済みファイルとして受理しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_dir = oracle_root / "nested"
+    oracle_dir.mkdir(parents=True)
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="referenced_paths\\[1\\] must be a file"):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "target_oracle_path": str(oracle.resolve()),
+                "referenced_paths": [
+                    str(oracle.resolve()),
+                    str(oracle_dir.resolve()),
+                ],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_ignored_oracle_path(
+    tmp_path: Path,
+) -> None:
+    """referenced_paths は root .gitignore 対象の oracle file を受理しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("oracles/ignored.md\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    ignored_oracle = oracle_root / "ignored.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    ignored_oracle.write_text("ignored\n", encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="referenced_paths\\[1\\] must be an oracle file or INDEX.md",
+    ):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "target_oracle_path": str(oracle.resolve()),
+                "referenced_paths": [
+                    str(oracle.resolve()),
+                    str(ignored_oracle.resolve()),
+                ],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [],
+            },
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_missing_issue_oracle_path(
+    tmp_path: Path,
+) -> None:
+    """issues[].oracle_path も実在する oracle / INDEX file として検査する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    missing_oracle = oracle_root / "missing.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue("fatal", "fatal", missing_oracle, 1, 1)
+
+    with pytest.raises(ValueError, match="issues\\[0\\]\\.oracle_path must exist"):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "target_oracle_path": str(oracle.resolve()),
+                "referenced_paths": [str(oracle.resolve())],
+                "specification_only_basis": "oracles 配下の仕様だけを参照しました。",
+                "issues": [issue],
+            },
+            repo,
+            oracle,
+        )
+
+
 def test_eval_oracles_verdict_text_distinguishes_error() -> None:
     """error や未知の result を ok 相当の Verdict にしない。"""
     ok_verdict = eval_oracles_module._verdict_text("ok")
