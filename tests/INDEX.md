@@ -146,15 +146,14 @@
 
 ## Do not read this when
 
-- 個別サブコマンドの正本仕様本文だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` から該当文書へ直接進むべきです。
+- `cmoc` のサブコマンド正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` から該当文書へ直接進むべきです。
 - 共通のログ形式、エラー文言、`INDEX.md` 生成ルールだけを確認したいときは、このテスト目次ではなく対応する仕様文書を読むべきです。
 - `commons.codex`、`commons.repo`、`commons.errors` などの単体実装だけを調べたいときは、このテスト群では範囲が広すぎます。
-- `tests` 全体の配置規則や他のテスト群の目次を確認したいときは、`tests/INDEX.md` を参照すべきです。
 - `memo`、`README.md`、`AGENTS.md`、`oracles` の編集可否や運用ルールだけを確認したいときは、このファイルではなく別の案内を読むべきです。
 
 ## hash
 
-- f27988f8f0f14a6f8b8d4f492af297642b572f37c874910a70c2ce5067d00457
+- f540ec8c429aeaf05e8e07c42d028f1db93a5af27c093314de613f6a039bffc0
 
 # `test_timestamps.py`
 
