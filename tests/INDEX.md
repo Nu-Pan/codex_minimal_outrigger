@@ -146,19 +146,21 @@
 
 ## Read this when
 
-- `tests/test_subcommands.py` のカバー範囲や、どのサブコマンド群の決定論的制御ロジックを検証しているか確認したいとき。
-- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply`、`cmoc eval-oracles`、CLI 入口の登録やエラー表示のテスト観点を見直したいとき。
-- サブコマンド実装の修正に伴って、関連テストの追加・修正・レビュー方針を整理したいとき。
+- `tests/test_subcommands.py` がどのサブコマンド群の決定論的な制御ロジックを検証しているか確認したいとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply`、`cmoc eval-oracles`、CLI 登録やヘルプ表示、共通エラー報告のテスト観点を見直したいとき。
+- `run_command` の stdout への tee、state file の更新、ブランチ操作、プロンプト生成、差分コミット、conflict 処理など、LLM そのものではなく cmoc 側の制御を確認したいとき。
+- サブコマンド実装の修正に合わせて、関連テストの追加・修正・レビュー方針を整理したいとき。
 
 ## Do not read this when
 
-- 各サブコマンドの仕様本文だけを確認したいときは、`oracles/app_specs/sub_commands/` の該当文書を直接読むべきです。
-- pytest 全般の書き方や配置規約だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
-- 実装コードの振る舞いだけで足りる場合は、このテストファイルを読む必要はありません。
+- 各サブコマンドの正本仕様そのものだけを確認したいときは、`oracles/app_specs/sub_commands/` の該当文書を直接読むべきです。
+- pytest 全般の書き方やテスト配置規約だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
+- `commons.repo` や `commons.indexing` など、サブコマンド以外の共通処理だけを調べたいときは、このファイルを読む必要はありません。
+- 実装コードの振る舞いだけで十分なときは、このテストファイルの目次を参照しなくても構いません。
 
 ## hash
 
-- bac729982fdd9b401f0037a1fa87a84315760b0b3d2ad09ecb5484b5c134c47e
+- 24965649b484a559fc7d2ecc1b268acaecdeab9ed599e4ca1700e8b0c267b684
 
 # `test_timestamps.py`
 

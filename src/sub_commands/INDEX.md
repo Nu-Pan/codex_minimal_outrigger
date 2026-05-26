@@ -25,27 +25,27 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の本体で、作業ブランチ上の前提確認から `.cmoc` 保証、oracle 差分の commit、INDEX.md 維持、調査・修正ループ、report 出力までをまとめています。
-- 不整合調査用の Structured Output schema、要修正点の改善・整理、oracle / 実装ファイルごとの調査対象選定、修正適用と commit の流れを含みます。
-- report 生成、prompt 生成、出力検証、編集禁止領域チェックなど、`cmoc apply` 周辺の補助処理もこのモジュールに集約されています。
+- `src/sub_commands/apply.py` は `cmoc apply` の本体で、session branch 上での前提検証、apply worktree の作成、oracle と実装の不整合調査、修正適用、commit、report 出力までをまとめています。
+- Structured Output schema の定義と検証、調査用 prompt の生成、要修正点リストの整理・改善、実装のみから見つかった問題の取り扱いも含みます。
+- INDEX.md 維持、編集禁止領域の検査、apply state の更新、終了コードの決定など、`cmoc apply` の周辺制御もこのモジュールに集約されています。
 
 ## Read this when
 
-- `cmoc apply` の起動条件、処理順、終了コード、report 出力を確認したいとき。
+- `cmoc apply` の起動条件、処理順、終了条件、report 出力を確認したいとき。
 - oracle / 実装ファイルの調査対象選定、部分適用と全体適用の切り替え、要修正点リストの整理ロジックを追いたいとき。
-- apply run における `.cmoc` の追跡対象外保証、oracle 差分の commit、INDEX.md の維持、編集禁止領域チェックを実装・修正したいとき。
-- Structured Output schema、調査用 prompt、要修正点の検証、apply report の内容検査を変更したいとき。
+- Structured Output schema、調査用 prompt、要修正点の検証、apply report の必須内容を変更したいとき。
+- apply run における `.cmoc` の追跡対象外保証、INDEX.md の維持、編集禁止領域チェックを実装・修正したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc session fork`、`cmoc session join` など、`cmoc apply` 以外のサブコマンド仕様だけを確認したいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` など、`cmoc apply` 以外のサブコマンド仕様だけを確認したいとき。
 - `cmoc apply` の中でも、調査・修正ループや report 生成ではなく、branch や session の運用仕様だけを見たいとき。
 - `INDEX.md` の一般的な生成ルールや、`oracles` 配下の仕様断片そのものだけを読みたいとき。
 - `cmoc apply` の実装ではなく、ユーザー向けの使い方全体をざっくり把握したいだけのとき。
 
 ## hash
 
-- 41a8ccb21ff6d59348628632f2a76126579127d7e3e982e299170c3a41fc6dcb
+- 758d734d8315c56b2ac110a802b0fa8967e8e3ce872253f937b84e16d8accbf5
 
 # `eval-oracles.py`
 
