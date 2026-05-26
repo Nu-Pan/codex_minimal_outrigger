@@ -25,26 +25,27 @@
 
 ## Summary
 
-- `src/sub_commands/apply.py` は `cmoc apply` の本体実装で、session state の検証、apply worktree の作成、不整合調査と追従、レポート生成、state 更新をまとめています。
-- `codex exec` に渡す調査・整理・修正・レポート生成用の prompt、Structured Output schema、`INDEX.md` の維持、禁止パス検査も含みます。
-- 実装対象は `oracles` そのものではなく、`cmoc apply` の orchestration と周辺の機械的な補助ロジックです。
+- `cmoc apply` の本体処理をまとめた実装ファイルです。
+- session state の検証、apply worktree の作成、oracle スナップショットの固定、調査・修正ループ、report 保存までを扱います。
+- 要修正点リストの Structured Output schema、調査対象ファイルの選定、Codex CLI への調査・修正依頼、commit 作成、レポート整形の処理が含まれます。
 
 ## Read this when
 
-- `cmoc apply` の実行フロー、session state の検証、apply worktree の作成、終了コードや state 更新までの実装・修正・レビューを行うとき。
-- oracle と実装の不整合調査、`codex exec` への Structured Output 依頼、要修正点リストの整理・改善ロジックを確認したいとき。
-- `INDEX.md` の自動メンテナンス、apply report の YAML Front Matter と必須セクションの検証、レポート保存前の整形処理を扱いたいとき。
-- `cmoc apply` が内部で扱う調査対象選定、`--full` による部分・全体切り替え、レポート出力の流れを追いたいとき。
+- `cmoc apply` の本体処理、状態遷移、worktree 作成、レポート生成を実装・修正・レビューしたいとき。
+- `apply.state` の `ready` / `running` / `completed` / `error` の扱いと、session state の更新条件を確認したいとき。
+- oracle ファイルと実装ファイルを対象にした不整合調査、要修正点リストの Structured Output、改善ループの仕様を確認したいとき。
+- `--full` と部分適用モードの対象ファイル選定、禁止パス検査、commit 単位の追従処理を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の各サブコマンド仕様だけを確認したいときは、それぞれの仕様断片を直接読むべきです。
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` など、apply 以外の session 運用だけを確認したいときは、このファイルではなく session 側を読むべきです。
-- `oracles` 配下の正本仕様本文や `INDEX.md` の生成ルールだけを確認したいときは、対応する仕様断片や `indexing.md` を読むべきです。
+- `cmoc apply abandon` の破棄手順だけを確認したいときは、このファイルではなく `src/sub_commands/apply_abandon.py` を読むべきです。
+- `cmoc apply join` のマージ手順や後始末だけを確認したいときは、このファイルではなく `src/sub_commands/apply_join.py` を読むべきです。
+- `cmoc session fork` / `cmoc session join` / `cmoc session abandon` の挙動だけを確認したいときは、このファイルは対象外です。
+- 不整合調査ではなく、共通の `INDEX.md` 生成ルールや `oracles` 全体の扱いだけを確認したいときは、このファイルを読む必要はありません。
 
 ## hash
 
-- e5c25e5dcd3292c8e750f22b23a81d06b06fedf29458ae836ac8a329b497f4b4
+- 593121872b2169893602b5847823d6f971f764b082a577f7e5302ddf607eb0eb
 
 # `apply_abandon.py`
 
@@ -155,72 +156,76 @@
 
 ## Summary
 
-- `src/sub_commands/session_abandon.py` は `cmoc session abandon` の本体処理を実装するモジュールです。
-- 現在 checkout している session branch を検証し、session state と apply state を確認したうえで、home branch へ切り替えて session を abandoned として記録し、session branch を削除します。
-- 直接呼び出し時の共通 runner 委譲、`.cmoc` の非追跡保証、cleanup 失敗時の復元処理も含みます。
+- `cmoc session abandon` は、現在の `<cmoc-session-branch>` を merge せずに破棄するための仕様です。
+- session を完了させる `cmoc session join` とは異なり、成果物を本流に取り込まず、`session.joined_at` を更新しないまま branch を削除します。
+- 実行条件、破棄してよいもの・してはいけないもの、実行手順、`session.state` の遷移をまとめています。
 
 ## Read this when
 
-- `cmoc session abandon` の実装・修正・レビューを行いたいとき。
-- 現在の session branch を merge せずに破棄する前提条件、state 検証、`git switch`、`git branch -D` の流れを確認したいとき。
-- cleanup 失敗時の state 復元や、session branch / session state の整合性確認を追いたいとき。
+- 現在の `<cmoc-session-branch>` を `<cmoc-session-home-branch>` に merge せず破棄したいとき。
+- `session.state`、`apply.state`、未コミット差分、home branch の存在など、破棄前の前提条件を確認したいとき。
+- `cmoc session abandon` の実装、修正、テスト、レビューを行いたいとき。
 
 ## Do not read this when
 
-- `cmoc session join` や `cmoc session fork` など、他の session サブコマンドの挙動だけを確認したいとき。
-- `cmoc apply abandon` を含む apply 側の破棄手順だけを確認したいとき。
-- `src/commons` の共通基盤や `INDEX.md` 生成ロジックだけを確認したいとき。
+- `cmoc session fork` の開始条件や session branch 作成手順だけを確認したいとき。
+- `cmoc session join` の merge 完了手順や conflict 解消の流れだけを確認したいとき。
+- `cmoc apply abandon` など、apply run の破棄仕様だけを確認したいとき。
 
 ## hash
 
-- e76c36a188ae7ebd5d36f7f92b74c8061219f8f98d8f6352dc0fb764abb50db1
+- 72cdd1b905f55411908bf6de1f27d57c0c9589833089fb2185e38e184b78206a
 
 # `session_fork.py`
 
 ## Summary
 
-- `cmoc session fork` の実装本体で、現在 checkout している local branch を session home branch として session branch を作成し、session state を保存します。
-- detached HEAD、remote-tracking branch、commit hash、cmoc 管理 branch、未コミット差分、既存 active session などの事前条件チェックを行います。
-- `.cmoc` の追跡対象外保証、session branch 作成の最大 10 回リトライ、作成結果と home branch の標準出力表示までを扱います。
+- `src/sub_commands/session_fork.py` は `cmoc session fork` の実装本体です。
+- 現在 checkout している local branch を session home branch として、その HEAD から session branch を作成し、session state を保存します。
+- 事前条件チェック、`.cmoc` の ignore 保証、session branch 作成のリトライ、作成結果と home branch の標準出力表示までを扱います。
 
 ## Read this when
 
-- cmoc session fork の挙動やエラー条件を実装・修正・レビューしたいとき。
-- session home branch の決め方、session branch の命名規則、session state の初期保存処理を確認したいとき。
-- detached HEAD や remote-tracking branch からの起動、未コミット差分、既存 active session の扱いを追いたいとき。
-- `.cmoc` の ignore 保証や、session branch 作成失敗時の再試行ロジックを確認したいとき。
+- `cmoc session fork` の実装・修正・レビューを行いたいとき。
+- 新しい session branch の作成条件や checkout 手順を確認したいとき。
+- session home branch の決め方、session metadata の保存先、ブランチ命名規則を確認したいとき。
+- detached HEAD、remote-tracking branch、未コミット差分、既存 active session、`cmoc` 管理 branch の扱いを確認したいとき。
+- `.cmoc` の追跡対象外保証や、session branch 作成失敗時の最大 10 回リトライ処理を確認したいとき。
 
 ## Do not read this when
 
-- cmoc session join、cmoc session abandon、cmoc apply など別サブコマンドの流れだけを確認したいとき。
-- cmoc 全体の branch model の概要だけを確認したいときは、`oracles/app_specs/branch_model.md` を読むべきです。
-- session state のスキーマや初期値だけを確認したいときは、`oracles/app_specs/session_state.md` を直接読むべきです。
+- `cmoc session join`、`cmoc session abandon`、`cmoc apply` など、別サブコマンドの挙動だけを確認したいとき。
+- `cmoc` 全体の branch model の概要だけを確認したいとき。
+- session state のスキーマや初期値だけを確認したいとき。
 - 実装コードではなく、`cmoc session fork` の正本仕様断片だけを確認したいとき。
 
 ## hash
 
-- 79cffa7ff3de334560cef693809731381cea09af27d8772c2f144bfa632c01b0
+- e806efb8efb70f57e196651f4593280879ca64038d1178f463f3ab84f9b35f2f
 
 # `session_join.py`
 
 ## Summary
 
-- `src/sub_commands/session_join.py` は `cmoc session join` の実装本体で、現在の session branch を session state に記録された home branch へ `git merge --no-ff` する処理をまとめています。
-- 現在 branch、session state、apply state、home branch、未コミット差分などの前提条件を検証し、home branch へ switch してから merge します。
-- merge 失敗時は Codex CLI に conflict marker の解消を依頼し、成功後は session state を joined に更新し、安全なら session branch を削除します。
+- `src/sub_commands/session_join.py` は `cmoc session join` の本体実装です。
+- 現在の session branch を session state に記録された home branch に `git merge --no-ff` し、`session.state` を `joined` に更新して、必要なら session branch を削除します。
+- 事前条件検証、`.cmoc` の非追跡保証、`git switch`、merge conflict 時の Codex CLI 依頼、手動解消案内、unmerged path / conflict marker の検査も含みます。
 
 ## Read this when
 
-- `cmoc session join` の実行条件、session state の検証、標準出力・エラー出力の挙動を確認したいとき。
-- `git switch` から `git merge --no-ff`、conflict 解消、merge commit 作成、session branch 削除までの流れを追いたいとき。
-- merge 開始後に手動解消が必要になった場合の案内文や、conflict 対応の実装を確認したいとき。
+- `cmoc session join` の実装・修正・レビューで、事前条件と実行順を確認したいとき。
+- session branch / home branch の特定、`session.state` と `apply.state` の検証、`git show-ref` による local branch 存在確認を追いたいとき。
+- merge conflict 発生時の prompt 生成、Codex CLI への解消依頼、`git add` / `git commit` 禁止、merge commit 作成までの流れを確認したいとき。
+- `git branch -d` による削除可否判定や、削除できなかった場合の warning 出力を確認したいとき。
+- 手動解消が必要になったときに stderr へ出る案内文や、`.cmoc` 編集禁止の扱いを見たいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc apply`、`cmoc eval-oracles` など、他サブコマンドの実装や手順だけを確認したいとき。
-- `src/commons` の共通基盤や `INDEX.md` 生成ロジックだけを確認したいとき。
-- `cmoc session fork` の開始処理や session 管理の別フェーズだけを確認したいとき。
+- `cmoc session fork` や `cmoc session abandon` の開始・破棄フローだけを確認したいとき。
+- `cmoc apply` 系の要修正点整理や apply branch/worktree の運用だけを確認したいとき。
+- `cmoc init` や `cmoc eval-oracles` など、別サブコマンドの実装だけを見たいとき。
+- `cmoc session join` の正本仕様そのものを確認したいときは、実装ではなく `oracles/app_specs/sub_commands/session_join.md` を読むべきです。
 
 ## hash
 
-- 14595336ef117e01c9897b727971c2fc3f77a5571bce4576ea8e3a53faf47177
+- bcdefe8883ac556357fbedc04f396dc14831026057c83c0ed3d70c5d0a5c2782

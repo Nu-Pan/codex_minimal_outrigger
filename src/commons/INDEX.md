@@ -130,7 +130,7 @@
 ## Summary
 
 - git リポジトリのルート探索、`cwd` 固定、`git` 実行の共通ラッパーをまとめたモジュールです。
-- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、`session state` の読み書きと参照を扱います。
+- 現在ブランチ名、`HEAD` commit、cmoc 管理ブランチ判定、session state の読み書きと検証を扱います。
 - `.cmoc` の追跡除外保証、root `.gitignore` の判定、未コミット差分や pathspec 単位の clean 判定を提供します。
 - oracle / 実装ファイルの列挙、変更・削除検出、一時 index を使った commit と index 復元までを担います。
 
@@ -142,17 +142,18 @@
 - `.cmoc` を追跡対象外に保つ保証、root `.gitignore` の判定、未コミット差分や pathspec ごとの clean 判定を実装したいとき。
 - oracle ファイルや実装ファイルの列挙、変更・削除検出、untracked も含めた差分収集、`INDEX.md` 自動更新前後の差分管理を追いたいとき。
 - `commit_if_changed` や `commit_cmoc_initialization_changes` のように、対象パスだけを一時 index で commit し、その後に既存の staged 差分を復元する挙動を確認したいとき。
+- root `.gitignore` の wildmatch 判定や、`git check-ignore` を使った除外判定の実装を確認したいとき。
 
 ## Do not read this when
 
-- サブコマンドの引数定義、画面出力、ユーザー向けフローだけを確認したいときは、この共通モジュールではなく各 `src/sub_commands/*` を読むべきです。
-- `commons.errors`、`commons.indexing`、`commons.subcommand_log`、`commons.timing` など、別の共通モジュールだけを追いたいときは、このファイルを読む必要はありません。
-- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを確認したいときは、`oracles` 配下の該当文書を読むべきです。
-- git の一般的な操作手順だけが目的で、repo root 探索、cmoc ブランチ判定、session state、差分列挙、pathspec commit に関心がないときは、このファイルは不要です。
+- サブコマンドの引数定義やユーザー向けフローだけを確認したいときは、`src/sub_commands` 側を読むべきです。
+- エラーレポート整形やログ保存など、別の共通モジュールだけを追いたいときは、このファイルではなく該当モジュールを読むべきです。
+- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを確認したいときは、この実装ファイルではなく `oracles` 配下の該当文書を読むべきです。
+- git の一般的な操作手順だけが目的で、cmoc 固有の repo root 探索、ブランチ判定、session state、差分列挙、pathspec commit に関心がないときは、このファイルは不要です。
 
 ## hash
 
-- 6e700fac626efeea0072e25dac90c136cb56a7ec8c2c78e78210370cf13178cd
+- 877a75f47355cdc3d74706e10c407d1dc2b1533d62104f5b1f09a2801fd9a05f
 
 # `subcommand_log.py`
 
