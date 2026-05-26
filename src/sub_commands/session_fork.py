@@ -8,8 +8,8 @@ from commons.errors import CmocError
 from commons.repo import (
     SESSION_BRANCH_PREFIX,
     active_session_ids_for_home_branch,
+    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
-    ensure_cmoc_ignored,
     head_commit,
     initial_session_state,
     is_cmoc_branch,
@@ -56,7 +56,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
     start_commit = head_commit(repo_root)
 
     start_step(timer, 2, 4, "ensure .cmoc is ignored")
-    ensure_cmoc_ignored(repo_root)
+    assert_cmoc_ignored(repo_root)
 
     start_step(timer, 3, 4, "create session branch")
     session_id, branch_name = _create_unique_session_branch(repo_root)

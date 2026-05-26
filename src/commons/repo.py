@@ -345,6 +345,11 @@ def ensure_cmoc_ignored(repo_root: Path) -> bool:
     return changed
 
 
+def assert_cmoc_ignored(repo_root: Path) -> None:
+    """`.cmoc` が git 追跡対象外であることを副作用なしで検証する。"""
+    _assert_cmoc_ignore_guarantee(repo_root)
+
+
 def has_uncommitted_changes(repo_root: Path) -> bool:
     """git 未コミット差分が存在するか判定する。"""
     # porcelain 出力が 1 行でもあれば未コミット差分ありとする。
@@ -1080,10 +1085,11 @@ def _assert_cmoc_ignore_guarantee(repo_root: Path) -> None:
     )
     if tracked or ignored.returncode != 0:
         raise CmocError(
-            ".cmoc を git 追跡対象外にする保証に失敗しました。",
+            ".cmoc が git 追跡対象外として初期化されていません。",
             [
+                "先に `cmoc init` を実行してください。",
                 ".gitignore と git index を確認してください。",
-                "追跡済みの .cmoc ファイルを index から外してから cmoc を再実行してください。",
+                "追跡済みの .cmoc ファイルは `cmoc init` で index から外してください。",
             ],
             "\n".join(tracked) or f"probe が ignore されませんでした: {probe}",
         )

@@ -17,6 +17,7 @@ from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
     APPLY_BRANCH_PREFIX,
+    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
     changed_paths,
     current_branch,
@@ -172,7 +173,7 @@ def cmoc_apply_impl(
             f"現在の branch: {session_branch or '(detached HEAD)'}",
         )
 
-    start_step(timer, 1, 5, "validate session state")
+    start_step(timer, 1, 6, "validate session state")
     session_id = session_id_from_branch(session_branch)
     state = read_session_state(repo_root, session_id)
     session_start_commit = _validate_apply_fork_state(
@@ -180,9 +181,13 @@ def cmoc_apply_impl(
         session_branch,
     )
     assert_no_uncommitted_changes(repo_root)
+
+    start_step(timer, 2, 6, "ensure .cmoc is ignored")
+    assert_cmoc_ignored(repo_root)
+    assert_no_uncommitted_changes(repo_root)
     oracle_snapshot_commit = head_commit(repo_root)
 
-    start_step(timer, 2, 5, "create apply worktree")
+    start_step(timer, 3, 6, "create apply worktree")
     apply_run_id, apply_branch, apply_worktree = _create_apply_worktree(
         repo_root,
         session_id,
@@ -198,7 +203,7 @@ def cmoc_apply_impl(
 
     # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
     try:
-        start_step(timer, 3, 5, "maintain INDEX.md files")
+        start_step(timer, 4, 6, "maintain INDEX.md files")
         maintain_indexes(apply_worktree)
 
         if repeat_investigate_and_fix < 0:
@@ -221,7 +226,7 @@ def cmoc_apply_impl(
             )
 
         # 不整合調査と追従作業を指定回数まで反復する。
-        start_step(timer, 4, 5, "investigate and apply discrepancies")
+        start_step(timer, 5, 6, "investigate and apply discrepancies")
         discrepancy_counts: list[int] = []
         completed = False
         for loop_index in range(1, repeat_investigate_and_fix + 1):
@@ -245,7 +250,7 @@ def cmoc_apply_impl(
             _apply_discrepancies(apply_worktree, discrepancies)
 
         # 実行結果を人間向け report と exit code に変換する。
-        start_step(timer, 5, 5, "write report")
+        start_step(timer, 6, 6, "write report")
         report_path = _write_apply_report(
             apply_worktree,
             repo_root,

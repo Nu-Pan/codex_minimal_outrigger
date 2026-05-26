@@ -9,6 +9,7 @@ import pytest
 from commons.errors import CmocError
 from commons.repo import (
     active_session_ids_for_home_branch,
+    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
     changed_oracle_files,
     changed_implementation_files,
@@ -61,6 +62,42 @@ def test_ensure_cmoc_ignored_untracks_existing_cmoc_files(
     assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
     assert cmoc_file.exists()
     assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_assert_cmoc_ignored_does_not_modify_repository(
+    tmp_path: Path,
+) -> None:
+    """副作用なし検証は `.gitignore` や index を補修しない。"""
+    repo = _init_repo(tmp_path)
+
+    with pytest.raises(CmocError) as error:
+        assert_cmoc_ignored(repo)
+
+    assert "cmoc init" in "\n".join(error.value.actions)
+    assert not (repo / ".gitignore").exists()
+    assert _git(repo, "status", "--porcelain").stdout == ""
+
+
+def test_assert_cmoc_ignored_rejects_tracked_cmoc_without_untracking(
+    tmp_path: Path,
+) -> None:
+    """tracked な `.cmoc` は検証失敗にし、index からは外さない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    cmoc_file = repo / ".cmoc" / "logs" / "tracked.log"
+    cmoc_file.parent.mkdir(parents=True)
+    cmoc_file.write_text("tracked\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".gitignore", ".cmoc/logs/tracked.log")
+    _git(repo, "commit", "-m", "track cmoc")
+
+    with pytest.raises(CmocError) as error:
+        assert_cmoc_ignored(repo)
+
+    assert ".cmoc/logs/tracked.log" in error.value.detail
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == (
+        ".cmoc/logs/tracked.log\n"
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_list_oracle_files_excludes_index_and_gitignored_files(
