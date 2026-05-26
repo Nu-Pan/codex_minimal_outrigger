@@ -939,24 +939,34 @@ def test_apply_returns_complete_when_no_discrepancies(
         codex_prompts.append(str(args[1]))
         if kwargs.get("expect_json") is True:
             return '{"fixing_points": []}'
-        return "\n".join(
-            [
-                "## 作業結果",
-                "収束",
-                "## 不整合件数の推移",
-                "1 回目: 0 件",
-                "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
-                "カテゴリ: oracle 整備",
-            ]
-        )
+        return _apply_report(str(args[1]), "収束", [0])
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
     exit_code = cmoc_apply_impl(repo)
 
     reports = list((repo / ".cmoc" / "reports" / "apply").glob("*.md"))
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
     assert exit_code == 0
     assert len(reports) == 1
+    assert state["apply"]["state"] == "completed"
+    assert state["apply"]["apply_branch"].startswith(
+        "cmoc/apply/2026-05-10_22-21_10_123/"
+    )
+    assert state["apply"]["oracle_snapshot_commit"] == _git(
+        repo,
+        "rev-parse",
+        "HEAD",
+    ).stdout.strip()
+    assert Path(state["apply"]["apply_worktree"]).is_dir()
+    assert state["apply"]["report_path"] == str(reports[0])
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_123"
+    )
     report_text = reports[0].read_text(encoding="utf-8")
     assert "## 作業結果" in report_text
     assert "## 不整合件数の推移" in report_text
@@ -1033,18 +1043,7 @@ def test_apply_uses_investigate_repeat_option_for_loop_limit(
         codex_prompts.append(str(args[1]))
         if kwargs.get("expect_json") is True:
             return _discrepancy_json("f")
-        return "\n".join(
-            [
-                "## 作業結果",
-                "未収束",
-                "## 不整合件数の推移",
-                "1 回目: 1 件",
-                "2 回目: 1 件",
-                "まだ不整合が残っている可能性があります。",
-                "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
-                "カテゴリ: 実装修正",
-            ]
-        )
+        return _apply_report(str(args[1]), "未収束", [1, 1])
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
@@ -1101,17 +1100,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
             apply_prompts.append(str(args[1]))
             return ""
         if purpose == "write apply report":
-            return "\n".join(
-                [
-                    "## 作業結果",
-                    "未収束",
-                    "## 不整合件数の推移",
-                    "1 回目: 1 件",
-                    "まだ不整合が残っている可能性があります。",
-                    "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
-                    "カテゴリ: 実装修正",
-                ]
-            )
+            return _apply_report(str(args[1]), "未収束", [1])
         return ""
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
@@ -1161,17 +1150,7 @@ def test_apply_fills_discrepancy_head_commit_hash(
             apply_prompts.append(str(args[1]))
             return ""
         if purpose == "write apply report":
-            return "\n".join(
-                [
-                    "## 作業結果",
-                    "未収束",
-                    "## 不整合件数の推移",
-                    "1 回目: 2 件",
-                    "まだ不整合が残っている可能性があります。",
-                    "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
-                    "カテゴリ: 実装修正",
-                ]
-            )
+            return _apply_report(str(args[1]), "未収束", [2])
         return ""
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
@@ -1221,6 +1200,7 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
     commit_message_count = 0
     status_before_second_apply: list[str] = []
     head_before_second_apply: list[str] = []
+    apply_repos: list[Path] = []
     commit_message_options: list[tuple[object, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
@@ -1234,14 +1214,16 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
             return two_discrepancies_json
         if purpose.startswith("apply discrepancy"):
             apply_count += 1
+            apply_repos.append(Path(args[0]))
             if apply_count == 2:
+                apply_repo = Path(args[0])
                 status_before_second_apply.append(
-                    _git(repo, "status", "--porcelain").stdout
+                    _git(apply_repo, "status", "--porcelain").stdout
                 )
                 head_before_second_apply.append(
-                    _git(repo, "log", "-1", "--pretty=%s").stdout.strip()
+                    _git(apply_repo, "log", "-1", "--pretty=%s").stdout.strip()
                 )
-            (repo / "app.py").write_text(
+            (Path(args[0]) / "app.py").write_text(
                 f"fix {apply_count}\n",
                 encoding="utf-8",
             )
@@ -1256,25 +1238,16 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
             )
             return f"Apply fix {commit_message_count}"
         if purpose == "write apply report":
-            return "\n".join(
-                [
-                    "## 作業結果",
-                    "未収束",
-                    "## 不整合件数の推移",
-                    "1 回目: 2 件",
-                    "まだ不整合が残っている可能性があります。",
-                    "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
-                    "カテゴリ: 実装修正",
-                ]
-            )
+            return _apply_report(str(args[1]), "未収束", [2])
         return ""
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
     assert cmoc_apply_impl(repo, repeat_investigate_and_fix=1) == 2
 
+    assert apply_repos
     commit_subjects = _git(
-        repo,
+        apply_repos[-1],
         "log",
         "--pretty=%s",
         "-3",
@@ -1289,6 +1262,9 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
     assert head_before_second_apply == ["Apply fix 1"]
     assert commit_subjects[:2] == ["Apply fix 2", "Apply fix 1"]
     assert _git(repo, "status", "--porcelain").stdout == ""
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_123"
+    )
 
 
 def test_organize_prompt_includes_fixing_list_quality_requirements(
@@ -1396,7 +1372,16 @@ def test_apply_rejects_incomplete_report_from_codex(
     with pytest.raises(CmocError):
         cmoc_apply_impl(repo)
 
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
     report_dir = repo / ".cmoc" / "reports" / "apply"
+    assert state["apply"]["state"] == "error"
+    assert state["apply"]["apply_branch"].startswith(
+        "cmoc/apply/2026-05-10_22-21_10_123/"
+    )
     assert not report_dir.exists() or list(report_dir.glob("*.md")) == []
 
 
@@ -1407,40 +1392,40 @@ def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
     with pytest.raises(CmocError) as error:
         cmoc_apply_impl(repo)
 
-    assert "`cmoc apply` は cmoc 管理 branch 上で実行してください。" in error.value.message
+    assert "`cmoc apply` は session branch 上で実行してください。" in error.value.message
 
 
 def test_apply_rejects_non_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
 ) -> None:
-    """`cmoc apply` は `.cmoc` 保証後にユーザー由来の oracle 外差分を拒否する。"""
+    """`cmoc apply` は開始前の未コミット実装差分を拒否する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
-    with pytest.raises(CmocError):
+    with pytest.raises(CmocError) as error:
         cmoc_apply_impl(repo)
 
-    assert ".cmoc" in (repo / ".gitignore").read_text(encoding="utf-8")
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
-        "Ensure cmoc directory is ignored"
-    )
+    assert "未コミットの変更" in error.value.message
+    assert "app.py" in error.value.detail
+    assert not (repo / ".gitignore").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
 def test_apply_does_not_commit_preexisting_gitignore_changes(
     tmp_path: Path,
 ) -> None:
-    """`.cmoc` 保証 commit は既存 `.gitignore` 差分を混ぜない。"""
+    """開始前からある `.gitignore` 差分も precondition failure にする。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     (repo / ".gitignore").write_text("user-rule\n", encoding="utf-8")
 
-    with pytest.raises(CmocError):
+    with pytest.raises(CmocError) as error:
         cmoc_apply_impl(repo)
 
-    assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
+    assert "未コミットの変更" in error.value.message
     assert _git(repo, "status", "--porcelain", "--", ".gitignore").stdout == (
-        " M .gitignore\n"
+        "?? .gitignore\n"
     )
 
 
@@ -1448,7 +1433,7 @@ def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """`cmoc apply` は `.cmoc` 保証後に未追跡 oracle 差分を自動 commit する。"""
+    """未追跡 oracle 差分は自動 commit せず precondition failure にする。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     cmoc_log = repo / ".cmoc" / "logs" / "poll.log"
@@ -1480,19 +1465,15 @@ def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
-    assert cmoc_apply_impl(repo) == 0
+    with pytest.raises(CmocError) as error:
+        cmoc_apply_impl(repo)
 
-    commit_subjects = _git(
-        repo,
-        "log",
-        "--pretty=%s",
-        "-3",
-    ).stdout.splitlines()
-    assert commit_subjects[0] == "Commit oracle changes before apply"
-    assert commit_subjects[1] == "Ensure cmoc directory is ignored"
-    assert commit_subjects[2] == "initial"
-    assert _git(repo, "show", "HEAD:oracles/spec.md").stdout == "spec\n"
-    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+    assert "未コミットの変更" in error.value.message
+    assert "oracles/" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == (
+        "?? oracles/\n"
+    )
     assert _git(repo, "status", "--porcelain", "--", ".cmoc").stdout == ""
 
 
@@ -1500,7 +1481,7 @@ def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """事前 stage 済み oracle 差分も `cmoc apply` は自動 commit する。"""
+    """事前 stage 済み oracle 差分も自動 commit せず拒否する。"""
     repo = _init_repo(tmp_path)
     _checkout_cmoc_branch(repo)
     oracle_root = repo / "oracles"
@@ -1530,19 +1511,15 @@ def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
 
     monkeypatch.setattr("sub_commands.apply.run_codex_exec", fake_codex)
 
-    assert cmoc_apply_impl(repo) == 0
+    with pytest.raises(CmocError) as error:
+        cmoc_apply_impl(repo)
 
-    commit_subjects = _git(
-        repo,
-        "log",
-        "--pretty=%s",
-        "-3",
-    ).stdout.splitlines()
-    assert commit_subjects[0] == "Commit oracle changes before apply"
-    assert commit_subjects[1] == "Ensure cmoc directory is ignored"
-    assert commit_subjects[2] == "initial"
-    assert _git(repo, "show", "HEAD:oracles/spec.md").stdout == "spec\n"
-    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+    assert "未コミットの変更" in error.value.message
+    assert "oracles/spec.md" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == (
+        "A  oracles/spec.md\n"
+    )
 
 
 def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
@@ -2163,6 +2140,28 @@ def _discrepancy_json(suggested_fix: str) -> str:
                 }
             ]
         }
+    )
+
+
+def _apply_report(prompt: str, result_label: str, counts: list[int]) -> str:
+    """apply report prompt から branch 名を抜き出した valid report を返す。"""
+    match = re.search(r"ブランチ `([^`]+)`", prompt)
+    branch_name = match.group(1) if match else "cmoc/apply/session/run"
+    count_lines = [
+        f"{index} 回目: {count} 件"
+        for index, count in enumerate(counts, start=1)
+    ]
+    if result_label == "未収束":
+        count_lines.append("まだ不整合が残っている可能性があります。")
+    return "\n".join(
+        [
+            "## 作業結果",
+            result_label,
+            "## 不整合件数の推移",
+            *count_lines,
+            f"## ブランチ {branch_name} 上の全変更内容",
+            "カテゴリ: 実装修正",
+        ]
     )
 
 
