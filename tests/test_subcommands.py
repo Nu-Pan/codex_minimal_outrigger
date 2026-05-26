@@ -2274,6 +2274,84 @@ def test_apply_implementation_files_at_commit_excludes_root_memo(
     assert relative_paths == ["README.md", "app.py", "docs/memo/note.md"]
 
 
+def test_apply_partial_targets_include_deleted_and_reverted_paths(
+    tmp_path: Path,
+) -> None:
+    """部分 apply の調査対象は最終差分だけでなく range 内の変更履歴を見る。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (oracle_root / "obsolete.md").write_text("obsolete\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    (repo / "obsolete.py").write_text("obsolete\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base targets")
+    _checkout_session_branch(repo)
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (repo / "app.py").write_text("changed\n", encoding="utf-8")
+    (oracle_root / "spec.md").write_text("changed\n", encoding="utf-8")
+    _git(repo, "add", "app.py", "oracles/spec.md")
+    _git(repo, "commit", "-m", "change then revert targets")
+
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", "app.py", "oracles/spec.md")
+    _git(repo, "commit", "-m", "revert targets")
+
+    (repo / "obsolete.py").unlink()
+    (oracle_root / "obsolete.md").unlink()
+    _git(repo, "rm", "obsolete.py", "oracles/obsolete.md")
+    _git(repo, "commit", "-m", "delete targets")
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    oracle_targets = {
+        target.path.relative_to(repo).as_posix(): target.deleted_at_snapshot
+        for target in apply_module._target_oracle_files(
+            repo,
+            base_commit,
+            snapshot_commit,
+            partial=True,
+        )
+    }
+    implementation_targets = {
+        target.path.relative_to(repo).as_posix(): target.deleted_at_snapshot
+        for target in apply_module._target_implementation_files(
+            repo,
+            base_commit,
+            snapshot_commit,
+            partial=True,
+        )
+    }
+
+    assert oracle_targets == {
+        "oracles/obsolete.md": True,
+        "oracles/spec.md": False,
+    }
+    assert implementation_targets == {
+        "app.py": False,
+        "obsolete.py": True,
+    }
+
+
+def test_apply_deleted_investigation_target_prompt_mentions_history(
+    tmp_path: Path,
+) -> None:
+    """削除済み調査起点は存在しない path として履歴確認を促す。"""
+    repo = _init_repo(tmp_path)
+    target = apply_module._InvestigationTarget(
+        repo / "deleted.py",
+        deleted_at_snapshot=True,
+    )
+
+    prompt = apply_module._implementation_investigation_prompt(repo, target)
+
+    assert "`" + str(repo / "deleted.py") + "` を起点" in prompt
+    assert "oracle snapshot 時点では存在しません" in prompt
+    assert "削除差分や履歴上の変更内容" in prompt
+
+
 def test_commit_all_changes_rejects_memo_changes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

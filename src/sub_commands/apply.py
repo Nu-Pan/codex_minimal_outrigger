@@ -1,6 +1,7 @@
 """`cmoc apply` の本体処理。"""
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
 
@@ -33,6 +34,16 @@ from commons.timing import StepTimer, start_step
 from commons.timestamps import make_timestamp
 
 _APPLY_INCOMPLETE_EXIT_CODE: int = 2
+
+
+@dataclass(frozen=True)
+class _InvestigationTarget:
+    """不整合調査を開始する repo 内 path と snapshot 上の存在状態。"""
+
+    path: Path
+    deleted_at_snapshot: bool = False
+
+
 _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -440,13 +451,13 @@ def _investigate_discrepancies(
     discrepancies: list[dict[str, object]] = []
     # --full の有無だけで全体適用・部分適用を切り替える。
     partial = not full
-    oracle_files = _target_oracle_files(
+    oracle_targets = _target_oracle_files(
         repo_root,
         base_commit,
         oracle_snapshot_commit,
         partial,
     )
-    implementation_files = _target_implementation_files(
+    implementation_targets = _target_implementation_files(
         repo_root,
         base_commit,
         oracle_snapshot_commit,
@@ -454,18 +465,19 @@ def _investigate_discrepancies(
     )
 
     # oracle ファイルを 1 件ずつ独立に調査する。
-    for index, oracle_file in enumerate(oracle_files, start=1):
+    for index, oracle_target in enumerate(oracle_targets, start=1):
         print(
-            f"investigate oracle ({index}/{len(oracle_files)}) "
-            f"{oracle_file}"
+            f"investigate oracle ({index}/{len(oracle_targets)}) "
+            f"{oracle_target.path}"
         )
         # Structured Output の fixing_points を 1 つの一覧へ結合する。
         payload = parse_json_object(
             run_codex_exec(
                 repo_root,
-                _investigation_prompt(repo_root, oracle_file),
+                _investigation_prompt(repo_root, oracle_target),
                 purpose=(
-                    f"investigate oracle {oracle_file.relative_to(repo_root)}"
+                    "investigate oracle "
+                    f"{oracle_target.path.relative_to(repo_root)}"
                 ),
                 read_only=True,
                 expect_json=True,
@@ -480,24 +492,25 @@ def _investigate_discrepancies(
         )
 
     # 実装ファイルも 1 件ずつ独立に調査する。
-    for index, implementation_file in enumerate(
-        implementation_files,
+    for index, implementation_target in enumerate(
+        implementation_targets,
         start=1,
     ):
         print(
             "investigate implementation "
-            f"({index}/{len(implementation_files)}) {implementation_file}"
+            f"({index}/{len(implementation_targets)}) "
+            f"{implementation_target.path}"
         )
         payload = parse_json_object(
             run_codex_exec(
                 repo_root,
                 _implementation_investigation_prompt(
                     repo_root,
-                    implementation_file,
+                    implementation_target,
                 ),
                 purpose=(
                     "investigate implementation "
-                    f"{implementation_file.relative_to(repo_root)}"
+                    f"{implementation_target.path.relative_to(repo_root)}"
                 ),
                 read_only=True,
                 expect_json=True,
@@ -524,12 +537,13 @@ def _target_oracle_files(
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
-) -> list[Path]:
+) -> list[_InvestigationTarget]:
     """適用モードに応じた oracle 調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
     all_files = _oracle_files_at_commit(repo_root, oracle_snapshot_commit)
+    snapshot_paths = set(all_files)
     if not partial:
-        return all_files
+        return [_InvestigationTarget(path) for path in all_files]
     changed = set(
         _changed_oracle_files_at_commit(
             repo_root,
@@ -537,7 +551,10 @@ def _target_oracle_files(
             oracle_snapshot_commit,
         )
     )
-    return [path for path in all_files if path in changed]
+    return [
+        _InvestigationTarget(path, path not in snapshot_paths)
+        for path in sorted(changed)
+    ]
 
 
 def _target_implementation_files(
@@ -545,15 +562,16 @@ def _target_implementation_files(
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
-) -> list[Path]:
+) -> list[_InvestigationTarget]:
     """適用モードに応じた実装調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
     all_files = _implementation_files_at_commit(
         repo_root,
         oracle_snapshot_commit,
     )
+    snapshot_paths = set(all_files)
     if not partial:
-        return all_files
+        return [_InvestigationTarget(path) for path in all_files]
     changed = set(
         _changed_implementation_files_at_commit(
             repo_root,
@@ -561,7 +579,10 @@ def _target_implementation_files(
             oracle_snapshot_commit,
         )
     )
-    return [path for path in all_files if path in changed]
+    return [
+        _InvestigationTarget(path, path not in snapshot_paths)
+        for path in sorted(changed)
+    ]
 
 
 def _oracle_files_at_commit(repo_root: Path, commit_hash: str) -> list[Path]:
@@ -644,21 +665,29 @@ def _changed_files_between_commits(
     commit_hash: str,
     pathspec: str,
 ) -> list[str]:
-    """指定 commit 範囲の追加・変更・rename 後 path を返す。"""
+    """指定 commit 範囲で履歴上触れられた path を返す。"""
     result = run_git(
         repo_root,
         [
-            "diff",
-            "--name-only",
+            "log",
+            "--name-status",
             "-M",
-            "--diff-filter=ACMRT",
-            base_commit,
-            commit_hash,
+            "--format=",
+            f"{base_commit}..{commit_hash}",
             "--",
             pathspec,
         ],
     )
-    return sorted(line for line in result.stdout.splitlines() if line)
+    paths: set[str] = set()
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status = parts[0]
+        if status[:1] not in {"A", "C", "D", "M", "R", "T"}:
+            continue
+        paths.update(part for part in parts[1:] if part)
+    return sorted(paths)
 
 
 def _is_excluded_implementation_path(relative_path: str) -> bool:
@@ -1069,13 +1098,18 @@ def _split_yaml_front_matter(report: str) -> tuple[dict[str, str], str]:
     return front_matter, report[front_matter_end + len("\n---\n") :]
 
 
-def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
+def _investigation_prompt(
+    repo_root: Path,
+    oracle_target: _InvestigationTarget,
+) -> str:
     """不整合調査用 prompt を組み立てる。"""
     # Structured Output schema と禁止事項を prompt 上で明示する。
+    target_note = _investigation_target_note(oracle_target)
     return "\n".join(
         [
             "あなたはソフトウェア実装の監査担当です。",
-            f"`{oracle_file}` を起点に `{repo_root}` の要修正点を調査してください。",
+            f"`{oracle_target.path}` を起点に `{repo_root}` の要修正点を調査してください。",
+            target_note,
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "要修正点には、oracles ファイルと実装との明確な不整合だけでなく、",
             "実装だけから見た成果物品質上の致命的な問題も含めてください。",
@@ -1094,15 +1128,17 @@ def _investigation_prompt(repo_root: Path, oracle_file: Path) -> str:
 
 def _implementation_investigation_prompt(
     repo_root: Path,
-    implementation_file: Path,
+    implementation_target: _InvestigationTarget,
 ) -> str:
     """実装ファイル起点の不整合調査用 prompt を組み立てる。"""
     # 指定ファイルは調査起点であり、必要な関連ファイル参照は許可する。
+    target_note = _investigation_target_note(implementation_target)
     return "\n".join(
         [
             "あなたはソフトウェア実装の監査担当です。",
-            f"`{implementation_file}` を起点に、",
+            f"`{implementation_target.path}` を起点に、",
             f"`{repo_root}` の要修正点を調査してください。",
+            target_note,
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "要修正点には、oracles ファイルと実装との明確な不整合だけでなく、",
             "実装だけから見た成果物品質上の致命的な問題も含めてください。",
@@ -1117,6 +1153,16 @@ def _implementation_investigation_prompt(
             "ファイル編集は禁止です。",
         ]
     )
+
+
+def _investigation_target_note(target: _InvestigationTarget) -> str:
+    """削除済み target の履歴調査が必要なことを prompt に明示する。"""
+    if target.deleted_at_snapshot:
+        return (
+            "この起点 path は oracle snapshot 時点では存在しません。"
+            "削除差分や履歴上の変更内容を確認して調査してください。"
+        )
+    return "この起点 path は oracle snapshot 時点に存在するファイルです。"
 
 
 def _organize_prompt(
