@@ -596,6 +596,86 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     assert "user_work.txt" not in last_commit_paths
 
 
+def test_maintain_indexes_commits_ignored_new_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ignored な新規 INDEX.md もメンテナンス差分として commit する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("INDEX.md\n", encoding="utf-8")
+    (repo / "target.txt").write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "target.txt")
+    _git(repo, "commit", "-m", "ignore index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "INDEX.md" in last_commit_paths
+    assert _git(repo, "ls-files", "INDEX.md").stdout.strip() == "INDEX.md"
+
+
+def test_maintain_indexes_stages_literal_index_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """特殊文字を含む INDEX.md path が別 path を巻き込まない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("docsX/\n", encoding="utf-8")
+    literal_dir = repo / "docs*"
+    ignored_dir = repo / "docsX"
+    literal_dir.mkdir()
+    ignored_dir.mkdir()
+    (literal_dir / "target.txt").write_text("target\n", encoding="utf-8")
+    (ignored_dir / "INDEX.md").write_text("user ignored\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "docs*/target.txt")
+    _git(repo, "commit", "-m", "special path")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "docs*/INDEX.md" in last_commit_paths
+    assert "docsX/INDEX.md" not in last_commit_paths
+    assert _git(repo, "ls-files", "docsX/INDEX.md").stdout.strip() == ""
+
+
 def test_maintain_indexes_preserves_preexisting_staged_index_changes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

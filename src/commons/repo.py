@@ -481,9 +481,7 @@ def commit_cmoc_initialization_changes(
 
 def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     """指定パスに差分があれば add して commit する。"""
-    # 指定 pathspec に差分が無ければ commit を作らない。
-    diff_result = run_git(repo_root, ["status", "--porcelain", "--", *paths])
-    if not diff_result.stdout.strip():
+    if not paths:
         return False
 
     # 呼び出し前から stage 済みの差分を、対象 commit 後の index へ戻す。
@@ -499,19 +497,28 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
         else:
             run_git(repo_root, ["read-tree", "HEAD"], env=env)
 
+        literal_paths = _literal_pathspecs(paths)
         update_paths = [path for path in paths if (repo_root / path).exists()]
         if update_paths:
-            run_git(repo_root, ["add", "-u", "--", *update_paths], env=env)
+            run_git(
+                repo_root,
+                ["add", "-u", "--", *_literal_pathspecs(update_paths)],
+                env=env,
+            )
 
         add_paths = [path for path in paths if not path.startswith(".cmoc")]
         if add_paths:
-            run_git(repo_root, ["add", "--", *add_paths], env=env)
+            run_git(
+                repo_root,
+                ["add", "-f", "--", *_literal_pathspecs(add_paths)],
+                env=env,
+            )
         if any(path == ".cmoc" or path.startswith(".cmoc/") for path in paths):
             _remove_cmoc_from_index(repo_root, env)
 
         changed = run_git(
             repo_root,
-            ["diff", "--cached", "--quiet", "--", *paths],
+            ["diff", "--cached", "--quiet", "--", *literal_paths],
             check=False,
             env=env,
         )
@@ -975,7 +982,7 @@ def changed_paths(repo_root: Path) -> list[str]:
 def _staged_diff_excluding_paths(repo_root: Path, paths: list[str]) -> str:
     """指定 pathspec 以外の既存 staged 差分を patch として返す。"""
     # pathspec magic の exclude で、今回 commit する対象だけを復元対象から外す。
-    exclusions = [f":(exclude){path}" for path in paths]
+    exclusions = _literal_exclude_pathspecs(paths)
     result = run_git(
         repo_root,
         [
@@ -1001,10 +1008,20 @@ def _staged_diff_for_paths(repo_root: Path, paths: list[str]) -> str:
             "--binary",
             "--full-index",
             "--",
-            *paths,
+            *_literal_pathspecs(paths),
         ],
     )
     return result.stdout
+
+
+def _literal_pathspecs(paths: list[str]) -> list[str]:
+    """repo 相対 path を git literal pathspec へ変換する。"""
+    return [f":(literal){path}" for path in paths]
+
+
+def _literal_exclude_pathspecs(paths: list[str]) -> list[str]:
+    """repo 相対 path を git literal exclude pathspec へ変換する。"""
+    return [f":(exclude,literal){path}" for path in paths]
 
 
 def _restore_index_after_pathspec_commit(
