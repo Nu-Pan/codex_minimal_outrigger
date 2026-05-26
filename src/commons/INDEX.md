@@ -36,14 +36,14 @@
 
 ## Do not read this when
 
-- `codex.py` 以外の共通ユーティリティや別サブコマンドの実装だけを確認したいとき。
-- Codex CLI 呼び出し、Structured Output、quota 待機再開、ログ保存とは無関係な変更を確認したいとき。
-- INDEX.md の生成・更新ルールそのものだけを確認したいとき。
-- oracles の個別仕様だけを追いたいとき。
+- `codex.py` 以外の共通ユーティリティや、別サブコマンドの実装だけを確認したいとき。
+- `codex exec` の呼び出し、Structured Output、quota 待機再開、実行ログ保存と無関係な変更を確認したいとき。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいとき。
+- `oracles` の個別仕様だけを追いたいとき。
 
 ## hash
 
-- ee959de97f20acf6f6a119dfca7873210a64a04901918e64f5663249934e9bb7
+- 134b612a07fbefe86a97ed7df1bd7c28131c8e386d9de6a0ca8e4c86ecebdcd4
 
 # `command_runner.py`
 

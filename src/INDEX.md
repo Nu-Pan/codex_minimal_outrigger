@@ -2,33 +2,25 @@
 
 ## Summary
 
-- `src/commons` は、cmoc の各サブコマンドから共通利用する処理をまとめたモジュール群です。
-- `codex.py` は `codex exec` 呼び出し、Structured Output 検証、quota 待機再開、ログ保存を担います。
-- `command_runner.py` は repo root 解決、`typer.Exit` と例外の共通処理、終了時レポート出力をまとめます。
-- `errors.py` は共通例外 `CmocError` と stdout 向けエラーレポート整形を提供します。
-- `repo.py` は git ルート探索、ブランチ判定、session state、差分や commit 系の共通処理を扱います。
-- `indexing.py` は `INDEX.md` の配置、再生成、ハッシュ管理、自動コミットの制御を担います。
-- `subcommand_log.py`、`timing.py`、`timestamps.py` はログ tee、経過時間計測、タイムスタンプ生成を提供します。
-- `__init__.py` は `src.commons` パッケージを宣言するだけの入口です。
+- `cmoc` の各サブコマンドから共有される基盤処理をまとめたディレクトリです。
+- `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` など、実行制御・エラー・ログ・計測・リポジトリ操作・INDEX 管理を担う共通機能を収録します。
+- 個別サブコマンドを薄く保ち、横断的な処理を集約するための共通層です。
 
 ## Read this when
 
-- サブコマンド間で共有するユーティリティや共通制御の置き場所を確認したいとき。
-- `codex exec` の共通ラッパー、Structured Output、ログ保存、quota 再開の流れを追いたいとき。
-- git ルート探索、session state、cmoc 管理ブランチ、差分コミットなど repo 系の共通処理を修正したいとき。
-- 共通エラー、サブコマンド実行制御、タイミング計測、タイムスタンプ、tee ログの仕様を確認したいとき。
-- `INDEX.md` の生成ルールや維持処理を実装・調整したいとき。
+- サブコマンド間で共通利用する処理の置き場所や役割分担を確認したいとき。
+- `codex exec` のラッパー、共通エラー、repo ルート探索、ログ tee、タイミング計測、タイムスタンプ生成、INDEX 管理を扱いたいとき。
+- CLI 実装やレビューで、処理を `src/commons` に寄せるべきか判断したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいときは、`src/sub_commands` を読むべきです。
-- `oracles` 配下の正本仕様そのものや、サブコマンドごとのユーザー向け手順だけを調べたいときは、このディレクトリではありません。
-- 開発ルール、テスト規約、環境構築など、共通モジュール以外の仕様を確認したいときは、`oracles/dev_rules` を読むべきです。
-- リポジトリ全体の運用ルールやファイルアクセス規則だけを確認したいときは、`README.md` や `AGENTS.md` を参照すべきです。
+- 個別サブコマンドの業務ロジックだけを追いたいときは、`src/sub_commands` 側を読むべきです。
+- `oracles` の正本仕様やユーザー向け手順だけを確認したいときは、このディレクトリではなく該当文書を読むべきです。
+- `src/commons` のうち特定 1 モジュールだけを確認したいときは、`command_runner.py` などの個別ファイルを直接読むべきです。
 
 ## hash
 
-- eff44b7f15ef90ead4a7cf7cb160fa20457f05f5b49d954867dbb6e49aee4d15
+- 1a24cc72da5b59d07fedc3a28e9c5abd78a16fa078bd1f214af8bdd31dac9949
 
 # `main.py`
 

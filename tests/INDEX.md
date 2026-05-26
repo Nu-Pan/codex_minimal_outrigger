@@ -38,17 +38,18 @@
 - Structured Output の parse 失敗、意味的検証失敗、JSON Schema の `enum` や文字列長制約に対するリトライとエラー表示を確認したいとき。
 - Codex CLI 呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機と疎通確認、再実行の流れを確認したいとき。
 - Codex 呼び出し前後の `INDEX.md` メンテナンスの有無や、`skip_index_maintenance` による明示スキップを確認したいとき。
-- ファイル末尾の `_init_git_repo` や `_git` を使って、テスト用 git リポジトリを準備する方法を確認したいとき。
+- テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_init_git_repo` と `_git` の使い方を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` のサブコマンド正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` 側を読むべきです。
-- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、このテスト目次ではなく `oracles/app_specs/indexing.md` を読むべきです。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このファイルの目次ではなく別の案内を参照すべきです。
+- `cmoc` の個別サブコマンド正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` 側を読むべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
+- `commons.codex.run_codex_exec()` 以外の実装や、`tests` 配下の別テスト群だけを追いたいときは、このファイルでは範囲が広すぎます。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
 
 ## hash
 
-- be9bfbc2ddb3d8118af7e9280575340f82321231629d6d62c5e544563162661b
+- 9cc2d4d55a0ed08f2d10e0f4205709acffeaf2eb10f8d4717b2fae40bf9e4888
 
 # `test_file_naming.py`
 
