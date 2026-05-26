@@ -71,11 +71,11 @@
 
 - 調査・修正ループ開始直前
     - `apply.state` を `running` に遷移させる
-    - `apply` セクションに必要な情報 (e.g. `<apply-run-id>`, `<cmoc-apply-branch>`, `<cmoc-apply-worktree>`, `<oracle-snapshot-commit>`, ...) を保存する
+    - `apply` セクションの各フィールドを、適切な値で更新する
 - 調査・修正ループ完了直後
     - i.e. 全ての処理が正常に完了出来た場合
     - `apply.state` を `completed` に遷移させる
-    - `apply` セクションに必要な情報 (e.g. `apply_head_before_merge`, ...) を保存する
+    - `apply` セクションの各フィールドを、適切な値で更新する
 - 途中でエラーが発生して処理を中止した場合
     - `apply.state` を `error` に遷移させる
 

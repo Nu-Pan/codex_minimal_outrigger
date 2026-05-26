@@ -43,10 +43,12 @@
 ファイルシステムのアクセス制限指示を含める事
 
 - 読み取り専用 (i.e. `--sandbox read-only`) で実行する場合
-    - e.g. `<repo-root>/memo` などの読み書き禁止ルールを指示に含める
+    - 仕様上明示されている読み書き両方禁止ルールを指示に含める
+    - e.g. `<repo-root>/memo` は読み書き両方禁止
 - 書き込み可能 (i.e. `--sandbox workspace-write`) で実行する場合
-    - e.g. `<repo-root>/oracles` 編集禁止は必ず含める
-    - e.g. `<repo-root>/.agents` 編集禁止は必ず含める
+    - 仕様上明示されている編集禁止ルールを指示に含める
+    - e.g. `oracles` ファイルは原則禁止だが、個別仕様で明示された例外ケースでは編集可能
+    - e.g. `<repo-root>/.agents` は編集不可能
 
 ## Model, Reasoning Effort
 

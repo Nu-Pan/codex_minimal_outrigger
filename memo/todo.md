@@ -1,5 +1,6 @@
 ## branch, apply, merge 大工事の余波
 
+- apply_worktree の命名規則を決めて session state schema から apply_worktree を消す
 - `cmoc session report` が必要
     - 今この瞬間に `cmoc session join` したら、どういう内容になるか？　をレポートさせる
     - このまま `cmoc session join` に進んでよいかの判断材料
