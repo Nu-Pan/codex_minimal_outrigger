@@ -11,6 +11,7 @@ from commons.repo import (
     assert_no_uncommitted_changes,
     current_branch,
     is_apply_branch,
+    is_implementation_path,
     is_session_branch,
     read_session_state,
     run_git,
@@ -253,7 +254,7 @@ def _unexpected_diffs(repo_root: Path, join_state: _JoinState) -> list[str]:
         join_state.apply_branch,
     )
     for path in apply_paths:
-        if _is_oracle_path(path):
+        if not is_implementation_path(repo_root, path):
             unexpected.append(f"{join_state.apply_branch}: {path}")
 
     session_paths = _changed_paths_between(
@@ -311,7 +312,7 @@ def _force_resolve_unexpected_diffs(
                 join_state.oracle_snapshot_commit,
                 join_state.apply_branch,
             )
-            if _is_oracle_path(path)
+            if not is_implementation_path(repo_root, path)
         ],
         join_state.apply_worktree,
     )
@@ -354,7 +355,8 @@ def _revert_branch_paths(
         )
     if missing_at_source:
         run_git(worktree, ["rm", "-r", "--ignore-unmatch", "--", *missing_at_source])
-    run_git(worktree, ["add", "-A", "--", *paths])
+    if existing_at_source:
+        run_git(worktree, ["add", "--", *existing_at_source])
     if run_git(worktree, ["diff", "--cached", "--quiet"], check=False).returncode == 1:
         run_git(
             worktree,

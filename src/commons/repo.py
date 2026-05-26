@@ -637,6 +637,14 @@ def list_implementation_files(repo_root: Path) -> list[Path]:
     )
 
 
+def is_implementation_path(repo_root: Path, relative_path: str) -> bool:
+    """root 相対 path が実装ファイル列挙対象か判定する。"""
+    return (
+        not _is_excluded_implementation_path(relative_path)
+        and not _is_root_gitignored(repo_root, relative_path)
+    )
+
+
 def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
     """部分評価対象となる変更済み oracle ファイルを列挙する。"""
     # base..HEAD の履歴上で起きた追加・変更・rename などを収集する。
@@ -871,10 +879,9 @@ def _deleted_implementation_file_paths(
     relatives = [
         line
         for line in output.splitlines()
-        if not _is_excluded_implementation_path(line)
+        if is_implementation_path(repo_root, line)
     ]
-    ignored = _root_gitignored_paths(repo_root, relatives)
-    return [relative for relative in relatives if relative not in ignored]
+    return relatives
 
 
 def _is_implementation_file(repo_root: Path, path: Path) -> bool:

@@ -1516,6 +1516,62 @@ def test_apply_join_stops_on_unexpected_diff_in_normal_mode(
     assert apply_worktree.exists()
 
 
+def test_apply_join_stops_on_apply_branch_non_implementation_diff(
+    tmp_path: Path,
+) -> None:
+    """apply branch 側の非実装ファイル変更は想定外差分として停止する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(apply_worktree, "add", "INDEX.md")
+    _git(apply_worktree, "commit", "-m", "edit non implementation file")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: INDEX.md" in error_info.value.detail
+    assert not (repo / "INDEX.md").exists()
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
+def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """強制モードは apply branch 側の非実装ファイル変更を revert して merge する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "INDEX.md", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected index")
+
+    cmoc_apply_join_impl(repo, force_resolve=True)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert not (repo / "INDEX.md").exists()
+    assert state["apply"]["state"] == "ready"
+    assert f"- {apply_branch}: INDEX.md" in output
+
+
 def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
