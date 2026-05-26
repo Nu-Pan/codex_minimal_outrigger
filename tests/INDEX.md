@@ -125,7 +125,7 @@
 
 ## hash
 
-- 4df1c877026403d80616b2d0f80b3e33ce2a82595a1da3ab53a5bd0569c28b37
+- 57e1bc4a748ead9690ab6cac7f9c7fa9c903a1e9b38287a954d9c19adabfdcb0
 
 # `test_subcommands.py`
 
@@ -144,14 +144,14 @@
 
 ## Do not read this when
 
-- `src/commons/*` の共通実装だけを追いたいとき。
+- `src/commons/*` の共通実装だけを確認したいとき。
 - `oracles/app_specs/*` の正本仕様だけを確認したいとき。
 - `INDEX.md` の生成・更新ルールそのものを確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用規則だけを確認したいとき。
 
 ## hash
 
-- 0bfa3ad600ceee18bb30e5e9de62fa712286a194577633a131c94254e53c81f7
+- 23cf2b2bb20d1ea8ae0548d7141be969ddcbf3abbf2aaa506472d04beba42255
 
 # `test_timestamps.py`
 

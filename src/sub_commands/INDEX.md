@@ -39,14 +39,14 @@
 
 ## Do not read this when
 
-- `cmoc apply join` のマージ処理や `cmoc apply abandon` の破棄処理だけを確認したいときは、このファイルではなく各サブコマンド実装を読むべきです。
-- `cmoc session fork/join/abandon` の挙動だけを確認したいときは、このファイルは対象外です。
-- `INDEX.md` の生成・更新ルールだけを確認したいときは、このファイルではなく `src/commons/indexing.py` や `oracles/app_specs/indexing.md` を読むべきです。
-- ユーザー向けの `cmoc apply` 正本仕様だけを確認したいときは、この実装ファイルではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- `cmoc apply join` のマージ処理や `cmoc apply abandon` の破棄処理だけを確認したいとき。
+- `cmoc session fork` / `cmoc session join` / `cmoc session abandon` など、session 側の開始・統合・破棄だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、この実装ファイルではなく `src/commons/indexing.py` や `oracles/app_specs/indexing.md` を読むべきです。
+- 要修正点リストの正本仕様だけを確認したいときは、この実装ファイルではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
 
 ## hash
 
-- a03de945140a696cfba8590c211c1ac8b538d95bf175ed77dfac46bc0d85f2fe
+- e4b86cf214208d846284883e711096ec3dfd70982d718182394982783ef81c53
 
 # `apply_abandon.py`
 
