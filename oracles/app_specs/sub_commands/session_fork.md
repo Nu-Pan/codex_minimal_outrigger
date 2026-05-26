@@ -54,3 +54,8 @@
 - レガシーサブコマンドで `cmoc session fork` の旧名である
 - これに対する後方互換性を cmoc として保つ必要は無い
 - `cmoc branch` の痕跡を実装・テストに残してはいけない
+
+## session の原則
+
+- 1 つの `<cmoc-session-home-branch>` に対して active な `<cmoc-session-branch>` は高々 1 つとする。
+- detached HEAD, `<remote-tracking-branch>`, commit hash, `<cmoc-managed-branch>` は `<cmoc-session-home-branch>` として扱わない。

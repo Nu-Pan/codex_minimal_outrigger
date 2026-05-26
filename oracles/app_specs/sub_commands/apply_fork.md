@@ -61,6 +61,12 @@
 - ループが回数上限に達した場合も、コマンド実行としては正常系として扱う
 - 回数上限到達後にさらに `cmoc apply fork` を再実行するか、`cmoc eval-oracles` や人手レビューを行うか、作業を打ち切るかは人間が判断する
 
+## 調査対象 oracles ファイルの snapshot 原則
+
+- `cmoc apply fork` 開始時点の `<cmoc-session-branch>` HEAD を `<oracle-snapshot-commit>` として固定し、その snapshot から `<cmoc-apply-branch>` を作成する。
+- `cmoc apply fork` 開始後に `<cmoc-session-branch>` が進んでも、実行中の apply はその変更を取り込まない。
+- `cmoc apply fork` の収束・未収束判定は `<oracle-snapshot-commit>` に対する判定である。
+
 ## `<cmoc-session-state-file>` 状態遷移
 
 - 調査・修正ループ開始直前
