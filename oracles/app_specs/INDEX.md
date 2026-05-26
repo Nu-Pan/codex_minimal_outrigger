@@ -3,13 +3,13 @@
 ## Summary
 
 - cmoc の branch model を定義する仕様断片です。
-- session の起点 branch、session 用 branch、apply 用 branch の役割分担と命名規則をまとめています。
-- `cmoc apply` の snapshot 原則と、`<cmoc-session-state-file>` のスキーマも扱います。
+- `<local-branch>`、`<cmoc-session-branch>`、`<cmoc-apply-branch>` の役割と命名規則をまとめています。
+- `cmoc apply` の snapshot 原則と `<cmoc-session-state-file>` のスキーマを扱います。
 
 ## Read this when
 
 - `<local-branch>`、`<cmoc-session-branch>`、`<cmoc-apply-branch>` の関係と命名規則を確認したいとき
-- session の起点となる `<cmoc-session-home-branch>` の決め方や、active session の扱いを実装・修正したいとき
+- `cmoc session fork` の起点になる `<cmoc-session-home-branch>` の決め方や active session の扱いを確認したいとき
 - `cmoc apply` の snapshot 固定ルールや、開始後に session が進んだ場合の扱いを確認したいとき
 - `<cmoc-session-state-file>` の役割や、session/apply の状態遷移に使う保存情報を確認したいとき
 
@@ -21,7 +21,7 @@
 
 ## hash
 
-- 0430e1f694da4e1c5fe29d9c8189e1cb514324b94ec03593eed53dfa252a4585
+- fdf81ca55cbe760c430ccd22d8330d3f66dd7c428df776408d1e85888ded26e9
 
 # `codex_call.md`
 
@@ -32,19 +32,19 @@
 
 ## Read this when
 
-- `codex exec` の起動方法や、stdin 経由でのプロンプト送信ルールを実装・修正・レビューしたいとき
-- prompt の構成、argv に載せてよい情報の制約、`--output-schema` / `--output-last-message` を含む出力規約を確認したいとき
-- sandbox の read-only / workspace-write の選択基準、Model / Reasoning Effort の指定方針、quota 不足時の待機・再開手順を確認したいとき
+- `codex exec` の起動方法や、stdin 経由でのプロンプト送信ルールを実装・修正・レビューしたいとき。
+- プロンプトの構成、argv に載せてよい情報の制約、`--output-schema` / `--output-last-message` を含む出力規約を確認したいとき。
+- sandbox の read-only / workspace-write の選択基準、Model / Reasoning Effort の指定方針、quota 不足時の待機・再開手順を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session` / `cmoc apply` / `cmoc eval-oracles` など、個別サブコマンド固有の処理ロジックだけを確認したいとき
-- `codex exec` 以外の実行手段や、一般的なシェル呼び出し方針を知りたいとき
-- `INDEX.md` 生成規約や、他の仕様ファイルのルーティングだけを確認したいとき
+- `cmoc` の他のサブコマンド固有の手順や状態遷移だけを確認したいとき。
+- `codex exec` 以外の実行手段や、一般的なシェル呼び出し方針だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールや、他の仕様ファイルのルーティングだけを確認したいとき。
 
 ## hash
 
-- bd838ad821fa22f2c811f51ef3663e5235af9a23c9e1f3ca2da0fd043c3bcf08
+- c2e777ee093c87d4c3caa020a32b00c2f6fd0f8b3e0ad511149f5a3677981b37
 
 # `console_and_file_log.md`
 
@@ -174,56 +174,53 @@
 
 ## Summary
 
-- `apply_abandon.md` は、未 join の apply run を破棄する `cmoc apply abandon` の仕様入口である。
-- `apply_fork.md` は、Codex CLI による調査・修正ループを開始する `cmoc apply` の仕様入口である。
-- `apply_join.md` は、`cmoc` が積み上げた成果物を `cmoc-session-branch` に統合する `cmoc apply join` の仕様入口である。
-- `eval_oracles.md` は、現在の `<repo-root>/oracles` スナップショットを仕様だけで評価する `cmoc eval-oracles` の仕様入口である。
-- `init.md` は、`<repo-root>` を cmoc 作業可能状態に初期化する `cmoc init` の仕様入口である。
-- `session_abandon.md` は、`cmoc-session-branch` を本流へ merge せず破棄する `cmoc session abandon` の仕様入口である。
-- `session_fork.md` は、現在の local branch から `cmoc/session/...` を作る `cmoc session fork` の仕様入口である。
-- `session_join.md` は、`cmoc-session-branch` を home branch に merge する `cmoc session join` の仕様入口である。
-- レガシーな `cmoc branch` と `cmoc merge` は、それぞれ `session_fork.md` と `session_join.md` で扱う。
+- `cmoc app_specs/sub_commands` 配下のサブコマンド仕様への入口です。
+- `apply_abandon.md` は未 join の apply run を破棄する `cmoc apply abandon` の入口です。
+- `apply_fork.md` は調査・修正ループを開始する `cmoc apply` の入口です。
+- `apply_join.md` は `apply fork` の成果物を session 本流へ取り込む `cmoc apply join` の入口です。
+- `eval_oracles.md` は現在の `<repo-root>/oracles` スナップショットを仕様だけで評価する `cmoc eval-oracles` の入口です。
+- `init.md` は `<repo-root>` を cmoc 作業可能状態に初期化する `cmoc init` の入口です。
+- `session_abandon.md` は `cmoc-session-branch` を home branch へ merge せず破棄する `cmoc session abandon` の入口です。
+- `session_fork.md` は現在の local branch から `cmoc/session/...` を作る `cmoc session fork` の入口です。
+- `session_join.md` は `cmoc-session-branch` を home branch へ merge する `cmoc session join` の入口です。
+- レガシーな `cmoc branch` は `session_fork.md`、レガシーな `cmoc merge` は `session_join.md` で扱います。
 
 ## Read this when
 
-- `cmoc apply abandon` / `cmoc apply fork` / `cmoc apply join` のいずれかの実装・修正・レビューを行うとき。
-- `cmoc eval-oracles` の評価範囲、結果レポート、Structured Output を確認したいとき。
-- `cmoc init` の初期化手順や `.cmoc` の追跡対象外保証を確認したいとき。
-- `cmoc session fork` / `cmoc session join` / `cmoc session abandon` の session ライフサイクルを確認したいとき。
-- 個別のサブコマンド仕様を選別したいときに、どの文書へ進むべきか判断したいとき。
+- `cmoc apply` 系・`cmoc session` 系・`cmoc eval-oracles`・`cmoc init` のどの正本仕様へ進むべきか判断したいとき。
+- `apply_abandon.md`、`apply_fork.md`、`apply_join.md`、`session_abandon.md`、`session_fork.md`、`session_join.md` のいずれかの入口を探したいとき。
+- `cmoc branch` や `cmoc merge` のレガシー扱いを含めて、どの文書が対応先かを確認したいとき。
 
 ## Do not read this when
 
-- この配下のどれか 1 つのサブコマンドに絞っていて、他のサブコマンド仕様まで読む必要がないとき。
-- サブコマンド個別の実装ではなく、`cmoc` の共通設計や上位方針だけを確認したいとき。
-- `oracles` や `dev_rules` の別系統の仕様だけを追いたいとき。
-- 実装ファイルやテストファイルだけを確認すれば十分なとき。
+- 個別サブコマンドの仕様がすでに決まっていて、該当する `*.md` を直接読めば足りるとき。
+- `app_specs/INDEX.md` や `dev_rules` など、他系統の入口だけを追いたいとき。
+- 実装コードやテストコードを確認するだけで、サブコマンド仕様の入口案内が不要なとき。
 
 ## hash
 
-- e2dca6d4820b09467166231971955f241b2ee96178d4e76db785b4009c201740
+- bae55b16547e7977d6de678969bd807498e4abe87f9446496549f8f793a4e952
 
 # `usage.md`
 
 ## Summary
 
-- `cmoc` のユーザー向け使用方法をまとめた入口で、実行前提と典型的な運用フローを説明している。
-- `PATH` 設定による起動方法、初回の `cmoc init`、`session fork`・`eval-oracles`・`apply`・`session join` の流れを扱う。
-- 実装詳細ではなく、`cmoc` をどう使うかを把握するための案内文書である。
+- `cmoc` の利用方法をまとめた文書です。
+- `cmoc` コマンドの呼び出し前提、初回の `cmoc init`、想定ワークフローを扱います。
+- セッション作成から `apply`、`join` までの基本的な操作順を確認するための入口です。
 
 ## Read this when
 
-- `cmoc` を人間がどのように呼び出して使うか、全体の利用手順を確認したいとき
-- 初回に一度だけ必要な `cmoc init` の前提を確認したいとき
-- `session fork` から `eval-oracles`、`apply`、`session join` までの想定ワークフローを把握したいとき
-- `<cmoc-root>/bin` を `PATH` に追加して `cmoc` コマンドとして実行する前提を確認したいとき
+- `cmoc` の基本的な使い方や、最初に何を実行するかを確認したいとき。
+- `cmoc init` から `session fork`、`apply fork`、`apply join`、`session join` までの全体の流れを確認したいとき。
+- エンドユーザーが `cmoc` を呼び出す前提や、標準的な作業順序を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc` の個別サブコマンド（`init`、`session fork`、`eval-oracles`、`apply`、`session join` など）の詳細仕様だけを確認したいとき
-- エラー処理、終了コード、レポート形式などの共通規約だけを確認したいとき
-- ブランチモデルや `oracles` の更新規約など、使用方法ではなく内部仕様を確認したいとき
+- 個別サブコマンドの引数、出力形式、内部手順だけを確認したいときは、`sub_commands/INDEX.md` から該当文書へ直接進むべきです。
+- 実装コードやテストコードの作業だけで足りるときは、この利用方法の案内を読む必要はありません。
+- `cmoc` の共通規約や設計方針だけを確認したいときは、`app_specs/INDEX.md` 配下の別文書を参照すべきです。
 
 ## hash
 
-- 1acb8c34c04e0211c05442f2a1753897cdb9c7ce8c5849112fdaff932bcc4dba
+- 8b19f52b9c8b57989c5eb50f80342410ee3e6b38732410730612640b55b7d5bd

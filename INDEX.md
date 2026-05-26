@@ -106,29 +106,25 @@
 
 ## Summary
 
-- `cmoc` のアプリ仕様断片をまとめた入口で、branch model、Codex CLI 呼び出し、ログ出力、エラーハンドリング、`INDEX.md` 生成、雑多な基礎規約、`oracles` の扱い、利用方法を案内します。
-- `app_specs` は共通仕様の入口です。
-- `considered_alternatives` は採用しなかった設計案とその理由をまとめた入口です。
-- `dev_rules` は Python 実装のコーディング規約、設計方針、開発環境、テスト規約をまとめた入口です。
-- `sub_commands` は `apply`、`session`、`eval-oracles`、`init` など個別サブコマンドの入口です。
-- `usage` は `cmoc` のユーザー向け利用方法をまとめた入口です。
-- `oracles` や `indexing`、`misc_specs` は、目次生成やファイル探索などの基礎規約を案内する入口です。
+- `cmoc` の正本仕様断片群である `oracles` への入口です。
+- `app_specs`、`considered_alternatives`、`dev_rules` へのルーティングをまとめています。
+- `oracles` 配下の各ディレクトリの詳しい案内は、それぞれの `INDEX.md` からたどります。
 
 ## Read this when
 
-- `cmoc` の共通仕様や、その参照先となる正本断片を確認したいとき。
-- `apply`、`session`、`eval-oracles` などの前提になるルールを横断的に見直したいとき。
-- どの仕様ファイルを読むべきか、`app_specs` 配下の案内から判断したいとき。
+- `oracles` 全体の入口と各系統の役割分担を確認したいとき。
+- どの配下の `INDEX.md` に進むべきかを判断したいとき。
+- `cmoc` の仕様断片群を横断して参照したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの手順だけを確認したいときは、`sub_commands/INDEX.md` から該当文書へ直接進むべきです。
-- 実装コードやテストコードだけで足りる場合は、このディレクトリの案内を読む必要はありません。
-- この配下の単独仕様の本文だけを読みたいときは、該当する `*.md` を直接参照すべきです。
+- 個別の仕様本文だけを読みたいときは、該当ディレクトリの `INDEX.md` から直接進むべきです。
+- `oracles` 以外の実装コードやテストコードを確認したいときです。
+- `oracles` の編集方針や各ファイル本文を深掘りしたいときです。
 
 ## hash
 
-- 5638a0e78f0b9dc926a492631fc32970a0dfa578c9ccc38c1e53ad596bfd10aa
+- bf0452c1fd6dfc8d1a9c2061396c77fd8c80a3f3fc2dc450808a13d0c3d84b15
 
 # `pyproject.toml`
 
