@@ -446,6 +446,46 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """子の名前変更は親ディレクトリ hash を変え、親 entry を再生成する。"""
+    repo = _init_repo(tmp_path)
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "before.txt").write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "nested content")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """呼び出し対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+
+    purposes.clear()
+    (folder / "before.txt").rename(folder / "after.txt")
+
+    changed = maintain_indexes(repo)
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "generate INDEX entry for folder" in purposes
+    assert "# `folder`" in root_index
+    assert "- generate INDEX entry for folder" in root_index
+
+
 def test_maintain_indexes_reuses_current_index_with_empty_sections(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

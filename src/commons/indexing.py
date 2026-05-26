@@ -200,14 +200,17 @@ def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
 
 
 def _hash_path(repo_root: Path, path: Path) -> str:
-    """ファイルまたは直下項目ハッシュ連結から sha256 を計算する。"""
+    """ファイル内容または直下項目 serialization から sha256 を計算する。"""
     # ファイルは内容 bytes をそのまま hash 化する。
     if path.is_file():
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
-    # ディレクトリは目次作成対象と同じ除外条件で子 hash を連結する。
-    child_hashes = []
-    for child in sorted(path.iterdir(), key=lambda item: item.name):
+    # ディレクトリは直下目次対象の type/path/hash を安定形式で連結する。
+    serialized_entries: list[str] = []
+    for child in sorted(
+        path.iterdir(),
+        key=lambda item: item.relative_to(repo_root).as_posix(),
+    ):
         if (
             child.name == "INDEX.md"
             or child.name.startswith(".")
@@ -216,8 +219,15 @@ def _hash_path(repo_root: Path, path: Path) -> str:
             or _looks_binary(child)
         ):
             continue
-        child_hashes.append(_hash_path(repo_root, child))
-    return hashlib.sha256("".join(child_hashes).encode("utf-8")).hexdigest()
+        entry_type = "directory" if child.is_dir() else "file"
+        relative_path = child.relative_to(repo_root).as_posix()
+        content_hash = _hash_path(repo_root, child)
+        serialized_entries.append(
+            f"{entry_type}\0{relative_path}\0{content_hash}\n"
+        )
+    return hashlib.sha256(
+        "".join(serialized_entries).encode("utf-8")
+    ).hexdigest()
 
 
 def _looks_binary(path: Path) -> bool:
