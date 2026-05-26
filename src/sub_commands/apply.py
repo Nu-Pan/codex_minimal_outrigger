@@ -193,7 +193,6 @@ def cmoc_apply_impl(
         session_id,
         state,
         apply_branch,
-        apply_worktree,
         oracle_snapshot_commit,
     )
 
@@ -265,9 +264,6 @@ def cmoc_apply_impl(
             repo_root,
             session_id,
             state,
-            completed,
-            discrepancy_counts,
-            report_path,
         )
         print(f"apply run id: {apply_run_id}")
         print(str(report_path))
@@ -365,14 +361,12 @@ def _mark_apply_running(
     session_id: str,
     state: dict[str, object],
     apply_branch: str,
-    apply_worktree: Path,
     oracle_snapshot_commit: str,
 ) -> None:
     """session state の apply セクションを running に更新する。"""
     apply = _mutable_apply_section(state)
     apply["state"] = "running"
     apply["apply_branch"] = apply_branch
-    apply["apply_worktree"] = str(apply_worktree)
     apply["oracle_snapshot_commit"] = oracle_snapshot_commit
     write_session_state(repo_root, session_id, state)
 
@@ -381,16 +375,10 @@ def _mark_apply_completed(
     repo_root: Path,
     session_id: str,
     state: dict[str, object],
-    completed: bool,
-    discrepancy_counts: list[int],
-    report_path: Path,
 ) -> None:
     """session state の apply セクションを completed に更新する。"""
     apply = _mutable_apply_section(state)
     apply["state"] = "completed"
-    apply["completed"] = completed
-    apply["discrepancy_counts"] = discrepancy_counts
-    apply["report_path"] = str(report_path)
     write_session_state(repo_root, session_id, state)
 
 

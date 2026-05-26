@@ -6,6 +6,7 @@ from pathlib import Path
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.repo import (
+    apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
     current_branch,
     is_apply_branch,
@@ -41,7 +42,12 @@ def cmoc_apply_join_impl(
     branch_name = current_branch(repo_root)
     session_id = session_id_from_branch(branch_name)
     state = read_session_state(cmoc_root, session_id)
-    join_state = _validate_joinable_state(state, branch_name, session_id)
+    join_state = _validate_joinable_state(
+        cmoc_root,
+        state,
+        branch_name,
+        session_id,
+    )
     _assert_local_branch_exists(cmoc_root, join_state.session_branch)
     _assert_local_branch_exists(cmoc_root, join_state.apply_branch)
     assert_no_uncommitted_changes(repo_root)
@@ -110,13 +116,11 @@ class _JoinState:
         apply_branch: str,
         apply_worktree: Path | None,
         oracle_snapshot_commit: str,
-        report_path: Path | None,
     ) -> None:
         self.session_branch = session_branch
         self.apply_branch = apply_branch
         self.apply_worktree = apply_worktree
         self.oracle_snapshot_commit = oracle_snapshot_commit
-        self.report_path = report_path
 
 
 def _cmoc_root(repo_root: Path) -> Path:
@@ -134,6 +138,7 @@ def _cmoc_root(repo_root: Path) -> Path:
 
 
 def _validate_joinable_state(
+    repo_root: Path,
     state: dict[str, object],
     current_branch_name: str,
     session_id: str,
@@ -203,22 +208,13 @@ def _validate_joinable_state(
             ],
             f"session branch: {session_branch}",
         )
-    apply_worktree = _optional_path(apply.get("apply_worktree"))
-    report_path = _optional_path(apply.get("report_path"))
+    apply_worktree = apply_worktree_path_from_branch(repo_root, apply_branch)
     return _JoinState(
         session_branch=session_branch,
         apply_branch=apply_branch,
         apply_worktree=apply_worktree,
         oracle_snapshot_commit=oracle_snapshot_commit,
-        report_path=report_path,
     )
-
-
-def _optional_path(value: object) -> Path | None:
-    """state 内の任意 path 値を Path に変換する。"""
-    if isinstance(value, str) and value:
-        return Path(value)
-    return None
 
 
 def _assert_local_branch_exists(repo_root: Path, branch_name: str) -> None:
@@ -390,16 +386,18 @@ def _mark_apply_ready(
     session_id: str,
     state: dict[str, object],
 ) -> None:
-    """apply セクションを ready に戻し、補助 field を null 初期化する。"""
+    """apply セクションを ready に戻し、固定 field を null 初期化する。"""
     apply = state.get("apply")
     if not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
             ["state JSON の apply セクションを確認してください。"],
         )
-    for key in list(apply):
-        apply[key] = None
-    apply["state"] = "ready"
+    state["apply"] = {
+        "state": "ready",
+        "apply_branch": None,
+        "oracle_snapshot_commit": None,
+    }
     write_session_state(repo_root, session_id, state)
 
 
@@ -460,8 +458,6 @@ def _cleanup_preconditions_hold(
         check=False,
     )
     if ancestor.returncode != 0:
-        return False
-    if join_state.report_path is None or not join_state.report_path.exists():
         return False
     return True
 

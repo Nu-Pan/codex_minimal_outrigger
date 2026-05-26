@@ -6,6 +6,7 @@ from pathlib import Path
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.repo import (
+    apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
     current_branch,
     is_apply_branch,
@@ -32,7 +33,12 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     os.chdir(cmoc_root)
     session_id = session_id_from_branch(branch_name)
     state = read_session_state(cmoc_root, session_id)
-    abandon_state = _validate_abandonable_state(state, branch_name, session_id)
+    abandon_state = _validate_abandonable_state(
+        cmoc_root,
+        state,
+        branch_name,
+        session_id,
+    )
     assert_no_uncommitted_changes(cmoc_root)
 
     start_step(timer, 2, 3, "cleanup apply artifacts")
@@ -84,6 +90,7 @@ def _cmoc_root(repo_root: Path) -> Path:
 
 
 def _validate_abandonable_state(
+    repo_root: Path,
     state: dict[str, object],
     current_branch_name: str,
     session_id: str,
@@ -133,16 +140,7 @@ def _validate_abandonable_state(
             ],
             f"apply.apply_branch: {apply_branch}",
         )
-    apply_worktree = _required_path(apply.get("apply_worktree"))
-    if apply_worktree is None:
-        raise CmocError(
-            "apply worktree を session state から特定できませんでした。",
-            [
-                "session state の apply.apply_worktree を確認してください。",
-                "state が壊れている場合は、手動で apply worktree を確認してください。",
-            ],
-            f"apply.apply_worktree: {apply.get('apply_worktree')}",
-        )
+    apply_worktree = apply_worktree_path_from_branch(repo_root, apply_branch)
     if current_branch_name not in {session_branch, apply_branch}:
         raise CmocError(
             "`cmoc apply abandon` は session branch または apply branch 上で実行してください。",
@@ -166,13 +164,6 @@ def _validate_abandonable_state(
         apply_worktree=apply_worktree,
         previous_apply_state=apply_state,
     )
-
-
-def _required_path(value: object) -> Path | None:
-    """state 内の必須 path 値を Path に変換する。"""
-    if isinstance(value, str) and value:
-        return Path(value)
-    return None
 
 
 def _cleanup_apply_artifacts(
@@ -230,14 +221,16 @@ def _mark_apply_ready(
     session_id: str,
     state: dict[str, object],
 ) -> None:
-    """apply セクションを ready に戻し、補助 field を null 初期化する。"""
+    """apply セクションを ready に戻し、固定 field を null 初期化する。"""
     apply = state.get("apply")
     if not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
             ["state JSON の apply セクションを確認してください。"],
         )
-    for key in list(apply):
-        apply[key] = None
-    apply["state"] = "ready"
+    state["apply"] = {
+        "state": "ready",
+        "apply_branch": None,
+        "oracle_snapshot_commit": None,
+    }
     write_session_state(repo_root, session_id, state)

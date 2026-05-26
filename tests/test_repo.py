@@ -1,5 +1,6 @@
 """git リポジトリ共通処理のテスト。"""
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -686,6 +687,55 @@ def test_read_session_start_commit_uses_session_state(
     assert read_session_start_commit(repo, f"cmoc/session/{session_id}") == (
         "abc123"
     )
+
+
+def test_write_session_state_persists_only_oracle_schema(
+    tmp_path: Path,
+) -> None:
+    """session state は oracle 定義の固定 field だけ永続化する。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_123"
+
+    state_path = write_session_state(
+        repo,
+        session_id,
+        {
+            "session": {
+                "state": "active",
+                "session_home_branch": "main",
+                "session_start_commit": "abc123",
+                "runtime_note": "not durable",
+            },
+            "apply": {
+                "state": "completed",
+                "apply_branch": (
+                    "cmoc/apply/2026-05-10_22-21_10_123/"
+                    "2026-05-10_22-22_10_123"
+                ),
+                "oracle_snapshot_commit": "def456",
+                "apply_worktree": "/repo/.cmoc/worktrees/apply/session/run",
+                "completed": True,
+                "discrepancy_counts": [0],
+                "report_path": "/repo/.cmoc/reports/apply/fork/report.md",
+            },
+        },
+    )
+
+    assert json.loads(state_path.read_text(encoding="utf-8")) == {
+        "session": {
+            "state": "active",
+            "session_home_branch": "main",
+            "session_start_commit": "abc123",
+        },
+        "apply": {
+            "state": "completed",
+            "apply_branch": (
+                "cmoc/apply/2026-05-10_22-21_10_123/"
+                "2026-05-10_22-22_10_123"
+            ),
+            "oracle_snapshot_commit": "def456",
+        },
+    }
 
 
 def _init_repo(tmp_path: Path) -> Path:

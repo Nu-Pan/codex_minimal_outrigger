@@ -94,6 +94,21 @@ def session_id_from_branch(branch_name: str) -> str:
     )
 
 
+def apply_worktree_path_from_branch(repo_root: Path, apply_branch: str) -> Path:
+    """apply branch 名から管理 worktree path を復元する。"""
+    session_id, apply_run_id = apply_branch.removeprefix(
+        APPLY_BRANCH_PREFIX
+    ).split("/", 1)
+    return (
+        repo_root
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / session_id
+        / apply_run_id
+    )
+
+
 def session_state_path(repo_root: Path, session_id: str) -> Path:
     """session state JSON の保存先 path を返す。"""
     return repo_root / ".cmoc" / "sessions" / f"{session_id}.json"
@@ -126,12 +141,36 @@ def write_session_state(
     """session state JSON を保存する。"""
     path = session_state_path(repo_root, session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _session_state_payload(state)
     path.write_text(
-        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True)
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
         + "\n",
         encoding="utf-8",
     )
     return path
+
+
+def _session_state_payload(state: dict[str, object]) -> dict[str, object]:
+    """永続化対象の session state 固定スキーマだけを返す。"""
+    session = state.get("session")
+    apply = state.get("apply")
+    if not isinstance(session, dict) or not isinstance(apply, dict):
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            ["state JSON の session/apply セクションを確認してください。"],
+        )
+    return {
+        "session": {
+            "state": session.get("state"),
+            "session_home_branch": session.get("session_home_branch"),
+            "session_start_commit": session.get("session_start_commit"),
+        },
+        "apply": {
+            "state": apply.get("state"),
+            "apply_branch": apply.get("apply_branch"),
+            "oracle_snapshot_commit": apply.get("oracle_snapshot_commit"),
+        },
+    }
 
 
 def read_session_state(repo_root: Path, session_id: str) -> dict[str, object]:

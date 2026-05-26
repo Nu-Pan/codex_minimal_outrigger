@@ -1116,8 +1116,21 @@ def test_apply_returns_complete_when_no_discrepancies(
         "rev-parse",
         "HEAD",
     ).stdout.strip()
-    assert Path(state["apply"]["apply_worktree"]).is_dir()
-    assert state["apply"]["report_path"] == str(reports[0])
+    apply_run_id = state["apply"]["apply_branch"].rsplit("/", 1)[1]
+    apply_worktree = (
+        repo
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / "2026-05-10_22-21_10_123"
+        / apply_run_id
+    )
+    assert apply_worktree.is_dir()
+    assert set(state["apply"]) == {
+        "state",
+        "apply_branch",
+        "oracle_snapshot_commit",
+    }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_123"
     )
@@ -1221,11 +1234,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
     assert state["apply"] == {
         "apply_branch": None,
-        "apply_worktree": None,
-        "completed": None,
-        "discrepancy_counts": None,
         "oracle_snapshot_commit": None,
-        "report_path": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
@@ -1296,11 +1305,7 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     )
     assert state["apply"] == {
         "apply_branch": None,
-        "apply_worktree": None,
-        "completed": None,
-        "discrepancy_counts": None,
         "oracle_snapshot_commit": None,
-        "report_path": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
