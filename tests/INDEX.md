@@ -27,7 +27,7 @@
 
 ## Summary
 
-- tests/test_codex.py は `commons.codex.run_codex_exec()` の振る舞いを Fake Codex CLI で検証するテスト群の入口です。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の振る舞いを Fake Codex CLI で検証するテスト群の入口です。
 - Structured Output 用の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗時の詳細エラー、`enum` や文字列長制約の検査を扱います。
 - 呼び出しログ、`subcommand_log` への通知、出力プレビュー、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、quota 枯渇時の待機・疎通確認・`--resume` 再実行も確認します。
 - 末尾には、テスト用 git リポジトリ初期化用の `_init_git_repo` と `_git`、および `_FailingTextIO` / `_RecordingTextIO` が含まれます。
@@ -42,14 +42,14 @@
 
 ## Do not read this when
 
-- `cmoc` の個別サブコマンド正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` 側を読むべきです。
-- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
-- `commons.codex.run_codex_exec()` 以外の実装や、`tests` 配下の別テスト群だけを追いたいときは、このファイルでは範囲が広すぎます。
+- `tests/test_indexing.py` の `INDEX.md` メンテナンス仕様そのものを確認したいときは、このファイルではなくそちらを読むべきです。
+- `cmoc` の個別サブコマンド仕様や `oracles` の正本断片を確認したいときは、このテスト目次ではなく対応する仕様文書を読むべきです。
+- `commons.codex.run_codex_exec()` 以外の実装や、`tests` 配下の別テスト群だけを追いたいときは、このファイルは範囲が広すぎます。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
 
 ## hash
 
-- 52aa5741d1fe11d930060b5e1d3c6150a513f342b29b43d9bce0ce41311f2182
+- ed2dcb21afef21cf6299a9d924a94b5f53cf24abbaed50794c8cd44d27cab9c4
 
 # `test_file_naming.py`
 

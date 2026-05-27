@@ -23,27 +23,27 @@
 
 ## Summary
 
-- Codex CLI の共通ラッパーです。`codex exec` のコマンド組み立て、実行、再試行、`output-last-message` の回収をまとめます。
-- Structured Output の schema 検証と JSON パース、必要な場合の意味検査を扱います。
-- quota 枯渇時の待機・再開、実行ログ保存、`oracles` 変更検査もこのモジュールにあります。
+- Codex CLI の共通ラッパーで、`codex exec` のコマンド組み立て、実行、再試行、`output-last-message` の回収をまとめる。
+- Structured Output の schema 検証、JSON パース、必要に応じた意味検査を扱う。
+- quota 枯渇時の待機・再開、実行ログ保存、`oracles` 変更検査、`INDEX.md` メンテナンス前処理もこのモジュールにある。
 
 ## Read this when
 
 - `codex exec` の共通呼び出し方法や、`read_only` / `workspace-write` の切り替えを確認したいとき。
 - Structured Output を使う JSON schema の保存・検証・再試行の流れを見直したいとき。
-- quota 枯渇時の polling と resume、実行ログや last message の扱いを追いたいとき。
-- `oracles` 変更検査、INDEX.md メンテナンス、model / reasoning_effort の制約を確認したいとき。
+- quota 枯渇時の待機、疎通確認、`--resume` による再開、実行ログや `output-last-message` の扱いを追いたいとき。
+- `oracles` 変更検査、`INDEX.md` メンテナンス、`model` / `reasoning_effort` の制約を確認したいとき。
 
 ## Do not read this when
 
-- CLI の引数解釈やサブコマンド本体の業務ロジックだけを確認したいときは、このファイルではありません。
-- 共通のエラー整形、タイムスタンプ、計測、リポジトリ探索だけを見たいときは別モジュールを読むべきです。
-- `codex exec` と無関係なファイル操作やテスト実装だけを調べたいときは読む必要はありません。
-- `oracles` の正本仕様そのものを確認したいときは、このラッパーではなく `oracles` 配下を読むべきです。
+- CLI の引数解釈やサブコマンド本体の業務ロジックだけを確認したいときは、このファイルではなく該当サブコマンドを読むべきです。
+- 共通のエラー整形、タイムスタンプ生成、計測、リポジトリ探索だけを調べたいときは、別の `src/commons` モジュールを読むべきです。
+- `codex exec` と無関係なファイル操作やテスト実装だけを確認したいときは、このモジュールを読む必要はありません。
+- `oracles` の正本仕様そのものを確認したいときは、このラッパーではなく `oracles` 配下を直接読むべきです。
 
 ## hash
 
-- 7944b53e5bb98df359f564ca4aa216edaa0291f0b4cb40517f42dc392ba3192f
+- e201e1cd8bdcd03fc7a9a1fda12260f3712522f293ac1f8ecc4e621ffac1193f
 
 # `command_runner.py`
 
