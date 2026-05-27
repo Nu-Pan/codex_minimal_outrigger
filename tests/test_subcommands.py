@@ -3542,6 +3542,66 @@ def test_session_join_precondition_failure_does_not_print_manual_resolution(
     assert "手動解消が必要です" not in captured.err
 
 
+def test_session_join_switch_failure_prints_manual_resolution(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """副作用段階の switch 失敗では merge 前でも手動解決を案内する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    home_branch = state["session"]["session_home_branch"]
+    original_run_git = session_join_module.run_git
+
+    def fail_switch_to_home_branch(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        """home branch への switch 失敗を模擬する。"""
+        if args == ["switch", home_branch]:
+            raise subprocess.CalledProcessError(
+                128,
+                ["git", *args],
+                output="",
+                stderr="fatal: cannot switch branch",
+            )
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
+
+    monkeypatch.setattr(
+        session_join_module,
+        "run_git",
+        fail_switch_to_home_branch,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        cmoc_session_join_impl(repo)
+
+    captured = capsys.readouterr()
+    assert "手動解消が必要です" in captured.err
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+
+
 def test_session_join_stops_non_conflict_merge_failure_without_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

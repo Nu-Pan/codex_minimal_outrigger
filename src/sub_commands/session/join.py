@@ -33,7 +33,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("session join")
-    merge_started = False
+    side_effect_started = False
     try:
         start_step(timer, 1, 5, "validate session state")
         session_branch = _current_session_branch(repo_root)
@@ -48,10 +48,10 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
 
         start_step(timer, 3, 5, "switch to session home branch")
         _assert_local_branch_exists(repo_root, home_branch)
+        side_effect_started = True
         run_git(repo_root, ["switch", home_branch])
 
         start_step(timer, 4, 5, "merge session branch")
-        merge_started = True
         result = run_git(
             repo_root,
             ["merge", "--no-ff", session_branch],
@@ -70,8 +70,8 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         print(f"session home branch: {home_branch}")
         timer.report()
     except Exception:
-        # git merge 開始後だけ、残った merge state の手動解決を案内する。
-        if merge_started:
+        # 副作用段階に入った後は rollback せず、手動解決を案内する。
+        if side_effect_started:
             print(_MANUAL_RESOLUTION_MESSAGE, file=sys.stderr)
         raise
 
