@@ -44,25 +44,29 @@
 
 ## Summary
 
-- `cmoc apply fork` の本体処理を実装するモジュールです。
-- session state の前提条件検証から、apply branch / worktree の作成、要修正点の調査・改善反復、コミット、レポート出力までを扱います。
-- Structured Output の検証、対象ファイル列挙、禁止領域チェック、apply report の YAML Front Matter 付与も含みます。
+- `src/sub_commands/apply/fork.py` は `cmoc apply` の本体処理を担う実装モジュールです。
+- session branch の前提条件確認から、apply branch / worktree の作成、`INDEX.md` の維持、不整合調査、修正適用、コミット、レポート出力までを一連で扱います。
+- Structured Output の schema 検証、対象ファイルの列挙、部分適用・全体適用の分岐、禁止領域の検査、apply state の更新とエラー時復旧も含みます。
+- Codex CLI への調査依頼・要修正点改善・修正作業・commit message 生成・作業レポート生成の各 prompt もこのファイルで組み立てます。
 
 ## Read this when
 
 - `cmoc apply fork` の全体フローを実装・修正・レビューしたいとき。
-- session state の検証、apply branch / worktree の作成、調査・修正ループ、report 保存の流れを確認したいとき。
-- 部分適用・全体適用の切り替え、要修正点リストの改善、コミットや状態遷移の責務を整理したいとき。
+- session state の検証、apply branch / worktree の作成、調査・修正ループ、レポート生成までの実行順を確認したいとき。
+- 部分適用モードと全体適用モードの切り替え、対象ファイル列挙、要修正点リストの改善ループを確認したいとき。
+- Structured Output の検証、禁止領域チェック、コミット、状態遷移、apply report の YAML Front Matter 付与を確認したいとき。
+- 調査対象ファイルに対する Codex CLI のプロンプト構築や、要修正点の整理・再構成の責務を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon` の挙動だけを確認したいとき。
-- `cmoc session fork/join/abandon` など、apply 以外のサブコマンドだけを追いたいとき。
-- `cmoc apply fork` のレポート生成や要修正点調査ではなく、別ファイルの共通基盤だけを見たいとき。
+- `cmoc apply join` や `cmoc apply abandon` だけの挙動を確認したいとき。
+- `cmoc session fork/join/abandon` など、apply ではないサブコマンドだけを追いたいとき。
+- `cmoc apply fork` の仕様断片そのものを読みたいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
+- Codex CLI 呼び出しや Structured Output の共通基盤だけを確認したいときは、このファイルではなく共通実装を読むべきです。
 
 ## hash
 
-- 005e484ce657980d05fd0d3afdfde49f833bbaa81b1115af66d7386c3d138eae
+- c2ed5b844b68241da6c30ef7a8443a7e500efd4717244ad75961e5a8a9243a46
 
 # `join.py`
 

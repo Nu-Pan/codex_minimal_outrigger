@@ -108,28 +108,29 @@
 ## Summary
 
 - `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
-- .cmoc の ignore 保証、tracked な `.cmoc` の index 解除、cmoc ブランチ判定、ファイル列挙と変更・削除検出を扱います。
-- `oracles` / 実装ファイルの抽出、`INDEX.md`・`.gitignore`・`.git/info/exclude`・`memo` の除外条件、session state の読み書きと active session 探索を確認します。
+- .cmoc の ignore 保証、tracked な `.cmoc` の index 解除、cmoc ブランチ判定、`session_id` 抽出、apply worktree path 復元を扱います。
+- `oracles` / 実装ファイルの列挙、変更・削除検出、`INDEX.md` / `.gitignore` / `.git/info/exclude` / `memo` の除外条件、`commit_if_changed` の index 復元と `assert_no_uncommitted_changes` の前提を確認します。
+- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session 探索と session start commit 参照を扱います。
 - ファイル末尾には、テスト用 git リポジトリを初期化する `_init_repo` と、git コマンド実行用の `_git` 補助関数があります。
 
 ## Read this when
 
 - `tests/test_repo.py` が `commons.repo` のどの機能を検証しているか確認したいとき。
-- .cmoc の ignore 保証、tracked な `.cmoc` の untrack、cmoc ブランチ判定を見直したいとき。
-- `oracles` / 実装ファイルの列挙、変更検出、削除検出、`INDEX.md` や `.gitignore`、`.git/info/exclude`、`memo` の扱いを確認したいとき。
+- .cmoc の ignore 保証、tracked な `.cmoc` の untrack、cmoc ブランチ判定、`session_id` 抽出を見直したいとき。
+- `oracles` / 実装ファイルの列挙、変更検出、削除検出、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の扱いを確認したいとき。
 - session state の読み書き、active session の探索、`commit_if_changed` や `assert_no_uncommitted_changes` の前提条件を把握したいとき。
 - テスト用 git リポジトリの初期化や、`_init_repo` / `_git` 補助関数の役割を確認したいとき。
 
 ## Do not read this when
 
-- cmoc の CLI 操作手順や各サブコマンドのユーザー向け仕様だけを確認したいとき。
-- `commons.repo` 以外の実装や、別モジュールのテスト群だけを追いたいとき。
-- `INDEX.md` の生成・更新ルールそのものや、`README.md`・`AGENTS.md`・`memo` の運用規則だけを確認したいとき。
-- git の一般論ではなく、このテスト群が何を検証しているかを知りたいとき。
+- `commons.repo` の実装ロジックそのものを追いたいときは、このテスト目次ではなく実装本体を読むべきです。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
+- `tests/test_codex.py` や `tests/test_indexing.py` など、別のテスト群の観点だけを追いたいときはこのファイルでは範囲が広すぎます。
 
 ## hash
 
-- 615aa798360925b26210c46a85657ff1e25ccca48f14f0163d9c429e60379216
+- f2cc015d1911fd3f0db43abcde3b848f8495c09513ffa45f1be69c0d78dec84e
 
 # `test_subcommands.py`
 
@@ -156,7 +157,7 @@
 
 ## hash
 
-- 1a26bab981be0d0ab3fd2e6442982af4b27c8b1215d7f27afc18353d712713d8
+- e8e431187efb20afef75ccd6854544cc8aaef2a5602a5526ce902278e7507ca0
 
 # `test_timestamps.py`
 
