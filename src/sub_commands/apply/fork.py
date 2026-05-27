@@ -205,7 +205,13 @@ def cmoc_apply_impl(
     assert_no_uncommitted_changes(repo_root)
     oracle_snapshot_commit = head_commit(repo_root)
 
+    failed_stage = "create apply worktree"
+    apply_run_id = "unknown"
+    apply_branch = "unknown"
+    apply_worktree = repo_root
+    discrepancy_counts: list[int] = []
     try:
+        failed_stage = "create apply worktree"
         start_step(timer, 3, 6, "create apply worktree")
         apply_run_id, apply_branch, apply_worktree = _create_apply_worktree(
             repo_root,
@@ -221,12 +227,13 @@ def cmoc_apply_impl(
         )
 
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
+        failed_stage = "maintain INDEX.md files"
         start_step(timer, 4, 6, "maintain INDEX.md files")
         maintain_indexes(apply_worktree)
 
         # 不整合調査と追従作業を指定回数まで反復する。
+        failed_stage = "investigate and apply discrepancies"
         start_step(timer, 5, 6, "investigate and apply discrepancies")
-        discrepancy_counts: list[int] = []
         completed = False
         for loop_index in range(1, repeat_investigate_and_fix + 1):
             discrepancies = _investigate_discrepancies(
@@ -254,6 +261,7 @@ def cmoc_apply_impl(
         _commit_all_changes(apply_worktree)
 
         # 実行結果を人間向け report と exit code に変換する。
+        failed_stage = "write report"
         start_step(timer, 6, 6, "write report")
         report_path = _write_apply_report(
             apply_worktree,
@@ -278,8 +286,31 @@ def cmoc_apply_impl(
         print(str(report_path))
         timer.report()
         return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
-    except Exception:
+    except Exception as error:
         _mark_apply_error(state_root, session_id, state)
+        try:
+            report_path = _write_apply_error_report(
+                repo_root,
+                session_id,
+                apply_run_id,
+                session_branch,
+                apply_branch,
+                apply_worktree,
+                oracle_snapshot_commit,
+                oracle_snapshot_commit,
+                _safe_head_commit(repo_root),
+                failed_stage,
+                error,
+                discrepancy_counts,
+            )
+        except Exception as report_error:
+            error.add_note(
+                "apply error report generation also failed: "
+                f"{type(report_error).__name__}: {report_error}"
+            )
+        else:
+            print(f"apply run id: {apply_run_id}")
+            print(str(report_path))
         raise
 
 
@@ -976,6 +1007,91 @@ def _write_apply_report(
     return report_path
 
 
+def _write_apply_error_report(
+    report_repo_root: Path,
+    session_id: str,
+    apply_run_id: str,
+    session_branch: str,
+    apply_branch: str,
+    apply_worktree: Path,
+    oracle_snapshot_commit: str,
+    session_head_at_apply_start: str,
+    session_head_at_apply_finish: str,
+    failed_stage: str,
+    error: BaseException,
+    discrepancy_counts: list[int],
+) -> Path:
+    """例外終了時の apply レポートを cmoc 側で保存する。"""
+    report_dir = report_repo_root / ".cmoc" / "reports" / "apply" / "fork"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    generated_at = make_timestamp()
+    report_path = report_dir / f"{generated_at}.md"
+
+    count_lines = [
+        f"- {index} 回目: {count} 件"
+        for index, count in enumerate(discrepancy_counts, start=1)
+    ]
+    if not count_lines:
+        count_lines = ["- エラー発生前に記録済みの要修正点件数はありません。"]
+
+    body = "\n".join(
+        [
+            "## 作業結果",
+            "エラー",
+            "",
+            "`cmoc apply fork` は途中でエラーが起きたため、"
+            "調査・修正ループを正常に終了できませんでした。",
+            "",
+            "## エラー詳細",
+            f"- Failed stage: `{failed_stage}`",
+            f"- Exception type: `{type(error).__name__}`",
+            f"- Exception message: `{error}`",
+            "",
+            "## 要修正点件数の推移",
+            *count_lines,
+            "",
+            f"## ブランチ {apply_branch} 上の全変更内容",
+            "カテゴリ: エラー終了",
+            "",
+            "エラー終了したため、変更内容の意味論的カテゴリ別要約は"
+            "確定できません。必要に応じて apply worktree と apply branch の"
+            "差分を確認してください。",
+        ]
+    )
+    report = _apply_report_with_front_matter(
+        report_body=body,
+        generated_at=generated_at,
+        session_id=session_id,
+        apply_run_id=apply_run_id,
+        session_branch=session_branch,
+        apply_branch=apply_branch,
+        apply_worktree=apply_worktree,
+        oracle_snapshot_commit=oracle_snapshot_commit,
+        session_head_at_apply_start=session_head_at_apply_start,
+        session_head_at_apply_finish=session_head_at_apply_finish,
+        result_label="エラー",
+        discrepancy_counts=discrepancy_counts,
+    )
+    _validate_apply_report(
+        report,
+        apply_branch,
+        "エラー",
+        completed=False,
+        discrepancy_counts=discrepancy_counts,
+        require_front_matter=True,
+    )
+    report_path.write_text(report, encoding="utf-8")
+    return report_path
+
+
+def _safe_head_commit(repo_root: Path) -> str:
+    """エラー report 用に HEAD を取得し、失敗時は unknown を返す。"""
+    try:
+        return head_commit(repo_root)
+    except Exception:
+        return "unknown"
+
+
 def _validate_apply_report(
     report: str,
     branch_name: str,
@@ -1019,7 +1135,8 @@ def _validate_apply_report(
         if f"{index}" not in body or f"{count}" not in body:
             missing.append(f"要修正点件数の推移 loop {index}")
     if (
-        not completed
+        result_label == "未収束"
+        and not completed
         and "まだ要修正点が残っている可能性" not in body
     ):
         missing.append("未収束時の残存可能性")

@@ -2535,8 +2535,9 @@ def test_apply_prompt_orders_completion_before_details() -> None:
 def test_apply_rejects_incomplete_report_from_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """必須内容を欠く apply レポートは保存せずエラーにする。"""
+    """必須内容を欠く Codex レポートはエラーレポートを保存する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -2572,7 +2573,78 @@ def test_apply_rejects_incomplete_report_from_codex(
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_123/"
     )
-    assert not report_dir.exists() or list(report_dir.glob("*.md")) == []
+    reports = list(report_dir.glob("*.md"))
+    assert len(reports) == 1
+    report_text = reports[0].read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert str(reports[0]) in captured.out
+    assert "result: \"エラー\"" in report_text
+    assert "## 作業結果" in report_text
+    assert "エラー" in report_text
+    assert "## エラー詳細" in report_text
+    assert "- Failed stage: `write report`" in report_text
+    assert "- Exception type: `CmocError`" in report_text
+    assert "Codex CLI が生成した apply report に必須内容がありません。" in report_text
+    assert "## 要修正点件数の推移" in report_text
+    assert "- 1 回目: 0 件" in report_text
+    assert "カテゴリ: エラー終了" in report_text
+
+
+def test_apply_writes_error_report_when_midway_stage_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """apply fork は途中エラーでも保存済みレポートのパスを出力する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    def fail_maintain_indexes(repo_root: Path) -> bool:
+        raise RuntimeError(f"fake maintain failure at {repo_root.name}")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        fail_maintain_indexes,
+    )
+
+    with pytest.raises(RuntimeError, match="fake maintain failure"):
+        cmoc_apply_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    reports = list(
+        (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
+    )
+    captured = capsys.readouterr()
+
+    assert state["apply"]["state"] == "error"
+    assert state["apply"]["apply_branch"].startswith(
+        "cmoc/apply/2026-05-10_22-21_10_123/"
+    )
+    assert len(reports) == 1
+    assert str(reports[0]) in captured.out
+    report_text = reports[0].read_text(encoding="utf-8")
+    assert "result: \"エラー\"" in report_text
+    assert "cmoc_apply_run_id: " in report_text
+    assert (
+        "cmoc_apply_branch: \"cmoc/apply/2026-05-10_22-21_10_123/"
+        in report_text
+    )
+    assert "apply_worktree_path: " in report_text
+    assert "- Failed stage: `maintain INDEX.md files`" in report_text
+    assert "- Exception type: `RuntimeError`" in report_text
+    assert "- Exception message: `fake maintain failure at " in report_text
+    assert "エラー発生前に記録済みの要修正点件数はありません。" in report_text
+    assert "カテゴリ: エラー終了" in report_text
 
 
 def test_apply_rejects_non_cmoc_branch(tmp_path: Path) -> None:
