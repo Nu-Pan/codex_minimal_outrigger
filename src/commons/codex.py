@@ -114,7 +114,9 @@ def run_codex_exec(
 
         # quota 枯渇だけは待機・resume に入り、それ以外の CLI 失敗は中断する。
         if result.returncode != 0:
-            if _looks_like_quota_exhaustion(result.stdout, result.stderr):
+            if _last_message_indicates_quota_exhaustion(
+                run.last_message_path,
+            ):
                 session_id = _extract_session_id(result.stdout, result.stderr)
                 command = _resume_command(command, session_id)
                 print("quota exhausted; waiting before resume")
@@ -136,9 +138,8 @@ def run_codex_exec(
                     last_stderr = result.stderr
                     if result.returncode == 0:
                         break
-                    if not _looks_like_quota_exhaustion(
-                        result.stdout,
-                        result.stderr,
+                    if not _last_message_indicates_quota_exhaustion(
+                        run.last_message_path,
                     ):
                         _raise_codex_failure(run.log_path, result)
                     print("quota exhausted again after resume; waiting")
@@ -300,9 +301,8 @@ def _wait_for_quota_and_resume(
                 attempt,
                 schema_path,
             )
-        if not _looks_like_quota_exhaustion(
-            poll_result.stdout,
-            poll_result.stderr,
+        if not _last_message_indicates_quota_exhaustion(
+            poll_run.last_message_path,
         ):
             _raise_codex_failure(poll_run.log_path, poll_result)
         wait_started = perf_counter()
@@ -605,67 +605,14 @@ def _raise_quota_poll_failure(
     )
 
 
-def _looks_like_quota_exhaustion(stdout: str, stderr: str) -> bool:
-    """Codex CLI 出力から quota 枯渇らしさを判定する。"""
-    # 任意の "limit exceeded" ではなく、Codex CLI の構造化エラーや quota を
-    # 明示する文言だけを quota 枯渇として扱う。
-    text = f"{stdout}\n{stderr}".lower()
-    return _has_quota_error_code(stdout, stderr) or any(
-        re.search(pattern, text) is not None
-        for pattern in (
-            r"\binsufficient[_ -]quota\b",
-            r"\brate[_ -]limit[_ -]exceeded\b",
-            r"\bquota[_ -]exhausted\b",
-            r"\busage[_ -]limit[_ -]reached\b",
-            r"\bcredits?[_ -]exhausted\b",
-            r"\bquota\s+(?:has\s+)?(?:been\s+)?(?:exhausted|exceeded)\b",
-            r"\b(?:5h|weekly)\s+limit\s+(?:has\s+)?(?:been\s+)?"
-            r"(?:reached|exhausted)\b.*\bcredits?\b",
-        )
-    )
-
-
-def _has_quota_error_code(stdout: str, stderr: str) -> bool:
-    """Codex JSONL 内の明示的な quota 系 error code を検出する。"""
-    quota_codes = {
-        "insufficient_quota",
-        "quota_exhausted",
-        "rate_limit_exceeded",
-        "usage_limit_reached",
-        "credits_exhausted",
-    }
-    for line in f"{stdout}\n{stderr}".splitlines():
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if _contains_quota_error_code(value, quota_codes):
-            return True
-    return False
-
-
-def _contains_quota_error_code(
-    value: object,
-    quota_codes: set[str],
-) -> bool:
-    """ネストした JSON object/list から quota error code を探す。"""
-    if isinstance(value, dict):
-        for key, child in value.items():
-            key_text = str(key).lower().replace("-", "_")
-            if key_text in {"code", "error_code", "type"} and isinstance(
-                child,
-                str,
-            ):
-                code = child.lower().replace("-", "_")
-                if code in quota_codes:
-                    return True
-            if _contains_quota_error_code(child, quota_codes):
-                return True
-    if isinstance(value, list):
-        for child in value:
-            if _contains_quota_error_code(child, quota_codes):
-                return True
-    return False
+def _last_message_indicates_quota_exhaustion(path: Path) -> bool:
+    """最終出力メッセージだけを quota 枯渇判定の根拠にする。"""
+    # oracle は stdout/stderr ではなく output-last-message の文言を判定基準にする。
+    try:
+        last_message = _read_last_message(path)
+    except ValueError:
+        return False
+    return "quota exhausted" in last_message.lower()
 
 
 def _extract_session_id(stdout: str, stderr: str) -> str | None:

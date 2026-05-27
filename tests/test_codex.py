@@ -1100,6 +1100,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "  echo 'quota exhausted' > \"$LAST\"",
                 "  echo 'quota limit exhausted' >&2",
                 "  exit 1",
                 "  fi",
@@ -1204,6 +1205,7 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "  echo 'quota exhausted' > \"$LAST\"",
                 "  echo 'quota limit exhausted' >&2",
                 "  exit 1",
                 "fi",
@@ -1260,6 +1262,53 @@ def test_run_codex_exec_does_not_treat_plain_limit_error_as_quota(
     assert len(log_files) == 1
 
 
+def test_run_codex_exec_ignores_stdout_quota_code_without_last_message(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """stdout/stderr の quota 系文字列だけでは待機せず即時失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo '{\"session_id\":\"session-1\"}'",
+                "echo '{\"type\":\"error\","
+                "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'not a quota final message' > \"$LAST\"",
+                "echo 'quota exhausted' >&2",
+                "exit 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    assert "codex exec が失敗しました。" in error.value.message
+    assert "quota exhausted" in error.value.detail
+    assert len(log_files) == 1
+
+
 def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1274,6 +1323,14 @@ def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 "PROMPT=\"$(cat)\"",
                 "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
                 "  echo 'network failure during poll' >&2",
@@ -1282,6 +1339,7 @@ def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
                 "echo '{\"session_id\":\"session-1\"}'",
                 "echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'quota exhausted' > \"$LAST\"",
                 "echo 'quota exhausted' >&2",
                 "exit 1",
             ]
@@ -1334,6 +1392,7 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
                 "echo '{\"session_id\":\"session-1\"}'",
                 "echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'quota exhausted' > \"$LAST\"",
                 "echo 'quota exhausted' >&2",
                 "exit 1",
             ]
