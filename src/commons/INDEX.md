@@ -112,21 +112,21 @@
 ## Read this when
 
 - `INDEX.md` の自動配置・自動更新ルールを実装または修正したいとき。
-- ディレクトリ列挙条件、`memo` や `.gitignore`、バイナリ、`INDEX.md` 自身の除外条件を確認したいとき。
+- ディレクトリ列挙条件、`memo`、`.gitignore`、バイナリ、`INDEX.md` 自身の除外条件を確認したいとき。
 - 既存の目次ブロックの再利用、再生成、空ディレクトリの扱いを見直したいとき。
 - Structured Output の JSON スキーマ検証、prompt 生成、Codex 呼び出しの流れを確認したいとき。
 - `INDEX.md` メンテナンス後の自動コミット対象や、更新順序の仕様を確認したいとき。
 
 ## Do not read this when
 
-- `INDEX.md` の本文の書き方や正本仕様そのものを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
-- 個別サブコマンドの手順や業務ロジックだけを確認したいときは、このファイルは対象外です。
-- `INDEX.md` 以外の `codex exec` の一般処理や git 操作の詳細だけを見たいときは、`commons/codex.py` や `commons/repo.py` を優先すべきです。
+- `INDEX.md` の本文そのものや正本仕様を確認したいだけのときは、`oracles/app_specs/indexing.md` を読むべきです。
+- 個別サブコマンドの手順や業務ロジックだけを確認したいときは、このモジュールではなく該当実装を読むべきです。
+- `codex exec` の一般的な呼び出し方や git 操作の詳細だけを追いたいときは、`commons/codex.py` や `commons/repo.py` を優先すべきです。
 - `oracles` 全体のルーティング方針だけを確認したいときは、このファイルではありません。
 
 ## hash
 
-- 82b749149c407727e039210fc10852893f4201d1c0437b6459d55f2693daaa09
+- 7c1cd200f24b395b17e06e489e8f5c3bb4869b164752ae4a06aca03dbcfa1eeb
 
 # `repo.py`
 

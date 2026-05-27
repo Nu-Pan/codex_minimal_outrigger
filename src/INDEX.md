@@ -2,31 +2,33 @@
 
 ## Summary
 
-- `cmoc` の共通基盤モジュールをまとめたディレクトリで、Codex 呼び出し、コマンド実行制御、エラー整形、`INDEX.md` メンテナンス、git/セッション状態、ログ、時刻、経過時間計測を担当します。
-- `codex.py` は Codex CLI の起動、Structured Output 検証、quota 待機、出力パースを扱います。
-- `repo.py` は git リポジトリ探索、`cmoc/session/*` と `cmoc/apply/*` の判定、`session state` の読み書きを扱います。
+- `src/commons` は `cmoc` の共通基盤モジュール群です。Codex 呼び出し、コマンド実行制御、エラー整形、`INDEX.md` 生成、git/セッション状態、ログ、時刻、経過時間計測をまとめています。
+- `codex.py` は Codex CLI の起動、Structured Output 検証、quota 待機、出力パースを担当します。
+- `repo.py` は git リポジトリ探索、`cmoc/session/*` と `cmoc/apply/*` の判定、`.cmoc` の ignore 保証、session state の読み書きを担当します。
 - `command_runner.py`、`subcommand_log.py`、`errors.py` はサブコマンド実行の共通制御、tee ログ、共通エラーレポートを支えます。
 - `indexing.py` は `INDEX.md` の自動配置・更新と、目次情報の生成・検証を担当します。
 - `timestamps.py` と `timing.py` は `cmoc` で使うタイムスタンプ生成と経過時間表示を定義します。
+- `__init__.py` は `src.commons` パッケージを宣言する最小モジュールです。
 
 ## Read this when
 
-- サブコマンドから共通の `codex exec` 呼び出しや Structured Output を実装・修正したいとき。
-- リポジトリルート探索、`cmoc/session/*` と `cmoc/apply/*`、`session state` の扱いを確認したいとき。
-- サブコマンドの共通ラッパー、終了レポート、tee ログ、エラー表示を確認したいとき。
-- `INDEX.md` の自動更新ルール、ハッシュ計算、除外条件を確認したいとき。
-- 時刻文字列や経過時間表示の仕様を確認したいとき。
+- `cmoc` の共通基盤モジュール全体を、どのファイルに何があるかという観点で把握したいとき。
+- Codex CLI 呼び出し、Structured Output 検証、quota 待機、出力パースの共通処理を確認したいとき。
+- git リポジトリ探索、`cmoc/session/*` と `cmoc/apply/*` の判定、`.cmoc` の ignore 保証、session state の読み書きを確認したいとき。
+- サブコマンド実行の共通ラッパー、tee ログ、共通エラーレポート、終了時レポートを確認したいとき。
+- `INDEX.md` の自動配置・更新、ハッシュ計算、除外条件、目次ブロックの検証を確認したいとき。
+- タイムスタンプ生成や経過時間表示の仕様を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数や業務フローだけを確認したいときは、`src/sub_commands` 側を読むべきです。
-- `oracles` や `dev_rules` の仕様本文だけを確認したいときは、このディレクトリを読む必要はありません。
-- git や Codex 呼び出しの共通処理が関係しない小さな実装変更では、ここから入る必要はありません。
-- 特定モジュールの単独挙動だけを追いたいときは、`codex.py` など該当ファイルを直接読むべきです。
+- 個別の `codex.py`、`repo.py`、`errors.py` など 1 ファイルだけの実装確認で足りるときは、この目次を経由せず該当モジュールを直接読むべきです。
+- `cmoc` のサブコマンド本体や引数仕様だけを確認したいときは、`src/sub_commands/` 側の目次や実装を読むべきです。
+- `oracles` や開発ルールの本文だけを確認したいときは、このディレクトリではなく `oracles` 配下や `dev_rules` 配下を読むべきです。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、この目次ではなく `indexing.py` を読むべきです。
 
 ## hash
 
-- 6cf7b311807b19187b3de349bb6500442aeb1e70030f2d96831fe81ab4926d10
+- 00fa62c96f083b1c206f9f2159fdb61e07a9115bc23069eda885ece9010382c6
 
 # `main.py`
 
