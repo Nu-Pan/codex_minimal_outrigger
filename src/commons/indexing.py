@@ -2,9 +2,12 @@
 
 import codecs
 import hashlib
+import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 from .codex import (
     INDEX_GENERATION_MODEL,
@@ -94,23 +97,18 @@ def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
     # 既存 INDEX.md の内容と、再利用可能な目次ブロックを読み込む。
     index_path = directory / "INDEX.md"
     index_exists = index_path.exists()
-    old_content = (
-        index_path.read_text(encoding="utf-8") if index_exists else ""
-    )
+    try:
+        old_content = (
+            index_path.read_text(encoding="utf-8") if index_exists else ""
+        )
+    except (OSError, UnicodeDecodeError):
+        old_content = ""
     existing_entries = _parse_index_entries(old_content)
     entries: list[str] = []
 
     # 目次作成対象の除外条件だけを使い、配置対象除外名とは切り分ける。
     for child in sorted(directory.iterdir(), key=lambda path: path.name):
-        if (
-            child.name == "INDEX.md"
-            or child.name.startswith(".")
-            or _is_repo_memo(repo_root, child)
-        ):
-            continue
-        if _is_gitignored(repo_root, child):
-            continue
-        if _looks_binary(child):
+        if not _is_index_entry_target(repo_root, child):
             continue
 
         digest = _hash_path(repo_root, child)
@@ -160,19 +158,19 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
 
     return "\n".join(
         [
-            f"# `{path.name}`",
+            f"# `{_encode_index_token(path.name)}`",
             "",
             "## Summary",
             "",
-            *_bullet_lines(summary),
+            *_bullet_lines(_safe_index_texts(summary)),
             "",
             "## Read this when",
             "",
-            *_bullet_lines(read_when),
+            *_bullet_lines(_safe_index_texts(read_when)),
             "",
             "## Do not read this when",
             "",
-            *_bullet_lines(do_not_read_when),
+            *_bullet_lines(_safe_index_texts(do_not_read_when)),
             "",
             "## hash",
             "",
@@ -200,24 +198,46 @@ def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
 
 
 def _hash_path(repo_root: Path, path: Path) -> str:
-    """ファイルまたは直下項目ハッシュ連結から sha256 を計算する。"""
+    """ファイル内容または直下項目 serialization から sha256 を計算する。"""
     # ファイルは内容 bytes をそのまま hash 化する。
     if path.is_file():
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
-    # ディレクトリは目次作成対象と同じ除外条件で子 hash を連結する。
-    child_hashes = []
-    for child in sorted(path.iterdir(), key=lambda item: item.name):
-        if (
-            child.name == "INDEX.md"
-            or child.name.startswith(".")
-            or _is_repo_memo(repo_root, child)
-            or _is_gitignored(repo_root, child)
-            or _looks_binary(child)
-        ):
+    # ディレクトリは直下目次対象の type/path/hash を安定形式で連結する。
+    serialized_entries: list[str] = []
+    for child in sorted(
+        path.iterdir(),
+        key=lambda item: item.relative_to(repo_root).as_posix(),
+    ):
+        if not _is_index_entry_target(repo_root, child):
             continue
-        child_hashes.append(_hash_path(repo_root, child))
-    return hashlib.sha256("".join(child_hashes).encode("utf-8")).hexdigest()
+        entry_type = "directory" if child.is_dir() else "file"
+        relative_path = child.relative_to(repo_root).as_posix()
+        content_hash = _hash_path(repo_root, child)
+        serialized_entries.append(
+            f"{entry_type}\0{relative_path}\0{content_hash}\n"
+        )
+    return hashlib.sha256(
+        "".join(serialized_entries).encode("utf-8")
+    ).hexdigest()
+
+
+def _is_index_entry_target(repo_root: Path, path: Path) -> bool:
+    """INDEX 目次情報と directory hash に含める直下項目か判定する。"""
+    # symlink は repo 外混入や循環の入口になるため、実体種別を見ずに除外する。
+    if path.is_symlink():
+        return False
+    if (
+        path.name == "INDEX.md"
+        or path.name.startswith(".")
+        or _is_repo_memo(repo_root, path)
+    ):
+        return False
+    if _is_gitignored(repo_root, path):
+        return False
+    if _looks_binary(path):
+        return False
+    return True
 
 
 def _looks_binary(path: Path) -> bool:
@@ -248,7 +268,8 @@ def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
     # root 直下 memo と、名前ベース除外ディレクトリの配下は探索しない。
     name = directory.name
     return (
-        name.startswith(".")
+        directory.is_symlink()
+        or name.startswith(".")
         or name in _INDEX_DIRECTORY_EXCLUDED_NAMES
         or _is_repo_memo(repo_root, directory)
     )
@@ -264,14 +285,57 @@ def _is_gitignored(repo_root: Path, path: Path) -> bool:
     """gitignore 対象のファイル・ディレクトリか判定する。"""
     # tracked 状態に依存せず .gitignore pattern への一致だけを見る。
     relative = path.relative_to(repo_root).as_posix()
-    result = subprocess.run(
-        ["git", "check-ignore", "--no-index", "-q", "--", relative],
-        cwd=repo_root,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    env = _gitignore_git_env()
+    with tempfile.TemporaryDirectory(prefix="cmoc-index-gitignore-") as name:
+        temp_git_dir = Path(name) / ".git"
+        subprocess.run(
+            [
+                "git",
+                "--git-dir",
+                str(temp_git_dir),
+                "--work-tree",
+                str(repo_root),
+                "init",
+                "-q",
+            ],
+            cwd=repo_root,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+        result = subprocess.run(
+            [
+                "git",
+                "--git-dir",
+                str(temp_git_dir),
+                "--work-tree",
+                str(repo_root),
+                "-c",
+                f"core.excludesFile={os.devnull}",
+                "check-ignore",
+                "--no-index",
+                "-q",
+                "--",
+                relative,
+            ],
+            cwd=repo_root,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
     return result.returncode == 0
+
+
+def _gitignore_git_env() -> dict[str, str]:
+    """gitignore 評価用に外部 Git ignore 設定を遮断した env を返す。"""
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_SYSTEM"] = os.devnull
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    return env
 
 
 def _validate_index_payload(value: object) -> None:
@@ -310,11 +374,56 @@ def _bullet_lines(values: list[str]) -> list[str]:
     return [f"- {value}" for value in values]
 
 
+def _safe_index_texts(values: list[str]) -> list[str]:
+    """Markdown の 1 行 bullet として扱える文字列へ正規化する。"""
+    # Structured Output 由来の説明文が block 境界を壊さないようにする。
+    return [_safe_index_text(value) for value in values]
+
+
+def _safe_index_text(value: str) -> str:
+    """INDEX.md の固定フォーマットを壊さない 1 行文字列へ変換する。"""
+    # 改行や制御文字は Markdown block の構造を壊すため空白へ寄せる。
+    text = "".join(
+        character if _is_index_text_character(character) else " "
+        for character in value
+    )
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_index_text_character(character: str) -> bool:
+    """INDEX.md の説明行へそのまま置ける文字か判定する。"""
+    # Unicode の通常文字は維持し、ASCII 制御文字だけを除外する。
+    return ord(character) >= 0x20 and ord(character) != 0x7F
+
+
+def _encode_index_token(value: str) -> str:
+    """heading 内の code span に置く名前を可逆な 1 行 token にする。"""
+    # `%` は escape 導入子なので必ず符号化し、backtick と制御文字も避ける。
+    encoded_parts: list[str] = []
+    for character in value:
+        if (
+            character == "%"
+            or character == "`"
+            or not _is_index_text_character(character)
+        ):
+            encoded_parts.extend(
+                f"%{byte:02X}" for byte in character.encode("utf-8")
+            )
+        else:
+            encoded_parts.append(character)
+    return "".join(encoded_parts)
+
+
+def _decode_index_token(value: str) -> str:
+    """heading 内 token を元のファイル・ディレクトリ名へ戻す。"""
+    return unquote(value, encoding="utf-8", errors="strict")
+
+
 def _parse_index_entries(content: str) -> dict[str, str]:
     """既存 INDEX.md を項目名ごとのブロックへ分解する。"""
     # 見出し位置を先に集め、次の見出し直前までを 1 ブロックとして切り出す。
     entries: dict[str, str] = {}
-    matches = list(re.finditer(r"(?m)^# `([^`]+)`\n", content))
+    matches = list(re.finditer(r"(?m)^# `([^`\n]*)`\n", content))
     for index, match in enumerate(matches):
         start = match.start()
         end = (
@@ -322,7 +431,11 @@ def _parse_index_entries(content: str) -> dict[str, str]:
             if index + 1 < len(matches)
             else len(content)
         )
-        entries[match.group(1)] = content[start:end].strip()
+        try:
+            name = _decode_index_token(match.group(1))
+        except UnicodeDecodeError:
+            continue
+        entries[name] = content[start:end].strip()
     return entries
 
 
@@ -339,21 +452,22 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
     """既存目次ブロックが仕様の固定フォーマットに一致するか判定する。"""
     # 見出しと 4 セクションの順序、説明欄の bullet 形式まで検査する。
     # Structured Output schema は空配列を許容するため、bullet 0 件も有効。
-    expected_heading = f"# `{name}`"
+    encoded_name = _encode_index_token(name)
+    expected_heading = f"# `{encoded_name}`"
     if not entry.startswith(expected_heading + "\n"):
         return False
 
     pattern = re.compile(
         r"\A"
-        rf"\# `{re.escape(name)}`\n\n"
+        rf"\# `{re.escape(encoded_name)}`\n\n"
         r"## Summary\n\n"
-        r"(?P<summary>(?:- .*\n)*)"
+        r"(?P<summary>(?:- [^\n]*\n)*)"
         r"\n"
         r"## Read this when\n\n"
-        r"(?P<read>(?:- .*\n)*)"
+        r"(?P<read>(?:- [^\n]*\n)*)"
         r"\n"
         r"## Do not read this when\n\n"
-        r"(?P<skip>(?:- .*\n)*)"
+        r"(?P<skip>(?:- [^\n]*\n)*)"
         r"\n"
         r"## hash\n\n"
         rf"- {digest}"

@@ -56,6 +56,59 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     )
 
 
+def test_maintain_indexes_ignores_external_and_local_excludes_files(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX 生成対象は global/system と `.git/info/exclude` に依存しない。"""
+    global_ignore = tmp_path / "global-excludes"
+    global_ignore.write_text("/global-only.txt\n", encoding="utf-8")
+    global_config = tmp_path / "global-gitconfig"
+    global_config.write_text(
+        f"[core]\n\texcludesFile = {global_ignore.as_posix()}\n",
+        encoding="utf-8",
+    )
+    external_ignore = tmp_path / "system-excludes"
+    external_ignore.write_text("/system-only.txt\n", encoding="utf-8")
+    system_config = tmp_path / "system-gitconfig"
+    system_config.write_text(
+        f"[core]\n\texcludesFile = {external_ignore.as_posix()}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", global_config.as_posix())
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", system_config.as_posix())
+
+    repo = _init_repo(tmp_path)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/local-only.txt\n",
+        encoding="utf-8",
+    )
+    (repo / ".gitignore").write_text("# repo rules only\n", encoding="utf-8")
+    (repo / "global-only.txt").write_text("kept\n", encoding="utf-8")
+    (repo / "local-only.txt").write_text("kept\n", encoding="utf-8")
+    (repo / "system-only.txt").write_text("kept\n", encoding="utf-8")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+    assert changed is True
+    assert "# `global-only.txt`" in content
+    assert "# `local-only.txt`" in content
+    assert "# `system-only.txt`" in content
+
+
 def test_maintain_indexes_creates_empty_index_for_empty_directory(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -118,6 +171,127 @@ def test_maintain_indexes_includes_build_and_tmp_as_entries(
     assert "# `tmp`" in content
     assert not (build / "INDEX.md").exists()
     assert not (tmp / "INDEX.md").exists()
+
+
+def test_maintain_indexes_excludes_symlink_entries(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """symlink は repo 外混入や循環回避のため目次対象から除外する。"""
+    repo = _init_repo(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "external.txt").write_text("external\n", encoding="utf-8")
+    (repo / "real.txt").write_text("real\n", encoding="utf-8")
+    (repo / "linked-file.txt").symlink_to(outside / "external.txt")
+    (repo / "linked-dir").symlink_to(outside, target_is_directory=True)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "symlinks")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成対象を記録する fake Codex CLI。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `real.txt`" in content
+    assert "# `linked-file.txt`" not in content
+    assert "# `linked-dir`" not in content
+    assert not any("linked-file.txt" in purpose for purpose in purposes)
+    assert not any("linked-dir" in purpose for purpose in purposes)
+
+
+def test_maintain_indexes_ignores_symlink_contents_in_directory_hash(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """directory hash は symlink 先の内容変更に影響されない。"""
+    repo = _init_repo(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    external = outside / "external.txt"
+    external.write_text("before\n", encoding="utf-8")
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "real.txt").write_text("real\n", encoding="utf-8")
+    (folder / "external-link.txt").symlink_to(external)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "folder symlink")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+    external.write_text("after\n", encoding="utf-8")
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """symlink 先の変更だけでは呼ばれてはいけない fake Codex CLI。"""
+        raise AssertionError(
+            "codex exec should not be called for symlink target changes"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    changed = maintain_indexes(repo)
+    folder_index = (folder / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is False
+    assert "# `real.txt`" in folder_index
+    assert "# `external-link.txt`" not in folder_index
+
+
+def test_maintain_indexes_excludes_cyclic_symlink_from_directory_hash(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """循環 symlink は辿らず、通常項目だけを INDEX 化する。"""
+    repo = _init_repo(tmp_path)
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "real.txt").write_text("real\n", encoding="utf-8")
+    (folder / "loop").symlink_to(folder, target_is_directory=True)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "cyclic symlink")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    folder_index = (folder / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `real.txt`" in folder_index
+    assert "# `loop`" not in folder_index
 
 
 def test_maintain_indexes_excludes_non_utf8_binary_without_nul(
@@ -312,6 +486,42 @@ def test_maintain_indexes_regenerates_malformed_current_entry(
     assert "## Do not read this when" in content
 
 
+def test_maintain_indexes_regenerates_non_utf8_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """UTF-8 として読めない既存 INDEX.md は停止せず再生成する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "target.txt").write_text("target\n", encoding="utf-8")
+    (repo / "INDEX.md").write_bytes(b"# broken\n\xff\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "broken index")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `README.md`" in content
+    assert "# `target.txt`" in content
+    assert "generate INDEX entry for README.md" in purposes
+    assert "generate INDEX entry for target.txt" in purposes
+
+
 def test_maintain_indexes_retries_invalid_structured_output(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -446,6 +656,90 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_round_trips_special_names_and_multiline_text(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """特殊文字を含む名前と複数行説明文でも INDEX を再利用できる。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "we`ird\n%.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "special file name")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """Markdown 境界に見える文字を含む Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["first\n# `ghost`\nsecond"],
+                "read_this_when": ["read\r\nwhen"],
+                "do_not_read_this_when": ["skip\twhen"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `we%60ird%0A%25.txt`" in content
+    assert "# `we`ird" not in content
+    assert "- first # `ghost` second" in content
+    assert "read when" in content
+    assert "skip when" in content
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """特殊文字を含む最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for escaped current INDEX entries"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
+def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """子の名前変更は親ディレクトリ hash を変え、親 entry を再生成する。"""
+    repo = _init_repo(tmp_path)
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "before.txt").write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "nested content")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """呼び出し対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+
+    purposes.clear()
+    (folder / "before.txt").rename(folder / "after.txt")
+
+    changed = maintain_indexes(repo)
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "generate INDEX entry for folder" in purposes
+    assert "# `folder`" in root_index
+    assert "- generate INDEX entry for folder" in root_index
+
+
 def test_maintain_indexes_reuses_current_index_with_empty_sections(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -554,6 +848,136 @@ def test_maintain_indexes_commits_only_maintenance_paths(
     assert "?? user_work.txt" in status
     assert "INDEX.md" in last_commit_paths
     assert "user_work.txt" not in last_commit_paths
+
+
+def test_maintain_indexes_commits_ignored_new_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ignored な新規 INDEX.md もメンテナンス差分として commit する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("INDEX.md\n", encoding="utf-8")
+    (repo / "target.txt").write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "target.txt")
+    _git(repo, "commit", "-m", "ignore index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "INDEX.md" in last_commit_paths
+    assert _git(repo, "ls-files", "INDEX.md").stdout.strip() == "INDEX.md"
+
+
+def test_maintain_indexes_stages_literal_index_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """特殊文字を含む INDEX.md path が別 path を巻き込まない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("docsX/\n", encoding="utf-8")
+    literal_dir = repo / "docs*"
+    ignored_dir = repo / "docsX"
+    literal_dir.mkdir()
+    ignored_dir.mkdir()
+    (literal_dir / "target.txt").write_text("target\n", encoding="utf-8")
+    (ignored_dir / "INDEX.md").write_text("user ignored\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "docs*/target.txt")
+    _git(repo, "commit", "-m", "special path")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "docs*/INDEX.md" in last_commit_paths
+    assert "docsX/INDEX.md" not in last_commit_paths
+    assert _git(repo, "ls-files", "docsX/INDEX.md").stdout.strip() == ""
+
+
+def test_maintain_indexes_preserves_preexisting_staged_index_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """同じ INDEX.md の既存 staged-only 差分を自動 commit 後も残す。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("before\n", encoding="utf-8")
+    _git(repo, "add", "target.txt")
+    _git(repo, "commit", "-m", "target")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    maintain_indexes(repo)
+    head_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+    (repo / "INDEX.md").write_text(
+        "staged note\n" + head_index,
+        encoding="utf-8",
+    )
+    _git(repo, "add", "INDEX.md")
+    (repo / "INDEX.md").write_text(head_index, encoding="utf-8")
+    target.write_text("after\n", encoding="utf-8")
+
+    changed = maintain_indexes(repo)
+    status = _git(repo, "status", "--porcelain").stdout
+    staged_index = _git(repo, "diff", "--cached", "--", "INDEX.md").stdout
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+
+    assert changed is True
+    assert "MM INDEX.md" in status
+    assert "+staged note" in staged_index
+    assert "INDEX.md" in last_commit_paths
 
 
 def test_maintain_indexes_does_not_ensure_cmoc_ignore(

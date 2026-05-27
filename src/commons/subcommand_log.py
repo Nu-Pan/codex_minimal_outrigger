@@ -1,5 +1,6 @@
 """サブコマンド呼び出し単位の tee ログ管理。"""
 
+import subprocess
 import sys
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from contextvars import ContextVar
@@ -37,14 +38,34 @@ class _TeeTextIO:
 
     def write(self, text: str) -> int:
         """同じ文字列を両方の出力先へ書き込む。"""
-        self._console.write(text)
-        self._log_file.write(text)
+        error: Exception | None = None
+        try:
+            self._log_file.write(text)
+        except Exception as write_error:
+            error = write_error
+        try:
+            self._console.write(text)
+        except Exception as write_error:
+            if error is None:
+                error = write_error
+        if error is not None:
+            raise error
         return len(text)
 
     def flush(self) -> None:
         """両方の出力先を flush する。"""
-        self._console.flush()
-        self._log_file.flush()
+        error: Exception | None = None
+        try:
+            self._log_file.flush()
+        except Exception as flush_error:
+            error = flush_error
+        try:
+            self._console.flush()
+        except Exception as flush_error:
+            if error is None:
+                error = flush_error
+        if error is not None:
+            raise error
 
     def isatty(self) -> bool:
         """コンソール側の TTY 判定を引き継ぐ。"""
@@ -53,9 +74,9 @@ class _TeeTextIO:
 
 @contextmanager
 def subcommand_log(repo_root: Path) -> Iterator[SubcommandLogContext]:
-    """stdout/stderr を `<repo-root>/logs/sub_commands` へ tee する。"""
+    """stdout/stderr を `<repo-root>/.cmoc/logs/sub_commands` へ tee する。"""
     _ensure_logs_excluded(repo_root)
-    log_dir = repo_root / "logs" / "sub_commands"
+    log_dir = repo_root / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path, log_file = _create_unique_log_file(log_dir)
     with log_file:
@@ -99,17 +120,55 @@ def _create_unique_log_file(log_dir: Path) -> tuple[Path, IO[str]]:
 
 
 def _ensure_logs_excluded(repo_root: Path) -> None:
-    """`logs/` がサブコマンド自身の未コミット差分にならないようにする。"""
-    exclude_path = repo_root / ".git" / "info" / "exclude"
-    if not exclude_path.exists():
+    """`.cmoc/logs/` がサブコマンド自身の未コミット差分にならないようにする。"""
+    exclude_path = _git_exclude_path(repo_root)
+    if exclude_path is None:
         return
 
-    content = exclude_path.read_text(encoding="utf-8")
+    exclude_path.parent.mkdir(parents=True, exist_ok=True)
+    if exclude_path.exists():
+        content = exclude_path.read_text(encoding="utf-8")
+    else:
+        content = ""
     lines = [line.strip() for line in content.splitlines()]
-    if "/logs/" in lines:
+    if "/.cmoc/logs/" in lines:
         return
 
     prefix = content
     if prefix and not prefix.endswith("\n"):
         prefix += "\n"
-    exclude_path.write_text(f"{prefix}/logs/\n", encoding="utf-8")
+    exclude_path.write_text(f"{prefix}/.cmoc/logs/\n", encoding="utf-8")
+
+
+def _git_exclude_path(repo_root: Path) -> Path | None:
+    """repo の実際の gitdir にある info/exclude path を返す。"""
+    git_entry = repo_root / ".git"
+    if not git_entry.exists():
+        return None
+
+    result = subprocess.run(
+        [
+            "git",
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-path",
+            "info/exclude",
+        ],
+        cwd=repo_root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        if git_entry.is_dir():
+            return git_entry / "info" / "exclude"
+        return None
+
+    output = result.stdout.strip()
+    if not output:
+        return None
+    path = Path(output)
+    if path.is_absolute():
+        return path
+    return repo_root / path

@@ -4,24 +4,30 @@
 
 - `<cmoc-root>/bin` を環境変数 `PATH` に追加し `cmoc` コマンドで呼び出すものとする
 
-## 最初に１回だけのおまじない
+## 最初に 1 回だけのおまじない
 
 1. 人間が `cmoc init` を呼び出す
 
 ## 想定ワークフロー
 
-1. 人間が分岐元となる git branch に移動する
-2. 人間が `cmoc branch` を呼び出す
+1. 人間が `<local-branch>` に移動する
+   - 例: `issue/123-fix-login`
+   - `main` / `master` である必要はない
+2. 人間が `cmoc session fork` を呼び出す
+   - cmoc は現在のブランチを `<cmoc-session-home-branch>` として記録する
+   - cmoc は `<cmoc-session-branch>` を作成して checkout する
 3. 記述・実装ループ
-    1. 人間がやってほしいと思っている事を `<repo-root>/oracles` に反映（e.g. 正本仕様を追加）
-    2. `<repo-root>/oracles` 修正ループ
-        1. 人間が `cmoc eval-oracles` を呼び出して、評価レポートを読む
-        2. 人間が現状の `<repo-root>/oracles` で問題なしと判断したら、ここでループ終了
-        3. 人間が `<repo-root>/oracles` の内容を修正
-        4. ループ先頭に戻る
-    3. 人間が git の未コミット差分を `<cmoc-branch>` にコミットする（あるいは破棄する）
-    4. 人間が `cmoc apply` を呼び出して、作業レポートを読む
-    5. 人間が現状の実装で問題なしと判断したら、ここでループ終了
-    6. ループ先頭に戻る
-4. 人間がマージ先 git branch に移動する
-5. 人間が `cmoc merge` を呼び出す
+   1. 人間がやってほしいと思っている事を `<repo-root>/oracles` に反映する
+   2. 人間が `cmoc eval-oracles` を呼び出して、評価レポートを読む
+   3. 人間が必要に応じて `<repo-root>/oracles` を修正する
+   4. 人間が `<repo-root>/oracles` の変更を commit する
+   5. 人間が `cmoc apply fork` を呼び出す
+      - cmoc は、呼び出された時点の `<oracle-snapshot-commit>` 上の `<repo-root>/oracles` に、実装を追従させる作業を行う
+      - 実装追従作業は apply worktree 上で長時間作業かけて行われる
+      - 通常系においては、 `cmoc apply fork` が完了した時点で、作業結果が `<cmoc-apply-branch>` にコミットされている
+      - `cmoc apply fork` 実行中も、人間は `<cmoc-session-branch>` 側で `<repo-root>/oracles` の改訂を進めてよいが、その内容は既に実行を開始した `cmoc apply fork` には反映されない（よって、普通はもう１周必要）
+   6. 人間が `cmoc apply join` を呼び出す
+      - cmoc は `<cmoc-apply-branch>` を `<cmoc-session-branch>` へマージする
+   5. 人間が現状の実装で問題なしと判断したら、ループ終了
+4. 人間が `<cmoc-session-branch>` 上で `cmoc session join` を呼び出す
+   - cmoc は `<cmoc-session-branch>` を `<cmoc-session-home-branch>` へマージする

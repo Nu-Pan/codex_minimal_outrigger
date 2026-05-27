@@ -1,13 +1,6 @@
 
 # cmoc の雑多な仕様
 
-## `oracles` ファイルの列挙方法
-
-- 「`oracles` ファイルを列挙」と言った場合、以下の方法で機械的に列挙する
-    - `<repo-root>/oracles` 配下の全てのファイルを glob する（拡張子で制限しない）
-    - `<repo-root>/.gitignore` の対象は除外
-    - `INDEX.md` は除外
-
 ## 実装ファイルの列挙方法
 
 - 「実装ファイルを列挙」と言った場合、以下の方法で機械的に列挙する
@@ -47,15 +40,21 @@ cmoc による操作対象リポジトリである `<repo-root>` は以下の要
 - month/day/hour/minute/sec/msec はゼロ埋めする
 - timezone はそのマシンのローカルとする
 
-## 「`<cmoc-branch>` 上で～」の定義
+## 「`<cmoc-managed-branch>` 上で～」の定義
 
-- 以下の集合の和である
-    - `<cmoc-branch>` 作成元 commit から `HEAD` までの間の commit 上で発生したこと
-    - working tree または staging area で起きていること
-- また、補足として
-    - 削除済みファイルは対象から除外する
-    - rename は rename 後のパスを対象とする
-- e.g. `<cmoc-branch>` 上で変更のあった `<repo-root>/oracles` 配下のファイル
-    - `<cmoc-branch>` 作成元 commit から `HEAD` までの間の commit 上で変更のあった `<repo-root>/oracles` 配下のファイル
-    - working tree または staging area 上で変更のあった `<repo-root>/oracles` 配下のファイル
-- `<cmoc-branch>` 作成元 commit は `<repo-root>/.cmoc/branch/<cmoc-branch>.txt` から読み取る
+「`<cmoc-managed-branch>` 上で～」といった時、それは以下の集合の和である
+
+- `<cmoc-managed-branch>` 作成元 commit から `HEAD` までの間の commit 上で起きたこと
+- working tree または staging area で起きていること
+
+また、補足として、
+
+- 削除済みファイルは対象から除外する
+- rename は rename 後のパスを対象とする
+
+例えば「`<cmoc-session-branch>` 上で変更のあった `<repo-root>/oracles` 配下のファイル」と言った時、それは、
+
+- `<cmoc-session>` 作成元 commit から `HEAD` までの間の commit 上で変更のあった `<repo-root>/oracles` 配下のファイル
+- working tree または staging area 上で変更のあった `<repo-root>/oracles` 配下のファイル
+
+のことである。

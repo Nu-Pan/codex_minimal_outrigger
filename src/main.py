@@ -1,32 +1,32 @@
 """cmoc CLI エントリーポイント。"""
 
-import importlib.util
-from pathlib import Path
-from types import ModuleType
-
 import click
 import typer
 
 from commons.errors import CmocError
 from commons.errors import format_error_report
-from sub_commands.apply import cmoc_apply_impl
-from sub_commands.branch import cmoc_branch_impl
+from sub_commands.apply.abandon import cmoc_apply_abandon_impl
+from sub_commands.apply.fork import cmoc_apply_impl
+from sub_commands.apply.join import cmoc_apply_join_impl
+from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
-from sub_commands.merge import cmoc_merge_impl
+from sub_commands.session.abandon import cmoc_session_abandon_impl
+from sub_commands.session.fork import cmoc_session_fork_impl
+from sub_commands.session.join import cmoc_session_join_impl
 
 
 app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=True)
-_EVAL_ORACLES_PATH = Path(__file__).parent / "sub_commands" / "eval-oracles.py"
-_EVAL_ORACLES_SPEC = importlib.util.spec_from_file_location(
-    "sub_commands.eval-oracles",
-    _EVAL_ORACLES_PATH,
+session_app: typer.Typer = typer.Typer(
+    name="session",
+    no_args_is_help=True,
 )
-if _EVAL_ORACLES_SPEC is None or _EVAL_ORACLES_SPEC.loader is None:
-    raise ImportError(f"cannot load subcommand module: {_EVAL_ORACLES_PATH}")
-_eval_oracles_module = importlib.util.module_from_spec(_EVAL_ORACLES_SPEC)
-assert isinstance(_eval_oracles_module, ModuleType)
-_EVAL_ORACLES_SPEC.loader.exec_module(_eval_oracles_module)
-cmoc_eval_oracles_impl = _eval_oracles_module.cmoc_eval_oracles_impl
+apply_app: typer.Typer = typer.Typer(
+    name="apply",
+    no_args_is_help=True,
+)
+
+app.add_typer(session_app, name="session")
+app.add_typer(apply_app, name="apply")
 
 
 @app.command("init")
@@ -36,11 +36,25 @@ def init_command() -> None:
     cmoc_init_impl()
 
 
-@app.command("branch")
-def branch_command() -> None:
-    """Create a cmoc work branch."""
-    # CLI callback は branch の本体実装へ処理を委譲する。
-    cmoc_branch_impl()
+@session_app.command("fork")
+def session_fork_command() -> None:
+    """Start a cmoc session."""
+    # CLI callback は session fork の本体実装へ処理を委譲する。
+    cmoc_session_fork_impl()
+
+
+@session_app.command("join")
+def session_join_command() -> None:
+    """Join the active cmoc session."""
+    # CLI callback は session join の本体実装へ処理を委譲する。
+    cmoc_session_join_impl()
+
+
+@session_app.command("abandon")
+def session_abandon_command() -> None:
+    """Abandon the active cmoc session."""
+    # CLI callback は session abandon の本体実装へ処理を委譲する。
+    cmoc_session_abandon_impl()
 
 
 @app.command("eval-oracles")
@@ -53,8 +67,8 @@ def eval_oracles_command(
     cmoc_eval_oracles_impl(full=full)
 
 
-@app.command("apply")
-def apply_command(
+@apply_app.command("fork")
+def apply_fork_command(
     repeat_investigate_and_fix: int = typer.Option(
         5,
         "--repeat-investigate-and-fix",
@@ -68,7 +82,7 @@ def apply_command(
     full: bool = typer.Option(False, "--full", "-f"),
 ) -> None:
     """Apply oracle requirements to implementation."""
-    # CLI callback は apply の本体実装へ処理を委譲する。
+    # CLI callback は apply fork の本体実装へ処理を委譲する。
     cmoc_apply_impl(
         repeat_investigate_and_fix=repeat_investigate_and_fix,
         repeat_improove_fixing_list=repeat_improove_fixing_list,
@@ -76,11 +90,20 @@ def apply_command(
     )
 
 
-@app.command("merge")
-def merge_command(cmoc_branch: str | None = typer.Argument(None)) -> None:
-    """Merge a cmoc branch into the current branch."""
-    # CLI callback は merge の本体実装へ処理を委譲する。
-    cmoc_merge_impl(cmoc_branch=cmoc_branch)
+@apply_app.command("join")
+def apply_join_command(
+    force_resolve: bool = typer.Option(False, "--force-resolve"),
+) -> None:
+    """Join the last completed apply run."""
+    # CLI callback は apply join の本体実装へ処理を委譲する。
+    cmoc_apply_join_impl(force_resolve=force_resolve)
+
+
+@apply_app.command("abandon")
+def apply_abandon_command() -> None:
+    """Abandon the active apply run."""
+    # CLI callback は apply abandon の本体実装へ処理を委譲する。
+    cmoc_apply_abandon_impl()
 
 
 def main() -> None:
@@ -101,8 +124,9 @@ def main() -> None:
                 "コマンドが指定されていません。",
                 [
                     "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
-                    "`cmoc init`, `cmoc branch`, `cmoc eval-oracles`, "
-                    "`cmoc apply`, `cmoc merge` のいずれかを実行してください。",
+                    "`cmoc init`, `cmoc session fork`, `cmoc eval-oracles`, "
+                    "`cmoc apply fork`, `cmoc apply join`, "
+                    "`cmoc session join` のいずれかを実行してください。",
                 ],
                 (
                     "cmoc がサブコマンドなしで起動されました。"
