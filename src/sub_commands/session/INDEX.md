@@ -23,25 +23,25 @@
 
 ## Summary
 
-- `src/sub_commands/session/abandon.py` は `cmoc session abandon` の本体処理を実装する。
-- 現在の session branch が active で、apply.state が ready で、home branch が存在し、未コミット差分がないことを確認したうえで、session branch を merge せず破棄する。
-- cleanup では home branch へ switch し、session.state を `abandoned` に更新して session branch を強制削除し、失敗時は state と branch を元に戻して再実行可能な状態にする。
+- `src/sub_commands/session/abandon.py` は `cmoc session abandon` の本体処理を実装するモジュールです。
+- 現在の session branch が active で、apply.state が ready で、home branch が存在し、未コミット差分がないことを確認したうえで、session branch を merge せず破棄します。
+- cleanup では home branch へ switch し、session.state を `abandoned` に更新して session branch を強制削除し、失敗時は state と branch を元に戻して再実行可能な状態にします。
 
 ## Read this when
 
 - `cmoc session abandon` の実装・修正・テスト・レビューを行いたいとき。
-- 現在の branch 判定、session/apply state の前提条件、cleanup 失敗時の rollback 仕様を確認したいとき。
+- 現在の session branch 判定、session/apply state の前提条件、cleanup 失敗時の rollback 仕様を確認したいとき。
 - session branch を merge せず破棄する実行フローと、`abandoned` への状態遷移を追いたいとき。
 
 ## Do not read this when
 
-- `cmoc session fork` の開始手順や session branch の作成だけを確認したいとき。
-- `cmoc session join` のマージ手順や完了処理だけを確認したいとき。
+- `cmoc session fork` の開始条件や session branch 作成だけを確認したいとき。
+- `cmoc session join` の merge 手順や session 完了処理だけを確認したいとき。
 - `cmoc apply abandon` など、apply 側の破棄仕様だけを確認したいとき。
 
 ## hash
 
-- 6c5a7669f7a031c1a3a6a612a65cd074f6905b7db4a8c77259b481dc3c5bc985
+- 54367a69a8d0c175b5e1a1832c977ccdd92a662144b7de5276f1ecfeebc47dc2
 
 # `fork.py`
 
