@@ -103,30 +103,28 @@
 
 ## Summary
 
-- `<repo-root>` 配下のディレクトリを深い順で巡回し、`INDEX.md` の配置対象を列挙して更新する処理をまとめたモジュールです。
-- 直下のファイル・ディレクトリを走査し、非表示項目、`memo`、`gitignore` 対象、バイナリ、`INDEX.md` 自身を除外して目次項目を作ります。
-- 既存の `INDEX.md` を項目ごとに解析し、ハッシュ一致かつ書式が妥当なブロックは再利用し、崩れたものは再生成します。
-- Codex CLI の Structured Output で `summary`、`read_this_when`、`do_not_read_this_when` を生成し、Markdown の見出しと箇条書きに整形します。
-- 変更が発生した場合は、`INDEX.md` の差分だけを対象にして自動コミットするようにしています。
+- `<repo-root>` 配下を走査して `INDEX.md` の配置対象を列挙し、深い階層から順に更新するメンテナンス処理をまとめるモジュールです。
+- .gitignore、`.git/info/exclude`、`memo`、`build` / `tmp`、dotfiles、symlink、バイナリ、`INDEX.md` 自身を除外して、目次に載せる直下項目を決めます。
+- 既存 `INDEX.md` のブロックを解析し、ハッシュが一致して固定フォーマットも保たれているものは再利用し、崩れたものは再生成します。
+- Codex CLI の Structured Output で `summary`、`read_this_when`、`do_not_read_this_when` を生成し、差分が出た場合は `INDEX.md` の変更だけを自動コミットします。
 
 ## Read this when
 
-- `INDEX.md` の自動配置・自動更新ルールを実装または修正したいとき。
-- ディレクトリ列挙条件、`memo`、`.gitignore`、バイナリ、`INDEX.md` 自身の除外条件を確認したいとき。
-- 既存の目次ブロックの再利用、再生成、空ディレクトリの扱いを見直したいとき。
-- Structured Output の JSON スキーマ検証、prompt 生成、Codex 呼び出しの流れを確認したいとき。
-- `INDEX.md` メンテナンス後の自動コミット対象や、更新順序の仕様を確認したいとき。
+- `INDEX.md` の自動配置・更新ルールや、対象ディレクトリの列挙方法を実装・修正したいとき。
+- `.gitignore`、`.git/info/exclude`、`memo`、`build` / `tmp`、dotfiles、symlink、バイナリなどの除外条件を確認したいとき。
+- 既存の目次ブロックの再利用、再生成、ハッシュ一致判定、空ディレクトリの扱いを見直したいとき。
+- Structured Output の検証、目次生成用プロンプトの組み立て、Codex 呼び出し、自動コミットの流れを追いたいとき。
 
 ## Do not read this when
 
-- `INDEX.md` の本文そのものや正本仕様を確認したいだけのときは、`oracles/app_specs/indexing.md` を読むべきです。
-- 個別サブコマンドの手順や業務ロジックだけを確認したいときは、このモジュールではなく該当実装を読むべきです。
-- `codex exec` の一般的な呼び出し方や git 操作の詳細だけを追いたいときは、`commons/codex.py` や `commons/repo.py` を優先すべきです。
-- `oracles` 全体のルーティング方針だけを確認したいときは、このファイルではありません。
+- `INDEX.md` の正本仕様だけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
+- `codex exec` の一般的な呼び出し方や Structured Output 以外の実行制御だけを知りたいときは、`commons/codex.py` を読むべきです。
+- git リポジトリ探索、`.cmoc` の扱い、session state の読み書きを確認したいときは、`commons/repo.py` を読むべきです。
+- `INDEX.md` メンテナンス以外の共通エラー処理やログ制御だけを調べたいときは、このモジュールではありません。
 
 ## hash
 
-- 7c1cd200f24b395b17e06e489e8f5c3bb4869b164752ae4a06aca03dbcfa1eeb
+- 151a04565ff80ba75bacea4552b6d01d098a25de872a329c69b5a05abe0a2ce9
 
 # `repo.py`
 

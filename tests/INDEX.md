@@ -80,28 +80,28 @@
 ## Summary
 
 - `commons.indexing.maintain_indexes` による `INDEX.md` メンテナンス処理の回帰テスト群です。
-- `gitignore` 除外、空ディレクトリ、`build` / `tmp`、バイナリ、UTF-8 境界、`memo`、既存 `INDEX.md` の再生成と再利用、自動コミット範囲を検証します。
+- `gitignore` 除外、空ディレクトリ、`build` / `tmp`、バイナリ、UTF-8 文字境界、`memo`、既存 `INDEX.md` の再生成と再利用、自動コミット範囲を検証します。
 - Structured Output のリトライ、親子 `INDEX.md` の再生成連鎖、`.cmoc` ignore の責務境界も確認します。
 - テスト用 git リポジトリを作る `_init_repo` と、`git` 実行用の `_git` を含みます。
 
 ## Read this when
 
 - `maintain_indexes` がどのファイル・ディレクトリを `INDEX.md` の目次対象にするか確認したいとき。
-- `gitignore` 除外、空ディレクトリ、`build` / `tmp`、バイナリ、UTF-8 文字境界、`memo` ディレクトリの扱いを見直したいとき。
+- `gitignore` 除外、空ディレクトリ、`build` / `tmp`、バイナリ、UTF-8 境界、`memo` ディレクトリの扱いを見直したいとき。
 - 既存 `INDEX.md` の不備検出、再生成、空セクション再利用、Structured Output のリトライを確認したいとき。
 - `INDEX.md` メンテナンス後の自動コミット範囲や、`.cmoc` の ignore をこのテスト観点から確認したいとき。
 - テスト用 git リポジトリの初期化や、`_init_repo` / `_git` の使い方を確認したいとき。
 
 ## Do not read this when
 
-- `commons.indexing.maintain_indexes` の実装ロジックそのものを追いたいとき。
+- `commons.indexing.maintain_indexes` の実装そのものを追いたいとき。
 - `INDEX.md` の正本仕様や生成・更新ルールだけを確認したいとき。
 - `cmoc init`、`session`、`apply`、`eval-oracles` など他サブコマンドの仕様だけを調べたいとき。
 - Codex CLI 呼び出し仕様、ログ保存、エラーハンドリングなど、`INDEX.md` メンテナンス以外の共通仕様を知りたいとき。
 
 ## hash
 
-- a1e754dd6b084068b0f65dff7c354955eab3b9f56fb9daebb9932f24f9fa8d3d
+- fb8044c6110590b9f8d5d041559a754b8a4646a069ac8ce986c6898f87941582
 
 # `test_repo.py`
 
