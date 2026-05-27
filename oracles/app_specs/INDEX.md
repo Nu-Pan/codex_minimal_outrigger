@@ -43,7 +43,7 @@
 
 ## hash
 
-- 87b6e64fd0d0d82f9c0b062206da7ada02803b320ccd8a5468e935dbaabbb9cf
+- 973e2293ead58af5e7c4d183d5aadde63ddec9ec7498375c5cc5aebf98fd946f
 
 # `console_and_file_log.md`
 
@@ -196,15 +196,15 @@
 
 ## Summary
 
-- cmoc の個別サブコマンド仕様への入口です。
-- `apply`、`session`、`eval-oracles`、`init` の各サブコマンドの正本仕様へ案内します。
-- このディレクトリを起点に、サブコマンドごとの前提条件、実行手順、状態遷移、終了条件を素早く辿れるようにします。
+- cmoc の個別サブコマンド仕様への入口で、`apply`、`session`、`eval-oracles`、`init` の各正本仕様へ案内します。
+- `apply_abandon.md`、`apply_fork.md`、`apply_join.md`、`session_abandon.md`、`session_fork.md`、`session_join.md`、`eval_oracles.md`、`init.md` に分かれた手順・前提条件・状態遷移・終了条件をまとめます。
+- このディレクトリを起点に、サブコマンドごとの目的や読むべき詳細仕様を素早く選べるようにします。
 
 ## Read this when
 
 - cmoc の個別サブコマンドの入口をまとめて確認したいとき。
 - `apply`、`session`、`eval-oracles`、`init` のどの仕様断片へ進むべきか整理したいとき。
-- サブコマンドごとの目的、入力条件、実行手順、終了条件を俯瞰したいとき。
+- サブコマンドごとの目的、入力条件、実行手順、状態遷移、終了条件を俯瞰したいとき。
 
 ## Do not read this when
 
@@ -214,7 +214,7 @@
 
 ## hash
 
-- f62652cdf606130b40673a983aedbc3a4c85ec3bb11c98859ccf7ea86f32fef8
+- 216e9b87597dde1829c7f82bb742f7ba34c01ccf2d5da2f26830d5cc3b3dfd89
 
 # `usage.md`
 
