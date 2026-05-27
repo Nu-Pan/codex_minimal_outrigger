@@ -136,27 +136,28 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` のサブコマンド群に対する決定論的な制御ロジック、CLI 登録、エラー報告、ログ出力をまとめて検証するテスト群です。
-- `run_command` の stdout / ログ tee、`cmoc init` の `.cmoc` ignore と commit、`session` と `apply` の state 遷移、`eval-oracles` の評価レポート生成と検証を扱います。
-- `main` の Typer ルーティング、`bin/cmoc` ランチャー、help 表示、共通エラーレポート、各種 validation helper や prompt / report 生成の振る舞いも含みます。
+- `tests/test_subcommands.py` は、`cmoc` サブコマンド群の決定論的な制御フロー、状態遷移、エラー報告、ログ出力を横断的に検証する回帰テストの入口です。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の挙動に加えて、`main` の Typer ルーティングと `bin/cmoc` ランチャーの公開形も確認します。
+- prompt / report の生成と検証、Structured Output の扱い、`eval-oracle` 互換 alias、補助関数の順序やテスト用 helper の妥当性もこのファイルで確認します。
 
 ## Read this when
 
-- `tests/test_subcommands.py` が `run_command`、エラー報告、ログ保存、終了コードをどう検証しているか確認したいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の決定論的な制御ロジックと状態遷移を確認したいとき。
-- CLI 登録、`main` の委譲、`bin/cmoc` の起動条件、help 表示、`eval-oracle` 互換 alias の有無を確認したいとき。
-- pytest ベースの回帰テスト方針、`tests/` 配置規則、補助関数 `_init_repo`、`_git`、`_checkout_session_branch` の役割を把握したいとき。
+- `run_command` の tee、共通エラーレポート、終了コード、ログ保存の挙動を追いたいとき。
+- `cmoc init` の `.cmoc` ignore と commit、`session` / `apply` の fork・join・abandon の状態遷移や rollback を確認したいとき。
+- `eval-oracles` のレポート生成、Structured Output 検証、削除済み oracle の扱い、評価結果集約を確認したいとき。
+- `main` の Typer ルーティング、`eval-oracle` 互換 alias、`bin/cmoc` の起動条件や help 表示を確認したいとき。
+- このファイル内の prompt / report 検証 helper や、テスト用補助関数の意図を把握したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` 側を読むべきです。
-- `run_command` や `cmoc init`、`session`、`apply`、`eval-oracles` の実装本体を修正したいときは、このテスト目次ではなく対応する `src/` 配下を読むべきです。
-- `INDEX.md` の生成・更新ルールや `oracles` 全体の取り扱いだけを確認したいときは、`oracles/app_specs/indexing.md` や `oracles/app_specs/oracles.md` を参照すべきです。
+- `src/sub_commands` や `src/main.py` の実装本体を修正・追跡したいときは、このテスト目次ではなく `src/` 側を読むべきです。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を参照すべきです。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
 
 ## hash
 
-- 7eda7b2b3de0768d40cd342672d4e4cbd1eabe045a6148f56bdd309363f59f9b
+- 5ab13f4828c07d78ff8d17d4e425e597964d54e6cb61003b5b2c777a73e99151
 
 # `test_timestamps.py`
 
