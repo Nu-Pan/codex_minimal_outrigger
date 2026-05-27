@@ -3,25 +3,26 @@
 ## Summary
 
 - `src/commons` の共通処理を集約するディレクトリの入口です。
-- サブコマンド実行制御、エラー整形、Codex CLI 呼び出し、リポジトリ操作、ログ、タイムスタンプ、計測、`INDEX.md` メンテナンスを扱います。
-- `__init__.py` はパッケージ宣言のみで、実装の中心は個別モジュールに分かれています。
+- サブコマンド共通の実行制御、エラー整形、Codex CLI 呼び出し、Git リポジトリ操作、サブコマンドログ、タイムスタンプ、計測、`INDEX.md` メンテナンスを扱います。
+- `__init__.py` はパッケージ宣言のみで、実装の中心は `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` に分かれています。
 
 ## Read this when
 
 - サブコマンド共通の実行制御、エラー整形、Codex CLI 呼び出し、リポジトリ操作、ログ、タイムスタンプ、計測の入口をまとめて把握したいとき。
 - `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` のどれを読むべきか整理したいとき。
 - `INDEX.md` の生成・更新ルールや、共通ユーティリティ同士の役割分担を確認したいとき。
+- `src/commons` 配下の共通処理を、どのファイルに何があるかという観点で把握したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
-- `oracles` の正本仕様やユーザー向け手順だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいとき。
+- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいときは、このディレクトリではなく `src/sub_commands/` 側を読むべきです。
+- `oracles` の正本仕様やユーザー向け手順だけを確認したいときは、このディレクトリではなく `oracles/` 側を読むべきです。
 - `src/commons` のうち特定の 1 モジュールだけを深掘りしたいときは、該当する `*.py` を直接読むべきです。
+- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいときは、このディレクトリの案内を読む必要はありません。
 
 ## hash
 
-- 2cfc0e684a10ff5d6d633f574371926c62ec9a30bd36ebb7459adac8295c30be
+- 3420e9cd69d52dd18c215cb13f9769b7ba221d81291e94db31c73f644ca92e6c
 
 # `main.py`
 

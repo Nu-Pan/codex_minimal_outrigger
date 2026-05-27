@@ -27,29 +27,29 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の振る舞いを Fake Codex CLI で検証するテスト群の入口です。
-- Structured Output 用の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗時の詳細エラー、`enum` や文字列長制約の検査を扱います。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` と関連補助処理の回帰テスト群の入口です。
+- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗、`enum` / 文字列長制約の検証を扱います。
 - 呼び出しログ、`subcommand_log` への通知、出力プレビュー、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、quota 枯渇時の待機・疎通確認・`--resume` 再実行も確認します。
-- 末尾には、テスト用 git リポジトリ初期化用の `_init_git_repo` と `_git`、および `_FailingTextIO` / `_RecordingTextIO` が含まれます。
+- 末尾にはテスト用 git リポジトリ初期化用の `_init_git_repo` / `_git` と、`_FailingTextIO` / `_RecordingTextIO` があります。
 
 ## Read this when
 
-- `commons.codex.run_codex_exec()` の引数、`--output-schema`、`--output-last-message`、`--resume`、`skip_index_maintenance`、`reasoning_effort` の扱いを確認したいとき。
-- Structured Output の parse 失敗、意味的検証失敗、JSON Schema の `enum` や文字列長制約に対するリトライとエラー表示を確認したいとき。
-- Codex CLI 呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機・疎通確認・再実行の流れを確認したいとき。
+- `run_codex_exec()` の引数や `--output-schema`、`--output-last-message`、`--resume`、`reasoning_effort` の扱いを確認したいとき。
+- Structured Output の parse 失敗、意味的検証失敗、JSON Schema の `enum` や文字列長制約に対するリトライやエラー表示を確認したいとき。
+- Codex CLI の呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機・疎通確認・再実行フローを確認したいとき。
 - Codex 呼び出し前後の `INDEX.md` メンテナンスの有無や、`skip_index_maintenance` による明示スキップを確認したいとき。
-- テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_init_git_repo` と `_git`、ならびに `_FailingTextIO` / `_RecordingTextIO` の補助テストを確認したいとき。
+- テスト用 git リポジトリを初期化する `_init_git_repo` / `_git` と、`_FailingTextIO` / `_RecordingTextIO` の補助テストを追いたいとき。
 
 ## Do not read this when
 
-- `tests/test_indexing.py` の `INDEX.md` メンテナンス仕様そのものを確認したいときは、このファイルではなくそちらを読むべきです。
-- `cmoc` の個別サブコマンド仕様や `oracles` の正本断片を確認したいときは、このテスト目次ではなく対応する仕様文書を読むべきです。
+- `tests/test_indexing.py` の `INDEX.md` メンテナンス仕様そのものを確認したいときは、そちらを読むべきです。
+- `cmoc` の個別サブコマンド仕様や `oracles` の正本断片を確認したいときは、この目次ではなく対応する仕様文書を読むべきです。
 - `commons.codex.run_codex_exec()` 以外の実装や、`tests` 配下の別テスト群だけを追いたいときは、このファイルは範囲が広すぎます。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
 
 ## hash
 
-- ed2dcb21afef21cf6299a9d924a94b5f53cf24abbaed50794c8cd44d27cab9c4
+- 20aca936a9de30b3c5290e3d1038b9192e250c825c41d0a2f1da9b05a41f5353
 
 # `test_file_naming.py`
 
