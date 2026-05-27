@@ -2,7 +2,10 @@
 
 import json
 import os
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from commons.command_runner import run_command
 from commons.errors import CmocError
@@ -343,28 +346,88 @@ def _revert_branch_paths(
     """指定 branch 上の path を source commit へ戻して commit する。"""
     if not paths:
         return
-    worktree = branch_worktree or repo_root
-    if current_branch(worktree) != branch_name:
-        run_git(worktree, ["switch", branch_name])
-    existing_at_source = _paths_existing_at_commit(worktree, source_commit, paths)
-    missing_at_source = sorted(set(paths) - set(existing_at_source))
-    if existing_at_source:
-        run_git(
-            worktree,
-            ["restore", "--source", source_commit, "--", *existing_at_source],
+    with _revert_worktree(repo_root, branch_name, branch_worktree) as worktree:
+        existing_at_source = _paths_existing_at_commit(worktree, source_commit, paths)
+        missing_at_source = sorted(set(paths) - set(existing_at_source))
+        if existing_at_source:
+            run_git(
+                worktree,
+                ["restore", "--source", source_commit, "--", *existing_at_source],
+            )
+        if missing_at_source:
+            run_git(worktree, ["rm", "-r", "--ignore-unmatch", "--", *missing_at_source])
+        if existing_at_source:
+            run_git(worktree, ["add", "--", *existing_at_source])
+        if (
+            run_git(worktree, ["diff", "--cached", "--quiet"], check=False).returncode
+            == 1
+        ):
+            run_git(
+                worktree,
+                [
+                    "commit",
+                    "-m",
+                    f"Revert unexpected apply join changes on {branch_name}",
+                ],
+            )
+
+
+@contextmanager
+def _revert_worktree(
+    repo_root: Path,
+    branch_name: str,
+    branch_worktree: Path | None,
+) -> Iterator[Path]:
+    """revert に使える worktree を返す。必要なら一時 worktree を作る。"""
+    if branch_worktree is None:
+        if current_branch(repo_root) != branch_name:
+            run_git(repo_root, ["switch", branch_name])
+        yield repo_root
+        return
+
+    if branch_worktree.exists():
+        if current_branch(branch_worktree) != branch_name:
+            run_git(branch_worktree, ["switch", branch_name])
+        yield branch_worktree
+        return
+
+    temporary_root = repo_root / ".cmoc" / "worktrees" / "tmp"
+    temporary_root.mkdir(parents=True, exist_ok=True)
+    run_git(repo_root, ["worktree", "prune"])
+    temporary_worktree = Path(
+        tempfile.mkdtemp(
+            prefix="apply-join-force-resolve-",
+            dir=temporary_root,
         )
-    if missing_at_source:
-        run_git(worktree, ["rm", "-r", "--ignore-unmatch", "--", *missing_at_source])
-    if existing_at_source:
-        run_git(worktree, ["add", "--", *existing_at_source])
-    if run_git(worktree, ["diff", "--cached", "--quiet"], check=False).returncode == 1:
-        run_git(
-            worktree,
+    )
+    temporary_worktree.rmdir()
+    result = run_git(
+        repo_root,
+        ["worktree", "add", str(temporary_worktree), branch_name],
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip()
+        if detail:
+            detail = f"{branch_worktree}\n{detail}"
+        else:
+            detail = str(branch_worktree)
+        raise CmocError(
+            "apply worktree が見つからず、一時 worktree の作成にも失敗しました。",
             [
-                "commit",
-                "-m",
-                f"Revert unexpected apply join changes on {branch_name}",
+                "session state に記録された apply branch と worktree を確認してください。",
+                "stale な worktree 登録が残っている場合は `git worktree prune` 後に再実行してください。",
+                "手動復旧する場合は apply branch を checkout して想定外差分を revert してください。",
             ],
+            detail,
+        )
+    try:
+        yield temporary_worktree
+    finally:
+        run_git(
+            repo_root,
+            ["worktree", "remove", "--force", str(temporary_worktree)],
+            check=False,
         )
 
 
