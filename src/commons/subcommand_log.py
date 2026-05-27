@@ -1,10 +1,11 @@
-"""サブコマンド呼び出し単位の tee ログ管理。"""
+"""サブコマンド呼び出し単位の JSON Lines ログ管理。"""
 
+import json
 import subprocess
-import sys
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import IO, Iterator
@@ -28,72 +29,45 @@ _CURRENT_LOG: ContextVar[SubcommandLogContext | None] = ContextVar(
 )
 
 
-class _TeeTextIO:
-    """write/flush をコンソールとログファイルへ複製する。"""
-
-    def __init__(self, console: IO[str], log_file: IO[str]) -> None:
-        """コンソール出力先とログファイル出力先を保持して初期化する。"""
-        self._console = console
-        self._log_file = log_file
-
-    def write(self, text: str) -> int:
-        """同じ文字列を両方の出力先へ書き込む。"""
-        error: Exception | None = None
-        try:
-            self._log_file.write(text)
-        except Exception as write_error:
-            error = write_error
-        try:
-            self._console.write(text)
-        except Exception as write_error:
-            if error is None:
-                error = write_error
-        if error is not None:
-            raise error
-        return len(text)
-
-    def flush(self) -> None:
-        """両方の出力先を flush する。"""
-        error: Exception | None = None
-        try:
-            self._log_file.flush()
-        except Exception as flush_error:
-            error = flush_error
-        try:
-            self._console.flush()
-        except Exception as flush_error:
-            if error is None:
-                error = flush_error
-        if error is not None:
-            raise error
-
-    def isatty(self) -> bool:
-        """コンソール側の TTY 判定を引き継ぐ。"""
-        return self._console.isatty()
-
-
 @contextmanager
 def subcommand_log(repo_root: Path) -> Iterator[SubcommandLogContext]:
-    """stdout/stderr を `<repo-root>/.cmoc/logs/sub_commands` へ tee する。"""
-    _ensure_logs_excluded(repo_root)
-    log_dir = repo_root / ".cmoc" / "logs" / "sub_commands"
+    """サブコマンドイベントを `<repo-root>/.cmoc/logs/sub_commands` へ記録する。"""
+    log_root = _subcommand_log_repo_root(repo_root)
+    _ensure_logs_excluded(log_root)
+    log_dir = log_root / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path, log_file = _create_unique_log_file(log_dir)
     with log_file:
         context = SubcommandLogContext(
-            repo_root=repo_root,
+            repo_root=log_root,
             path=log_path,
             started=perf_counter(),
         )
         token = _CURRENT_LOG.set(context)
-        stdout_tee = _TeeTextIO(sys.stdout, log_file)
-        stderr_tee = _TeeTextIO(sys.stderr, log_file)
         try:
-            with redirect_stdout(stdout_tee), redirect_stderr(stderr_tee):
-                print(f"subcommand log: {log_path.relative_to(repo_root)}")
-                yield context
+            log_event("subcommand_start", {"repo_root": str(log_root)})
+            print(f"# cmoc subcommand start")
+            print(f"- subcommand log: {log_path}")
+            yield context
         finally:
             _CURRENT_LOG.reset(token)
+
+
+def log_event(event: str, payload: dict[str, object]) -> None:
+    """現在のサブコマンドログへ 1 イベントを JSON Lines で追記する。"""
+    context = current_subcommand_log()
+    if context is None:
+        return
+    record = {
+        "event": event,
+        "time": _console_timestamp(),
+        "elapsed_seconds": perf_counter() - context.started,
+        **payload,
+    }
+    with context.path.open("a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(record, ensure_ascii=False, sort_keys=True))
+        log_file.write("\n")
+        log_file.flush()
 
 
 def add_quota_wait(duration_seconds: float) -> None:
@@ -102,6 +76,7 @@ def add_quota_wait(duration_seconds: float) -> None:
     if context is None:
         return
     context.quota_wait_seconds += max(0.0, duration_seconds)
+    log_event("quota_wait_added", {"duration_seconds": max(0.0, duration_seconds)})
 
 
 def current_subcommand_log() -> SubcommandLogContext | None:
@@ -110,9 +85,9 @@ def current_subcommand_log() -> SubcommandLogContext | None:
 
 
 def _create_unique_log_file(log_dir: Path) -> tuple[Path, IO[str]]:
-    """未使用の `<time-stamp>.log` を排他的に新規作成する。"""
+    """未使用の `<time-stamp>.jsonl` を排他的に新規作成する。"""
     while True:
-        log_path = log_dir / f"{make_timestamp()}.log"
+        log_path = log_dir / f"{make_timestamp()}.jsonl"
         try:
             return log_path, log_path.open("x", encoding="utf-8")
         except FileExistsError:
@@ -172,3 +147,38 @@ def _git_exclude_path(repo_root: Path) -> Path | None:
     if path.is_absolute():
         return path
     return repo_root / path
+
+
+def _subcommand_log_repo_root(repo_root: Path) -> Path:
+    """linked worktree ではなく session state を共有する root を返す。"""
+    if not (repo_root / ".git").exists():
+        return repo_root
+    result = subprocess.run(
+        [
+            "git",
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ],
+        cwd=repo_root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        return repo_root
+    common_dir = result.stdout.strip()
+    if not common_dir:
+        return repo_root
+    return Path(common_dir).parent
+
+
+def _console_timestamp() -> str:
+    """コンソールログ用のミリ秒付き日時を返す。"""
+    now = datetime.now().astimezone()
+    return (
+        f"{now.year:04d}/{now.month:02d}/{now.day:02d} "
+        f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}."
+        f"{now.microsecond // 1000:03d}"
+    )

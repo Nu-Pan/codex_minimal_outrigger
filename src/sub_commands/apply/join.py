@@ -185,11 +185,11 @@ def _validate_joinable_state(
             ],
             f"session.state: {session.get('state')}",
         )
-    if apply.get("state") != "completed":
+    if apply.get("state") not in {"completed", "error"}:
         raise CmocError(
             "join 可能な apply run ではありません。",
             [
-                "`cmoc apply fork` が完了してから `cmoc apply join` を実行してください。",
+                "`cmoc apply fork` が completed または error になってから `cmoc apply join` を実行してください。",
                 "session state の apply.state を確認してください。",
             ],
             f"apply.state: {apply.get('state')}",

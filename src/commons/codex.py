@@ -17,6 +17,7 @@ from jsonschema.exceptions import SchemaError, ValidationError
 from .errors import CmocError
 from .repo import filter_oracle_file_paths, run_git
 from .subcommand_log import add_quota_wait
+from .subcommand_log import log_event
 from .timing import format_duration
 from .timestamps import make_timestamp
 
@@ -444,7 +445,7 @@ def _run_codex_command(
     run_command = _command_with_last_message(command, last_message_path)
     print(
         "codex exec call: "
-        f"{_head80(prompt)} -> {log_path.relative_to(repo_root)}"
+        f"{_head80(prompt)} -> {log_path}"
     )
     oracle_guard = _start_oracle_guard(repo_root, command)
     started = perf_counter()
@@ -634,10 +635,19 @@ def _print_codex_notification(
     returncode: int,
 ) -> None:
     """Codex CLI 呼び出し完了をコンソール・サブコマンドログへ通知する。"""
+    log_event(
+        "codex_exec_call",
+        {
+            "purpose": purpose,
+            "log_path": str(log_path),
+            "elapsed_seconds": elapsed_seconds,
+            "returncode": returncode,
+        },
+    )
     print(
         "codex exec: "
         f"{purpose} "
-        f"log={log_path.relative_to(repo_root)} "
+        f"log={log_path} "
         f"elapsed={format_duration(elapsed_seconds)} "
         f"returncode={returncode}"
     )
