@@ -2,25 +2,27 @@
 
 ## Summary
 
-- `cmoc` の共有基盤モジュール群をまとめたディレクトリです。`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py`、`__init__.py` を含みます。
-- Codex CLI 呼び出し、共通エラー、git リポジトリ操作、サブコマンドログ、経過時間計測、タイムスタンプ生成、`INDEX.md` 自動更新を支えます。
-- サブコマンド実行の土台となる横断的な処理をここに集約しています。
+- `cmoc` の共通処理を集約するディレクトリの入口です。
+- サブコマンド実行制御、エラー整形、Codex CLI 呼び出し、リポジトリ操作、ログ、タイムスタンプ、計測、`INDEX.md` メンテナンスを扱います。
+- `__init__.py` はパッケージ宣言のみで、実装の中心は個別モジュールに分かれています。
 
 ## Read this when
 
-- `codex exec` 呼び出しや Structured Output 検証を追いたいとき。
-- CLI 共通の実行ラッパー、エラー整形、終了コード、ログ、計測、repo 探索を確認したいとき。
-- `INDEX.md` の生成・更新ルールや除外条件を確認したいとき。
+- サブコマンド全体の共通実行制御や例外処理の流れを確認したいとき。
+- Codex CLI の呼び出し、Structured Output 検証、`INDEX.md` 自動更新を見直したいとき。
+- git リポジトリ探索、branch や session 系の共通操作、ログ保存や時間計測を確認したいとき。
+- 新しい共通ユーティリティを `src/commons` に置くべきか判断したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや引数定義だけを確認したいとき。
-- `oracles` の仕様断片やユーザー向け手順だけを追いたいとき。
-- 共有処理ではなく、特定機能の実装詳細だけが必要なとき。
+- 個別サブコマンドの業務ロジックや引数解釈だけを確認したいとき。
+- `oracles` の正本仕様やユーザー向け手順だけを確認したいとき。
+- テスト実装や `dev_rules` の詳細だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいとき。
 
 ## hash
 
-- 8966e867ef9449b1b2c3ce2356ed66e759d3b2d6a1384403ad4fc15f2f299eda
+- e6cf30be47bb3c34e6b8d3a0c13b665069d517e0ce32fc9a33262d5f12fd1577
 
 # `main.py`
 

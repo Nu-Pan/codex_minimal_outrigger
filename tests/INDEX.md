@@ -27,18 +27,18 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` の振る舞いを Fake Codex CLI で検証するテスト群の入口です。
-- Structured Output の schema ファイル生成、JSON とテキストの再試行、意味的検証失敗時の詳細エラー、`enum` や文字列長制約の検査を扱います。
-- 呼び出しログ、`subcommand_log` への通知、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、quota 枯渇時の待機・疎通確認・`--resume` 再実行も確認します。
-- ファイル末尾には、テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_init_git_repo` と `_git`、および `_FailingTextIO` / `_RecordingTextIO` があります。
+- tests/test_codex.py は `commons.codex.run_codex_exec()` の振る舞いを Fake Codex CLI で検証するテスト群の入口です。
+- Structured Output 用の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗時の詳細エラー、`enum` や文字列長制約の検査を扱います。
+- 呼び出しログ、`subcommand_log` への通知、出力プレビュー、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、quota 枯渇時の待機・疎通確認・`--resume` 再実行も確認します。
+- 末尾には、テスト用 git リポジトリ初期化用の `_init_git_repo` と `_git`、および `_FailingTextIO` / `_RecordingTextIO` が含まれます。
 
 ## Read this when
 
 - `commons.codex.run_codex_exec()` の引数、`--output-schema`、`--output-last-message`、`--resume`、`skip_index_maintenance`、`reasoning_effort` の扱いを確認したいとき。
 - Structured Output の parse 失敗、意味的検証失敗、JSON Schema の `enum` や文字列長制約に対するリトライとエラー表示を確認したいとき。
-- Codex CLI 呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機と疎通確認、再実行の流れを確認したいとき。
+- Codex CLI 呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機・疎通確認・再実行の流れを確認したいとき。
 - Codex 呼び出し前後の `INDEX.md` メンテナンスの有無や、`skip_index_maintenance` による明示スキップを確認したいとき。
-- テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_init_git_repo` と `_git`、ならびに `_TeeTextIO` の補助テストを確認したいとき。
+- テスト用 git リポジトリを初期化して `git` を実行する補助関数 `_init_git_repo` と `_git`、ならびに `_FailingTextIO` / `_RecordingTextIO` の補助テストを確認したいとき。
 
 ## Do not read this when
 
@@ -49,7 +49,7 @@
 
 ## hash
 
-- e4860b4c71a56d69dab03afe3d94b071487da810591b3e401c816decd518ae98
+- 52aa5741d1fe11d930060b5e1d3c6150a513f342b29b43d9bce0ce41311f2182
 
 # `test_file_naming.py`
 
