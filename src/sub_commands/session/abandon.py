@@ -188,10 +188,24 @@ def _restore_abandon_state(
         session["state"] = "active"
         try:
             write_session_state(state_root, session_id, state)
+            restored = read_session_state(state_root, session_id)
         except Exception as error:
             restore_errors.append(f"state restore failed: {error}")
+            return restore_errors
+        restored_session = restored.get("session")
+        if not isinstance(restored_session, dict):
+            restore_errors.append(
+                "state restore failed: restored session section is invalid"
+            )
+            return restore_errors
+        if restored_session.get("state") != "active":
+            restore_errors.append(
+                "state restore failed: restored session.state is not active"
+            )
+            return restore_errors
     else:
         restore_errors.append("state restore failed: session section is invalid")
+        return restore_errors
 
     branch_exists = run_git(
         repo_root,
