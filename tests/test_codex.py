@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
+from commons.codex import _extract_session_id
 from commons.codex import _prepare_codex_exec_paths
+from commons.codex import _resume_command
 from commons.codex import run_codex_exec
 from commons.errors import CmocError
 from commons.subcommand_log import _TeeTextIO
@@ -994,12 +996,79 @@ def test_run_codex_exec_allows_high_reasoning_effort(
     assert 'model_reasoning_effort="high"' in args
 
 
+def test_extract_session_id_prefers_thread_id_over_code_text() -> None:
+    """resume id は JSONL の thread_id から拾い、コード断片は無視する。"""
+    stdout = "\n".join(
+        [
+            '{"type":"thread.started","thread_id":"thread-1"}',
+            '{"type":"item.completed","item":{"text":"session_id: str"}}',
+        ]
+    )
+
+    assert _extract_session_id(stdout, "") == "thread-1"
+
+
+def test_extract_session_id_ignores_plain_session_id_type_annotation() -> None:
+    """人間向け本文だけの session_id: str は resume id として扱わない。"""
+    stdout = '{"type":"item.completed","item":{"text":"session_id: str"}}'
+
+    assert _extract_session_id(stdout, "") is None
+
+
+def test_extract_session_id_keeps_session_id_compatibility() -> None:
+    """旧 JSONL の session_id field は引き続き resume id として扱う。"""
+    stdout = '{"session_id":"session-1"}'
+
+    assert _extract_session_id(stdout, "") == "session-1"
+
+
+def test_resume_command_uses_current_codex_exec_resume_form() -> None:
+    """quota 復旧時の再実行は現行の resume subcommand 形式にする。"""
+    command = [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.4-mini",
+        "--sandbox",
+        "read-only",
+        "--json",
+        "-",
+    ]
+
+    assert _resume_command(command, "thread-1") == [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.4-mini",
+        "--sandbox",
+        "read-only",
+        "--json",
+        "resume",
+        "thread-1",
+        "-",
+    ]
+
+
+def test_resume_command_falls_back_to_last_when_resume_id_is_missing() -> None:
+    """resume id が取れない場合は Codex CLI の --last に委ねる。"""
+    command = ["codex", "exec", "--json", "-"]
+
+    assert _resume_command(command, None) == [
+        "codex",
+        "exec",
+        "--json",
+        "resume",
+        "--last",
+        "-",
+    ]
+
+
 def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """quota 枯渇時は疎通確認後に --resume 付きで同じ prompt を再実行する。"""
+    """quota 枯渇時は疎通確認後に resume subcommand で同じ prompt を再実行する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
@@ -1019,7 +1088,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "PREV=''",
                 "HAS_RESUME=0",
                 "for ARG in \"$@\"; do",
-                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
                 "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
                 "    LAST=\"$ARG\"",
                 "  fi",
@@ -1027,7 +1096,8 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "done",
                 "if [ \"$PROMPT\" = \"original prompt\" ]; then",
                 "  if [ \"$HAS_RESUME\" = 0 ]; then",
-                "  echo '{\"session_id\":\"session-1\"}'",
+                "  echo '{\"type\":\"thread.started\","
+                "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
                 "  echo 'quota limit exhausted' >&2",
@@ -1082,10 +1152,11 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     )
     assert any("quota limit exhausted" in content for content in log_contents)
     assert any("Codex CLI の疎通確認担当" in content for content in log_contents)
-    assert any("--resume" in content for content in log_contents)
+    assert not any("--resume" in content for content in log_contents)
+    assert any("resume" in content for content in log_contents)
     assert "original prompt" not in args
     assert "Codex CLI の疎通確認担当" not in args
-    assert "--resume\nsession-1" in args
+    assert "resume\nthread-1\n-" in args
     assert args.count("\n-\n") == 3
     assert "original prompt" in prompts
     assert "Codex CLI の疎通確認担当" in prompts
@@ -1114,7 +1185,7 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "PREV=''",
                 "HAS_RESUME=0",
                 "for ARG in \"$@\"; do",
-                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
                 "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
                 "    LAST=\"$ARG\"",
                 "  fi",
@@ -1129,7 +1200,8 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "  exit 0",
                 "fi",
                 "if [ \"$HAS_RESUME\" = 0 ]; then",
-                "  echo '{\"session_id\":\"session-1\"}'",
+                "  echo '{\"type\":\"thread.started\","
+                "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
                 "  echo 'quota limit exhausted' >&2",

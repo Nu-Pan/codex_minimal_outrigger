@@ -544,7 +544,9 @@ def _command_with_last_message(
         run_command.append(str(last_message_path))
         return run_command
     insert_index = len(run_command)
-    if run_command and run_command[-1] == "-":
+    if "resume" in run_command[2:]:
+        insert_index = run_command.index("resume")
+    elif run_command and run_command[-1] == "-":
         insert_index -= 1
     run_command[insert_index:insert_index] = [
         "--output-last-message",
@@ -667,9 +669,9 @@ def _contains_quota_error_code(
 
 
 def _extract_session_id(stdout: str, stderr: str) -> str | None:
-    """JSONL ログなどから resume 用 session id を取り出す。"""
-    # JSONL と人間向けログのどちらにも耐える最小限の抽出を行う。
-    for line in stdout.splitlines():
+    """JSONL ログから resume 用 id を取り出す。"""
+    # Codex JSONL の構造化 field だけを参照し、本文中のコード断片を誤抽出しない。
+    for line in f"{stdout}\n{stderr}".splitlines():
         try:
             value = json.loads(line)
         except json.JSONDecodeError:
@@ -677,23 +679,21 @@ def _extract_session_id(stdout: str, stderr: str) -> str | None:
         session_id = _session_id_from_json(value)
         if session_id is not None:
             return session_id
-    text = f"{stdout}\n{stderr}"
-    match = re.search(r"session[_ -]?id['\":= ]+([A-Za-z0-9_.:-]+)", text)
-    if match is None:
-        return None
-    return match.group(1)
+    return None
 
 
 def _session_id_from_json(value: object) -> str | None:
-    """ネストした JSON object から session id らしい文字列を探す。"""
+    """ネストした JSON object から resume 用 id らしい文字列を探す。"""
     # Codex JSONL のフィールド名変化に備えて再帰的に探す。
     if isinstance(value, dict):
         for key, child in value.items():
             key_text = str(key).lower().replace("-", "_")
-            if key_text in {"session_id", "sessionid"} and isinstance(
-                child,
-                str,
-            ):
+            if key_text in {
+                "session_id",
+                "sessionid",
+                "thread_id",
+                "threadid",
+            } and isinstance(child, str):
                 return child
             found = _session_id_from_json(child)
             if found is not None:
@@ -707,14 +707,20 @@ def _session_id_from_json(value: object) -> str | None:
 
 
 def _resume_command(command: list[str], session_id: str | None) -> list[str]:
-    """元コマンドへ `--resume` を追加する。"""
-    # session id が取れない場合も Codex CLI 側の既定 resume に委ねる。
-    if "--resume" in command:
+    """元コマンドを `codex exec resume ...` に変換する。"""
+    # 既に resume 化済みならそのまま使う。
+    if "resume" in command[2:]:
         return command
-    resumed = [*command[:2], "--resume"]
+    prompt_args: list[str] = []
+    base = [*command]
+    if base and base[-1] == "-":
+        prompt_args.append(base.pop())
+    resumed = [*base, "resume"]
     if session_id is not None:
         resumed.append(session_id)
-    resumed.extend(command[2:])
+    else:
+        resumed.append("--last")
+    resumed.extend(prompt_args)
     return resumed
 
 
