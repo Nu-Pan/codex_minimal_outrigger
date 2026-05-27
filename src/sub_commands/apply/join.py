@@ -408,6 +408,7 @@ def _mark_apply_ready(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
     }
     write_session_state(repo_root, session_id, state)
 

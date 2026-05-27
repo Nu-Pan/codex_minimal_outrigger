@@ -1,7 +1,9 @@
 """`cmoc apply abandon` の本体処理。"""
 
 import os
+import signal
 from pathlib import Path
+from time import sleep
 
 from commons.command_runner import run_command
 from commons.errors import CmocError
@@ -28,7 +30,7 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("apply abandon")
-    start_step(timer, 1, 3, "validate apply state")
+    start_step(timer, 1, 4, "validate apply state")
     branch_name = current_branch(repo_root)
     session_id = session_id_from_branch(branch_name)
     cmoc_root = session_state_repo_root(repo_root, session_id)
@@ -42,10 +44,13 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     )
     assert_no_uncommitted_changes(cmoc_root)
 
-    start_step(timer, 2, 3, "cleanup apply artifacts")
-    warnings = _cleanup_apply_artifacts(cmoc_root, abandon_state)
+    start_step(timer, 2, 4, "stop running apply")
+    warnings = _stop_running_apply(abandon_state)
 
-    start_step(timer, 3, 3, "record ready apply state")
+    start_step(timer, 3, 4, "cleanup apply artifacts")
+    warnings.extend(_cleanup_apply_artifacts(cmoc_root, abandon_state))
+
+    start_step(timer, 4, 4, "record ready apply state")
     _mark_apply_ready(cmoc_root, session_id, state)
 
     print(f"abandoned apply branch: {abandon_state.apply_branch}")
@@ -66,10 +71,12 @@ class _AbandonState:
         apply_branch: str,
         apply_worktree: Path,
         previous_apply_state: str,
+        process_id: int | None,
     ) -> None:
         self.apply_branch = apply_branch
         self.apply_worktree = apply_worktree
         self.previous_apply_state = previous_apply_state
+        self.process_id = process_id
 
 
 def _validate_abandonable_state(
@@ -113,16 +120,7 @@ def _validate_abandonable_state(
             ["session state の apply.state を確認してください。"],
             f"apply.state: {apply_state}",
         )
-    if apply_state == "running":
-        raise CmocError(
-            "running 状態の apply run を安全に破棄できません。",
-            [
-                "現在の実装では実行中 apply プロセスの停止と終了確認に必要な情報を保持していません。",
-                "apply プロセスの終了を確認して state を completed または error に復旧してから再実行してください。",
-            ],
-            f"apply.state: {apply_state}",
-        )
-    if apply_state not in {"completed", "error"}:
+    if apply_state not in {"running", "completed", "error"}:
         raise CmocError(
             "session state ファイルの apply.state が不正です。",
             [
@@ -160,11 +158,105 @@ def _validate_abandonable_state(
             ],
             f"session branch: {session_branch}",
         )
+    process_id = apply.get("process_id")
+    if process_id is not None and (
+        not isinstance(process_id, int)
+        or isinstance(process_id, bool)
+        or process_id <= 0
+    ):
+        raise CmocError(
+            "apply process id を session state から特定できませんでした。",
+            [
+                "session state の apply.process_id を確認してください。",
+                "state が壊れている場合は、手動で apply process の状態を確認してください。",
+            ],
+            f"apply.process_id: {process_id}",
+        )
     return _AbandonState(
         apply_branch=apply_branch,
         apply_worktree=apply_worktree,
         previous_apply_state=apply_state,
+        process_id=process_id,
     )
+
+
+def _stop_running_apply(abandon_state: _AbandonState) -> list[str]:
+    """running apply のプロセスを停止し、終了済みであることを確認する。"""
+    if abandon_state.previous_apply_state != "running":
+        return []
+    process_id = abandon_state.process_id
+    if process_id is None:
+        return [
+            "running apply process id was not recorded; "
+            "treating the run as stale"
+        ]
+    if process_id == os.getpid():
+        raise CmocError(
+            "停止対象の apply process が現在の abandon process と一致します。",
+            [
+                "session state の apply.process_id を確認してください。",
+                "誤った process id が記録されている場合は、state を復旧してから再実行してください。",
+            ],
+            f"apply.process_id: {process_id}",
+        )
+    if not _process_exists(process_id):
+        return [f"running apply process was already gone: pid {process_id}"]
+
+    target_process_ids = [*reversed(_descendant_process_ids(process_id)), process_id]
+    for target_process_id in target_process_ids:
+        if _process_exists(target_process_id):
+            os.kill(target_process_id, signal.SIGTERM)
+    for _ in range(50):
+        if not any(_process_exists(pid) for pid in target_process_ids):
+            return []
+        sleep(0.1)
+
+    raise CmocError(
+        "running apply process を停止できませんでした。",
+        [
+            "対象 process の状態を確認してください。",
+            "`cmoc apply abandon` を再実行する前に、手動で process を停止してください。",
+        ],
+        f"apply.process_id: {process_id}",
+    )
+
+
+def _process_exists(process_id: int) -> bool:
+    """process id が現在存在するかを OS に問い合わせる。"""
+    proc_stat = Path(f"/proc/{process_id}/stat")
+    if proc_stat.exists():
+        try:
+            fields = proc_stat.read_text(encoding="utf-8").split()
+        except OSError:
+            fields = []
+        if len(fields) >= 3 and fields[2] == "Z":
+            return False
+    try:
+        os.kill(process_id, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _descendant_process_ids(process_id: int) -> list[int]:
+    """Linux procfs から対象 process の子孫 process id を返す。"""
+    children: list[int] = []
+    for child_id in _child_process_ids(process_id):
+        children.append(child_id)
+        children.extend(_descendant_process_ids(child_id))
+    return children
+
+
+def _child_process_ids(process_id: int) -> list[int]:
+    """Linux procfs から対象 process の直接の子 process id を返す。"""
+    children_path = Path(f"/proc/{process_id}/task/{process_id}/children")
+    try:
+        content = children_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    return [int(value) for value in content.split() if value.isdigit()]
 
 
 def _cleanup_apply_artifacts(
@@ -233,5 +325,6 @@ def _mark_apply_ready(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
     }
     write_session_state(repo_root, session_id, state)

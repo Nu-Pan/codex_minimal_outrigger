@@ -146,6 +146,7 @@ def initial_session_state(
             "state": "ready",
             "apply_branch": None,
             "oracle_snapshot_commit": None,
+            "process_id": None,
         },
     }
 
@@ -190,6 +191,7 @@ def _session_state_payload(state: dict[str, object]) -> dict[str, object]:
             "state": apply.get("state"),
             "apply_branch": apply.get("apply_branch"),
             "oracle_snapshot_commit": apply.get("oracle_snapshot_commit"),
+            "process_id": apply.get("process_id"),
         },
     }
 
@@ -290,6 +292,12 @@ def _validate_session_state_schema(
         "apply.oracle_snapshot_commit",
         path,
     )
+    _validate_optional_positive_int(
+        apply,
+        "process_id",
+        "apply.process_id",
+        path,
+    )
     _validate_apply_state_invariants(apply, apply_state, path)
 
 
@@ -351,6 +359,29 @@ def _validate_optional_string(
         )
 
 
+def _validate_optional_positive_int(
+    section: dict[object, object],
+    key: str,
+    label: str,
+    path: Path,
+) -> None:
+    """任意 positive integer field が null または正の整数であることを検証する。"""
+    value = section.get(key)
+    if value is not None and (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value <= 0
+    ):
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            [
+                f"{label} を確認してください。",
+                "破損した session state を復旧してください。",
+            ],
+            f"{path}\n{label}: {value}",
+        )
+
+
 def _validate_apply_state_invariants(
     apply: dict[object, object],
     apply_state: str,
@@ -359,6 +390,7 @@ def _validate_apply_state_invariants(
     """apply.state ごとの補助 field 不変条件を検証する。"""
     apply_branch = apply.get("apply_branch")
     oracle_snapshot_commit = apply.get("oracle_snapshot_commit")
+    process_id = apply.get("process_id")
     if apply_state == "ready":
         _validate_null_field(apply_branch, "apply.apply_branch", path)
         _validate_null_field(
@@ -366,16 +398,25 @@ def _validate_apply_state_invariants(
             "apply.oracle_snapshot_commit",
             path,
         )
+        _validate_null_field(process_id, "apply.process_id", path)
         return
 
-    if apply_state in {"running", "completed"}:
+    if apply_state == "running":
         _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+        _validate_running_process_field(process_id, path)
+        return
+
+    if apply_state == "completed":
+        _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+        _validate_null_field(process_id, "apply.process_id", path)
         return
 
     if apply_state == "error" and (
         apply_branch is not None or oracle_snapshot_commit is not None
     ):
         _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+    if apply_state == "error":
+        _validate_null_field(process_id, "apply.process_id", path)
 
 
 def _validate_null_field(value: object, label: str, path: Path) -> None:
@@ -414,6 +455,25 @@ def _validate_apply_run_fields(
                 "破損した session state を復旧してください。",
             ],
             f"{path}\napply.oracle_snapshot_commit: {oracle_snapshot_commit}",
+        )
+
+
+def _validate_running_process_field(process_id: object, path: Path) -> None:
+    """running apply の停止対象 process id を検証する。"""
+    if process_id is None:
+        return
+    if (
+        not isinstance(process_id, int)
+        or isinstance(process_id, bool)
+        or process_id <= 0
+    ):
+        raise CmocError(
+            "session state ファイルの形式が不正です。",
+            [
+                "apply.process_id は正の整数または null である必要があります。",
+                "破損した session state を復旧してください。",
+            ],
+            f"{path}\napply.process_id: {process_id}",
         )
 
 

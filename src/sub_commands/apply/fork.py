@@ -1,6 +1,7 @@
 """`cmoc apply` の本体処理。"""
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
@@ -401,6 +402,7 @@ def _mark_apply_running(
     apply["state"] = "running"
     apply["apply_branch"] = apply_branch
     apply["oracle_snapshot_commit"] = oracle_snapshot_commit
+    apply["process_id"] = os.getpid()
     write_session_state(repo_root, session_id, state)
 
 
@@ -412,6 +414,7 @@ def _mark_apply_completed(
     """session state の apply セクションを completed に更新する。"""
     apply = _mutable_apply_section(state)
     apply["state"] = "completed"
+    apply["process_id"] = None
     write_session_state(repo_root, session_id, state)
 
 
@@ -424,6 +427,7 @@ def _mark_apply_error(
     apply = _mutable_apply_section(state)
     if apply.get("state") != "error":
         apply["state"] = "error"
+        apply["process_id"] = None
         write_session_state(repo_root, session_id, state)
 
 

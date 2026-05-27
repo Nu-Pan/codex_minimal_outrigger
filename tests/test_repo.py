@@ -900,6 +900,7 @@ def test_write_session_state_persists_only_oracle_schema(
                 "2026-05-10_22-22_10_123"
             ),
             "oracle_snapshot_commit": "def456",
+            "process_id": None,
         },
     }
 
@@ -1028,6 +1029,7 @@ def test_write_session_state_allows_error_before_apply_run_fields_exist(
         "state": "error",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
     }
 
 

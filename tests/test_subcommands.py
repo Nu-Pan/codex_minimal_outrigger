@@ -380,6 +380,7 @@ def test_session_fork_creates_session_branch_and_records_state(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
     }
     output = capsys.readouterr().out
     assert "(1/4) validate repository state" in output
@@ -1619,6 +1620,7 @@ def test_apply_returns_complete_when_no_discrepancies(
         "state",
         "apply_branch",
         "oracle_snapshot_commit",
+        "process_id",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_123"
@@ -1805,6 +1807,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
@@ -2007,6 +2010,7 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
@@ -2114,10 +2118,44 @@ def test_apply_abandon_accepts_error_state(
     assert not apply_worktree.exists()
 
 
-def test_apply_abandon_rejects_running_state_without_cleanup(
+def test_apply_abandon_stops_running_process_and_resets_state(
     tmp_path: Path,
 ) -> None:
-    """実行中 apply process の停止確認ができない running state は破棄しない。"""
+    """running apply は process を停止してから成果物を破棄する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+    )
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "running"
+    state["apply"]["process_id"] = process.pid
+    write_session_state(repo, "2026-05-10_22-21_10_123", state)
+
+    try:
+        cmoc_apply_abandon_impl(repo)
+    finally:
+        process.wait(timeout=5)
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert process.returncode is not None
+    assert state["apply"]["state"] == "ready"
+    assert state["apply"]["process_id"] is None
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+
+
+def test_apply_abandon_accepts_stale_running_state_without_process_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """古い running state に process id が無い場合も stale として cleanup する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
@@ -2128,16 +2166,17 @@ def test_apply_abandon_rejects_running_state_without_cleanup(
     state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
-    state_path.write_text(json.dumps(state), encoding="utf-8")
+    state["apply"]["process_id"] = None
+    write_session_state(repo, "2026-05-10_22-21_10_123", state)
 
-    with pytest.raises(CmocError) as error_info:
-        cmoc_apply_abandon_impl(repo)
+    cmoc_apply_abandon_impl(repo)
 
+    output = capsys.readouterr().out
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert "running 状態" in error_info.value.message
-    assert state["apply"]["state"] == "running"
-    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
-    assert apply_worktree.exists()
+    assert "running apply process id was not recorded" in output
+    assert state["apply"]["state"] == "ready"
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
 
 
 def test_apply_abandon_rejects_unknown_state_without_cleanup(
@@ -2622,6 +2661,7 @@ def test_apply_rejects_negative_repeat_before_worktree_creation(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
         "state": "ready",
     }
     assert not (repo / ".cmoc" / "worktrees").exists()
@@ -2708,6 +2748,7 @@ def test_apply_marks_error_when_worktree_creation_fails(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
+        "process_id": None,
         "state": "error",
     }
     assert not (repo / ".cmoc" / "worktrees").exists()
@@ -3139,6 +3180,7 @@ def test_session_join_precondition_failure_does_not_print_manual_resolution(
         "rev-parse",
         "HEAD",
     ).stdout.strip()
+    state["apply"]["process_id"] = 12345
     state_path.write_text(json.dumps(state), encoding="utf-8")
 
     with pytest.raises(CmocError) as error:
@@ -3398,6 +3440,7 @@ def test_session_abandon_rejects_apply_run_before_cleanup(
         "rev-parse",
         "HEAD",
     ).stdout.strip()
+    state["apply"]["process_id"] = 12345
     state_path.write_text(json.dumps(state), encoding="utf-8")
 
     with pytest.raises(CmocError) as error:
@@ -4013,6 +4056,7 @@ def _create_completed_apply_run(
         "apply_branch": apply_branch,
         "apply_worktree": str(apply_worktree),
         "oracle_snapshot_commit": oracle_snapshot,
+        "process_id": None,
         "completed": True,
         "discrepancy_counts": [0],
         "report_path": str(report_path),
