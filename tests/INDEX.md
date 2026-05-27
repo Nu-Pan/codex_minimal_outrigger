@@ -27,29 +27,29 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` と関連補助処理の回帰テスト群の入口です。
-- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗、`enum` / 文字列長制約の検証を扱います。
-- 呼び出しログ、`subcommand_log` への通知、出力プレビュー、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、quota 枯渇時の待機・疎通確認・`--resume` 再実行も確認します。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec()` とその周辺の共通補助処理を検証するテスト群の入口です。
+- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗、出力プレビューを扱います。
+- Codex CLI 呼び出しログ、`subcommand_log` への通知、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、workspace-write 時の oracle 保護を確認します。
+- quota 枯渇時の待機・疎通確認・`--resume` 再実行、`session_id` 抽出、`_resume_command`、`_prepare_codex_exec_paths` も扱います。
 - 末尾にはテスト用 git リポジトリ初期化用の `_init_git_repo` / `_git` と、`_FailingTextIO` / `_RecordingTextIO` があります。
 
 ## Read this when
 
-- `run_codex_exec()` の引数や `--output-schema`、`--output-last-message`、`--resume`、`reasoning_effort` の扱いを確認したいとき。
-- Structured Output の parse 失敗、意味的検証失敗、JSON Schema の `enum` や文字列長制約に対するリトライやエラー表示を確認したいとき。
-- Codex CLI の呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の待機・疎通確認・再実行フローを確認したいとき。
-- Codex 呼び出し前後の `INDEX.md` メンテナンスの有無や、`skip_index_maintenance` による明示スキップを確認したいとき。
-- テスト用 git リポジトリを初期化する `_init_git_repo` / `_git` と、`_FailingTextIO` / `_RecordingTextIO` の補助テストを追いたいとき。
+- `commons.codex.run_codex_exec()` の引数、`read_only` / `workspace-write`、`--json`、`--output-last-message`、`--output-schema`、`reasoning_effort` の扱いを確認したいとき。
+- Structured Output の parse 失敗、schema 不一致、意味的検証失敗に対するリトライやエラー表示を確認したいとき。
+- Codex CLI 呼び出しログ、`subcommand_log` への通知、出力プレビュー、quota 枯渇時の再実行フローを確認したいとき。
+- `INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の oracle 保護、`session_id` 抽出や `_resume_command` を追いたいとき。
 
 ## Do not read this when
 
-- `tests/test_indexing.py` の `INDEX.md` メンテナンス仕様そのものを確認したいときは、そちらを読むべきです。
-- `cmoc` の個別サブコマンド仕様や `oracles` の正本断片を確認したいときは、この目次ではなく対応する仕様文書を読むべきです。
-- `commons.codex.run_codex_exec()` 以外の実装や、`tests` 配下の別テスト群だけを追いたいときは、このファイルは範囲が広すぎます。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
+- `tests/test_indexing.py` の `INDEX.md` 保守処理そのものを確認したいとき。
+- `tests/test_subcommands.py` や `src/sub_commands` の個別サブコマンド仕様だけを確認したいとき。
+- `tests/test_repo.py` や `tests/test_timestamps.py` の git 共通処理や時刻書式だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
 
 ## hash
 
-- 20aca936a9de30b3c5290e3d1038b9192e250c825c41d0a2f1da9b05a41f5353
+- c6d37ce69f20abc3676195fedc5242d60af2e99161514311ea4c104a28957956
 
 # `test_file_naming.py`
 
