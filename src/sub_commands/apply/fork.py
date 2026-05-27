@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
@@ -1102,7 +1103,7 @@ def _validate_apply_report(
     require_front_matter: bool = False,
 ) -> None:
     """保存前の apply レポートが必須内容を持つことを機械的に確認する。"""
-    # Markdown の意味解釈ではなく、必須セクションと既知値の存在を検査する。
+    # Markdown の完全な意味解釈ではなく、必須セクションと既知値の対応を検査する。
     missing: list[str] = []
     body = report
     if require_front_matter:
@@ -1127,23 +1128,31 @@ def _validate_apply_report(
         if front_matter.get("result") != result_label:
             missing.append("YAML Front Matter result")
 
-    if "作業結果" not in body or result_label not in body:
+    sections = _markdown_sections(body)
+    result_section = sections.get("作業結果")
+    counts_section = sections.get("要修正点件数の推移")
+    all_changes_section = _find_markdown_section(sections, "全変更内容")
+
+    if result_section is None or result_label not in result_section.content:
         missing.append("作業結果の区分")
-    if "要修正点件数の推移" not in body:
+
+    if counts_section is None:
         missing.append("要修正点件数の推移")
-    for index, count in enumerate(discrepancy_counts, start=1):
-        if f"{index}" not in body or f"{count}" not in body:
-            missing.append(f"要修正点件数の推移 loop {index}")
+    else:
+        for index, count in enumerate(discrepancy_counts, start=1):
+            if not _section_has_loop_count(counts_section, index, count):
+                missing.append(f"要修正点件数の推移 loop {index}")
+        if (
+            result_label == "未収束"
+            and not completed
+            and "まだ要修正点が残っている可能性" not in counts_section.content
+        ):
+            missing.append("未収束時の残存可能性")
+
     if (
-        result_label == "未収束"
-        and not completed
-        and "まだ要修正点が残っている可能性" not in body
-    ):
-        missing.append("未収束時の残存可能性")
-    if (
-        branch_name not in body
-        or "全変更内容" not in body
-        or "カテゴリ" not in body
+        all_changes_section is None
+        or branch_name not in all_changes_section.heading
+        or not _section_has_categorized_summary(all_changes_section.content)
     ):
         missing.append("ブランチ上の全変更内容の意味論的カテゴリ別要約")
 
@@ -1153,6 +1162,86 @@ def _validate_apply_report(
             "Codex CLI が生成した apply report に必須内容がありません:\n"
             + "\n".join(missing)
         )
+
+
+@dataclass(frozen=True)
+class _MarkdownSection:
+    """apply report の Markdown heading と本文を保持する。"""
+
+    heading: str
+    content: str
+
+
+def _markdown_sections(markdown: str) -> dict[str, _MarkdownSection]:
+    """Markdown を heading 単位の section に分ける。"""
+    sections: dict[str, _MarkdownSection] = {}
+    current_heading: str | None = None
+    current_lines: list[str] = []
+
+    for line in markdown.splitlines():
+        heading_match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+        if heading_match is not None:
+            if current_heading is not None:
+                sections[current_heading] = _MarkdownSection(
+                    heading=current_heading,
+                    content="\n".join(current_lines).strip(),
+                )
+            current_heading = heading_match.group(2).strip()
+            current_lines = []
+            continue
+        if current_heading is not None:
+            current_lines.append(line)
+
+    if current_heading is not None:
+        sections[current_heading] = _MarkdownSection(
+            heading=current_heading,
+            content="\n".join(current_lines).strip(),
+        )
+    return sections
+
+
+def _find_markdown_section(
+    sections: dict[str, _MarkdownSection],
+    heading_keyword: str,
+) -> _MarkdownSection | None:
+    """heading に keyword を含む section を返す。"""
+    for heading, section in sections.items():
+        if heading_keyword in heading:
+            return section
+    return None
+
+
+def _section_has_loop_count(section: _MarkdownSection, index: int, count: int) -> bool:
+    """同じ行に loop 番号と件数が対応して書かれているかを返す。"""
+    index_pattern = rf"(?<!\d){index}(?!\d)\s*(回目|ループ|loop)"
+    count_pattern = rf"(?<!\d){count}(?!\d)\s*件"
+    for line in section.content.splitlines():
+        if re.search(index_pattern, line) and re.search(count_pattern, line):
+            return True
+    return False
+
+
+def _section_has_categorized_summary(content: str) -> bool:
+    """全変更内容 section にカテゴリ付き要約本文があるかを返す。"""
+    meaningful_lines = [
+        line.strip()
+        for line in content.splitlines()
+        if line.strip() and not set(line.strip()) <= {"-", "|", ":", " "}
+    ]
+    category_lines = [
+        line for line in meaningful_lines if _line_declares_category(line)
+    ]
+    if not category_lines:
+        return False
+    non_category_lines = [
+        line for line in meaningful_lines if not _line_declares_category(line)
+    ]
+    return bool(non_category_lines)
+
+
+def _line_declares_category(line: str) -> bool:
+    """行がカテゴリ名またはカテゴリ列を宣言しているかを返す。"""
+    return re.search(r"カテゴリ\s*[:：|]", line) is not None
 
 
 def _apply_report_with_front_matter(

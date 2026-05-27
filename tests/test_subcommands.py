@@ -2532,6 +2532,89 @@ def test_apply_prompt_orders_completion_before_details() -> None:
     assert lines.index("以下の要修正点情報は作業のためのヒントです。") > 2
 
 
+def test_apply_report_validation_requires_markdown_sections() -> None:
+    """apply report 検証は本文全体の substring だけでは通さない。"""
+    body = "\n".join(
+        [
+            "作業結果 収束",
+            "要修正点件数の推移 1 回目: 0 件",
+            "cmoc/apply/session/run 全変更内容 カテゴリ: 実装修正",
+            "本文に必要語はあるが Markdown 見出しではない。",
+        ]
+    )
+
+    with pytest.raises(ValueError) as error:
+        apply_module._validate_apply_report(
+            body,
+            "cmoc/apply/session/run",
+            "収束",
+            True,
+            [0],
+        )
+
+    assert "作業結果の区分" in str(error.value)
+    assert "要修正点件数の推移" in str(error.value)
+    assert "ブランチ上の全変更内容" in str(error.value)
+
+
+def test_apply_report_validation_matches_loop_counts_by_line() -> None:
+    """件数推移は loop 番号と件数が同じ行に対応している必要がある。"""
+    body = "\n".join(
+        [
+            "## 作業結果",
+            "未収束",
+            "",
+            "## 要修正点件数の推移",
+            "- 1 回目: 9 件",
+            "- 2 回目: 1 件",
+            "まだ要修正点が残っている可能性があります。",
+            "",
+            "## ブランチ cmoc/apply/session/run 上の全変更内容",
+            "- カテゴリ: 実装修正",
+            "  - 要約を記録しました。",
+        ]
+    )
+
+    with pytest.raises(ValueError) as error:
+        apply_module._validate_apply_report(
+            body,
+            "cmoc/apply/session/run",
+            "未収束",
+            False,
+            [1, 9],
+        )
+
+    assert "要修正点件数の推移 loop 1" in str(error.value)
+    assert "要修正点件数の推移 loop 2" in str(error.value)
+
+
+def test_apply_report_validation_requires_change_summary_item() -> None:
+    """全変更内容 section はカテゴリ名だけでなく要約項目も必要とする。"""
+    body = "\n".join(
+        [
+            "## 作業結果",
+            "収束",
+            "",
+            "## 要修正点件数の推移",
+            "- 1 回目: 0 件",
+            "",
+            "## ブランチ cmoc/apply/session/run 上の全変更内容",
+            "- カテゴリ: 実装修正",
+        ]
+    )
+
+    with pytest.raises(ValueError) as error:
+        apply_module._validate_apply_report(
+            body,
+            "cmoc/apply/session/run",
+            "収束",
+            True,
+            [0],
+        )
+
+    assert "ブランチ上の全変更内容" in str(error.value)
+
+
 def test_apply_rejects_incomplete_report_from_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -3984,7 +4067,8 @@ def _apply_report(prompt: str, result_label: str, counts: list[int]) -> str:
             "## 要修正点件数の推移",
             *count_lines,
             f"## ブランチ {branch_name} 上の全変更内容",
-            "カテゴリ: 実装修正",
+            "- カテゴリ: 実装修正",
+            "  - テスト用の変更内容を整理しました。",
         ]
     )
 
