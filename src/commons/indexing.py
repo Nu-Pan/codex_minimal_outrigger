@@ -105,15 +105,7 @@ def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
 
     # 目次作成対象の除外条件だけを使い、配置対象除外名とは切り分ける。
     for child in sorted(directory.iterdir(), key=lambda path: path.name):
-        if (
-            child.name == "INDEX.md"
-            or child.name.startswith(".")
-            or _is_repo_memo(repo_root, child)
-        ):
-            continue
-        if _is_gitignored(repo_root, child):
-            continue
-        if _looks_binary(child):
+        if not _is_index_entry_target(repo_root, child):
             continue
 
         digest = _hash_path(repo_root, child)
@@ -214,13 +206,7 @@ def _hash_path(repo_root: Path, path: Path) -> str:
         path.iterdir(),
         key=lambda item: item.relative_to(repo_root).as_posix(),
     ):
-        if (
-            child.name == "INDEX.md"
-            or child.name.startswith(".")
-            or _is_repo_memo(repo_root, child)
-            or _is_gitignored(repo_root, child)
-            or _looks_binary(child)
-        ):
+        if not _is_index_entry_target(repo_root, child):
             continue
         entry_type = "directory" if child.is_dir() else "file"
         relative_path = child.relative_to(repo_root).as_posix()
@@ -231,6 +217,24 @@ def _hash_path(repo_root: Path, path: Path) -> str:
     return hashlib.sha256(
         "".join(serialized_entries).encode("utf-8")
     ).hexdigest()
+
+
+def _is_index_entry_target(repo_root: Path, path: Path) -> bool:
+    """INDEX 目次情報と directory hash に含める直下項目か判定する。"""
+    # symlink は repo 外混入や循環の入口になるため、実体種別を見ずに除外する。
+    if path.is_symlink():
+        return False
+    if (
+        path.name == "INDEX.md"
+        or path.name.startswith(".")
+        or _is_repo_memo(repo_root, path)
+    ):
+        return False
+    if _is_gitignored(repo_root, path):
+        return False
+    if _looks_binary(path):
+        return False
+    return True
 
 
 def _looks_binary(path: Path) -> bool:
@@ -261,7 +265,8 @@ def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
     # root 直下 memo と、名前ベース除外ディレクトリの配下は探索しない。
     name = directory.name
     return (
-        name.startswith(".")
+        directory.is_symlink()
+        or name.startswith(".")
         or name in _INDEX_DIRECTORY_EXCLUDED_NAMES
         or _is_repo_memo(repo_root, directory)
     )

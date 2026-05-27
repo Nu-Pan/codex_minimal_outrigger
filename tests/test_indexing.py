@@ -120,6 +120,127 @@ def test_maintain_indexes_includes_build_and_tmp_as_entries(
     assert not (tmp / "INDEX.md").exists()
 
 
+def test_maintain_indexes_excludes_symlink_entries(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """symlink は repo 外混入や循環回避のため目次対象から除外する。"""
+    repo = _init_repo(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "external.txt").write_text("external\n", encoding="utf-8")
+    (repo / "real.txt").write_text("real\n", encoding="utf-8")
+    (repo / "linked-file.txt").symlink_to(outside / "external.txt")
+    (repo / "linked-dir").symlink_to(outside, target_is_directory=True)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "symlinks")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成対象を記録する fake Codex CLI。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `real.txt`" in content
+    assert "# `linked-file.txt`" not in content
+    assert "# `linked-dir`" not in content
+    assert not any("linked-file.txt" in purpose for purpose in purposes)
+    assert not any("linked-dir" in purpose for purpose in purposes)
+
+
+def test_maintain_indexes_ignores_symlink_contents_in_directory_hash(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """directory hash は symlink 先の内容変更に影響されない。"""
+    repo = _init_repo(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    external = outside / "external.txt"
+    external.write_text("before\n", encoding="utf-8")
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "real.txt").write_text("real\n", encoding="utf-8")
+    (folder / "external-link.txt").symlink_to(external)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "folder symlink")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+    external.write_text("after\n", encoding="utf-8")
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """symlink 先の変更だけでは呼ばれてはいけない fake Codex CLI。"""
+        raise AssertionError(
+            "codex exec should not be called for symlink target changes"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    changed = maintain_indexes(repo)
+    folder_index = (folder / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is False
+    assert "# `real.txt`" in folder_index
+    assert "# `external-link.txt`" not in folder_index
+
+
+def test_maintain_indexes_excludes_cyclic_symlink_from_directory_hash(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """循環 symlink は辿らず、通常項目だけを INDEX 化する。"""
+    repo = _init_repo(tmp_path)
+    folder = repo / "folder"
+    folder.mkdir()
+    (folder / "real.txt").write_text("real\n", encoding="utf-8")
+    (folder / "loop").symlink_to(folder, target_is_directory=True)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "cyclic symlink")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    folder_index = (folder / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `real.txt`" in folder_index
+    assert "# `loop`" not in folder_index
+
+
 def test_maintain_indexes_excludes_non_utf8_binary_without_nul(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
