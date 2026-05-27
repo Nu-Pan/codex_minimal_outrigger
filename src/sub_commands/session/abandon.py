@@ -39,10 +39,9 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
     assert_cmoc_ignored(repo_root)
 
     start_step(timer, 3, 4, "switch to session home branch")
-    run_git(repo_root, ["switch", home_branch])
-
-    start_step(timer, 4, 4, "record abandoned session")
     try:
+        run_git(repo_root, ["switch", home_branch])
+        start_step(timer, 4, 4, "record abandoned session")
         _mark_session_abandoned(state_root, session_id, state)
         run_git(repo_root, ["branch", "-D", session_branch])
     except Exception as error:

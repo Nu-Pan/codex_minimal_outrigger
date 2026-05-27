@@ -3837,6 +3837,66 @@ def test_session_abandon_rejects_uncommitted_changes_before_switch(
     assert state["session"]["state"] == "active"
 
 
+def test_session_abandon_reports_home_switch_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """home branch への switch 失敗も cleanup 失敗として再実行を促す。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    session_branch = "cmoc/session/2026-05-10_22-21_10_123"
+    _checkout_session_branch(repo)
+    original_run_git = session_abandon_module.run_git
+
+    def fail_home_switch(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        """cleanup 最初の home branch switch 失敗を模擬する。"""
+        if args == ["switch", home_branch]:
+            raise subprocess.CalledProcessError(
+                1,
+                ["git", *args],
+                stderr="fake home switch failure",
+            )
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
+
+    monkeypatch.setattr(session_abandon_module, "run_git", fail_home_switch)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert error.value.message == "session abandon のクリーンアップに失敗しました。"
+    assert "cleanup failure" in error.value.detail
+    assert "fake home switch failure" in error.value.detail
+    assert "rollback failure" not in error.value.detail
+    assert "`cmoc session abandon` を再実行" in error.value.actions[0]
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+    assert state["session"]["state"] == "active"
+    assert session_branch in branches
+
+
 def test_session_abandon_reports_rollback_switch_failure(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
