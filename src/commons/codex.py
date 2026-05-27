@@ -376,8 +376,6 @@ def _run_codex_command(
         "codex exec call: "
         f"{_head80(prompt)} -> {log_path.relative_to(repo_root)}"
     )
-    # 前回 attempt の最終メッセージを誤読しないよう、起動前に消しておく。
-    last_message_path.unlink(missing_ok=True)
     oracle_guard = _start_oracle_guard(repo_root, command)
     started = perf_counter()
     result = subprocess.run(
@@ -811,20 +809,24 @@ def _prepare_codex_exec_paths(repo_root: Path) -> dict[str, Path]:
     last_message_dir = base_dir / "output_last_message"
     call_dir.mkdir(parents=True, exist_ok=True)
     last_message_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = _make_unused_codex_call_timestamp(call_dir)
-    return {
-        "call": call_dir / f"{timestamp}.log",
-        "last_message": last_message_dir / f"{timestamp}.log",
-    }
-
-
-def _make_unused_codex_call_timestamp(call_dir: Path) -> str:
-    """既存 call log と衝突しない timestamp を作る。"""
     while True:
         timestamp = make_timestamp()
-        if not (call_dir / f"{timestamp}.log").exists():
-            return timestamp
-        time.sleep(0.001)
+        call_path = call_dir / f"{timestamp}.log"
+        last_message_path = last_message_dir / f"{timestamp}.log"
+        try:
+            with call_path.open("x", encoding="utf-8"):
+                pass
+        except FileExistsError:
+            time.sleep(0.001)
+            continue
+        if last_message_path.exists():
+            call_path.unlink(missing_ok=True)
+            time.sleep(0.001)
+            continue
+        return {
+            "call": call_path,
+            "last_message": last_message_path,
+        }
 
 
 def _codex_log_front_matter(

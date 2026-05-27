@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
+from commons.codex import _prepare_codex_exec_paths
 from commons.codex import run_codex_exec
 from commons.errors import CmocError
 from commons.subcommand_log import _TeeTextIO
@@ -107,6 +108,36 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     captured = capsys.readouterr().out
     assert "codex exec attempt (1/3) prompt:" in captured
     assert "codex exec attempt (3/3) output:" in captured
+
+
+def test_prepare_codex_exec_paths_reserves_call_log_atomically(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """codex exec ログ path は timestamp 重複時も予約済み call log を再利用しない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    timestamps = iter(
+        [
+            "2026-05-04_03-02_01_001",
+            "2026-05-04_03-02_01_001",
+            "2026-05-04_03-02_01_002",
+        ]
+    )
+    monkeypatch.setattr(
+        "commons.codex.make_timestamp",
+        lambda: next(timestamps),
+    )
+
+    first = _prepare_codex_exec_paths(repo)
+    second = _prepare_codex_exec_paths(repo)
+
+    assert first["call"].name == "2026-05-04_03-02_01_001.log"
+    assert second["call"].name == "2026-05-04_03-02_01_002.log"
+    assert first["last_message"].name == "2026-05-04_03-02_01_001.log"
+    assert second["last_message"].name == "2026-05-04_03-02_01_002.log"
+    assert first["call"].exists()
+    assert second["call"].exists()
 
 
 def test_run_codex_exec_notifies_console_and_subcommand_log(
