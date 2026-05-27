@@ -4,6 +4,9 @@ from contextvars import ContextVar
 from math import floor
 from time import perf_counter
 
+from .subcommand_log import _console_timestamp
+from .subcommand_log import log_event
+
 _CURRENT_TIMER: ContextVar["StepTimer | None"] = ContextVar(
     "cmoc_step_timer",
     default=None,
@@ -67,8 +70,18 @@ def start_step(
     description: str,
 ) -> None:
     """ステップ開始を計測し、oracle 指定フォーマットで通知する。"""
+    step_index = f"{step_number}/{total_steps}"
     timer.start(description)
-    print(f"({step_number}/{total_steps}) {description}")
+    timestamp = _console_timestamp()
+    log_event(
+        "step_start",
+        {
+            "command": timer.command_name,
+            "step": description,
+            "step_index": step_index,
+        },
+    )
+    print(f"# {timestamp} ({step_index}) {description}")
 
 
 def report_current_timer() -> None:

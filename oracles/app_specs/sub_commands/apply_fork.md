@@ -259,7 +259,6 @@
 
 ## 作業レポートの仕様
 
-- レポート執筆は Codex CLI に依頼する
 - レポートの形式は markdown + YAML Front Matter とする
 - YAML Front Matter に必ず含める項目
     - `<cmoc-session-branch>`
@@ -275,12 +274,60 @@
         - エラー : 途中でエラーが起きてループを正常に終了出来なかった
     - 要修正点件数の推移
         - ループごとに何件の要修正点を見つけたかを書く
-        - 「未収束」の場合は、まだ要修正点が残っている可能性を追記する
+        - 「未収束」の場合は、まだ要修正点が残っている可能性を定型文で追記する
     - `<cmoc-apply-branch>` 上の全ての変更内容に対する要約
         - この `cmoc apply fork` で行った作業内容だけの要約に限定する
         - 変更内容の意味論に基づいたカテゴリ分けを行うこと
 - レポート本体は `<repo-root>/.cmoc/reports/apply/fork/<time-stamp>.md` にファイルに保存する
-- 作成したレポートのフルパスを標準出力に流す
+- 作成したレポートのフルパスを標準出力に流すこと (内容は流さない)
+
+## `<cmoc-apply-branch>` 上の全ての変更内容に対する要約の生成方法
+
+- `<cmoc-apply-branch>` 上の全ての変更内容に対する要約は機械的に生成出来ないので Codex CLI に執筆を依頼する
+- 要約は Structured Output で出力させる
+- Structured Output を元に Markdown にレンダリングするのは cmoc の責任である
+- schema は以下の通り
+```json
+{
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "changes"
+    ],
+    "properties": {
+        "changes": {
+            "type": "array",
+            "description": "`<oracle-snapshot-commit>` から `<cmoc-apply-branch>` の HEAD までの差分を、変更内容の意味論に基づいてカテゴリ分けした要約。空配列は想定しない。",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "category",
+                    "summary",
+                    "changed_paths"
+                ],
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "変更内容の意味論に基づくカテゴリ名。例: 実行制御、レポート生成、テスト、ルーティング文書。"
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "このカテゴリで行った変更内容の人間向け要約。カテゴリ名の再掲だけではなく、何をどう変えたかを書く。"
+                    },
+                    "changed_paths": {
+                        "type": "array",
+                        "description": "このカテゴリに属する主な変更ファイルのリポジトリ相対パス。網羅よりも、要約の根拠として有用な主要ファイルを列挙する。",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
 ## サブコマンドの終了コード
 

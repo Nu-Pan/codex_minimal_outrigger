@@ -2,25 +2,27 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で再利用する共通処理を集めたディレクトリです。`codex` 呼び出し、CLI サブコマンド共通の実行制御、エラー整形、リポジトリ探索、ログ、タイムスタンプ、経過時間、`INDEX.md` メンテナンスを扱います。
-- `__init__.py` はパッケージ宣言だけを担い、他の各モジュールが実装本体です。
-- このディレクトリは、個別機能よりも横断的な基盤処理を読む入口として使います。
+- `src/commons` 配下の共有モジュールをまとめた入口で、`codex`、`command_runner`、`errors`、`indexing`、`repo`、`subcommand_log`、`timestamps`、`timing` への案内を提供します。
+- 各サブコマンドで共通利用される実行制御、エラー整形、リポジトリ探索、ログ保存、タイムスタンプ生成、時間計測の担当範囲を整理するための目次です。
+- 個別実装へ進む前に、どの共通機能がどのファイルにあるかを素早く判断するためのルーティング文書です。
 
 ## Read this when
 
-- サブコマンド横断の実行制御や共通エラー報告の流れを確認したいとき。
-- git リポジトリ探索、`cmoc/session/...` と `cmoc/apply/...` の branch 判定、session state path などを確認したいとき。
-- tee ログ、タイムスタンプ、経過時間表示、`INDEX.md` 自動メンテナンスなどの共通基盤を見直したいとき。
+- `src/commons` に置かれた共通ユーティリティの全体像を確認したいとき。
+- 共有エラー処理、リポジトリ探索、ログ出力、タイムスタンプ生成、経過時間計測のどこへ進むべきか整理したいとき。
+- 各サブコマンドで共通利用される機能の入口をまとめて把握したいとき。
+- `src/commons` 配下の個別モジュールへたどる前に、役割分担を先に確認したいとき。
 
 ## Do not read this when
 
-- 特定のサブコマンドの引数や業務ロジックだけを見たいときは、`src/sub_commands` 側の該当モジュールを直接読むべきです。
-- 単一の共通ヘルパーの実装だけが必要なときは、`codex.py` などの個別モジュールを直接読むべきで、このディレクトリ全体を読む必要はありません。
-- `oracles` や `app_specs` の仕様断片、または利用手順だけを確認したいときは、このディレクトリではなく仕様側を読むべきです。
+- 個別サブコマンドの業務ロジックだけを確認したいときは、`src/sub_commands` 側を直接読むべきです。
+- `codex exec` や `apply` など、`src/commons` 以外の機能の仕様だけを確認したいときは、この目次を読む必要はありません。
+- 特定の共有モジュールの実装詳細を知りたいときは、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` を直接参照すべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`src/commons/indexing.py` を読むべきです。
 
 ## hash
 
-- 52ac3ce39e9cbed2091d85253e1f8c04faf8d89f808af7a4580b5d9a6942f3d4
+- 2adb2bce9291af358a5cdecb51f152bf8de10f8c3aa468f1cb03120bedc6bfd1
 
 # `main.py`
 
@@ -66,11 +68,11 @@
 
 ## Do not read this when
 
-- 個別の `cmoc apply` や `cmoc session` の処理内容だけを確認したいときは、それぞれの下位 INDEX や仕様文書を直接読むべきです。
+- `cmoc apply` や `cmoc session` の個別処理だけを確認したいときは、この目次ではなく各下位 `INDEX.md` を直接読むべきです。
 - `cmoc eval-oracles` や `cmoc init` の本体処理だけを確認したいときは、この目次ではなく `eval_oracles.py` や `init.py` を直接読むべきです。
 - `src/sub_commands` が Python パッケージとして存在するかだけを確認したいときは、`__init__.py` だけで足ります。
 - サブコマンドの仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
 
 ## hash
 
-- 3121ee5ec647fb9cd2603127bf038475e9ee6394dacf9b6d167fc43c1bd8803c
+- c38b9eefb1ca26896d06bc808b4c27f0dec659f5d4fff50c7c5d7e7b591cab81

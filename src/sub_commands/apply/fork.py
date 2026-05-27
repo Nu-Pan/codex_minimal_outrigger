@@ -151,6 +151,51 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
     },
 }
 
+_CHANGE_SUMMARY_OUTPUT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["changes"],
+    "properties": {
+        "changes": {
+            "type": "array",
+            "description": (
+                "`<oracle-snapshot-commit>` から `<cmoc-apply-branch>` の "
+                "HEAD までの差分を、変更内容の意味論に基づいてカテゴリ分け"
+                "した要約。空配列は想定しない。"
+            ),
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["category", "summary", "changed_paths"],
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": (
+                            "変更内容の意味論に基づくカテゴリ名。"
+                            "例: 実行制御、レポート生成、テスト、ルーティング文書。"
+                        ),
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": (
+                            "このカテゴリで行った変更内容の人間向け要約。"
+                            "何をどう変えたかを書く。"
+                        ),
+                    },
+                    "changed_paths": {
+                        "type": "array",
+                        "description": (
+                            "このカテゴリに属する主な変更ファイルのリポジトリ"
+                            "相対パス。"
+                        ),
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+        }
+    },
+}
+
 
 def cmoc_apply_impl(
     repo_root: Path | None = None,
@@ -923,75 +968,27 @@ def _write_apply_report(
     completed: bool,
     discrepancy_counts: list[int],
 ) -> Path:
-    """作業レポートを Codex CLI に依頼し、ファイル保存する。"""
+    """作業レポートを cmoc 側で組み立て、変更要約だけ Codex CLI に依頼する。"""
     # report 保存先と timestamp 付きファイル名を用意する。
     report_dir = report_repo_root / ".cmoc" / "reports" / "apply" / "fork"
     report_dir.mkdir(parents=True, exist_ok=True)
     generated_at = make_timestamp()
     report_path = report_dir / f"{generated_at}.md"
 
-    # Codex にはレポート本文だけを生成させ、ファイル保存は cmoc が行う。
     result_label = "収束" if completed else "未収束"
-    incomplete_instruction = (
-        "「未収束」の場合は、要修正点件数の推移に"
-        "「まだ要修正点が残っている可能性」を必ず追記してください。"
-    )
-    prompt = "\n".join(
-        [
-            "あなたはソフトウェア作業レポートの作成担当です。",
-            f"`{repo_root}` のブランチ `{branch_name}` について簡潔な作業レポートを書いてください。",
-            "完了条件は、作業結果、要修正点件数の推移、今回の apply run で行った変更内容を説明することです。",
-            "YAML Front Matter は cmoc 側で付与するため、本文 Markdown だけを書いてください。",
-            "Markdown 見出しとして「作業結果」「要修正点件数の推移」「全変更内容」を必ず含めてください。",
-            "要修正点件数の推移には、ループごとに何件の要修正点を見つけたかを書いてください。",
-            incomplete_instruction,
-            "全変更内容は、この `cmoc apply fork` が実際に行った作業内容だけに限定してください。",
-            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分だけを対象にしてください。",
-            "変更内容は、変更内容の意味論に基づき「カテゴリ」という語を使って要約してください。",
-            f"作業結果の区分は一言で `{result_label}` と書いてください。",
-            f"作業結果区分: {result_label}",
-            f"要修正点件数: {discrepancy_counts}",
-            f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
-            f"`{repo_root / 'memo'}` は読み書き禁止です。",
-            "ファイル編集は禁止です。",
-        ]
-    )
-    report = run_codex_exec(
+    change_summary = _generate_change_summary(
         repo_root,
-        prompt,
-        purpose="write apply report",
-        read_only=True,
-        expect_json=False,
-        model=COST_PERFORMANCE_MODEL,
-        reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
-        skip_index_maintenance=True,
-        text_validator=lambda value: _validate_apply_report(
-            value,
-            branch_name,
-            result_label,
-            completed,
-            discrepancy_counts,
-        ),
+        branch_name,
+        oracle_snapshot_commit,
     )
-    try:
-        _validate_apply_report(
-            report,
-            branch_name,
-            result_label,
-            completed,
-            discrepancy_counts,
-        )
-    except ValueError as error:
-        raise CmocError(
-            "Codex CLI が生成した apply report に必須内容がありません。",
-            [
-                "Codex report 生成 prompt を確認してから再実行してください。",
-                "問題が続く場合は、Codex CLI の出力を確認してから `cmoc apply` を再実行してください。",
-            ],
-            str(error),
-        ) from error
     report = _apply_report_with_front_matter(
-        report_body=report,
+        report_body=_render_apply_report_body(
+            apply_branch=branch_name,
+            result_label=result_label,
+            completed=completed,
+            discrepancy_counts=discrepancy_counts,
+            change_summary=change_summary,
+        ),
         generated_at=generated_at,
         session_id=session_id,
         apply_run_id=apply_run_id,
@@ -1004,16 +1001,159 @@ def _write_apply_report(
         result_label=result_label,
         discrepancy_counts=discrepancy_counts,
     )
-    _validate_apply_report(
-        report,
-        branch_name,
-        result_label,
-        completed,
-        discrepancy_counts,
-        require_front_matter=True,
-    )
+    try:
+        _validate_apply_report(
+            report,
+            branch_name,
+            result_label,
+            completed,
+            discrepancy_counts,
+            require_front_matter=True,
+        )
+    except ValueError as error:
+        raise CmocError(
+            "apply report の生成に必要な変更要約が不足しています。",
+            [
+                "Codex CLI の変更要約出力を確認してから再実行してください。",
+                "問題が続く場合は apply branch の差分を確認してください。",
+            ],
+            str(error),
+        ) from error
     report_path.write_text(report, encoding="utf-8")
     return report_path
+
+
+def _generate_change_summary(
+    repo_root: Path,
+    branch_name: str,
+    oracle_snapshot_commit: str,
+) -> list[dict[str, object]]:
+    """apply branch の変更内容を Structured Output でカテゴリ別要約にする。"""
+    if not _branch_has_changes(repo_root, oracle_snapshot_commit, branch_name):
+        return [
+            {
+                "category": "変更なし",
+                "summary": (
+                    "この apply run では、対象範囲に保存すべき実装差分は"
+                    "発生しませんでした。"
+                ),
+                "changed_paths": [],
+            }
+        ]
+    prompt = "\n".join(
+        [
+            "あなたはソフトウェア変更内容の要約担当です。",
+            f"`{repo_root}` のブランチ `{branch_name}` の変更内容をカテゴリ別に要約してください。",
+            "完了条件は Structured Output schema に従い、changes 配列だけを返すことです。",
+            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分だけを対象にしてください。",
+            "変更内容の意味論に基づいてカテゴリ分けしてください。",
+            "changed_paths は repo 相対パスで、要約の根拠になる主要ファイルだけを列挙してください。",
+            f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
+            f"`{repo_root / 'memo'}` は読み書き禁止です。",
+            "ファイル編集は禁止です。",
+        ]
+    )
+    payload = parse_json_object(
+        run_codex_exec(
+            repo_root,
+            prompt,
+            purpose="summarize apply changes",
+            read_only=True,
+            expect_json=True,
+            output_schema=_CHANGE_SUMMARY_OUTPUT_SCHEMA,
+            json_validator=_validate_change_summary_payload,
+            model=COST_PERFORMANCE_MODEL,
+            reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
+            skip_index_maintenance=True,
+        )
+    )
+    changes = payload.get("changes")
+    if not isinstance(changes, list):
+        return []
+    return [change for change in changes if isinstance(change, dict)]
+
+
+def _branch_has_changes(
+    repo_root: Path,
+    base_commit: str,
+    branch_name: str,
+) -> bool:
+    """base..branch に変更があるかを git diff で判定する。"""
+    result = run_git(
+        repo_root,
+        ["diff", "--quiet", f"{base_commit}..{branch_name}", "--"],
+        check=False,
+    )
+    return result.returncode == 1
+
+
+def _validate_change_summary_payload(value: object) -> None:
+    """変更要約 Structured Output の意味的な最低条件を検査する。"""
+    if not isinstance(value, dict):
+        raise ValueError("change summary payload must be object.")
+    changes = value.get("changes")
+    if not isinstance(changes, list) or not changes:
+        raise ValueError("changes must be a non-empty array.")
+    for index, change in enumerate(changes, start=1):
+        if not isinstance(change, dict):
+            raise ValueError(f"changes[{index}] must be object.")
+        for key in ("category", "summary"):
+            if not isinstance(change.get(key), str) or not change[key].strip():
+                raise ValueError(f"changes[{index}].{key} must be non-empty string.")
+        paths = change.get("changed_paths")
+        if not isinstance(paths, list) or any(
+            not isinstance(path, str) or not path for path in paths
+        ):
+            raise ValueError(f"changes[{index}].changed_paths must be string array.")
+
+
+def _render_apply_report_body(
+    *,
+    apply_branch: str,
+    result_label: str,
+    completed: bool,
+    discrepancy_counts: list[int],
+    change_summary: list[dict[str, object]],
+) -> str:
+    """cmoc が持つ確定情報と変更要約から Markdown report 本文を作る。"""
+    count_lines = [
+        f"- {index} 回目: {count} 件"
+        for index, count in enumerate(discrepancy_counts, start=1)
+    ]
+    if not count_lines:
+        count_lines = ["- 記録された調査ループはありません。"]
+    if result_label == "未収束" and not completed:
+        count_lines.append(
+            "- 定型文: 回数上限に達したため、まだ要修正点が残っている可能性があります。"
+        )
+
+    lines = [
+        "## 作業結果",
+        result_label,
+        "",
+        "## 要修正点件数の推移",
+        *count_lines,
+        "",
+        f"## ブランチ {apply_branch} 上の全変更内容",
+    ]
+    for change in change_summary:
+        category = str(change.get("category", "")).strip()
+        summary = str(change.get("summary", "")).strip()
+        paths = change.get("changed_paths")
+        if not isinstance(paths, list):
+            paths = []
+        lines.extend(
+            [
+                f"### カテゴリ: {category}",
+                summary,
+            ]
+        )
+        if paths:
+            lines.append("")
+            lines.append("主な変更ファイル:")
+            lines.extend(f"- `{path}`" for path in paths if isinstance(path, str))
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def _write_apply_error_report(
@@ -1184,19 +1324,31 @@ def _markdown_sections(markdown: str) -> dict[str, _MarkdownSection]:
     """Markdown を heading 単位の section に分ける。"""
     sections: dict[str, _MarkdownSection] = {}
     current_heading: str | None = None
+    current_level: int | None = None
     current_lines: list[str] = []
 
     for line in markdown.splitlines():
         heading_match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
         if heading_match is not None:
-            if current_heading is not None:
+            level = len(heading_match.group(1))
+            if (
+                current_heading is not None
+                and current_level is not None
+                and level <= current_level
+            ):
                 sections[current_heading] = _MarkdownSection(
                     heading=current_heading,
                     content="\n".join(current_lines).strip(),
                 )
-            current_heading = heading_match.group(2).strip()
-            current_lines = []
-            continue
+                current_heading = heading_match.group(2).strip()
+                current_level = level
+                current_lines = []
+                continue
+            if current_heading is None:
+                current_heading = heading_match.group(2).strip()
+                current_level = level
+                current_lines = []
+                continue
         if current_heading is not None:
             current_lines.append(line)
 

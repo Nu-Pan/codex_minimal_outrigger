@@ -1,6 +1,5 @@
 """Codex CLI 呼び出しラッパーのテスト。"""
 
-import io
 import json
 import os
 import subprocess
@@ -15,7 +14,6 @@ from commons.codex import _prepare_codex_exec_paths
 from commons.codex import _resume_command
 from commons.codex import run_codex_exec
 from commons.errors import CmocError
-from commons.subcommand_log import _TeeTextIO
 from commons.subcommand_log import subcommand_log
 
 _BOOLEAN_SCHEMA: dict[str, object] = {
@@ -147,7 +145,7 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Codex CLI 呼び出し通知は目的・相対ログ・時間・戻り値を tee する。"""
+    """Codex CLI 呼び出し通知はコンソールと JSONL イベントに出す。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     fake_bin = tmp_path / "bin"
@@ -184,20 +182,26 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
 
     captured = capsys.readouterr().out
     subcommand_logs = list(
-        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     )
-    log_content = subcommand_logs[0].read_text(encoding="utf-8")
+    log_events = [
+        json.loads(line)
+        for line in subcommand_logs[0].read_text(encoding="utf-8").splitlines()
+    ]
     notification_head = (
         "codex exec: unit test codex call "
-        "log=.cmoc/logs/codex_exec/call/"
+        f"log={repo}/.cmoc/logs/codex_exec/call/"
     )
     assert output == "ok\n"
     assert notification_head in captured
     assert " elapsed=" in captured
     assert " returncode=0" in captured
-    assert notification_head in log_content
-    assert " elapsed=" in log_content
-    assert " returncode=0" in log_content
+    assert any(
+        event["event"] == "codex_exec_call"
+        and event["purpose"] == "unit test codex call"
+        and event["returncode"] == 0
+        for event in log_events
+    )
 
 
 def test_run_codex_exec_rejects_uncommitted_oracle_change_after_workspace_write(
@@ -407,7 +411,7 @@ def test_subcommand_log_avoids_existing_timestamp_file(
     repo.mkdir()
     log_dir = repo / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True)
-    existing_log = log_dir / "2026-05-04_03-02_01_001.log"
+    existing_log = log_dir / "2026-05-04_03-02_01_001.jsonl"
     existing_log.write_text("existing log\n", encoding="utf-8")
     timestamps = iter(
         [
@@ -423,10 +427,10 @@ def test_subcommand_log_avoids_existing_timestamp_file(
     with subcommand_log(repo):
         print("new invocation")
 
-    new_log = log_dir / "2026-05-04_03-02_01_002.log"
+    new_log = log_dir / "2026-05-04_03-02_01_002.jsonl"
     assert existing_log.read_text(encoding="utf-8") == "existing log\n"
     assert new_log.exists()
-    assert "new invocation" in new_log.read_text(encoding="utf-8")
+    assert '"event": "subcommand_start"' in new_log.read_text(encoding="utf-8")
 
 
 def test_subcommand_log_excludes_logs_in_linked_worktree(
@@ -452,28 +456,6 @@ def test_subcommand_log_excludes_logs_in_linked_worktree(
     assert (linked / ".git").is_file()
     assert "/.cmoc/logs/" in exclude_path.read_text(encoding="utf-8")
     assert _git(linked, "status", "--porcelain").stdout == ""
-
-
-def test_tee_text_io_writes_log_when_console_write_fails() -> None:
-    """console write 失敗時も log file sink への write は試行済みにする。"""
-    log_file = io.StringIO()
-    tee = _TeeTextIO(_FailingTextIO(fail_write=True), log_file)
-
-    with pytest.raises(BrokenPipeError):
-        tee.write("durable log\n")
-
-    assert log_file.getvalue() == "durable log\n"
-
-
-def test_tee_text_io_flushes_log_when_console_flush_fails() -> None:
-    """console flush 失敗時も log file sink への flush は試行済みにする。"""
-    log_file = _RecordingTextIO()
-    tee = _TeeTextIO(_FailingTextIO(fail_flush=True), log_file)
-
-    with pytest.raises(BrokenPipeError):
-        tee.flush()
-
-    assert log_file.flushed
 
 
 def test_run_codex_exec_passes_output_schema_file(
@@ -1063,6 +1045,121 @@ def test_resume_command_falls_back_to_last_when_resume_id_is_missing() -> None:
     ]
 
 
+def test_run_codex_exec_retries_zero_exit_capacity_last_message(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """0 終了でも last message が capacity なら同じ条件で再実行する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                "if [ \"$COUNT\" -eq 1 ]; then",
+                "  echo 'Selected model is at capacity' > \"$LAST\"",
+                "  exit 0",
+                "fi",
+                "echo 'done' > \"$LAST\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    sleeps: list[int] = []
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(
+        "commons.codex.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+
+    output = run_codex_exec(repo, "prompt", read_only=True)
+
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    assert output.strip() == "done"
+    assert state.read_text(encoding="utf-8").strip() == "2"
+    assert sleeps == [5]
+    assert len(log_files) == 2
+
+
+def test_run_codex_exec_fails_after_capacity_retry_limit(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """capacity が解消しない場合は 8 回だけ指数 backoff で再実行して失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                "echo 'Selected model is at capacity' > \"$LAST\"",
+                "echo 'temporary capacity failure' >&2",
+                "exit 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    sleeps: list[int] = []
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(
+        "commons.codex.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "prompt", read_only=True)
+
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    assert "codex exec が capacity リトライ後も失敗しました。" in (
+        error.value.message
+    )
+    assert state.read_text(encoding="utf-8").strip() == "9"
+    assert sleeps == [5, 10, 20, 40, 80, 160, 320, 640]
+    assert len(log_files) == 9
+
+
 def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1100,6 +1197,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "  echo 'quota exhausted' > \"$LAST\"",
                 "  echo 'quota limit exhausted' >&2",
                 "  exit 1",
                 "  fi",
@@ -1204,6 +1302,7 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "\"thread_id\":\"thread-1\"}'",
                 "  echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "  echo 'quota exhausted' > \"$LAST\"",
                 "  echo 'quota limit exhausted' >&2",
                 "  exit 1",
                 "fi",
@@ -1260,6 +1359,53 @@ def test_run_codex_exec_does_not_treat_plain_limit_error_as_quota(
     assert len(log_files) == 1
 
 
+def test_run_codex_exec_ignores_stdout_quota_code_without_last_message(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """stdout/stderr の quota 系文字列だけでは待機せず即時失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo '{\"session_id\":\"session-1\"}'",
+                "echo '{\"type\":\"error\","
+                "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'not a quota final message' > \"$LAST\"",
+                "echo 'quota exhausted' >&2",
+                "exit 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    assert "codex exec が失敗しました。" in error.value.message
+    assert "quota exhausted" in error.value.detail
+    assert len(log_files) == 1
+
+
 def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1274,6 +1420,14 @@ def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
                 "PROMPT=\"$(cat)\"",
                 "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
                 "  echo 'network failure during poll' >&2",
@@ -1282,6 +1436,7 @@ def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
                 "echo '{\"session_id\":\"session-1\"}'",
                 "echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'quota exhausted' > \"$LAST\"",
                 "echo 'quota exhausted' >&2",
                 "exit 1",
             ]
@@ -1334,6 +1489,7 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
                 "echo '{\"session_id\":\"session-1\"}'",
                 "echo '{\"type\":\"error\","
                 "\"error\":{\"code\":\"insufficient_quota\"}}'",
+                "echo 'quota exhausted' > \"$LAST\"",
                 "echo 'quota exhausted' >&2",
                 "exit 1",
             ]
@@ -1749,44 +1905,3 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-
-
-class _FailingTextIO:
-    """テスト用の失敗する text sink。"""
-
-    def __init__(
-        self,
-        *,
-        fail_write: bool = False,
-        fail_flush: bool = False,
-    ) -> None:
-        self._fail_write = fail_write
-        self._fail_flush = fail_flush
-
-    def write(self, text: str) -> int:
-        if self._fail_write:
-            raise BrokenPipeError("console closed")
-        return len(text)
-
-    def flush(self) -> None:
-        if self._fail_flush:
-            raise BrokenPipeError("console closed")
-
-    def isatty(self) -> bool:
-        return False
-
-
-class _RecordingTextIO:
-    """テスト用の flush 記録 text sink。"""
-
-    def __init__(self) -> None:
-        self.flushed = False
-
-    def write(self, text: str) -> int:
-        return len(text)
-
-    def flush(self) -> None:
-        self.flushed = True
-
-    def isatty(self) -> bool:
-        return False

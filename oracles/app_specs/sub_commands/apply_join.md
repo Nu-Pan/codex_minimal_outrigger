@@ -17,7 +17,7 @@
 - 現在のブランチが `<cmoc-session-branch>`, `<cmoc-apply-branch>` のいずれでもない
 - 対応する `<cmoc-session-state-file>` が存在しない
 - 対応する `<cmoc-session-state-file>` の `session.state` が `active` ではない
-- 対応する `<cmoc-session-state-file>` の `apply.state` が `completed` ではない
+- 対応する `<cmoc-session-state-file>` の `apply.state` が `completed`, `error` のいずれでもない
 - git 未コミット差分が存在する
 
 ## モード分岐
@@ -33,6 +33,10 @@
 - 強制モード
     - オプション引数 `--force-resolve` が渡された場合はこちら
     - 想定外の差分を revert して処理を続行する
+
+## `apply.state = error` の扱い
+
+- `apply.state` が `error` であっても、処理を続行しても良いものとする
 
 ## 実行作業
 

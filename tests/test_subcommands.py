@@ -69,7 +69,7 @@ def test_run_command_tees_subcommand_output_and_summary(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """共通入口はサブコマンド呼び出しログを stdout とファイルへ tee する。"""
+    """共通入口はコンソールログと JSONL イベントログを出す。"""
     repo = _init_repo(tmp_path)
     monkeypatch.chdir(repo)
 
@@ -84,25 +84,35 @@ def test_run_command_tees_subcommand_output_and_summary(
         run_command(handler)
 
     captured = capsys.readouterr()
-    log_files = list((repo / ".cmoc" / "logs" / "sub_commands").glob("*.log"))
-    log_content = log_files[0].read_text(encoding="utf-8")
+    log_files = list((repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl"))
+    log_events = [
+        json.loads(line)
+        for line in log_files[0].read_text(encoding="utf-8").splitlines()
+    ]
     assert exit_info.value.exit_code == 2
     assert captured.err == ""
     assert len(log_files) == 1
     assert "(1/1) first step" in captured.out
     assert "sample (1/1) first step" not in captured.out
-    assert "(1/1) first step" in log_content
-    assert "sample (1/1) first step" not in log_content
-    assert "== Command completion report ==" in captured.out
-    assert "== Command completion report ==" in log_content
-    assert log_content.index("== Command completion report ==") < log_content.index(
+    assert "# Command completion report" in captured.out
+    assert captured.out.index("# Command completion report") < captured.out.index(
         "sample step timings:"
     )
-    assert "sample step timings:" in log_content
-    assert "- first step:" in log_content
-    assert "subcommand total elapsed:" in log_content
-    assert "subcommand quota wait elapsed:" in log_content
-    assert "subcommand return code: 2" in log_content
+    assert "sample step timings:" in captured.out
+    assert "- first step:" in captured.out
+    assert "subcommand total elapsed:" in captured.out
+    assert "subcommand quota wait elapsed:" in captured.out
+    assert "subcommand return code: 2" in captured.out
+    assert any(
+        event["event"] == "step_start"
+        and event["step"] == "first step"
+        and event["step_index"] == "1/1"
+        for event in log_events
+    )
+    assert any(
+        event["event"] == "subcommand_end" and event["returncode"] == 2
+        for event in log_events
+    )
     assert "/.cmoc/logs/" in (repo / ".git" / "info" / "exclude").read_text(
         encoding="utf-8"
     )
@@ -127,20 +137,18 @@ def test_run_command_logs_summary_on_exception(
         run_command(handler)
 
     log_content = next(
-        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
-    assert "ERROR" in log_content
-    assert "boom" in log_content
-    assert "(1/1) failing step" in log_content
-    assert "sample (1/1) failing step" not in log_content
-    assert "== Command completion report ==" in log_content
-    assert log_content.index("== Command completion report ==") < log_content.index(
-        "sample step timings:"
+    log_events = [json.loads(line) for line in log_content.splitlines()]
+    assert any(
+        event["event"] == "step_start" and event["step"] == "failing step"
+        for event in log_events
     )
-    assert "sample step timings:" in log_content
-    assert "- failing step:" in log_content
-    assert "subcommand return code: 1" in log_content
+    assert any(
+        event["event"] == "subcommand_end" and event["returncode"] == 1
+        for event in log_events
+    )
 
 
 def test_run_command_reports_total_elapsed_from_command_entry(
@@ -167,9 +175,11 @@ def test_run_command_reports_total_elapsed_from_command_entry(
     run_command(handler)
 
     log_content = next(
-        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
-    assert "subcommand total elapsed:  0h  0m 25.0s" in log_content
+    log_events = [json.loads(line) for line in log_content.splitlines()]
+    end_event = next(event for event in log_events if event["event"] == "subcommand_end")
+    assert end_event["total_elapsed_seconds"] == 25.0
 
 
 def test_run_command_reports_nonzero_typer_exit(
@@ -190,23 +200,23 @@ def test_run_command_reports_nonzero_typer_exit(
 
     captured = capsys.readouterr()
     log_content = next(
-        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.log")
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 7
-    assert captured.err == ""
-    assert "ERROR" in captured.out
-    assert "Summary:" in captured.out
-    assert "サブコマンドがエラー終了しました。" in captured.out
-    assert "Next actions:" in captured.out
-    assert "Detail:" in captured.out
-    assert "typer.Exit(7)" in captured.out
-    assert "Call stack:" in captured.out
-    assert "== Command completion report ==" in captured.out
+    assert "ERROR" in captured.err
+    assert "Summary:" in captured.err
+    assert "サブコマンドがエラー終了しました。" in captured.err
+    assert "Next actions:" in captured.err
+    assert "Detail:" in captured.err
+    assert "typer.Exit(7)" in captured.err
+    assert "Call stack:" in captured.err
+    assert "# Command completion report" in captured.out
     assert "subcommand return code: 7" in captured.out
-    assert "ERROR" in log_content
-    assert "typer.Exit(7)" in log_content
-    assert "== Command completion report ==" in log_content
-    assert "subcommand return code: 7" in log_content
+    log_events = [json.loads(line) for line in log_content.splitlines()]
+    assert any(
+        event["event"] == "subcommand_end" and event["returncode"] == 7
+        for event in log_events
+    )
 
 
 def test_run_command_reports_repo_root_resolution_error(
@@ -240,15 +250,14 @@ def test_run_command_reports_repo_root_resolution_error(
 
     captured = capsys.readouterr()
     assert exit_info.value.exit_code == 1
-    assert captured.err == ""
-    assert "ERROR" in captured.out
-    assert "Summary:" in captured.out
-    assert "Git リポジトリのルートが見つかりませんでした。" in captured.out
-    assert "Next actions:" in captured.out
-    assert "Detail:" in captured.out
-    assert f"開始パス: {tmp_path.resolve()}" in captured.out
-    assert "Call stack:" in captured.out
-    assert "== Command completion report ==" in captured.out
+    assert "ERROR" in captured.err
+    assert "Summary:" in captured.err
+    assert "Git リポジトリのルートが見つかりませんでした。" in captured.err
+    assert "Next actions:" in captured.err
+    assert "Detail:" in captured.err
+    assert f"開始パス: {tmp_path.resolve()}" in captured.err
+    assert "Call stack:" in captured.err
+    assert "# Command completion report" in captured.out
     assert "subcommand total elapsed:" in captured.out
     assert "subcommand quota wait elapsed:" in captured.out
     assert "subcommand return code: 1" in captured.out
@@ -1589,9 +1598,11 @@ def test_apply_returns_complete_when_no_discrepancies(
     codex_prompts: list[str] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査なら不整合なし JSON、レポートなら Markdown を返す。"""
+        """調査なら不整合なし JSON、変更要約なら summary JSON を返す。"""
         codex_kwargs.append(kwargs)
         codex_prompts.append(str(args[1]))
+        if kwargs.get("purpose") == "summarize apply changes":
+            return _change_summary_json()
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
         return _apply_report(str(args[1]), "収束", [0])
@@ -1689,26 +1700,14 @@ def test_apply_returns_complete_when_no_discrepancies(
     report_kwargs = [
         kwargs
         for kwargs in codex_kwargs
-        if kwargs.get("purpose") == "write apply report"
+        if kwargs.get("purpose") == "summarize apply changes"
     ]
-    assert len(report_kwargs) == 1
-    assert report_kwargs[0]["model"] == COST_PERFORMANCE_MODEL
-    assert (
-        report_kwargs[0]["reasoning_effort"]
-        == COST_PERFORMANCE_REASONING_EFFORT
-    )
-    assert "作業結果区分: 収束" in codex_prompts[-1]
-    assert "今回の apply run で行った変更内容" in codex_prompts[-1]
-    assert (
-        "この `cmoc apply fork` が実際に行った作業内容だけ"
-        in codex_prompts[-1]
-    )
+    assert report_kwargs == []
+    assert "カテゴリ: 変更なし" in report_text
     assert (
         "今回の自動適用処理以前の作業も含めてください"
-        not in codex_prompts[-1]
+        not in "\n".join(codex_prompts)
     )
-    assert "変更内容の意味論に基づき" in codex_prompts[-1]
-    assert "「カテゴリ」という語" in codex_prompts[-1]
 
 
 def test_apply_commits_index_changes_when_no_discrepancies(
@@ -1746,10 +1745,12 @@ def test_apply_commits_index_changes_when_no_discrepancies(
     codex_kwargs: list[dict[str, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査、commit message、レポート生成を目的別に返す。"""
+        """調査、commit message、変更要約生成を目的別に返す。"""
         codex_kwargs.append(kwargs)
         if kwargs.get("purpose") == "generate commit message":
             return "Maintain apply indexes"
+        if kwargs.get("purpose") == "summarize apply changes":
+            return _change_summary_json()
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
         return _apply_report(str(args[1]), "収束", [0])
@@ -1775,7 +1776,7 @@ def test_apply_commits_index_changes_when_no_discrepancies(
     report_kwargs = [
         kwargs
         for kwargs in codex_kwargs
-        if kwargs.get("purpose") == "write apply report"
+        if kwargs.get("purpose") == "summarize apply changes"
     ]
 
     assert exit_code == 0
@@ -2415,8 +2416,8 @@ def test_apply_uses_investigate_repeat_option_for_loop_limit(
         (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
     )
     report_text = reports[0].read_text(encoding="utf-8")
-    assert "作業結果区分: 未収束" in codex_prompts[-1]
-    assert "まだ要修正点が残っている可能性" in codex_prompts[-1]
+    assert codex_prompts
+    assert "## 作業結果\n未収束" in report_text
     assert "まだ要修正点が残っている可能性" in report_text
 
 
@@ -2458,8 +2459,8 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
         if purpose.startswith("apply discrepancy"):
             apply_prompts.append(str(args[1]))
             return ""
-        if purpose == "write apply report":
-            return _apply_report(str(args[1]), "未収束", [1])
+        if purpose == "summarize apply changes":
+            return _change_summary_json()
         return ""
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
@@ -2508,8 +2509,8 @@ def test_apply_fills_discrepancy_head_commit_hash(
         if purpose.startswith("apply discrepancy"):
             apply_prompts.append(str(args[1]))
             return ""
-        if purpose == "write apply report":
-            return _apply_report(str(args[1]), "未収束", [2])
+        if purpose == "summarize apply changes":
+            return _change_summary_json()
         return ""
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
@@ -2596,8 +2597,8 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
                 )
             )
             return f"Apply fix {commit_message_count}"
-        if purpose == "write apply report":
-            return _apply_report(str(args[1]), "未収束", [2])
+        if purpose == "summarize apply changes":
+            return _change_summary_json()
         return ""
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
@@ -2783,12 +2784,12 @@ def test_apply_report_validation_requires_change_summary_item() -> None:
     assert "ブランチ上の全変更内容" in str(error.value)
 
 
-def test_apply_rejects_incomplete_report_from_codex(
+def test_apply_rejects_incomplete_change_summary_from_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """必須内容を欠く Codex レポートはエラーレポートを保存する。"""
+    """必須内容を欠く Codex 変更要約はエラーレポートを保存する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -2798,16 +2799,29 @@ def test_apply_rejects_incomplete_report_from_codex(
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "oracle")
 
+    def fake_maintain_indexes(repo_root: Path) -> bool:
+        """apply worktree 側だけ report 対象差分を作る。"""
+        if not (repo_root / ".git").is_file():
+            return False
+        index_path = repo_root / "docs" / "INDEX.md"
+        if index_path.exists():
+            return False
+        index_path.parent.mkdir()
+        index_path.write_text("# `docs`\n", encoding="utf-8")
+        return True
+
     monkeypatch.setattr(
         "sub_commands.apply.fork.maintain_indexes",
-        lambda repo_root: False,
+        fake_maintain_indexes,
     )
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """調査は収束、レポートは必須項目不足にする。"""
+        """調査は収束、変更要約は必須項目不足にする。"""
+        if kwargs.get("purpose") == "summarize apply changes":
+            return '{"changes": []}'
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
-        return "収束\ncomplete report"
+        return "Maintain indexes"
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
 
@@ -2835,7 +2849,7 @@ def test_apply_rejects_incomplete_report_from_codex(
     assert "## エラー詳細" in report_text
     assert "- Failed stage: `write report`" in report_text
     assert "- Exception type: `CmocError`" in report_text
-    assert "Codex CLI が生成した apply report に必須内容がありません。" in report_text
+    assert "apply report の生成に必要な変更要約が不足しています。" in report_text
     assert "## 要修正点件数の推移" in report_text
     assert "- 1 回目: 0 件" in report_text
     assert "カテゴリ: エラー終了" in report_text
@@ -4277,9 +4291,8 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
     )
 
     assert result.returncode == 1
-    assert result.stderr == ""
-    assert "ERROR" in result.stdout
-    assert "Summary:" in result.stdout
+    assert "ERROR" in result.stderr
+    assert "Summary:" in result.stderr
 
 
 def test_main_reports_no_args_error_with_non_empty_detail() -> None:
@@ -4454,6 +4467,21 @@ def _discrepancy_json(suggested_fix: str) -> str:
                     "observed_implementation": "o",
                     "reason": "x",
                     "suggested_fix": suggested_fix,
+                }
+            ]
+        }
+    )
+
+
+def _change_summary_json() -> str:
+    """テスト用の valid な変更要約 JSON を返す。"""
+    return json.dumps(
+        {
+            "changes": [
+                {
+                    "category": "実装修正",
+                    "summary": "テスト用の変更内容を整理しました。",
+                    "changed_paths": ["app.py"],
                 }
             ]
         }

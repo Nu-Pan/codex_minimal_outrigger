@@ -2,7 +2,7 @@
 
 ## Summary
 
-- `cmoc` のアプリ仕様断片をまとめた入口です。`branch_model`、`codex_call`、`console_and_file_log`、`error_handling`、`indexing`、`misc_specs`、`oracles`、`session_state`、`usage`、および `sub_commands` への案内をまとめます。
+- `cmoc` のアプリ仕様断片をまとめた入口で、`branch_model`、`codex_call`、`console_and_file_log`、`error_handling`、`indexing`、`misc_specs`、`oracles`、`session_state`、`usage`、`sub_commands` への案内をまとめます。
 - `sub_commands/INDEX.md` から `apply`、`session`、`eval-oracles`、`init` など個別サブコマンドの正本仕様へたどれます。
 - `INDEX.md` 自体の生成・更新ルールは `indexing.md` が担当し、`oracles` の扱いは `oracles.md` が担当します。
 
@@ -22,7 +22,7 @@
 
 ## hash
 
-- 76502a3463fcb8088e945a685800625a6384a31772967f63d454b80ad77d3553
+- 9c08d88ac886576a5975994c6c87adcfb9b4d2a26931f3e4809610f71871f1c3
 
 # `considered_alternatives`
 
@@ -35,25 +35,24 @@
 ## Read this when
 
 - `cmoc apply` 系で、修正点リスト完成後に作業計画を立てる案を採用しなかった理由を確認したいとき。
-- AI-generated kaizen を次回実行へ自動反映しない方針や、その理由を整理したいとき。
-- `tgbt plan` や `/plan` のような作業計画レビューを採用しなかった背景を確認したいとき。
-- 人間が `oracles` を編集し、AI が実装を追従する方針になった経緯を横断的に把握したいとき。
+- AI-generated kaizen を次回の実行コンテキストへ自動的に持ち越さない方針と、その理由を整理したいとき。
+- `tgbt plan` や `/plan` のような作業計画レビューを採用しなかった背景や、人間が `oracles` を編集して AI が追従する方針を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc` の実装手順や各サブコマンドの正本仕様そのものを確認したいときは、このディレクトリではなく該当する仕様断片を直接読むべきです。
-- `oracles` 全体のルーティング方針や `INDEX.md` の生成ルールだけを確認したいときは、このディレクトリの本文を読む必要はありません。
+- `cmoc apply` 系の実装手順やコマンド仕様そのものを確認したいときは、この配下ではなく該当する正本仕様を直接読むべきです。
+- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいときは、このディレクトリを読む必要はありません。
 - この配下のうち特定の代替案だけを見たいときは、`apply_behavior.md`、`memory_alternative.md`、`working_plan_review.md` を直接参照すべきです。
 
 ## hash
 
-- ebf4b17563b7e25fc70c16b29ad207ac649692c57278bf404ef8859d1054a113
+- f2a1dd4e497749ef098f24010c2ea174bc89d7c7203024192c524c53e3bb0490
 
 # `dev_rules`
 
 ## Summary
 
-- `cmoc` の開発ルールをまとめたディレクトリで、Python 実装のコーディング規約、CLI と共通機能の設計方針、開発環境の前提、テスト規約を扱います。
+- `cmoc` の開発ルールをまとめたディレクトリの入口です。Python 実装のコーディング規約、CLI と共通機能の設計方針、開発環境の前提、テスト規約を扱います。
 - `coding_rules.md` は型ヒント、import、docstring、コメント、ログメッセージ、非公開識別子などのコーディング規則を定めます。
 - `design_rules.md` は `src/main.py`、`src/sub_commands`、`src/commons` の配置方針と、関数分割・並び順の考え方を定めます。
 - `development_environment.md` は対象 OS、Python バージョン、`.venv` の扱い、文字コードなどの開発環境前提を定めます。
@@ -76,4 +75,4 @@
 
 ## hash
 
-- 1e835a1558c2fb915742b32acf8c08aaa309135736f3b7d7f98fb73c9d899318
+- 063534dc2090eb68dec8185beccb39c68d595cf015b9cf1568df4fe31f5ceb45
