@@ -142,21 +142,21 @@
 
 ## Read this when
 
-- `tests/test_subcommands.py` を修正・追加するとき。
-- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon`、`cmoc eval-oracles` の決定論的な制御フローや状態遷移を確認したいとき。
+- `tests/test_subcommands.py` の修正・追加・レビューを行うとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon`、`cmoc eval-oracles` の決定論的な制御フロー、状態遷移、前提条件を確認したいとき。
 - `main` のコマンド登録、help 表示、終了コード、`bin/cmoc` の起動条件、共通エラーレポートの扱いを確認したいとき。
-- prompt 文言、Structured Output schema、対象選択ルール、validation helper の順序、CLI から impl への委譲方針を見直したいとき。
+- prompt 文言、Structured Output schema、対象選択ルール、validation helper の順序、`run_command` のログ tee や補助関数の並び順を見直したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの手順だけを確認したいときは、`oracles/app_specs/sub_commands/*.md` を直接読むべきです。
+- `cmoc` の個別サブコマンドの仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` 側の該当文書を直接読むべきです。
+- `cmoc` の実装本体や関数分割の詳細を追いたいときは、`src/sub_commands/` 配下の各モジュールを読むべきです。
 - `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
-- `cmoc` の実装配置や設計方針だけを確認したいときは、`oracles/dev_rules` や `src` 配下の実装目次を参照すべきです。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群の観点だけを追いたいときはこのファイルでは範囲が広すぎます。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群の観点だけを追いたいときは、このファイルでは範囲が広すぎます。
 
 ## hash
 
-- 9cbdd6eb51743bedfcc4615e11c04c53f2f48281047d29469705e22cbe96f33d
+- 8481ae33675ae7b7ba8a34f919e8323f709eb3de5a9b6c5a4fca79acb96a56b0
 
 # `test_timestamps.py`
 
