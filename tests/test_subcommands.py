@@ -506,6 +506,68 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
     ]
 
 
+def test_session_fork_from_linked_worktree_records_state_in_common_root(
+    tmp_path: Path,
+) -> None:
+    """linked worktree で作った session state も共有 root 側へ保存する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-b", "feature", str(linked), "HEAD")
+
+    cmoc_session_fork_impl(linked)
+
+    branch_name = _git(linked, "branch", "--show-current").stdout.strip()
+    session_id = branch_name.removeprefix("cmoc/session/")
+    assert (
+        repo / ".cmoc" / "sessions" / f"{session_id}.json"
+    ).exists()
+    assert not (
+        linked / ".cmoc" / "sessions" / f"{session_id}.json"
+    ).exists()
+
+
+def test_session_fork_from_linked_worktree_rejects_common_active_session(
+    tmp_path: Path,
+) -> None:
+    """active session 判定は linked worktree ごとに分離しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-b", "feature", str(linked), "HEAD")
+    start_commit = _git(linked, "rev-parse", "HEAD").stdout.strip()
+    write_session_state(
+        repo,
+        "existing",
+        {
+            "session": {
+                "state": "active",
+                "session_home_branch": "feature",
+                "session_start_commit": start_commit,
+            },
+            "apply": {
+                "state": "ready",
+                "apply_branch": None,
+                "oracle_snapshot_commit": None,
+            },
+        },
+    )
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(linked)
+
+    assert "active session" in error.value.message
+    assert error.value.detail == "existing"
+    assert _git(linked, "branch", "--show-current").stdout.strip() == "feature"
+    assert _session_state_paths(repo) == [
+        repo / ".cmoc" / "sessions" / "existing.json",
+    ]
+
+
 def test_session_fork_rejects_malformed_session_state_before_branch_creation(
     tmp_path: Path,
 ) -> None:

@@ -12,6 +12,7 @@ from commons.repo import (
     read_session_state,
     run_git,
     session_id_from_branch,
+    session_state_root,
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
@@ -28,7 +29,8 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
     start_step(timer, 1, 4, "validate session state")
     session_branch = _current_session_branch(repo_root)
     session_id = session_id_from_branch(session_branch)
-    state = read_session_state(repo_root, session_id)
+    state_root = session_state_root(repo_root)
+    state = read_session_state(state_root, session_id)
     home_branch = _validate_abandonable_state(state, session_branch)
     _assert_local_branch_exists(repo_root, home_branch)
     assert_no_uncommitted_changes(repo_root)
@@ -41,11 +43,12 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
 
     start_step(timer, 4, 4, "record abandoned session")
     try:
-        _mark_session_abandoned(repo_root, session_id, state)
+        _mark_session_abandoned(state_root, session_id, state)
         run_git(repo_root, ["branch", "-D", session_branch])
     except Exception as error:
         restore_errors = _restore_abandon_state(
             repo_root,
+            state_root,
             session_id,
             state,
             session_branch,
@@ -174,6 +177,7 @@ def _mark_session_abandoned(
 
 def _restore_abandon_state(
     repo_root: Path,
+    state_root: Path,
     session_id: str,
     state: dict[str, object],
     session_branch: str,
@@ -184,7 +188,7 @@ def _restore_abandon_state(
     if isinstance(session, dict):
         session["state"] = "active"
         try:
-            write_session_state(repo_root, session_id, state)
+            write_session_state(state_root, session_id, state)
         except Exception as error:
             restore_errors.append(f"state restore failed: {error}")
     else:

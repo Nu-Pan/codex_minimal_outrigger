@@ -116,18 +116,19 @@ def session_state_path(repo_root: Path, session_id: str) -> Path:
     return repo_root / ".cmoc" / "sessions" / f"{session_id}.json"
 
 
-def session_state_repo_root(repo_root: Path, session_id: str) -> Path:
-    """session state を保持する main worktree root を返す。"""
+def session_state_root(repo_root: Path) -> Path:
+    """session state を共有する canonical repo root を返す。"""
     common_dir = run_git(
         repo_root,
         ["rev-parse", "--path-format=absolute", "--git-common-dir"],
     ).stdout.strip()
-    common_root = Path(common_dir).parent
-    if session_state_path(common_root, session_id).exists():
-        return common_root
-    if common_root != repo_root:
-        return common_root
-    return repo_root
+    return Path(common_dir).parent
+
+
+def session_state_repo_root(repo_root: Path, session_id: str) -> Path:
+    """session state を保持する main worktree root を返す。"""
+    _ = session_id
+    return session_state_root(repo_root)
 
 
 def initial_session_state(
@@ -421,7 +422,7 @@ def active_session_ids_for_home_branch(
     session_home_branch: str,
 ) -> list[str]:
     """指定 home branch に紐づく active session id を列挙する。"""
-    session_root = repo_root / ".cmoc" / "sessions"
+    session_root = session_state_root(repo_root) / ".cmoc" / "sessions"
     if not session_root.exists():
         return []
 
@@ -1022,7 +1023,8 @@ def _is_excluded_implementation_path(relative_path: str) -> bool:
 
 def read_session_start_commit(repo_root: Path, branch_name: str) -> str:
     """cmoc session state から session start commit を読む。"""
-    payload = read_session_state(repo_root, session_id_from_branch(branch_name))
+    session_id = session_id_from_branch(branch_name)
+    payload = read_session_state(session_state_root(repo_root), session_id)
     session = payload.get("session")
     if not isinstance(session, dict):
         raise CmocError(

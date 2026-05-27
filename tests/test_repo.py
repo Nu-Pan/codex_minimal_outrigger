@@ -24,6 +24,7 @@ from commons.repo import (
     read_session_state,
     read_session_start_commit,
     session_state_path,
+    session_state_root,
     write_session_state,
 )
 
@@ -841,6 +842,17 @@ def test_read_session_start_commit_uses_session_state(
     assert read_session_start_commit(repo, f"cmoc/session/{session_id}") == (
         "abc123"
     )
+
+
+def test_session_state_root_uses_main_worktree_for_linked_worktree(
+    tmp_path: Path,
+) -> None:
+    """linked worktree からも session state の canonical root は共有 root になる。"""
+    repo = _init_repo(tmp_path)
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-b", "feature", str(linked), "HEAD")
+
+    assert session_state_root(linked) == repo
 
 
 def test_write_session_state_persists_only_oracle_schema(

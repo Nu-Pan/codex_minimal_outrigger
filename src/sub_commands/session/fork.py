@@ -15,6 +15,7 @@ from commons.repo import (
     is_cmoc_branch,
     run_git,
     session_state_path,
+    session_state_root,
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
@@ -63,15 +64,17 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
     session_id, branch_name = _create_unique_session_branch(repo_root)
 
     start_step(timer, 4, 4, "record session state")
+    state_root = session_state_root(repo_root)
     try:
         write_session_state(
-            repo_root,
+            state_root,
             session_id,
             initial_session_state(home_branch, start_commit),
         )
     except Exception as error:
         _rollback_created_session_branch(
             repo_root,
+            state_root,
             home_branch,
             branch_name,
             session_id,
@@ -135,6 +138,7 @@ def _create_unique_session_branch(repo_root: Path) -> tuple[str, str]:
 
 def _rollback_created_session_branch(
     repo_root: Path,
+    state_root: Path,
     home_branch: str,
     branch_name: str,
     session_id: str,
@@ -143,7 +147,7 @@ def _rollback_created_session_branch(
     """session state 保存失敗時に作成済み branch を破棄する。"""
     # state と branch を揃って作るため、保存失敗時は開始前の branch へ戻す。
     rollback_errors: list[str] = []
-    session_state_path(repo_root, session_id).unlink(missing_ok=True)
+    session_state_path(state_root, session_id).unlink(missing_ok=True)
     switch_result = run_git(
         repo_root,
         ["switch", home_branch],

@@ -15,6 +15,7 @@ from commons.repo import (
     read_session_state,
     run_git,
     session_id_from_branch,
+    session_state_root,
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
@@ -37,7 +38,8 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         start_step(timer, 1, 5, "validate session state")
         session_branch = _current_session_branch(repo_root)
         session_id = session_id_from_branch(session_branch)
-        state = read_session_state(repo_root, session_id)
+        state_root = session_state_root(repo_root)
+        state = read_session_state(state_root, session_id)
         home_branch = _validate_joinable_state(state, session_branch)
         assert_no_uncommitted_changes(repo_root)
 
@@ -62,7 +64,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
                 _raise_unexpected_merge_failure(result)
 
         start_step(timer, 5, 5, "record joined session")
-        _mark_session_joined(repo_root, session_id, state)
+        _mark_session_joined(state_root, session_id, state)
         _delete_branch_if_safe(repo_root, session_branch)
         print(f"joined session branch: {session_branch}")
         print(f"session home branch: {home_branch}")

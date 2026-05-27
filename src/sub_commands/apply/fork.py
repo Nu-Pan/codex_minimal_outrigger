@@ -28,6 +28,7 @@ from commons.repo import (
     read_session_start_commit,
     run_git,
     session_id_from_branch,
+    session_state_root,
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
@@ -186,7 +187,8 @@ def cmoc_apply_impl(
 
     start_step(timer, 1, 6, "validate session state")
     session_id = session_id_from_branch(session_branch)
-    state = read_session_state(repo_root, session_id)
+    state_root = session_state_root(repo_root)
+    state = read_session_state(state_root, session_id)
     session_start_commit = _validate_apply_fork_state(
         state,
         session_branch,
@@ -210,7 +212,7 @@ def cmoc_apply_impl(
             oracle_snapshot_commit,
         )
         _mark_apply_running(
-            repo_root,
+            state_root,
             session_id,
             state,
             apply_branch,
@@ -267,7 +269,7 @@ def cmoc_apply_impl(
             discrepancy_counts,
         )
         _mark_apply_completed(
-            repo_root,
+            state_root,
             session_id,
             state,
         )
@@ -276,7 +278,7 @@ def cmoc_apply_impl(
         timer.report()
         return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
     except Exception:
-        _mark_apply_error(repo_root, session_id, state)
+        _mark_apply_error(state_root, session_id, state)
         raise
 
 
