@@ -94,9 +94,12 @@ def _write_index_if_needed(repo_root: Path, directory: Path) -> bool:
     # 既存 INDEX.md の内容と、再利用可能な目次ブロックを読み込む。
     index_path = directory / "INDEX.md"
     index_exists = index_path.exists()
-    old_content = (
-        index_path.read_text(encoding="utf-8") if index_exists else ""
-    )
+    try:
+        old_content = (
+            index_path.read_text(encoding="utf-8") if index_exists else ""
+        )
+    except (OSError, UnicodeDecodeError):
+        old_content = ""
     existing_entries = _parse_index_entries(old_content)
     entries: list[str] = []
 

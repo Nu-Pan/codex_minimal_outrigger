@@ -312,6 +312,42 @@ def test_maintain_indexes_regenerates_malformed_current_entry(
     assert "## Do not read this when" in content
 
 
+def test_maintain_indexes_regenerates_non_utf8_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """UTF-8 として読めない既存 INDEX.md は停止せず再生成する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "target.txt").write_text("target\n", encoding="utf-8")
+    (repo / "INDEX.md").write_bytes(b"# broken\n\xff\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "broken index")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `README.md`" in content
+    assert "# `target.txt`" in content
+    assert "generate INDEX entry for README.md" in purposes
+    assert "generate INDEX entry for target.txt" in purposes
+
+
 def test_maintain_indexes_retries_invalid_structured_output(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
