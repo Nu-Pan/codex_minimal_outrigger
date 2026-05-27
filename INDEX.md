@@ -191,13 +191,13 @@
 
 ## Do not read this when
 
-- 個別のサブコマンド実装や共通モジュールの詳細だけを確認したいときは、この目次ではなく該当する `src/commons` や `src/sub_commands` 配下の文書を直接読むべきです。
+- 個別のサブコマンド実装や共通モジュールの詳細だけを確認したいときは、この目次ではなく該当する下位文書を直接読むべきです。
 - `cmoc` の利用手順や正本仕様だけを確認したいときは、`oracles` 側を読むべきで、`src` の目次は不要です。
 - `src/main.py` の CLI ルーティングではなく、実装コードやテストコードだけを追いたいときは、この目次を読む必要はありません。
 
 ## hash
 
-- 43a4b7ce9c06630c5b2364671cafe5b621d636ef258fce9212354a7d31c6a836
+- 66d94925faa94c1d074660d9beb6801d58680f38aced70d3a00a03c01c7e347f
 
 # `test.sh`
 
@@ -227,24 +227,24 @@
 
 ## Summary
 
-- `tests` ディレクトリ全体の入口で、pytest 共通設定と各テスト群への案内をまとめます。
-- `conftest.py` は `src` を import 可能にする共通設定を扱います。
-- `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py`、`test_file_naming.py` が、それぞれ共通処理、`INDEX.md` 生成、git 共通処理、CLI サブコマンド、時刻処理、命名規則を検証します。
+- `tests` 配下の pytest ベース自動テストの入口で、`conftest.py` と各 `test_*.py` の役割をまとめます。
+- `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` など、共通処理・INDEX.md メンテナンス・CLI 制御ロジック・時刻仕様の回帰テストへ案内します。
+- `test_file_naming.py` では旧ルーティングファイルの不存在と、サブコマンド本体の階層化された配置を確認します。
 
 ## Read this when
 
-- `tests` 配下にどのテスト群があるか、入口として整理したいとき。
-- `tests/conftest.py` の共通 pytest 設定と、各 `tests/test_*.py` が何を検証しているかを素早く把握したいとき。
-- `codex` 呼び出し、`INDEX.md` メンテナンス、リポジトリ共通処理、サブコマンド、時刻表示、ファイル命名のどのテストへ進むべきか判断したいとき。
-- 個別テストへ進む前に、`tests` 全体の役割と分割方針を確認したいとき。
+- pytest で cmoc 本体の挙動や共通処理を確認したいとき。
+- `INDEX.md` メンテナンス、git リポジトリ処理、サブコマンド制御ロジック、タイムスタンプ仕様のどこへ進むべきか整理したいとき。
+- テスト共通設定の `conftest.py` が import path をどう調整しているか知りたいとき。
+- `tests` 配下のどのテストファイルがどの機能を検証しているかを確認したいとき。
 
 ## Do not read this when
 
-- 特定の 1 つのテストケースや補助関数だけを追いたいときは、該当する `tests/test_*.py` を直接読むべきです。
-- `src/` 側の実装ロジックや `oracles/` 側の正本仕様を確認したいときは、このテスト目次では範囲が広すぎます。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このディレクトリではなく別の案内を参照すべきです。
-- pytest の共通設定だけを確認したいときは、`tests/conftest.py` を直接読むべきです。
+- cmoc のユーザー向け CLI 仕様や `oracles` の正本仕様だけを確認したいとき。
+- `src` 配下の実装そのものを追いたいときは、この目次ではなく実装ファイルを直接読むべきです。
+- README、AGENTS、`memo` などのリポジトリ運用ルールだけを確認したいとき。
+- 特定のテストケースの細部だけを確認したいときは、該当する `test_*.py` を直接参照すべきです。
 
 ## hash
 
-- 1863b7cf34753c11b4759dc3271d2dee3d47f7f7dbc6c0b6b7022e63f80dd438
+- 6bac42ace20ade5d1e44a48bec651af67790aaa0b2ced732e4f8cc35e9712c3f

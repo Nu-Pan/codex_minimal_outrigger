@@ -2,14 +2,14 @@
 
 ## Summary
 
-- `src/commons` は、`cmoc` 全体で共有する基盤モジュールをまとめたディレクトリです。`__init__.py` に加えて、エラー処理、コマンド実行制御、`codex exec` 連携、リポジトリ操作、サブコマンドログ、タイムスタンプ、経過時間計測、`INDEX.md` 生成を扱うモジュールが入っています。
-- `command_runner.py` は CLI サブコマンド共通の実行制御、`errors.py` は共通例外とエラーレポート整形、`repo.py` は git リポジトリ探索と `.cmoc` 関連 state を扱います。
+- `src/commons` は、`cmoc` 全体で共有する基盤モジュールをまとめたディレクトリで、エラー処理、サブコマンド実行制御、`codex exec` 連携、リポジトリ操作、ログ、タイムスタンプ、経過時間計測、`INDEX.md` 生成を含みます。
+- `command_runner.py` や `errors.py` は CLI の横断的な実行制御とエラーレポート整形を担い、`repo.py` は git リポジトリ探索や `.cmoc` 関連 state を扱います。
 - `codex.py` は `codex exec` の共通ラッパーと Structured Output 検証をまとめ、`indexing.py` は `INDEX.md` メンテナンス処理の本体です。
-- `subcommand_log.py`、`timestamps.py`、`timing.py` は、それぞれ tee ログ、タイムスタンプ生成、ステップ別経過時間の計測と表示を担当します。
+- `subcommand_log.py`、`timestamps.py`、`timing.py` は、それぞれ tee ログ、タイムスタンプ生成、ステップ別経過時間の表示を担当します。
 
 ## Read this when
 
-- `cmoc` の共通エラー処理、ログ、タイムスタンプ、経過時間表示、リポジトリ探索などの横断的な仕組みを確認したいとき。
+- `cmoc` の共通エラー処理、ログ、タイムスタンプ、経過時間表示、リポジトリ探索などの横断機能を確認したいとき。
 - `codex exec` の呼び出し、Structured Output の検証、`INDEX.md` 生成、再試行や quota 待機の流れを確認したいとき。
 - サブコマンド共通の実行制御や、`<repo-root>` 解決、`typer.Exit` の扱い、終了時レポートの出力を見直したいとき。
 - git リポジトリのルート探索、session / apply ブランチ判定、`.cmoc` 配下の state やログ保存先を確認したいとき。
@@ -23,7 +23,7 @@
 
 ## hash
 
-- 541d7d02b1bda362be4d13eed34c8ca2aaaccb2da35bb5755a2fddae38976164
+- cbebfbeb5f2fe97f7e82b31ed5d25eea014f26d2c3b3d34e43e18455f68a451e
 
 # `main.py`
 
