@@ -1,5 +1,8 @@
 """`cmoc session fork` の本体処理。"""
 
+import fcntl
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
 
@@ -46,6 +49,45 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
         repo_root,
         home_branch,
     )
+    _assert_no_active_session(active_session_ids)
+    start_commit = head_commit(repo_root)
+
+    start_step(timer, 2, 4, "ensure .cmoc is ignored")
+    assert_cmoc_ignored(repo_root)
+
+    start_step(timer, 3, 4, "create session branch")
+    state_root = session_state_root(repo_root)
+    with _locked_session_creation(state_root):
+        active_session_ids = active_session_ids_for_home_branch(
+            repo_root,
+            home_branch,
+        )
+        _assert_no_active_session(active_session_ids)
+        session_id, branch_name = _create_unique_session_branch(repo_root)
+
+        start_step(timer, 4, 4, "record session state")
+        try:
+            write_session_state(
+                state_root,
+                session_id,
+                initial_session_state(home_branch, start_commit),
+            )
+        except Exception as error:
+            _rollback_created_session_branch(
+                repo_root,
+                state_root,
+                home_branch,
+                branch_name,
+                session_id,
+                error,
+            )
+    print(f"created session branch: {branch_name}")
+    print(f"session home branch: {home_branch}")
+    timer.report()
+
+
+def _assert_no_active_session(active_session_ids: list[str]) -> None:
+    """同じ home branch の active session が存在しないことを検証する。"""
     if active_session_ids:
         raise CmocError(
             "この branch には active session が既に存在します。",
@@ -55,34 +97,21 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
             ],
             "\n".join(active_session_ids),
         )
-    start_commit = head_commit(repo_root)
 
-    start_step(timer, 2, 4, "ensure .cmoc is ignored")
-    assert_cmoc_ignored(repo_root)
 
-    start_step(timer, 3, 4, "create session branch")
-    session_id, branch_name = _create_unique_session_branch(repo_root)
-
-    start_step(timer, 4, 4, "record session state")
-    state_root = session_state_root(repo_root)
-    try:
-        write_session_state(
-            state_root,
-            session_id,
-            initial_session_state(home_branch, start_commit),
-        )
-    except Exception as error:
-        _rollback_created_session_branch(
-            repo_root,
-            state_root,
-            home_branch,
-            branch_name,
-            session_id,
-            error,
-        )
-    print(f"created session branch: {branch_name}")
-    print(f"session home branch: {home_branch}")
-    timer.report()
+@contextmanager
+def _locked_session_creation(state_root: Path) -> Iterator[None]:
+    """session 作成中の active 判定と state 永続化を直列化する。"""
+    # canonical state root 単位で作成処理を直列化し、home branch ごとの一意性を守る。
+    lock_dir = state_root / ".cmoc" / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / "session-fork.lock"
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _current_local_branch(repo_root: Path) -> str:

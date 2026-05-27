@@ -506,6 +506,45 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
     ]
 
 
+def test_session_fork_rechecks_active_session_before_branch_creation(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """作成直前に active session が見えた場合も新規 session を作らない。"""
+    repo = _init_repo(tmp_path)
+    cmoc_init_impl(repo)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    calls = 0
+
+    def racing_active_session_ids(
+        _repo_root: Path,
+        _session_home_branch: str,
+    ) -> list[str]:
+        """事前確認後に別 session が作られた競合を模擬する。"""
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return []
+        return ["existing"]
+
+    monkeypatch.setattr(
+        session_fork_module,
+        "active_session_ids_for_home_branch",
+        racing_active_session_ids,
+    )
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(repo)
+
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert "active session" in error.value.message
+    assert error.value.detail == "existing"
+    assert calls == 2
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert "cmoc/session/" not in branches
+    assert _session_state_paths(repo) == []
+
+
 def test_session_fork_from_linked_worktree_records_state_in_common_root(
     tmp_path: Path,
 ) -> None:
