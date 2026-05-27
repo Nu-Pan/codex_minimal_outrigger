@@ -3057,10 +3057,10 @@ def test_apply_implementation_files_at_commit_excludes_root_memo(
     assert relative_paths == ["README.md", "app.py", "docs/memo/note.md"]
 
 
-def test_apply_partial_targets_include_deleted_and_reverted_paths(
+def test_apply_partial_targets_exclude_deleted_and_include_reverted_paths(
     tmp_path: Path,
 ) -> None:
-    """部分 apply の調査対象は最終差分だけでなく range 内の変更履歴を見る。"""
+    """部分 apply は削除済みを除外し、存在する履歴変更 path を対象にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -3109,13 +3109,53 @@ def test_apply_partial_targets_include_deleted_and_reverted_paths(
     }
 
     assert oracle_targets == {
-        "oracles/obsolete.md": True,
         "oracles/spec.md": False,
     }
     assert implementation_targets == {
         "app.py": False,
-        "obsolete.py": True,
     }
+
+
+def test_apply_partial_targets_use_renamed_new_paths(
+    tmp_path: Path,
+) -> None:
+    """部分 apply の rename 調査対象は rename 後 path だけにする。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "old.md").write_text("oracle\n", encoding="utf-8")
+    (repo / "old.py").write_text("app\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base targets")
+    _checkout_session_branch(repo)
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "oracles/old.md", "oracles/new.md")
+    _git(repo, "mv", "old.py", "new.py")
+    _git(repo, "commit", "-m", "rename targets")
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    oracle_targets = [
+        target.path.relative_to(repo).as_posix()
+        for target in apply_module._target_oracle_files(
+            repo,
+            base_commit,
+            snapshot_commit,
+            partial=True,
+        )
+    ]
+    implementation_targets = [
+        target.path.relative_to(repo).as_posix()
+        for target in apply_module._target_implementation_files(
+            repo,
+            base_commit,
+            snapshot_commit,
+            partial=True,
+        )
+    ]
+
+    assert oracle_targets == ["oracles/new.md"]
+    assert implementation_targets == ["new.py"]
 
 
 def test_apply_deleted_investigation_target_prompt_mentions_history(
