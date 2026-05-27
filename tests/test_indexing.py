@@ -656,6 +656,50 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_round_trips_special_names_and_multiline_text(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """特殊文字を含む名前と複数行説明文でも INDEX を再利用できる。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "we`ird\n%.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "special file name")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """Markdown 境界に見える文字を含む Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["first\n# `ghost`\nsecond"],
+                "read_this_when": ["read\r\nwhen"],
+                "do_not_read_this_when": ["skip\twhen"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `we%60ird%0A%25.txt`" in content
+    assert "# `we`ird" not in content
+    assert "- first # `ghost` second" in content
+    assert "read when" in content
+    assert "skip when" in content
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """特殊文字を含む最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for escaped current INDEX entries"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
 def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

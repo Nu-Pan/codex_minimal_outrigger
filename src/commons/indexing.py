@@ -7,6 +7,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 from .codex import (
     INDEX_GENERATION_MODEL,
@@ -157,19 +158,19 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
 
     return "\n".join(
         [
-            f"# `{path.name}`",
+            f"# `{_encode_index_token(path.name)}`",
             "",
             "## Summary",
             "",
-            *_bullet_lines(summary),
+            *_bullet_lines(_safe_index_texts(summary)),
             "",
             "## Read this when",
             "",
-            *_bullet_lines(read_when),
+            *_bullet_lines(_safe_index_texts(read_when)),
             "",
             "## Do not read this when",
             "",
-            *_bullet_lines(do_not_read_when),
+            *_bullet_lines(_safe_index_texts(do_not_read_when)),
             "",
             "## hash",
             "",
@@ -373,11 +374,56 @@ def _bullet_lines(values: list[str]) -> list[str]:
     return [f"- {value}" for value in values]
 
 
+def _safe_index_texts(values: list[str]) -> list[str]:
+    """Markdown の 1 行 bullet として扱える文字列へ正規化する。"""
+    # Structured Output 由来の説明文が block 境界を壊さないようにする。
+    return [_safe_index_text(value) for value in values]
+
+
+def _safe_index_text(value: str) -> str:
+    """INDEX.md の固定フォーマットを壊さない 1 行文字列へ変換する。"""
+    # 改行や制御文字は Markdown block の構造を壊すため空白へ寄せる。
+    text = "".join(
+        character if _is_index_text_character(character) else " "
+        for character in value
+    )
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_index_text_character(character: str) -> bool:
+    """INDEX.md の説明行へそのまま置ける文字か判定する。"""
+    # Unicode の通常文字は維持し、ASCII 制御文字だけを除外する。
+    return ord(character) >= 0x20 and ord(character) != 0x7F
+
+
+def _encode_index_token(value: str) -> str:
+    """heading 内の code span に置く名前を可逆な 1 行 token にする。"""
+    # `%` は escape 導入子なので必ず符号化し、backtick と制御文字も避ける。
+    encoded_parts: list[str] = []
+    for character in value:
+        if (
+            character == "%"
+            or character == "`"
+            or not _is_index_text_character(character)
+        ):
+            encoded_parts.extend(
+                f"%{byte:02X}" for byte in character.encode("utf-8")
+            )
+        else:
+            encoded_parts.append(character)
+    return "".join(encoded_parts)
+
+
+def _decode_index_token(value: str) -> str:
+    """heading 内 token を元のファイル・ディレクトリ名へ戻す。"""
+    return unquote(value, encoding="utf-8", errors="strict")
+
+
 def _parse_index_entries(content: str) -> dict[str, str]:
     """既存 INDEX.md を項目名ごとのブロックへ分解する。"""
     # 見出し位置を先に集め、次の見出し直前までを 1 ブロックとして切り出す。
     entries: dict[str, str] = {}
-    matches = list(re.finditer(r"(?m)^# `([^`]+)`\n", content))
+    matches = list(re.finditer(r"(?m)^# `([^`\n]*)`\n", content))
     for index, match in enumerate(matches):
         start = match.start()
         end = (
@@ -385,7 +431,11 @@ def _parse_index_entries(content: str) -> dict[str, str]:
             if index + 1 < len(matches)
             else len(content)
         )
-        entries[match.group(1)] = content[start:end].strip()
+        try:
+            name = _decode_index_token(match.group(1))
+        except UnicodeDecodeError:
+            continue
+        entries[name] = content[start:end].strip()
     return entries
 
 
@@ -402,21 +452,22 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
     """既存目次ブロックが仕様の固定フォーマットに一致するか判定する。"""
     # 見出しと 4 セクションの順序、説明欄の bullet 形式まで検査する。
     # Structured Output schema は空配列を許容するため、bullet 0 件も有効。
-    expected_heading = f"# `{name}`"
+    encoded_name = _encode_index_token(name)
+    expected_heading = f"# `{encoded_name}`"
     if not entry.startswith(expected_heading + "\n"):
         return False
 
     pattern = re.compile(
         r"\A"
-        rf"\# `{re.escape(name)}`\n\n"
+        rf"\# `{re.escape(encoded_name)}`\n\n"
         r"## Summary\n\n"
-        r"(?P<summary>(?:- .*\n)*)"
+        r"(?P<summary>(?:- [^\n]*\n)*)"
         r"\n"
         r"## Read this when\n\n"
-        r"(?P<read>(?:- .*\n)*)"
+        r"(?P<read>(?:- [^\n]*\n)*)"
         r"\n"
         r"## Do not read this when\n\n"
-        r"(?P<skip>(?:- .*\n)*)"
+        r"(?P<skip>(?:- [^\n]*\n)*)"
         r"\n"
         r"## hash\n\n"
         rf"- {digest}"
