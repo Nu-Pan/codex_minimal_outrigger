@@ -73,22 +73,22 @@
 
 ## Summary
 
-- `src/sub_commands/apply/join.py` は `cmoc apply join` の本体処理を実装するモジュールです。
-- 完了済みの apply branch を session branch に取り込み、想定外差分の検出、`--force-resolve` による復旧、merge conflict の報告、state 更新、後始末までを扱います。
-- apply join の前提条件確認、差分判定、merge 実行、artifact cleanup の入口として読むための目次です。
+- `cmoc apply join` の実装入口で、完了済み apply branch を session branch に取り込む処理を扱います。
+- 事前条件の検証、想定外差分の検出と `--force-resolve` の分岐、`git merge --no-ff` による統合をまとめています。
+- マージ後の `apply.state` 更新、cleanup 証跡の確認、apply branch と worktree の削除条件も含みます。
 
 ## Read this when
 
-- `cmoc apply join` の処理順や例外条件を把握したいとき。
-- 想定外差分の通常モードと `--force-resolve` の分岐、`session.state` / `apply.state` の更新条件を確認したいとき。
-- merge 後の apply branch / apply worktree の削除条件や warning の出し方を追いたいとき。
+- `cmoc apply join` の引数、実行順序、エラー条件を確認したいとき。
+- 想定外差分の処理や `--force-resolve` の挙動を実装・修正・レビューしたいとき。
+- マージ後に `session.state` と `apply.state` をどう更新し、どの条件で branch / worktree を削除するか確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループやレポート保存の仕様だけを確認したいとき。
-- `cmoc apply abandon` の破棄手順や cleanup 条件だけを確認したいとき。
-- `cmoc session join` など session 側の統合手順だけを確認したいとき。
+- `cmoc apply fork` の調査・修正ループや要修正点リストの仕様だけを確認したいとき。
+- `cmoc apply abandon` の破棄手順や cleanup 方針だけを確認したいとき。
+- `cmoc session join` や他の session 系コマンドだけを確認したいとき。
 
 ## hash
 
-- 75cec14d9637758ebb325a61ace17e0913f4e254903497478f1df416bf90a43a
+- 4dfbba105b57fac3b91655716c5ccff2f47b0a8018a6c3f4f98a44d570867f75

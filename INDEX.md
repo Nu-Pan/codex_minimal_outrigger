@@ -179,25 +179,26 @@
 
 ## Summary
 
-- `cmoc` の実装ソースをまとめるディレクトリの入口です。
-- `main.py` は CLI エントリーポイント、`commons/` は共通処理、`sub_commands/` は各サブコマンド実装への入口です。
-- この目次から、起動経路と共有基盤と個別コマンド実装を順にたどれます。
+- `cmoc` のソースコード全体への入口で、共通処理 `commons`、CLI 入口 `main.py`、サブコマンド実装 `sub_commands` への案内をまとめます。
+- `commons` には実行制御、エラー処理、リポジトリ操作、`INDEX.md` 生成、ログ、タイムスタンプ、経過時間計測などの共有機能があります。
+- `sub_commands` には `init`、`eval-oracles`、`session`、`apply` の各サブコマンド実装があり、`main.py` が Typer アプリの起動とルーティングを担います。
 
 ## Read this when
 
-- `src` 配下で、どこにエントリーポイント、共通処理、サブコマンド実装があるか整理したいとき。
-- `cmoc` の実装を読む前に、まず `src/main.py`、`src/commons/`、`src/sub_commands/` の役割分担を把握したいとき。
-- `src` ディレクトリ全体の入口として、次にどのファイル・ディレクトリへ進むべきか判断したいとき。
+- `src` 配下でどのファイルやパッケージを読むべきか整理したいとき。
+- `cmoc` の CLI 入口、共通処理、サブコマンド実装の役割分担を把握したいとき。
+- `commons/INDEX.md` や `sub_commands/INDEX.md` に進む前の案内を確認したいとき。
 
 ## Do not read this when
 
-- `src` 配下の特定モジュールだけを確認したいときは、この目次ではなく該当する `*.py` や下位ディレクトリを直接読むべきです。
-- `cmoc` の仕様断片や利用手順だけを確認したいときは、`oracles` 側の文書を読むべきです。
-- パッケージ宣言の有無だけを確認したいときは、各 `__init__.py` だけを読めば足ります。
+- 個別の共通モジュールやサブコマンド本体だけを確認したいときは、`src/commons` や `src/sub_commands` の各 `*.py` を直接読むべきです。
+- `cmoc` の起動処理や Typer のルーティングだけを深掘りしたいときは、この目次ではなく `src/main.py` を読むべきです。
+- パッケージ宣言や各モジュールの細部だけを知りたいときは、`src/commons/INDEX.md` や `src/sub_commands/INDEX.md` へ直接進むべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- ff59eae8b42b260c7407850b6d37f2ef13731511dfa62df01b898b1b57426c63
+- 7a64ba6f18a8b1032be8e7f86807d2b383da71422444d4a9b36b07ee7968ecd5
 
 # `test.sh`
 
@@ -227,27 +228,24 @@
 
 ## Summary
 
-- `tests` 配下の pytest テスト群の入口です。`conftest.py`、`test_codex.py`、`test_file_naming.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` の役割をまとめて案内します。
-- pytest の import path 設定、Codex CLI 呼び出し、ファイル命名規則、`INDEX.md` メンテナンス、git 共通処理、サブコマンド制御、時刻・経過時間表示を扱います。
-- 個別テストの本文ではなく、どのテストファイルへ進むべきかを判断するための目次です。
+- `tests` 配下の pytest テスト群への入口です。共通設定の `conftest.py` と、`test_codex.py`、`test_file_naming.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` の役割をまとめて案内します。
+- `conftest.py` は `src` を import path に追加する共通設定、`test_codex.py` は `commons.codex` の Structured Output や再試行挙動、`test_indexing.py` は `INDEX.md` メンテナンス、`test_repo.py` は git リポジトリ共通処理、`test_subcommands.py` はサブコマンド制御ロジック、`test_timestamps.py` は日時・時間表示、`test_file_naming.py` はファイル命名規則を扱います。
+- pytest の共通前提や、各テストファイルがどの機能の回帰を担うかを、この目次からたどれるようにするのがこのディレクトリの役割です。
 
 ## Read this when
 
-- pytest 実行時の `src` 追加設定や `sys.path` の扱いを確認したいときは `conftest.py` を参照します。
-- Codex CLI 呼び出し、Structured Output、`INDEX.md` 事前メンテナンス、quota 枯渇時の再実行を確認したいときは `test_codex.py` を参照します。
-- 旧ルーティングファイルの残存確認やファイル命名規則を確認したいときは `test_file_naming.py` を参照します。
-- `INDEX.md` 生成・再利用・再生成、gitignore 除外、空ディレクトリや `memo` の扱いを確認したいときは `test_indexing.py` を参照します。
-- .cmoc の ignore、session state、変更検出、`commit_if_changed` などの git 共通処理を確認したいときは `test_repo.py` を参照します。
-- `cmoc init`、`session`、`apply`、`eval-oracles` の制御ロジックや CLI 登録、ログ出力を確認したいときは `test_subcommands.py` を参照します。
-- タイムスタンプ生成や経過時間表示の書式を確認したいときは `test_timestamps.py` を参照します。
+- `tests` 配下の各テストファイルが何を検証しているか、入口から素早く把握したいとき。
+- `conftest.py` の共通 pytest 設定や、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py`、`test_file_naming.py` の担当範囲を整理したいとき。
+- pytest ベースの回帰テストを追加・修正するときに、既存のテスト群の役割分担を確認したいとき。
+- `tests` 配下でどの観点のテストがどのファイルにあるかを、ルーティング目次から辿りたいとき。
 
 ## Do not read this when
 
-- 個別の実装本体や `src/` 配下のロジックだけを追いたいときは、この目次ではなく実装ファイルを読むべきです。
-- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものを確認したいときは、対応する `oracles/app_specs/*.md` を読むべきです。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このテスト目次ではなく別の案内を参照すべきです。
-- 特定の 1 件だけでなく `tests` 全体の設計方針や作法を横断的に知りたいときは、ここより該当する仕様や実装本文を優先して読むべきです。
+- 個別テストの実装内容や期待値だけを確認したいときは、該当する `tests/test_*.py` を直接読むべきです。
+- `cmoc` のサブコマンド仕様や本体実装だけを確認したいときは、`tests` ではなく `oracles` や `src` 側を参照すべきです。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいときは、このディレクトリのテスト目次ではなく別の案内を参照すべきです。
+- `INDEX.md` の生成・更新ルールそのものだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- 75402e6f510600c70ff95962dcb6b28eeba153d080b5ba257c215a5f5271b052
+- 16edf60dd973251d0b8353229bac9c8fad730dacb68044d484b6c659fc276595
