@@ -37,20 +37,20 @@
 
 - `commons.codex.run_codex_exec()` の引数組み立て、`read_only` / `workspace-write`、`--json`、`--output-schema`、`reasoning_effort` の扱いを確認したいとき。
 - Structured Output の parse 失敗、JSON Schema 不一致、意味的検証失敗に対するリトライやエラー表示を追いたいとき。
-- Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の待機と `resume` サブコマンド再実行の流れを確認したいとき。
+- Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の待機と `resume` 再実行の流れを確認したいとき。
 - `INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の `oracles` 保護、`session_id` 抽出や `_resume_command` を追いたいとき。
 - `_prepare_codex_exec_paths` のログ予約、JSON Schema の文字列長・`enum` 検証、テスト用 git リポジトリ初期化の補助関数を確認したいとき。
 
 ## Do not read this when
 
-- `src/commons/codex.py` の実装そのものを確認したいとき。
+- `src/commons/codex.py` の実装ロジックそのものを追いたいとき。
+- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など、別のテスト群だけを確認したいとき。
 - `commons.indexing.maintain_indexes()` や `INDEX.md` の生成ルールそのものを確認したいとき。
-- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など、別のテスト群だけを追いたいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
 
 ## hash
 
-- c9359bf4586fc6ba492f5222dbd6b15201542f6de2f70cd759383430888c37a7
+- 372e4c01e6476e01960371cc11faf7dedf812965d8420a4ab28fed713a780dbd
 
 # `test_file_naming.py`
 

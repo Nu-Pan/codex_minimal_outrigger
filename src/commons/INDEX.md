@@ -23,9 +23,9 @@
 
 ## Summary
 
-- Codex CLI の共通実行処理をまとめたモジュールで、`codex exec` のコマンド組み立て、`--output-last-message` の付与、実行ログ保存、`resume` 再開を扱う。
-- Structured Output 用の `--output-schema` ファイル生成と再利用、JSON の解析、JSON Schema 検証、呼び出し結果の意味検査を含む。
-- quota 枯渇時のポーリング待機、capacity 一時失敗の指数バックオフ再試行、workspace-write 時の `oracles` 変更検査、`INDEX.md` 事前メンテナンスも実装されている。
+- Codex CLI の共通実行処理をまとめたモジュールで、`codex exec` のコマンド組み立て、`--output-last-message` の付与、実行ログ保存、`resume` 再開を扱います。
+- Structured Output 用の `--output-schema` ファイル生成と再利用、JSON の解析、JSON Schema 検証、呼び出し結果の意味検査を含みます。
+- quota 枯渇時のポーリング待機、capacity 一時失敗の指数バックオフ再試行、`workspace-write` 時の `oracles` 変更検査、`INDEX.md` 事前メンテナンスも実装されています。
 
 ## Read this when
 
@@ -43,7 +43,7 @@
 
 ## hash
 
-- 1cfa78a615b23e96da3d8f81828013a41d2347c31f2dbc6053602ba123e0a219
+- e8132a2e299d5409e709cce33790967569f63e95806117c8cb1c937ce4187038
 
 # `command_runner.py`
 
