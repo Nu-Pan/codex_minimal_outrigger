@@ -136,27 +136,26 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `run_command` と各サブコマンドの決定論的な制御、CLI 登録、エラーレポートを検証するテスト群の入口です。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要経路と、`main` / `bin/cmoc` の起動・登録経路をまとめて扱います。
+- `tests/test_subcommands.py` は、`run_command` と各サブコマンドの決定論的な制御ロジック、CLI 登録、エラーレポートをまとめて検証する入口です。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要経路に加え、`main` と `bin/cmoc` の起動経路も扱います。
 - `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`oracles` / `memo` の扱い、`session join` の conflict prompt や補助関数の並び順検証も含みます。
 
 ## Read this when
 
-- `cmoc` のサブコマンド実装を変更・修正・レビューするとき。
-- `run_command` の出力、終了コード、ログ、エラーレポートの仕様を確認したいとき。
-- `init`、`session`、`apply`、`eval-oracles` の制御フローや前提条件、`main` のコマンド登録、`bin/cmoc` の起動経路を追いたいとき。
-- `Fake Codex CLI`、Structured Output 検証、`INDEX.md` 更新、`session join` の conflict prompt やヘルパー順序を確認したいとき。
+- サブコマンド実装や `run_command` の出力、終了コード、ログ、エラーレポート仕様を確認したいとき。
+- `init`、`session`、`apply`、`eval-oracles` の制御フローや前提条件、`main` の登録、`bin/cmoc` の起動経路を追いたいとき。
+- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`session join` の conflict prompt、ヘルパー順序の検証意図を確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` を直接読むべきです。
 - テストの書き方や `Fake Codex CLI` の扱いだけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを追いたいときにはこのファイルは適しません。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など別のテスト群だけを追いたいときには、このファイルは適しません。
 - `run_command` の個別ヘルパーや prompt 文面だけを追いたいときは、対応する実装ファイルや仕様文書へ直接進むべきです。
 
 ## hash
 
-- 831b190aeb55b1daaf300b31d83a8d58faa321c23f5c57f96a20b993155e69d7
+- 9868e0fe66947eb2eabf134423664080adc46c1cb196e7837a7c21e34efd4f89
 
 # `test_timestamps.py`
 
