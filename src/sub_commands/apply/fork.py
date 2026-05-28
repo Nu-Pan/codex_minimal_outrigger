@@ -876,7 +876,10 @@ def _improove_fixing_list(
     step_path: StepIndexPath,
 ) -> list[dict[str, object]]:
     """要修正点リストを最大指定回数まで Codex CLI に改善させる。"""
-    # 改善結果が前回と同一なら、改善点なしとして早期終了する。
+    if not discrepancies:
+        return []
+
+    # 空リストまたは前回と同一の改善結果を、収束として早期終了する。
     improved = discrepancies
     for loop_index in range(1, repeat_improove_fixing_list + 1):
         start_step(
@@ -895,6 +898,8 @@ def _improove_fixing_list(
             f"({loop_index}/{repeat_improove_fixing_list}) discrepancies: "
             f"{len(next_improved)}"
         )
+        if not next_improved:
+            return []
         if next_improved == improved:
             break
         improved = next_improved

@@ -2757,6 +2757,65 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     assert "first improvement" in organize_prompts[1]
 
 
+def test_apply_stops_improoving_fixing_list_when_it_becomes_empty(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """要修正点リスト改善ループは空リストになった時点で収束する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+    organize_prompts: list[str] = []
+    apply_prompts: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査後の整理で空リストを返し、以後の改善を不要にする。"""
+        purpose = str(kwargs.get("purpose"))
+        if purpose.startswith("investigate"):
+            return _discrepancy_json("initial")
+        if purpose == "organize discrepancies":
+            organize_prompts.append(str(args[1]))
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        if purpose.startswith("apply discrepancy"):
+            apply_prompts.append(str(args[1]))
+            return ""
+        if purpose == "summarize apply changes":
+            return _change_summary_json()
+        return ""
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    exit_code = cmoc_apply_impl(
+        repo,
+        repeat_investigate_and_fix=1,
+        repeat_improove_fixing_list=3,
+    )
+
+    output = capsys.readouterr().out
+    reports = list(
+        (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
+    )
+    report_text = reports[0].read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert len(organize_prompts) == 1
+    assert apply_prompts == []
+    assert "fixing list improvement loop (1/3) discrepancies: 0" in output
+    assert "fixing list improvement loop (2/3)" not in output
+    assert "implementation loop (1/1) discrepancies: 0" in output
+    assert "## 作業結果\n収束" in report_text
+
+
 def test_apply_fills_discrepancy_head_commit_hash(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
