@@ -202,7 +202,7 @@
 
 ## hash
 
-- 2c517105af5700a90e3b6e530bcdf24ee94ca03bb1e078b96ad0eaa92041b27d
+- dfec65b737ecd6f1cc6a2ca0ad240e5bb60cc1deac2cc6f72e87d3bc8d2a932a
 
 # `test.sh`
 
@@ -232,24 +232,24 @@
 
 ## Summary
 
-- pytest の共通設定と、各テスト群への入口をまとめた `tests` ディレクトリの索引です。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`sub_commands`、`commons.timestamps` / `commons.timing` の回帰テストを案内します。
-- 旧ルーティングファイルやサブコマンド配置の命名規則も検証します。
+- `tests` 配下の pytest 回帰テスト全体の入口です。
+- `conftest.py` による `src` への import path 設定と、各テストファイルの担当領域を案内します。
+- `cmoc` の Structured Output、`INDEX.md` メンテナンス、git リポジトリ共通処理、CLI サブコマンド、タイムスタンプ、ファイル命名規則のテストをまとめて辿るための目次です。
 
 ## Read this when
 
-- pytest 実行時の import path 設定や、`tests/conftest.py` の役割を確認したいとき。
-- `run_codex_exec()` の再試行、Structured Output、ログ、quota 待ちを追いたいとき。
-- `INDEX.md` メンテナンス、`commons.repo` の git 共通処理、サブコマンド制御の回帰テストを探したいとき。
-- タイムスタンプ、経過時間表示、旧ルーティングファイルや配置規則の確認をしたいとき。
+- pytest の共通設定や `src` の import 経路を確認したいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py`、`tests/test_timestamps.py`、`tests/test_file_naming.py` の担当範囲を把握したいとき。
+- `cmoc` の回帰テストがどの機能を守っているかを俯瞰したいとき。
+- 新しいテストを追加する前に、既存のテスト構成と観点を確認したいとき。
 
 ## Do not read this when
 
-- 個別テストケースの期待値やモック実装だけを見たいとき。
-- `src` の本体実装や `oracles` の正本仕様を読みたいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
-- pytest の一般的な使い方だけを確認したいとき。
+- `src` 配下の実装ロジックそのものを追いたいとき。
+- `oracles` 配下の正本仕様や作業手順だけを確認したいとき。
+- `README.md` や `AGENTS.md` の運用ルールだけを確認したいとき。
+- テストではなく、開発ルールや仕様断片だけを見たいとき。
 
 ## hash
 
-- d7910aa3ab62f6d7b24d94fd205cc6237505e6f393c5748408a288cecf8cf661
+- ddacf6cc9c2ed5780665f44f2276c94f2e97380b27d4dc785784f799a8510db9

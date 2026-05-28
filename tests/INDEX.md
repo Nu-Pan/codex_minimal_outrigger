@@ -143,22 +143,22 @@
 
 ## Read this when
 
-- cmoc の主要サブコマンドと CLI 入口の制御ロジックをまとめて確認したいとき。
-- `run_command`、`StepTimer`、`start_step`、`format_error_report` の挙動やエラーレポートの流れを追いたいとき。
+- cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックをまとめて確認したいとき。
+- `run_command`、`StepTimer`、`start_step`、`format_error_report` の挙動や、終了集計・例外時レポートの流れを追いたいとき。
 - `init`、`session` 系、`apply` 系、`eval-oracles` 系の state 遷移や境界条件を確認したいとき。
 - CLI の登録状況、`cmoc --help`、`review oracles` 互換コマンド、`bin/cmoc` の挙動を確認したいとき。
 - conflict marker 判定や `apply` / `session join` の安全性チェックを探したいとき。
 
 ## Do not read this when
 
-- `tests/test_subcommands.py` 以外のテスト群、たとえば `test_codex.py` や `test_indexing.py` の詳細を確認したいとき。
-- `src/sub_commands/*` や `src/main.py` の実装そのものを確認したいとき。
-- `INDEX.md` の生成・更新ルールや `oracles` 配下の正本仕様だけを追いたいとき。
+- `tests/test_subcommands.py` 以外のテスト群、たとえば `test_codex.py` や `test_indexing.py` の詳細だけを確認したいとき。
+- `src/sub_commands/*` や `src/main.py` の実装そのものを追いたいとき。
+- `INDEX.md` の生成・更新ルールや `oracles` 配下の正本仕様だけを確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用可否だけを確認したいとき。
 
 ## hash
 
-- ec50c474f0d9033139bd730c9d29ea80443fa00641bf97da3c211795db563442
+- e399c9c800ee62cda56fa1404346dc6335e24ce4cb9f486fd6c1367e405d6683
 
 # `test_timestamps.py`
 

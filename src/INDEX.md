@@ -56,7 +56,7 @@
 ## Summary
 
 - `src/sub_commands` は cmoc の個別サブコマンド実装をまとめる入口ディレクトリです。
-- `apply`、`session` の各パッケージと、`init.py`、`eval_oracles.py`、`__init__.py` を案内し、各コマンド本体へのルーティングを担います。
+- `apply` と `session` の各パッケージ、`init.py`、`eval_oracles.py`、`__init__.py` を案内し、各コマンド本体へのルーティングを担います。
 - `cmoc init` と `cmoc review oracles` もここから辿れるため、サブコマンド横断の起点として使います。
 
 ## Read this when
@@ -75,4 +75,4 @@
 
 ## hash
 
-- fd6948eb5325e078dc16aa51f8174f815f9ce9392262ee3b0fff6fe9b29803bc
+- bec6f0120bfe7a20606209e7b41b1fcd348c238df3beb541ef00c4886999cce0
