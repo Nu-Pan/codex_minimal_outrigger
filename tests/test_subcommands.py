@@ -39,6 +39,7 @@ from sub_commands.apply.abandon import cmoc_apply_abandon_impl
 from sub_commands.apply.join import cmoc_apply_join_impl
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.eval_oracles import _evaluation_prompt
+from sub_commands.eval_oracles import _improvement_prompt
 from sub_commands.init import cmoc_init_impl
 from sub_commands.session.abandon import cmoc_session_abandon_impl
 from sub_commands.session.fork import cmoc_session_fork_impl
@@ -1773,6 +1774,28 @@ def test_eval_oracles_prompt_forbids_implementation_references() -> None:
     assert "各 issue の referenced_paths には参照した oracle / INDEX" in prompt
     assert "Structured Output schema に一致する JSON" in prompt
     assert "仕様だけから判断・実装したとき" in prompt
+
+
+def test_eval_oracles_improvement_prompt_uses_index_routing() -> None:
+    """改善 prompt も INDEX のルーティング情報で関連 oracle を選定させる。"""
+    prompt = _improvement_prompt(
+        Path("/repo"),
+        {
+            "issues": [
+                {
+                    "oracle_path": "/repo/oracles/spec.md",
+                    "referenced_paths": ["/repo/oracles/INDEX.md"],
+                }
+            ]
+        },
+    )
+
+    assert "`/repo/oracles/INDEX.md` から始まる INDEX.md" in prompt
+    assert "Read this when / Do not read this when を根拠に、" in prompt
+    assert "関連 oracle を選定してください。" in prompt
+    assert "`/repo/oracles` 外のファイルは一切参照禁止です。" in prompt
+    assert "`oracles/INDEX.md`" not in prompt
+    assert "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。" in prompt
 
 
 def test_eval_oracles_prompt_orders_completion_before_details() -> None:

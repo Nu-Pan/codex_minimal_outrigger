@@ -375,6 +375,7 @@ def _improvement_prompt(
     """問題点リスト改善用 prompt を組み立てる。"""
     concrete_repo_root = repo_root.resolve()
     concrete_oracle_root = (concrete_repo_root / "oracles").resolve()
+    concrete_oracle_index = (concrete_oracle_root / "INDEX.md").resolve()
     payload_text = json.dumps(issue_payload, ensure_ascii=False, indent=2)
     return "\n".join(
         [
@@ -384,7 +385,11 @@ def _improvement_prompt(
             "入力 issues を意味論的に統合・改善し、重複、矛盾、False-Positive を",
             "ベストエフォートで減らしてください。",
             "問題点がない場合は issues: [] を返してください。",
-            "必要に応じて oracles 配下のファイルと INDEX.md だけを読んでください。",
+            "必要に応じて oracle ファイル、関連する oracle ファイル、関連判断に必要な",
+            f"`{concrete_oracle_root}` 配下の INDEX.md だけを読んでください。",
+            f"`{concrete_oracle_index}` から始まる INDEX.md の Summary /",
+            "Read this when / Do not read this when を根拠に、",
+            "関連 oracle を選定してください。",
             f"`{concrete_oracle_root}` 外のファイルは一切参照禁止です。",
             "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。",
             f"`{concrete_repo_root / 'memo'}` は読み書き禁止です。",
