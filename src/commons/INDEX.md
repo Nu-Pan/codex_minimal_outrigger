@@ -103,26 +103,26 @@
 ## Summary
 
 - `INDEX.md` の生成・維持処理をまとめたモジュールです。
-- リポジトリを走査して、`.gitignore`、`.git/info/exclude`、`memo`、`build` / `tmp`、dotfiles、symlink、バイナリ、`INDEX.md` 自身を除外しながら、目次対象の直下項目を決めます。
+- リポジトリを走査して、`.gitignore`、`.git/info/exclude`、`memo`、`build` / `tmp`、dotfile、symlink、バイナリ、`INDEX.md` 自身を除外しながら、目次対象の直下項目を決めます。
 - 既存の `INDEX.md` ブロックを解析し、ハッシュと固定フォーマットが一致するものは再利用し、崩れたものは再生成します。
-- Structured Output の schema 検証、目次生成プロンプトの組み立て、Markdown 変換、gitignore 判定の補助処理も含みます。
+- Structured Output の schema 検証、目次生成プロンプトの組み立て、Markdown 変換、gitignore 判定の補助処理、必要時の `INDEX.md` 差分だけの自動コミットも含みます。
 
 ## Read this when
 
 - `INDEX.md` の自動生成・更新ルールを実装または修正したいとき。
-- 直下項目の列挙条件、除外条件、ハッシュ再利用の判定を確認したいとき。
-- Structured Output の schema 検証、目次生成用プロンプト、Markdown 変換の流れを追いたいとき。
-- gitignore 判定やバイナリ判定を含む、INDEX メンテナンスの補助処理を見直したいとき。
+- 直下項目の列挙条件、除外条件、既存ブロックの再利用条件、ハッシュ更新の判定を確認したいとき。
+- Structured Output の schema 検証、生成プロンプト、Markdown 変換、gitignore やバイナリ判定の補助処理を追いたいとき。
+- `INDEX.md` の差分だけを自動コミットする流れや、更新対象の範囲を見直したいとき。
 
 ## Do not read this when
 
-- `codex exec` の汎用的な呼び出し方だけを知りたいときは、`src/commons/codex.py` を読むべきです。
-- 共通エラー処理、タイムスタンプ、サブコマンドログ、リポジトリ探索など、`INDEX.md` メンテナンス以外の共通機能を調べたいときは別モジュールを読むべきです。
+- `codex exec` の起動方法や `--output-schema` の一般的な扱いだけを確認したいとき。
+- 共通エラーハンドリング、タイムスタンプ、サブコマンドログなど、`INDEX.md` 以外の共通処理を調べたいとき。
 - `INDEX.md` の正本仕様だけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- cb8403ff8ed29965811c4617e5972ba734e69a3ce7db1431f0573ccfb65bed6d
+- 6d40f07c83c5c5b13f9794084987afe88aa9a0f89339129ee19fd72aaa7a8d85
 
 # `repo.py`
 
