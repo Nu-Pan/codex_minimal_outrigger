@@ -2194,6 +2194,91 @@ def test_apply_join_stops_on_apply_branch_oracles_index_diff(
     assert f"{apply_branch}: oracles/INDEX.md" in error_info.value.detail
 
 
+def test_apply_join_stops_on_session_branch_oracles_index_diff(
+    tmp_path: Path,
+) -> None:
+    """session branch 側の oracles/INDEX.md 差分は想定外差分として停止する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "oracles" / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(repo, "add", "oracles/INDEX.md")
+    _git(repo, "commit", "-m", "maintain oracle index on session")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{session_branch}: oracles/INDEX.md" in error_info.value.detail
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
+def test_apply_join_stops_on_session_branch_ignored_oracle_diff(
+    tmp_path: Path,
+) -> None:
+    """session branch 側でも root .gitignore 対象の oracle 配下差分は停止する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("oracles/ignored.md\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore oracle path")
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _apply_branch, _apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "oracles" / "ignored.md").write_text("ignored\n", encoding="utf-8")
+    _git(repo, "add", "-f", "oracles/ignored.md")
+    _git(repo, "commit", "-m", "edit ignored oracle path")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{session_branch}: oracles/ignored.md" in error_info.value.detail
+
+
+def test_apply_join_force_resolves_session_branch_oracles_index_diff(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """強制モードは session branch 側の oracles/INDEX.md 差分を revert する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement feature")
+    (repo / "oracles" / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(repo, "add", "oracles/INDEX.md")
+    _git(repo, "commit", "-m", "maintain oracle index on session")
+
+    cmoc_apply_join_impl(repo, force_resolve=True)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert not (repo / "oracles" / "INDEX.md").exists()
+    assert state["apply"]["state"] == "ready"
+    assert f"- {session_branch}: oracles/INDEX.md" in output
+
+
 def test_apply_join_stops_on_apply_branch_rename_from_oracles(
     tmp_path: Path,
 ) -> None:

@@ -15,6 +15,7 @@ from commons.repo import (
     assert_no_uncommitted_changes,
     clear_apply_process_id,
     current_branch,
+    filter_oracle_file_paths,
     is_apply_branch,
     is_implementation_path,
     is_session_branch,
@@ -283,7 +284,11 @@ def _unexpected_diffs(repo_root: Path, join_state: _JoinState) -> list[str]:
         join_state.session_branch,
     )
     for entry in session_entries:
-        invalid_paths = [path for path in entry.paths if not _is_oracle_path(path)]
+        invalid_paths = [
+            path
+            for path in entry.paths
+            if not _is_session_branch_expected_path(repo_root, path)
+        ]
         for path in invalid_paths:
             unexpected.append(f"{join_state.session_branch}: {path}")
     return unexpected
@@ -335,6 +340,11 @@ def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
     )
 
 
+def _is_session_branch_expected_path(repo_root: Path, path: str) -> bool:
+    """session branch 側で利用者が編集し得る想定内 path か判定する。"""
+    return filter_oracle_file_paths(repo_root, [path]) == [path]
+
+
 def _force_resolve_unexpected_diffs(
     repo_root: Path,
     join_state: _JoinState,
@@ -364,7 +374,7 @@ def _force_resolve_unexpected_diffs(
                 join_state.oracle_snapshot_commit,
                 join_state.session_branch,
             ),
-            _is_oracle_path,
+            lambda path: _is_session_branch_expected_path(repo_root, path),
         ),
         repo_root,
     )
