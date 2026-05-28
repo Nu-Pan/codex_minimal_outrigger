@@ -38,14 +38,14 @@
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
-- `cmoc session` 系や `review oracles` など、apply 以外のサブコマンドの入口を確認したいときは、このディレクトリではなく該当する入口を読むべきです。
-- apply 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
+- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、この目次ではなく `oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
+- `cmoc session` 系や `review oracles` など、apply 以外のサブコマンドの入口や実装を確認したいときは、このディレクトリではなく該当モジュールを読むべきです。
 - `fork.py`、`join.py`、`abandon.py` のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです。
+- apply 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
 
 ## hash
 
-- 0550ef69ca61f3513375790bcc3ab1df4d09e0908194038fe1e69f289825a0fe
+- 4df4282f45ae82b2331a91601468106cdaac14116a49b81ef43cf44e2b537bf3
 
 # `eval_oracles.py`
 

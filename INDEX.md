@@ -182,9 +182,9 @@
 
 ## Summary
 
-- src は cmoc の Python 実装ルートで、CLI 入口、共通ユーティリティ、サブコマンド実装をまとめます。
-- main.py は Typer ベースの CLI 起動点で、init、session、apply、review oracles の各コマンド登録と例外整形を担います。
-- commons/ は全体共通の基盤処理、sub_commands/ は各サブコマンド本体の入口です。
+- src は cmoc の Python 実装ルートで、CLI 入口、共通処理、サブコマンド実装をまとめる。
+- main.py は Typer ベースの CLI 起動点で、init、session、apply、review oracles の登録と例外整形を担う。
+- commons/ は全体共通の基盤処理、sub_commands/ は各サブコマンド本体の入口である。
 
 ## Read this when
 
@@ -200,7 +200,7 @@
 
 ## hash
 
-- f6a39f78290777ebcd92d3a015407586b0cd85deda87672cd286409958499764
+- 13116b876d3e77541990fed1ed39b15cfa0e1a56cee847ae1553c2d8f960bf5c
 
 # `test.sh`
 
@@ -230,24 +230,24 @@
 
 ## Summary
 
-- `<cmoc-root>/tests` 配下にある pytest 共通設定と各機能別テスト群の入口です。
-- `conftest.py`、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_file_naming.py`、`test_timestamps.py` をまとめます。
-- cmoc の決定論的な制御ロジック、INDEX.md メンテナンス、git 共通処理、CLI サブコマンド、タイムスタンプ仕様を回帰確認するテスト群です。
+- `tests` 配下の pytest 共通設定と、cmoc 本体の主要機能を検証するテスト群の入口です。
+- `conftest.py` による import path 設定と、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py` などの回帰観点を案内します。
+- Structured Output、`INDEX.md` メンテナンス、git 共通処理、CLI サブコマンド、タイムスタンプ処理、ファイル命名規則をまとめて確認するための目次です。
 
 ## Read this when
 
-- `tests` 配下のどのファイルがどの機能を検証しているか知りたいとき。
-- pytest 共通設定、個別テスト、補助 fixture や fake Codex CLI、git repo 初期化の役割を確認したいとき。
-- `src` の変更がどのテスト群に影響しそうか見極めたいとき。
-- テストの追加・整理・再配置を考えるとき。
+- pytest 実行時の共通設定や import path の扱いを確認したいとき。
+- `INDEX.md` 生成・更新の回帰テストや、命名規則の検証観点を見たいとき。
+- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.timestamps`、`commons.timing` に対するテスト範囲を把握したいとき。
+- CLI サブコマンドの制御フロー、state 遷移、エラーレポートのテスト観点を整理したいとき。
 
 ## Do not read this when
 
-- `src` の実装ロジックや CLI 本体の仕様を確認したいとき。
-- `oracles` の正本仕様や `INDEX.md` 生成ルールそのものを確認したいとき。
-- 既存テストの個別アサーションや期待値だけを追いたいとき。
-- README / AGENTS / memo の運用ルールを確認したいとき。
+- `src` 配下の実装ロジックそのものを確認したいとき。
+- `oracles` 配下の正本仕様を直接たどりたいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- この配下の個別テストではなく、別ディレクトリの目次や仕様を見たいとき。
 
 ## hash
 
-- d9108aeda5af0169fb0f062d91e292a13dfc1087ccb8c8d0c569426751ac4d33
+- 43975d67e4c5e0dbcff35ff0b00d80d7359bf39c67c545c7ba0bcc27b60fda60
