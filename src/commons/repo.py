@@ -708,11 +708,24 @@ def commit_cmoc_initialization_changes(
         repo_root,
         commit_args,
     ).stdout.strip()
-    update_ref_args = ["update-ref", "HEAD", commit_hash]
-    if parent_hash is not None:
-        update_ref_args.append(parent_hash)
-    run_git(repo_root, update_ref_args)
-    _restore_index_after_init_commit(repo_root, preexisting_staged_diff)
+    with tempfile.TemporaryDirectory(prefix="cmoc-restore-index-") as temp_name:
+        restored_index = Path(temp_name) / "index"
+        _write_restored_index_after_internal_commit(
+            repo_root,
+            restored_index,
+            commit_hash,
+            preexisting_staged_diff,
+            remove_cmoc=True,
+        )
+        _assert_cmoc_ignore_guarantee(
+            repo_root,
+            env={"GIT_INDEX_FILE": str(restored_index)},
+        )
+        update_ref_args = ["update-ref", "HEAD", commit_hash]
+        if parent_hash is not None:
+            update_ref_args.append(parent_hash)
+        run_git(repo_root, update_ref_args)
+        _replace_git_index(repo_root, restored_index)
     return True
 
 
@@ -1268,24 +1281,42 @@ def _restore_index_after_internal_commit(
     """内部 commit 後の index を一時 index で復元し、成功後だけ本体へ反映する。"""
     with tempfile.TemporaryDirectory(prefix="cmoc-restore-index-") as temp_name:
         temp_index = Path(temp_name) / "index"
-        env = {"GIT_INDEX_FILE": str(temp_index)}
-        run_git(repo_root, ["read-tree", "--reset", "HEAD"], env=env)
-
-        if staged_diff:
-            result = _apply_staged_diff_to_index(repo_root, staged_diff, env)
-            if result.returncode != 0:
-                raise CmocError(
-                    "事前に stage されていた変更の復元に失敗しました。",
-                    [
-                        "作業を続ける前に git index の状態を確認してください。",
-                        "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
-                    ],
-                    result.stderr.strip(),
-                )
-
-        if remove_cmoc:
-            _remove_cmoc_from_index(repo_root, env)
+        _write_restored_index_after_internal_commit(
+            repo_root,
+            temp_index,
+            "HEAD",
+            staged_diff,
+            remove_cmoc=remove_cmoc,
+        )
         _replace_git_index(repo_root, temp_index)
+
+
+def _write_restored_index_after_internal_commit(
+    repo_root: Path,
+    index_path: Path,
+    base_ref: str,
+    staged_diff: str,
+    *,
+    remove_cmoc: bool,
+) -> None:
+    """内部 commit 後に使う index 内容を指定 path へ組み立てる。"""
+    env = {"GIT_INDEX_FILE": str(index_path)}
+    run_git(repo_root, ["read-tree", "--reset", base_ref], env=env)
+
+    if staged_diff:
+        result = _apply_staged_diff_to_index(repo_root, staged_diff, env)
+        if result.returncode != 0:
+            raise CmocError(
+                "事前に stage されていた変更の復元に失敗しました。",
+                [
+                    "作業を続ける前に git index の状態を確認してください。",
+                    "必要に応じて、以前 stage していた変更をもう一度 stage してください。",
+                ],
+                result.stderr.strip(),
+            )
+
+    if remove_cmoc:
+        _remove_cmoc_from_index(repo_root, env)
 
 
 def _apply_staged_diff_to_index(
@@ -1414,10 +1445,13 @@ def _ensure_cmoc_ignore_rule(repo_root: Path) -> bool:
     return True
 
 
-def _assert_cmoc_ignore_guarantee(repo_root: Path) -> None:
+def _assert_cmoc_ignore_guarantee(
+    repo_root: Path,
+    env: dict[str, str] | None = None,
+) -> None:
     """`.cmoc` 追跡対象外保証の完了条件を検証する。"""
     # tracked path と ignore probe の両方で保証状態を確認する。
-    tracked = _tracked_cmoc_paths(repo_root)
+    tracked = _tracked_cmoc_paths(repo_root, env=env)
     probe = ".cmoc/.__cmoc_ignore_probe__"
     ignored = run_git(
         repo_root,
@@ -1436,10 +1470,13 @@ def _assert_cmoc_ignore_guarantee(repo_root: Path) -> None:
         )
 
 
-def _tracked_cmoc_paths(repo_root: Path) -> list[str]:
+def _tracked_cmoc_paths(
+    repo_root: Path,
+    env: dict[str, str] | None = None,
+) -> list[str]:
     """git index に残っている `.cmoc` 配下パスを返す。"""
     # `git ls-files` の空でない行だけを tracked path として返す。
-    result = run_git(repo_root, ["ls-files", "--", ".cmoc"])
+    result = run_git(repo_root, ["ls-files", "--", ".cmoc"], env=env)
     return [line for line in result.stdout.splitlines() if line]
 
 

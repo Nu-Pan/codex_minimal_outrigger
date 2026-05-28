@@ -18,6 +18,7 @@ import sub_commands.eval_oracles as eval_oracles_module
 import sub_commands.session.abandon as session_abandon_module
 import sub_commands.session.fork as session_fork_module
 import sub_commands.session.join as session_join_module
+import commons.repo as repo_module
 from commons.codex import COST_PERFORMANCE_MODEL
 from commons.codex import COST_PERFORMANCE_REASONING_EFFORT
 from commons.codex import COMMIT_MESSAGE_MODEL
@@ -347,6 +348,49 @@ def test_init_does_not_commit_preexisting_staged_changes(
         "HEAD",
     ).stdout.splitlines()
     assert last_commit_paths == [".gitignore"]
+    assert _git(repo, "diff", "--cached", "--name-only").stdout == (
+        "feature.txt\n"
+    )
+
+
+def test_init_keeps_head_when_preexisting_staged_restore_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """既存 staged 差分を戻せない場合、`cmoc init` は HEAD を進めない。"""
+    repo = _init_repo(tmp_path)
+    base_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    staged_file = repo / "feature.txt"
+    staged_file.write_text("user staged\n", encoding="utf-8")
+    _git(repo, "add", "feature.txt")
+
+    def fail_apply_staged_diff(
+        repo_root: Path,
+        staged_diff: str,
+        env: dict[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        assert repo_root == repo
+        assert staged_diff
+        assert env.get("GIT_INDEX_FILE")
+        assert _git(repo, "rev-parse", "HEAD").stdout.strip() == base_head
+        return subprocess.CompletedProcess(
+            ["git", "apply", "--cached", "--3way"],
+            1,
+            "",
+            "forced restore failure",
+        )
+
+    monkeypatch.setattr(
+        repo_module,
+        "_apply_staged_diff_to_index",
+        fail_apply_staged_diff,
+    )
+
+    with pytest.raises(CmocError):
+        cmoc_init_impl(repo)
+
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == base_head
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
     assert _git(repo, "diff", "--cached", "--name-only").stdout == (
         "feature.txt\n"
     )
