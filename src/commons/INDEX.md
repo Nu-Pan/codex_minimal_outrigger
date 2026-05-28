@@ -29,21 +29,21 @@
 
 ## Read this when
 
-- Codex CLI 呼び出しの共通ラッパーや、`read-only` / `workspace-write` の切り替えを確認したいとき。
+- Codex CLI 呼び出しの共通ラッパーや、`read_only` / `workspace-write` の切り替えを確認したいとき。
 - Structured Output の schema 保存・キャッシュ、JSON 解析、JSON Schema 検証、意味検査の流れを見直したいとき。
-- quota 枯渇時の待機と `resume` 再開、capacity 一時失敗の再試行、失敗時の診断情報を確認したいとき。
+- quota 枯渇時の待機と `resume` 再開、capacity 一時失敗の指数バックオフ再試行、失敗時の診断情報を確認したいとき。
 - workspace-write 実行時の `oracles` 保護、実行前の `INDEX.md` メンテナンス、呼び出しログの保存方法を追いたいとき。
 
 ## Do not read this when
 
-- `codex exec` の起動方法や `--output-last-message` / `--output-schema` の扱いだけを確認したいとき。
+- `codex exec` の起動方法や `--output-last-message` / `--output-schema` の基本的な使い方だけを確認したいとき。
 - `INDEX.md` の生成・維持ルールそのものを確認したいとき。
-- `repo.py`、`errors.py`、`indexing.py` など別の共通モジュールの挙動だけを追いたいとき。
+- `repo.py`、`errors.py`、`indexing.py` など別の共通モジュールだけを追いたいとき。
 - 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
 
 ## hash
 
-- a91d21081c20e30a5ea202cf8a5d80b3aa203bcc6a8c79764adf692b19b4fcf8
+- 7bc4388098b7a226e0d3d4d3ca063068f59f3f01e89727e575a57a3f046e151c
 
 # `command_runner.py`
 
