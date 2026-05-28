@@ -1,8 +1,11 @@
 """`cmoc apply` の本体処理。"""
 
+import fcntl
 import json
 import os
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from pathlib import Path
@@ -255,8 +258,8 @@ def cmoc_apply_impl(
         session_branch,
     )
     assert_no_uncommitted_changes(repo_root)
-    session_head_at_apply_start = head_commit(repo_root)
-    oracle_snapshot_commit = session_head_at_apply_start
+    session_head_at_apply_start = ""
+    oracle_snapshot_commit = ""
 
     failed_stage = "create apply worktree"
     apply_run_id, apply_branch, apply_worktree = _plan_apply_worktree(
@@ -265,21 +268,41 @@ def cmoc_apply_impl(
     )
     discrepancy_counts: list[int] = []
     apply_completed_recorded = False
+    apply_start_needs_error_record = False
+    apply_error_recorded = False
     try:
-        failed_stage = "create apply worktree"
-        start_step(timer, 3, 6, "create apply worktree")
-        apply_run_id, apply_branch, apply_worktree = _create_apply_worktree(
-            state_root,
-            session_id,
-            oracle_snapshot_commit,
-        )
-        _mark_apply_running(
-            state_root,
-            session_id,
-            state,
-            apply_branch,
-            oracle_snapshot_commit,
-        )
+        with _locked_apply_start(state_root, session_id):
+            state = read_session_state(state_root, session_id)
+            session_start_commit = _validate_apply_fork_state(
+                state,
+                session_branch,
+            )
+            assert_no_uncommitted_changes(repo_root)
+            session_head_at_apply_start = head_commit(repo_root)
+            oracle_snapshot_commit = session_head_at_apply_start
+
+            failed_stage = "create apply worktree"
+            start_step(timer, 3, 6, "create apply worktree")
+            apply_start_needs_error_record = True
+            try:
+                apply_run_id, apply_branch, apply_worktree = (
+                    _create_apply_worktree(
+                        state_root,
+                        session_id,
+                        oracle_snapshot_commit,
+                    )
+                )
+                _mark_apply_running(
+                    state_root,
+                    session_id,
+                    state,
+                    apply_branch,
+                    oracle_snapshot_commit,
+                )
+            except Exception:
+                _mark_apply_error(state_root, session_id, state)
+                apply_error_recorded = True
+                raise
 
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
         failed_stage = "maintain INDEX.md files"
@@ -364,7 +387,9 @@ def cmoc_apply_impl(
         timer.report()
         return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
     except Exception as error:
-        if not apply_completed_recorded:
+        if not apply_start_needs_error_record:
+            raise
+        if not apply_completed_recorded and not apply_error_recorded:
             _mark_apply_error(state_root, session_id, state)
         try:
             session_head_at_apply_finish = _session_branch_head_for_report(
@@ -513,6 +538,23 @@ def _create_apply_worktree(
         run_git(repo_root, ["branch", "-D", apply_branch], check=False)
         sleep(0.001)
     raise RuntimeError("リトライ後も一意な apply worktree を作成できませんでした。")
+
+
+@contextmanager
+def _locked_apply_start(
+    state_root: Path,
+    session_id: str,
+) -> Iterator[None]:
+    """apply 開始時の ready 判定、artifact 作成、state 永続化を直列化する。"""
+    lock_dir = state_root / ".cmoc" / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / f"apply-fork-{session_id}.lock"
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _plan_apply_worktree(

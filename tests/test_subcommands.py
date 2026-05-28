@@ -4028,6 +4028,69 @@ def test_apply_marks_error_when_running_state_write_fails(
     assert calls == 2
 
 
+def test_apply_revalidates_ready_state_under_start_lock(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """apply fork は lock 獲得後に state を読み直して二重開始を拒否する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    session_id = "2026-05-10_22-21_10_123"
+    state_path = repo / ".cmoc" / "sessions" / f"{session_id}.json"
+    running_branch = f"cmoc/apply/{session_id}/already-running"
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    real_read_session_state = apply_module.read_session_state
+    read_calls = 0
+
+    def read_state_with_concurrent_start(
+        repo_root: Path,
+        requested_session_id: str,
+    ) -> dict[str, object]:
+        """初回検証後に別 apply が running を保存した状態を模擬する。"""
+        nonlocal read_calls
+        read_calls += 1
+        state = real_read_session_state(repo_root, requested_session_id)
+        if read_calls == 1:
+            concurrent_state = json.loads(
+                json.dumps(state, ensure_ascii=False),
+            )
+            concurrent_state["apply"] = {
+                "state": "running",
+                "apply_branch": running_branch,
+                "oracle_snapshot_commit": snapshot_commit,
+            }
+            write_session_state(repo_root, requested_session_id, concurrent_state)
+        return state
+
+    monkeypatch.setattr(
+        apply_module,
+        "read_session_state",
+        read_state_with_concurrent_start,
+    )
+
+    with pytest.raises(CmocError) as error:
+        cmoc_apply_impl(repo)
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    reports = list(
+        (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
+    )
+    assert "apply run を開始できる状態ではありません" in error.value.message
+    assert state["apply"] == {
+        "state": "running",
+        "apply_branch": running_branch,
+        "oracle_snapshot_commit": snapshot_commit,
+    }
+    assert read_calls == 2
+    assert "cmoc/apply/" not in branches
+    assert not (repo / ".cmoc" / "worktrees" / "apply").exists()
+    assert reports == []
+
+
 def test_apply_marks_error_when_worktree_creation_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
