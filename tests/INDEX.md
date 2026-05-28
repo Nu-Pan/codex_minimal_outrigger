@@ -28,7 +28,7 @@
 ## Summary
 
 - `tests/test_codex.py` は `commons.codex.run_codex_exec()` とその周辺補助処理を検証するテスト群の入口です。
-- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗、出力プレビューを扱います。
+- Structured Output の schema ファイル生成、JSON / テキストの再試行、意味的検証失敗を扱います。
 - Codex CLI 呼び出しログ、`subcommand_log` への通知、`INDEX.md` 事前メンテナンスと `skip_index_maintenance`、workspace-write 時の oracle 保護を確認します。
 - quota 枯渇時の待機・疎通確認・`--resume` 再実行、`session_id` 抽出、`_resume_command`、`_prepare_codex_exec_paths` も扱います。
 - 末尾にはテスト用 git リポジトリ初期化用の `_init_git_repo` / `_git` と、`_FailingTextIO` / `_RecordingTextIO` があります。
@@ -39,16 +39,18 @@
 - Structured Output の parse 失敗、schema 不一致、意味的検証失敗に対するリトライやエラー表示を追いたいとき。
 - Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の疎通確認と `resume` 再実行の流れを確認したいとき。
 - `INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の oracle 保護、`session_id` 抽出や `_resume_command` を追いたいとき。
+- `_prepare_codex_exec_paths` のログ予約や、JSON Schema 文字列長・enum などの検証挙動を確認したいとき。
 
 ## Do not read this when
 
-- `commons.indexing.maintain_indexes` の実装や `INDEX.md` 生成ルールそのものを確認したいとき。
-- `tests/test_subcommands.py` や `tests/test_repo.py` など、別のテスト群の観点だけを追いたいとき。
+- `commons.indexing.maintain_indexes()` の実装や `INDEX.md` 生成ルールそのものを確認したいとき。
+- `tests/test_subcommands.py`、`tests/test_repo.py`、`tests/test_indexing.py` など、別のテスト群だけを追いたいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- 個別サブコマンドの仕様そのものを見たいとき。
 
 ## hash
 
-- 003b5da29d284f8685fada729fd262e86f2909a3b98ce9edec049fb0f7f32a9d
+- cfac06fe61fc4a450565cb4070d6d81cbbb3d251cd8114d0626631d6744e6c24
 
 # `test_file_naming.py`
 
