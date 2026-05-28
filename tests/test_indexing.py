@@ -854,6 +854,59 @@ def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
     assert "- INDEX entry 生成 folder" in root_index
 
 
+def test_maintain_indexes_propagates_nested_content_hash_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """深い leaf の内容変更は親 INDEX hash へ連鎖的に反映する。"""
+    repo = _init_repo(tmp_path)
+    parent = repo / "parent"
+    child = parent / "child"
+    child.mkdir(parents=True)
+    leaf = child / "leaf.md"
+    leaf.write_text("before\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "nested content")
+
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """呼び出し対象を本文に入れ、再生成範囲を検証できるようにする。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+
+    purposes.clear()
+    leaf.write_text("after\n", encoding="utf-8")
+
+    changed = maintain_indexes(repo)
+    leaf_digest = hashlib.sha256(leaf.read_bytes()).hexdigest()
+    child_digest = _directory_digest(repo, child)
+    parent_digest = _directory_digest(repo, parent)
+    child_index = (child / "INDEX.md").read_text(encoding="utf-8")
+    parent_index = (parent / "INDEX.md").read_text(encoding="utf-8")
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert purposes == [
+        "INDEX entry 生成 parent/child/leaf.md",
+        "INDEX entry 生成 parent/child",
+        "INDEX entry 生成 parent",
+    ]
+    assert f"- {leaf_digest}" in child_index
+    assert f"- {child_digest}" in parent_index
+    assert f"- {parent_digest}" in root_index
+
+
 def test_maintain_indexes_reuses_current_index_with_empty_sections(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1148,6 +1201,31 @@ def _init_repo(tmp_path: Path) -> Path:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "initial")
     return repo
+
+
+def _directory_digest(repo: Path, directory: Path) -> str:
+    """テスト用に仕様の directory hash serialization を計算する。"""
+    serialized_entries: list[str] = []
+    for child in sorted(
+        [
+            path
+            for path in directory.iterdir()
+            if path.name != "INDEX.md" and not path.name.startswith(".")
+        ],
+        key=lambda path: path.relative_to(repo).as_posix(),
+    ):
+        entry_type = "directory" if child.is_dir() else "file"
+        relative_path = child.relative_to(repo).as_posix()
+        if child.is_dir():
+            content_hash = _directory_digest(repo, child)
+        else:
+            content_hash = hashlib.sha256(child.read_bytes()).hexdigest()
+        serialized_entries.append(
+            f"{entry_type}\0{relative_path}\0{content_hash}\n"
+        )
+    return hashlib.sha256(
+        "".join(serialized_entries).encode("utf-8")
+    ).hexdigest()
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
