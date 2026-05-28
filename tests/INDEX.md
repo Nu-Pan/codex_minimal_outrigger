@@ -140,27 +140,27 @@
 
 - `tests/test_subcommands.py` は、`cmoc` の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の入口です。
 - `run_command` のログ出力、終了集計、例外時レポート、`repo_root` 解決失敗時の振る舞いを扱います。
-- `init`、`session` 系、`apply` 系、`eval_oracles` 系の各コマンドについて、状態遷移、事前条件、ロールバック、出力、永続化の回帰を確認します。
-- CLI のコマンド登録、ヘルプ文言、エラーフォーマット、`bin/cmoc` の起動条件、コンフリクト判定補助関数も含みます。
+- `init`、`session` 系、`apply` 系、`eval_oracles` 系の各コマンドについて、状態遷移、事前条件、ロールバック、出力、永続化、CLI 登録の回帰を確認します。
 
 ## Read this when
 
-- `cmoc` のサブコマンド群がどの順序で呼ばれ、どのエラーや出力を返すかを確認したいとき。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の制御フローを追いたいとき。
+- `cmoc` の主要サブコマンドがどの順序で呼ばれ、どのエラーや出力を返すかを確認したいとき。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の制御フローや状態遷移を追いたいとき。
 - `run_command`、`StepTimer`、`start_step`、`format_error_report` のテスト観点を確認したいとき。
-- CLI の `main`、ヘルプ表示、`bin/cmoc`、`review_oracles` 互換コマンドの登録状況を確認したいとき。
+- CLI の `main`、ヘルプ表示、`bin/cmoc`、`review oracles` 互換コマンドの登録状況を確認したいとき。
 - conflict marker 判定や、`apply` / `session join` の境界条件テストを探したいとき。
 
 ## Do not read this when
 
-- `src` 配下の実装コードそのものを確認したいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを追いたいとき。
+- `src/` 配下の実装そのものを追いたいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを確認したいとき。
+- `cmoc` の個別サブコマンド仕様を、実装や CLI 登録ではなく正本仕様から直接確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
-- 個別のサブコマンド仕様ではなく、`INDEX.md` 生成やルーティング方針だけを確認したいとき。
+- `INDEX.md` の生成ルールやルーティング方針だけを確認したいとき。
 
 ## hash
 
-- 3e376701ff623ac93e2efb5404cddbcf5da0a9c0c240dc77bd5242fda3566913
+- 4206d3f24b3a107339bb82c8b7d225d8ffac05a95e728f2fe481800bb4a8031f
 
 # `test_timestamps.py`
 

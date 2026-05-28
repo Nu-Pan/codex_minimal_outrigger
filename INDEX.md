@@ -182,25 +182,25 @@
 
 ## Summary
 
-- `src` は cmoc の実装本体を置く Python ソースツリーの入口です。
-- `main.py` が CLI 起動口、`commons` が横断共通処理、`sub_commands` が各サブコマンド実装です。
-- ここから個別モジュールや各配下の `INDEX.md` に進むための目次です。
+- `src` 配下の cmoc 実装をまとめた最上位の目次です。
+- `main.py` は CLI のエントリーポイントで、`commons` は共通処理、`sub_commands` は各サブコマンド実装の入口です。
+- このディレクトリは、実装本体へ進む前に全体の配置を把握するための案内を担います。
 
 ## Read this when
 
-- CLI の起動口とサブコマンド登録全体を確認したいとき。
-- 共通処理とサブコマンド実装の役割分担を整理したいとき。
-- どのファイルやディレクトリへ進むべきかを判断したいとき。
+- `src` 直下にある `main.py`、`commons`、`sub_commands` の役割をざっと把握したいとき。
+- CLI の入口と、共通処理・サブコマンド実装への入口を分けて確認したいとき。
+- `src` 配下のどの入口から深掘りすべきかを最初に整理したいとき。
 
 ## Do not read this when
 
-- `cmoc` の利用手順や正本仕様だけを確認したいとき。
-- `tests` や実装外の資料だけを見たいとき。
-- 個別モジュールの詳細実装だけを確認したいときは、該当ファイルや配下の `INDEX.md` を直接読むべきです。
+- `src` 配下の個別実装ではなく、`oracles` 側の仕様断片だけを確認したいとき。
+- サブコマンドの利用手順や引数仕様だけを見たいときは、`src/sub_commands` ではなく対応する正本仕様を読むべきです。
+- 共通処理の詳細だけを追いたいときは、`src/commons` の各モジュールやその `INDEX.md` を直接参照したほうが早いです。
 
 ## hash
 
-- 53644f7374e2f284d78776c3c76e95ad401735077124f40f6f17bd3b6a4a4b3a
+- 6f348939e1960b07543d500966cde354994df711aad297fdbd8afd7851b360f2
 
 # `test.sh`
 
@@ -230,24 +230,22 @@
 
 ## Summary
 
-- `tests` 配下の pytest テスト群の入口です。
-- `src` への import path 設定や、Codex 呼び出しラッパー、INDEX.md メンテナンス、git 共通処理、CLI サブコマンド制御、タイムスタンプ、命名規則を検証するテストをまとめています。
-- 個別のテストファイルを読む前に、どの機能領域を検証しているか把握するための目次です。
+- pytest による cmoc のテスト群がまとまっているディレクトリです。
+- 共通の `conftest.py` による import path 設定と、`commons` / `sub_commands` の決定論的ロジックの検証が入っています。
+- `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` で、CLI 呼び出し・INDEX 生成・git リポジトリ操作・サブコマンド・タイムスタンプを確認します。
 
 ## Read this when
 
-- `tests` 配下の pytest テスト全体の役割を確認したいとき。
-- `conftest.py` によるテスト共通設定を確認したいとき。
-- `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py`、`test_file_naming.py` のどれを読むべきか判断したいとき。
-- cmoc の決定論的な制御ロジックやファイル構成の回帰テストを探したいとき。
+- pytest テストを追加・修正するとき。
+- cmoc の制御ロジックや共通処理の仕様をテスト観点で確認したいとき。
+- 新しいサブコマンドやリポジトリ操作、INDEX 生成の振る舞いを検証したいとき。
 
 ## Do not read this when
 
-- cmoc の実装コードや本番ロジックそのものを確認したいとき。
-- `oracles` 配下の正本仕様を確認したいとき。
-- README、AGENTS、memo などの運用ルールだけを確認したいとき。
-- 個別サブコマンド仕様や共通仕様の詳細だけを追いたいとき。
+- 本体実装のコーディング規約や設計方針だけを確認したいとき。
+- ユーザー向け CLI 仕様や `oracles` の正本仕様だけを確認したいとき。
+- Codex CLI や LLM の出力品質そのものを評価したいとき。
 
 ## hash
 
-- db363e570c9d0f7fb0644bb2748a8de79859ef430f884a9d30fbbc89065fc40a
+- 6d9546307e035218d59286a0c08c33367ace6a342f12a46ffc72a0e423de868f

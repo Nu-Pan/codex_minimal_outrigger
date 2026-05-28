@@ -25,26 +25,27 @@
 
 ## Summary
 
-- src/sub_commands/apply は cmoc apply 系サブコマンドの実装入口で、__init__.py、fork.py、join.py、abandon.py をまとめるディレクトリです。
-- fork.py は apply 本体処理を担い、session state の検証、apply branch / worktree の作成、不整合調査・修正ループ、レポート生成までを扱います。
-- join.py は apply branch の取り込み、想定外差分の検査と強制解決、INDEX.md conflict の自動解消を扱い、abandon.py は未 join の apply run の破棄を扱います。
+- `src/sub_commands/apply` は cmoc apply 系サブコマンドの実装入口で、`__init__.py`、`fork.py`、`join.py`、`abandon.py` をまとめるディレクトリです。
+- `fork.py` は apply 本体処理を担い、session state の検証、apply branch / worktree の作成、不整合調査・修正ループ、レポート生成までを扱います。
+- `join.py` は apply branch の取り込み、想定外差分の検査と強制解決、`INDEX.md` conflict の自動解消を扱い、`abandon.py` は未 join の apply run の破棄を扱います。
 
 ## Read this when
 
-- src/sub_commands/apply 配下の実装モジュールへの入口を探したいとき。
-- cmoc apply fork、cmoc apply join、cmoc apply abandon の責務分担や処理の流れを把握したいとき。
+- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の責務分担や処理の流れを把握したいとき。
+- `src/sub_commands/apply` 配下の実装モジュールへの入口を探したいとき。
 - cmoc apply の実装・修正・レビュー・テストで、どのモジュールを読むべきか判断したいとき。
+- apply 系のパッケージ構造として `__init__.py`、`fork.py`、`join.py`、`abandon.py` がどう並んでいるか確認したいとき。
 
 ## Do not read this when
 
-- cmoc apply の利用手順や正本仕様だけを確認したいときは、oracles/app_specs/sub_commands/apply_*.md を直接読むべきです。
-- cmoc session 系や review oracles など、apply 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
-- cmoc apply 系の共通ルールや設計方針だけを確認したいときは、oracles/app_specs/ や oracles/dev_rules/ 側を先に読むべきです。
-- cmoc apply fork、cmoc apply join、cmoc apply abandon のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです。
+- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
+- `cmoc session` 系や `review oracles` など、apply 以外のサブコマンドの入口を確認したいときは、このディレクトリではなく該当する入口を読むべきです。
+- apply 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
+- `fork.py`、`join.py`、`abandon.py` のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- ffaeec12d9167384872a68be945f91dcdcc74be6a61ca1e2b67f8f4a2269457e
+- 0550ef69ca61f3513375790bcc3ab1df4d09e0908194038fe1e69f289825a0fe
 
 # `eval_oracles.py`
 

@@ -57,18 +57,16 @@
 - `cmoc apply fork` の実装・修正・レビュー・テストで、全体の処理順を確認したいとき。
 - session state の前提条件、apply branch / worktree の作成、不整合調査・修正ループ、レポート生成までの流れを追いたいとき。
 - 部分適用モードと全体適用モードの違い、調査対象ファイルの選定規則、要修正点リストの改善ループを確認したいとき。
-- Structured Output の schema 検証、禁止領域の変更検査、コミット生成、`apply.state` の `running` / `completed` / `error` 遷移を確認したいとき。
 
 ## Do not read this when
 
 - `cmoc apply join` や `cmoc apply abandon` の処理だけを確認したいとき。
 - `cmoc session` 系や他のサブコマンドの実装だけを確認したいとき。
 - `cmoc apply fork` の利用手順や仕様断片そのものだけを確認したいとき。
-- Codex CLI 呼び出しの共通基盤や `INDEX.md` メンテナンスの一般ルールだけを確認したいとき。
 
 ## hash
 
-- ccd8a760b047c2a5fea19da93904134f85b142e21bc67680dcee5a15490686e4
+- 4a3c05ae35eedd4ec490b4aa970c9505e7c88b193bcfd51588a8ae15d2781d58
 
 # `join.py`
 
