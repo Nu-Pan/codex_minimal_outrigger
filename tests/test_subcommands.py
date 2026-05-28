@@ -970,7 +970,8 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "result: ok" in report
     assert "## Fatal issues" in report
     assert "No issues." in report
-    assert "## Specification-only basis" not in report
+    assert "## Specification-only basis" in report
+    assert "| 1 | `oracles/spec.md` | oracles 配下の仕様だけを参照しました。 |" in report
 
 
 def test_eval_oracles_writes_error_report_when_evaluation_fails(
@@ -1010,6 +1011,8 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert "# cmoc eval-oracles report" in report
     assert "## Summary" in report
     assert "## Verdict" in report
+    assert "## Specification-only basis" in report
+    assert "No completed evaluations." in report
     assert "成功評価ではありません" in report
     assert "今回評価した範囲では問題点が検出されませんでした" not in report
     assert "## Evaluated oracle files" in report
@@ -1103,6 +1106,8 @@ def test_eval_oracles_error_report_separates_unevaluated_files(
     ).read_text(encoding="utf-8")
     assert "oracle_count_total: 2" in report
     assert "oracle_count_evaluated: 1" in report
+    assert "## Specification-only basis" in report
+    assert "| 1 | `oracles/a.md` | oracles 配下の仕様だけを参照しました。 |" in report
     assert "| 1 | `oracles/a.md` | 0 |" in report
     assert "| 2 | `oracles/b.md` | 0 |" not in report
     assert "Not evaluated oracle files:" in report
@@ -1162,7 +1167,8 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     assert "- Exception message: `fake report failure`" in report
     assert "成功評価ではありません" in report
     assert "今回評価した範囲では問題点が検出されませんでした" not in report
-    assert "## Specification-only basis" not in report
+    assert "## Specification-only basis" in report
+    assert "| 1 | `oracles/spec.md` | oracles 配下の仕様だけを参照しました。 |" in report
 
 
 def test_eval_oracles_report_aggregates_issues_by_severity(
@@ -1286,6 +1292,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
         "# cmoc eval-oracles report",
         "## Summary",
         "## Verdict",
+        "## Specification-only basis",
         "## Evaluated oracle files",
         "## Fatal issues",
         "## Inconclusive issues",
@@ -1295,7 +1302,9 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     assert [report.index(section) for section in expected_sections] == sorted(
         report.index(section) for section in expected_sections
     )
-    assert "## Specification-only basis" not in report
+    assert "## Specification-only basis" in report
+    assert "| 1 | `oracles/a.md` | oracles 配下の仕様だけを参照しました。 |" in report
+    assert "| 2 | `oracles/b.md` | oracles 配下の仕様だけを参照しました。 |" in report
     assert report.index("### FATAL-001: A fatal") < report.index(
         "### FATAL-002: B fatal"
     )
@@ -1310,6 +1319,10 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     )
     assert "| 1 | `oracles/a.md` | 2 |" in report
     assert "| 2 | `oracles/b.md` | 3 |" in report
+    assert "- Oracle file: `oracles/a.md`" in report
+    assert "- Oracle file: `oracles/b.md`" in report
+    assert f"- Oracle file: `{oracle_a.resolve()}`" not in report
+    assert f"- Oracle file: `{oracle_b.resolve()}`" not in report
     assert "| No. | Referenced file |" in report
     assert "| 1 | `oracles/a.md` |" in report
     assert "| 2 | `oracles/INDEX.md` |" in report
