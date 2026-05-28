@@ -136,28 +136,27 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` のサブコマンド群に対する決定論的な制御ロジック、CLI 登録、エラーレポートを検証するテスト群の入口です。
-- `run_command` の共通処理に加えて、`init`、`session`、`apply`、`eval-oracles` の各実装経路、`main` の公開コマンド登録、`bin/cmoc` の起動経路まで扱います。
-- さらに、`Fake Codex CLI`、Structured Output の検証、`INDEX.md` 更新、`oracles` / `memo` の扱い、`session join` の conflict prompt、ヘルパーの並び順も確認できます。
+- `tests/test_subcommands.py` は `run_command` と各サブコマンドの決定論的な制御、CLI 登録、エラーレポートを検証するテスト群の入口です。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要経路と、`main` / `bin/cmoc` の起動・登録経路をまとめて扱います。
+- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`oracles` / `memo` の扱い、`session join` の conflict prompt や補助関数の並び順検証も含みます。
 
 ## Read this when
 
-- サブコマンドの振る舞いを実装・修正・レビューするとき。
-- 共通ランナー `run_command` の出力、終了コード、ログ、エラー報告を確認したいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の制御フローや前提条件を確認したいとき。
-- `main` の `--help`、`eval-oracle` 互換 alias、`bin/cmoc` のランチャー挙動を確認したいとき。
-- `Fake Codex CLI` を使うテスト前提や、Structured Output・prompt 検証の観点を確認したいとき。
+- `cmoc` のサブコマンド実装を変更・修正・レビューするとき。
+- `run_command` の出力、終了コード、ログ、エラーレポートの仕様を確認したいとき。
+- `init`、`session`、`apply`、`eval-oracles` の制御フローや前提条件、`main` のコマンド登録、`bin/cmoc` の起動経路を追いたいとき。
+- `Fake Codex CLI`、Structured Output 検証、`INDEX.md` 更新、`session join` の conflict prompt やヘルパー順序を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` から該当文書へ進むべきです。
-- テスト全般の書き方や `Fake Codex CLI` の扱いだけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群を見たいときにはこのファイルは適しません。
-- `run_command` や各サブコマンドの個別ヘルパー、prompt 文面だけを追いたいときは、対応する実装ファイルや仕様文書へ直接進むべきです。
+- 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` を直接読むべきです。
+- テストの書き方や `Fake Codex CLI` の扱いだけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを追いたいときにはこのファイルは適しません。
+- `run_command` の個別ヘルパーや prompt 文面だけを追いたいときは、対応する実装ファイルや仕様文書へ直接進むべきです。
 
 ## hash
 
-- 5e642eb58077459fa880fa08095fb7c1dbc5a283f54b500b25f381e724ff335c
+- 77a09add4f025a92a82ba17068807b1422cb03d92b6404a68a20fa043e8319e0
 
 # `test_timestamps.py`
 
