@@ -39,7 +39,7 @@
 ## Do not read this when
 
 - `cmoc apply` の利用手順や正本仕様だけを確認したいときは、この目次ではなく `oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
-- `cmoc session` 系や `eval-oracles` など、`apply` 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
+- `cmoc session` 系や `review oracles` など、`apply` 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
 - `cmoc apply` 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
 - `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです.
 
@@ -51,25 +51,25 @@
 
 ## Summary
 
-- `cmoc eval-oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめたモジュールです。
-- 現在ブランチと `--full` から部分評価 / 全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルの評価実行、`.cmoc/reports/eval-oracles` への保存までを扱います。
+- `cmoc review oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめたモジュールです。
+- 現在ブランチと `--full` から部分評価・全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルの評価実行、問題点リストの改善、`.cmoc/reports/review_oracles` への保存までを扱います。
 - 評価プロンプトの組み立て、Structured Output の検証、評価結果の集計、成功時とエラー時の Markdown レポート生成を支える補助関数も含みます。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実装・修正・レビューをするときに読むべきです。
-- `--full` の有無とブランチ種別から、部分評価か全体評価かを決めるロジックを確認したいときに読むべきです。
-- Codex CLI へ渡す評価プロンプト、Structured Output の schema、入力値検証、評価レポート生成の流れを確認したいときに読むべきです。
+- `cmoc review oracles` の実装・修正・レビューをするとき。
+- `--full` の有無とブランチ種別から、部分評価か全体評価かを決めるロジックを確認したいとき。
+- Codex CLI に渡す評価プロンプト、Structured Output の schema、入力値検証、評価レポート生成の流れを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc eval-oracles` のユーザー向け仕様や前提条件だけを確認したいときは、`oracles/app_specs/sub_commands/eval_oracles.md` を読むべきです。
-- CLI のコマンド登録や `--help` の定義だけを確認したいときは、`src/main.py` を読むべきです。
-- `cmoc session` や `cmoc apply` など他サブコマンドの実装だけを確認したいときは、このファイルではなく該当モジュールを読むべきです。
+- `cmoc review oracles` のユーザー向け仕様や前提条件だけを確認したいとき。
+- CLI のコマンド登録や `--help` の定義だけを確認したいとき。
+- `cmoc session` や `cmoc apply` など、他サブコマンドの実装だけを確認したいとき。
 
 ## hash
 
-- 06f103b6f9e05053e16a0c0dd5f1985278eb3489d95a1aca9df5421c86fe7d3d
+- 4d87a40d1876d14c7fe0de122be31ef0a16b9ac62c30b464318ccbff1d39e947
 
 # `init.py`
 

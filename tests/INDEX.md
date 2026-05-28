@@ -139,28 +139,28 @@
 ## Summary
 
 - `tests/test_subcommands.py` は `run_command` と共通エラーレポート、終了コード伝播、サブコマンドログ出力の回帰テスト群の入口です。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の制御フロー、状態更新、cleanup、競合処理をまとめて検証します。
-- `apply fork` の差分検出・Structured Output 検証、`apply join` のマージと強制解決、`apply abandon` の破棄、`eval-oracles` の評価レポート生成を扱います。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の制御フロー、状態更新、cleanup、競合処理をまとめて検証します。
+- `apply fork` の差分検出と Structured Output 検証、`apply join` のマージと強制解決、`apply abandon` の破棄、`review oracles` の評価レポート生成を扱います。
 - `main` の Typer 登録、`cmoc --help`、`eval-oracle` 互換エイリアス、`bin/cmoc` 起動経路、`Fake Codex CLI`、`INDEX.md` 更新、`oracles`/`memo` 制約も確認します。
 
 ## Read this when
 
 - サブコマンド群の回帰テストの全体像を把握したいとき。
 - `run_command` のログ出力、例外時レポート、終了コードの扱いを追いたいとき。
-- `cmoc init`、`session`、`apply`、`eval-oracles` の制御ロジックをテスト観点で見直したいとき。
+- `cmoc init`、`session`、`apply`、`review oracles` の制御ロジックをテスト観点で見直したいとき。
 - `main` の Typer 登録や `cmoc --help`、`eval-oracle` 互換エイリアス、`bin/cmoc` の起動経路を確認したいとき。
-- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`oracles`/`memo` の扱いを確認したいとき。
+- Fake Codex CLI、Structured Output、`INDEX.md` 更新、`oracles`/`memo` の扱いを確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` を直接読むべきです。
 - `src/` 側の実装ロジックや関数本体だけを追いたいときは、このテスト目次ではなく実装コードを読むべきです。
-- `tests/test_indexing.py` や `tests/test_repo.py` など、別のテスト群だけを見たいときは適しません。
-- テスト規約や `Fake Codex CLI` の一般方針だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
+- `tests/test_indexing.py` や `tests/test_repo.py` など、別のテスト群だけを見たいときは適していません。
+- テスト規約や Fake Codex CLI の一般方針だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
 
 ## hash
 
-- a610fc51f3ebcbc3a04954f76874885c4ec0706313acfb24f40503bac069ce98
+- 5b612dbf78403216cb2195372f5af747d903bdfac7ac633a94165968ab9c7cf2
 
 # `test_timestamps.py`
 
