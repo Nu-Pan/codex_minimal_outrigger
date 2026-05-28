@@ -25,6 +25,7 @@ from commons.codex import COMMIT_MESSAGE_REASONING_EFFORT
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.errors import format_error_report
+from commons.repo import write_apply_process_id
 from commons.repo import write_session_state
 from commons.timing import StepTimer, start_step
 from sub_commands.apply.fork import cmoc_apply_impl
@@ -419,7 +420,6 @@ def test_session_fork_creates_session_branch_and_records_state(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
     }
     output = capsys.readouterr().out
     assert "(1/4) validate repository state" in output
@@ -1644,7 +1644,6 @@ def test_apply_returns_complete_when_no_discrepancies(
         "state",
         "apply_branch",
         "oracle_snapshot_commit",
-        "process_id",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_123"
@@ -1821,7 +1820,6 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
@@ -2179,7 +2177,6 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
@@ -2304,8 +2301,8 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
-    state["apply"]["process_id"] = process.pid
     write_session_state(repo, "2026-05-10_22-21_10_123", state)
+    write_apply_process_id(repo, "2026-05-10_22-21_10_123", process.pid)
 
     try:
         cmoc_apply_abandon_impl(repo)
@@ -2315,7 +2312,10 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert process.returncode is not None
     assert state["apply"]["state"] == "ready"
-    assert state["apply"]["process_id"] is None
+    assert "process_id" not in state["apply"]
+    assert not (
+        repo / ".cmoc" / "runtime" / "apply" / "2026-05-10_22-21_10_123.pid"
+    ).exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
 
@@ -2335,7 +2335,6 @@ def test_apply_abandon_accepts_stale_running_state_without_process_id(
     state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
-    state["apply"]["process_id"] = None
     write_session_state(repo, "2026-05-10_22-21_10_123", state)
 
     cmoc_apply_abandon_impl(repo)
@@ -2998,7 +2997,6 @@ def test_apply_rejects_negative_repeat_before_worktree_creation(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
         "state": "ready",
     }
     assert not (repo / ".cmoc" / "worktrees").exists()
@@ -3085,7 +3083,6 @@ def test_apply_marks_error_when_worktree_creation_fails(
     assert state["apply"] == {
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
         "state": "error",
     }
     assert not (repo / ".cmoc" / "worktrees").exists()
@@ -3557,7 +3554,6 @@ def test_session_join_precondition_failure_does_not_print_manual_resolution(
         "rev-parse",
         "HEAD",
     ).stdout.strip()
-    state["apply"]["process_id"] = 12345
     state_path.write_text(json.dumps(state), encoding="utf-8")
 
     with pytest.raises(CmocError) as error:
@@ -3877,7 +3873,6 @@ def test_session_abandon_rejects_apply_run_before_cleanup(
         "rev-parse",
         "HEAD",
     ).stdout.strip()
-    state["apply"]["process_id"] = 12345
     state_path.write_text(json.dumps(state), encoding="utf-8")
 
     with pytest.raises(CmocError) as error:
@@ -4650,7 +4645,6 @@ def _create_completed_apply_run(
         "apply_branch": apply_branch,
         "apply_worktree": str(apply_worktree),
         "oracle_snapshot_commit": oracle_snapshot,
-        "process_id": None,
         "completed": True,
         "discrepancy_counts": [0],
         "report_path": str(report_path),

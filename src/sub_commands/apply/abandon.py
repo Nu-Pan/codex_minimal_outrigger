@@ -10,9 +10,11 @@ from commons.errors import CmocError
 from commons.repo import (
     apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
+    clear_apply_process_id,
     current_branch,
     is_apply_branch,
     is_session_branch,
+    read_apply_process_id,
     read_session_state,
     run_git,
     session_id_from_branch,
@@ -158,20 +160,9 @@ def _validate_abandonable_state(
             ],
             f"session branch: {session_branch}",
         )
-    process_id = apply.get("process_id")
-    if process_id is not None and (
-        not isinstance(process_id, int)
-        or isinstance(process_id, bool)
-        or process_id <= 0
-    ):
-        raise CmocError(
-            "apply process id を session state から特定できませんでした。",
-            [
-                "session state の apply.process_id を確認してください。",
-                "state が壊れている場合は、手動で apply process の状態を確認してください。",
-            ],
-            f"apply.process_id: {process_id}",
-        )
+    process_id = None
+    if apply_state == "running":
+        process_id = read_apply_process_id(repo_root, session_id)
     return _AbandonState(
         apply_branch=apply_branch,
         apply_worktree=apply_worktree,
@@ -194,10 +185,10 @@ def _stop_running_apply(abandon_state: _AbandonState) -> list[str]:
         raise CmocError(
             "停止対象の apply process が現在の abandon process と一致します。",
             [
-                "session state の apply.process_id を確認してください。",
+                "runtime の apply process id ファイルを確認してください。",
                 "誤った process id が記録されている場合は、state を復旧してから再実行してください。",
             ],
-            f"apply.process_id: {process_id}",
+            f"apply process id: {process_id}",
         )
     if not _process_exists(process_id):
         return [f"running apply process was already gone: pid {process_id}"]
@@ -217,7 +208,7 @@ def _stop_running_apply(abandon_state: _AbandonState) -> list[str]:
             "対象 process の状態を確認してください。",
             "`cmoc apply abandon` を再実行する前に、手動で process を停止してください。",
         ],
-        f"apply.process_id: {process_id}",
+        f"apply process id: {process_id}",
     )
 
 
@@ -325,6 +316,6 @@ def _mark_apply_ready(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
     }
     write_session_state(repo_root, session_id, state)
+    clear_apply_process_id(repo_root, session_id)

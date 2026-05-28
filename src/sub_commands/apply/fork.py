@@ -23,6 +23,7 @@ from commons.repo import (
     assert_cmoc_ignored,
     assert_no_uncommitted_changes,
     changed_paths,
+    clear_apply_process_id,
     current_branch,
     head_commit,
     is_session_branch,
@@ -32,6 +33,7 @@ from commons.repo import (
     session_id_from_branch,
     session_state_root,
     write_session_state,
+    write_apply_process_id,
 )
 from commons.timing import StepTimer, start_step
 from commons.timestamps import make_timestamp
@@ -479,8 +481,8 @@ def _mark_apply_running(
     apply["state"] = "running"
     apply["apply_branch"] = apply_branch
     apply["oracle_snapshot_commit"] = oracle_snapshot_commit
-    apply["process_id"] = os.getpid()
     write_session_state(repo_root, session_id, state)
+    write_apply_process_id(repo_root, session_id, os.getpid())
 
 
 def _mark_apply_completed(
@@ -491,8 +493,8 @@ def _mark_apply_completed(
     """session state の apply セクションを completed に更新する。"""
     apply = _mutable_apply_section(state)
     apply["state"] = "completed"
-    apply["process_id"] = None
     write_session_state(repo_root, session_id, state)
+    clear_apply_process_id(repo_root, session_id)
 
 
 def _mark_apply_error(
@@ -504,8 +506,8 @@ def _mark_apply_error(
     apply = _mutable_apply_section(state)
     if apply.get("state") != "error":
         apply["state"] = "error"
-        apply["process_id"] = None
         write_session_state(repo_root, session_id, state)
+    clear_apply_process_id(repo_root, session_id)
 
 
 def _mutable_apply_section(

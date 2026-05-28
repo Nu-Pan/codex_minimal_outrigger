@@ -13,6 +13,7 @@ from commons.errors import CmocError
 from commons.repo import (
     apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
+    clear_apply_process_id,
     current_branch,
     is_apply_branch,
     is_implementation_path,
@@ -503,9 +504,9 @@ def _mark_apply_ready(
         "state": "ready",
         "apply_branch": None,
         "oracle_snapshot_commit": None,
-        "process_id": None,
     }
     write_session_state(repo_root, session_id, state)
+    clear_apply_process_id(repo_root, session_id)
 
 
 def _snapshot_cleanup_evidence(
