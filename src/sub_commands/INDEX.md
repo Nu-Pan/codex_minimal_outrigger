@@ -49,16 +49,15 @@
 
 ## Summary
 
-- `cmoc eval-oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめます。
-- 現在ブランチと `--full` から部分評価 / 全体評価を切り替え、`INDEX.md` 整備、対象 oracle 列挙、各ファイルの評価実行、`.cmoc/reports/eval-oracles` への保存までを扱います。
-- 評価プロンプト、Structured Output の schema、入力値検証、成功時 / エラー時レポート生成の補助関数も含みます。
+- `cmoc eval-oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめたモジュールです。
+- 現在ブランチと `--full` から部分評価 / 全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルの評価実行、`.cmoc/reports/eval-oracles` への保存までを扱います。
+- 評価プロンプトの組み立て、Structured Output の検証、評価結果の集計、成功時とエラー時の Markdown レポート生成を支える補助関数も含みます。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実装・修正・レビューをするとき。
-- `--full` の有無とブランチ種別から評価範囲を決めるロジックを確認したいとき。
-- Codex CLI へ渡す評価プロンプト、JSON schema、`referenced_paths` や `issues` の検証規則を確認したいとき。
-- 評価レポートの保存先、Markdown 構成、エラー時の `result: error` レポート生成を確認したいとき。
+- `cmoc eval-oracles` の実装・修正・レビューをするときに読むべきです。
+- `--full` の有無とブランチ種別から、部分評価か全体評価かを決めるロジックを確認したいときに読むべきです。
+- Codex CLI へ渡す評価プロンプト、Structured Output の schema、入力値検証、評価レポート生成の流れを確認したいときに読むべきです。
 
 ## Do not read this when
 
@@ -68,7 +67,7 @@
 
 ## hash
 
-- 8a3f5b62d10f39a8aaf42e95f84efa2359af0ee36e8a411261154dc6c2e59e74
+- 06f103b6f9e05053e16a0c0dd5f1985278eb3489d95a1aca9df5421c86fe7d3d
 
 # `init.py`
 
