@@ -63,12 +63,12 @@
 
 - `cmoc apply join` や `cmoc apply abandon` の処理だけを確認したいとき。
 - `cmoc session` 系や他のサブコマンドの実装だけを確認したいとき。
-- `cmoc apply fork` の仕様断片そのものを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
-- Codex CLI 呼び出しの共通基盤や `INDEX.md` メンテナンスの一般ルールだけを確認したいときは、このファイルではなく共通仕様を読むべきです。
+- `cmoc apply fork` の利用手順や仕様断片そのものだけを確認したいとき。
+- Codex CLI 呼び出しの共通基盤や `INDEX.md` メンテナンスの一般ルールだけを確認したいとき。
 
 ## hash
 
-- 7c1b7b657db50a0d1b50553e25a9cb20cd93c065be78497636daa402a9906569
+- ccd8a760b047c2a5fea19da93904134f85b142e21bc67680dcee5a15490686e4
 
 # `join.py`
 

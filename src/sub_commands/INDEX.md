@@ -25,27 +25,26 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装入口で、`__init__.py`、`fork.py`、`join.py`、`abandon.py` をまとめるディレクトリです。
-- `fork.py` は apply 本体処理、`join.py` は apply branch の取り込み、`abandon.py` は未 join の apply run の破棄を担当します。
-- `__init__.py` は `cmoc apply` 系サブコマンドのパッケージ宣言だけを担う最小モジュールです。
+- src/sub_commands/apply は cmoc apply 系サブコマンドの実装入口で、__init__.py、fork.py、join.py、abandon.py をまとめるディレクトリです。
+- fork.py は apply 本体処理を担い、session state の検証、apply branch / worktree の作成、不整合調査・修正ループ、レポート生成までを扱います。
+- join.py は apply branch の取り込み、想定外差分の検査と強制解決、INDEX.md conflict の自動解消を扱い、abandon.py は未 join の apply run の破棄を扱います。
 
 ## Read this when
 
-- `src/sub_commands/apply` 配下の実装モジュールへの入口を探したいときに読むべきです。
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の責務分担や処理の流れを把握したいときに読むべきです。
-- `cmoc apply` の実装・修正・レビュー・テストで、どのモジュールを読むべきか判断したいときに読むべきです。
-- `src/sub_commands/apply` が Python パッケージとして宣言されていることと、配下の主要モジュール一覧を確認したいときに読むべきです.
+- src/sub_commands/apply 配下の実装モジュールへの入口を探したいとき。
+- cmoc apply fork、cmoc apply join、cmoc apply abandon の責務分担や処理の流れを把握したいとき。
+- cmoc apply の実装・修正・レビュー・テストで、どのモジュールを読むべきか判断したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、この目次ではなく `oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
-- `cmoc session` 系や `review oracles` など、`apply` 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
-- `cmoc apply` 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです.
+- cmoc apply の利用手順や正本仕様だけを確認したいときは、oracles/app_specs/sub_commands/apply_*.md を直接読むべきです。
+- cmoc session 系や review oracles など、apply 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
+- cmoc apply 系の共通ルールや設計方針だけを確認したいときは、oracles/app_specs/ や oracles/dev_rules/ 側を先に読むべきです。
+- cmoc apply fork、cmoc apply join、cmoc apply abandon のうち特定の 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- aae36070939bf08fd12beddab0d72544958ad80613ebdf98b126e6f95e546001
+- ffaeec12d9167384872a68be945f91dcdcc74be6a61ca1e2b67f8f4a2269457e
 
 # `eval_oracles.py`
 
