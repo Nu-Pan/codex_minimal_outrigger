@@ -145,13 +145,13 @@
 
 ## Do not read this when
 
-- 個別サブコマンドの引数や状態遷移などの詳細仕様だけを確認したいとき。
-- `PATH` 設定や作業フローではなく、`branch_model` や `error_handling` などの共通仕様を確認したいとき。
+- 個別サブコマンドの引数や状態遷移など、特定の仕様断片だけを確認したいとき。
+- `PATH` 設定や作業フローではなく、`branch_model` や `error_handling` などの共通仕様だけを確認したいとき。
 - 実装コードやテストコードの修正だけで足りるとき。
 
 ## hash
 
-- 4219f0e3ce43321f10857e5549a2d439de528dae3854366a7638412c924172fc
+- 3a562f250264740314cdf260da440ecfd82ed2b5f81445b92a6a9c88d789c2ab
 
 # `pyproject.toml`
 
