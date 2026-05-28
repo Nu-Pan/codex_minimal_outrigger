@@ -106,8 +106,8 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     )
     assert not any("## Attempt 1" in content for content in log_contents)
     captured = capsys.readouterr().out
-    assert "codex exec attempt (1/3) prompt:" in captured
-    assert "codex exec attempt (3/3) output:" in captured
+    assert "codex exec 試行 (1/3) prompt:" in captured
+    assert "codex exec 試行 (3/3) output:" in captured
 
 
 def test_prepare_codex_exec_paths_reserves_call_log_atomically(
@@ -176,7 +176,7 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
         output = run_codex_exec(
             repo,
             "prompt",
-            purpose="unit test codex call",
+            purpose="unit test codex 呼び出し",
             read_only=True,
         )
 
@@ -189,7 +189,7 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
         for line in subcommand_logs[0].read_text(encoding="utf-8").splitlines()
     ]
     notification_head = (
-        "codex exec: unit test codex call "
+        "codex exec 完了: unit test codex 呼び出し "
         f"log={repo}/.cmoc/logs/codex_exec/call/"
     )
     assert output == "ok\n"
@@ -198,7 +198,7 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
     assert " returncode=0" in captured
     assert any(
         event["event"] == "codex_exec_call"
-        and event["purpose"] == "unit test codex call"
+        and event["purpose"] == "unit test codex 呼び出し"
         and event["returncode"] == 0
         for event in log_events
     )
@@ -1536,10 +1536,10 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     assert "original prompt" in prompts
     assert "Codex CLI の疎通確認担当" in prompts
     assert "/memo` は読み書き禁止です。" in prompts
-    assert "quota exhausted; waiting before resume" in captured
+    assert "quota が枯渇したため、resume 前に復旧を待機します" in captured
     assert "quota poll prompt: あなたは Codex CLI の疎通確認担当です。" in captured
     assert "quota poll output: ok" in captured
-    assert "quota restored; resuming codex exec" in captured
+    assert "quota が復旧したため、codex exec を resume します" in captured
 
 
 def test_run_codex_exec_waits_again_when_resume_is_still_quota_exhausted(
@@ -1611,7 +1611,7 @@ def test_run_codex_exec_waits_again_when_resume_is_still_quota_exhausted(
     assert resume_attempts.read_text(encoding="utf-8").strip() == "2"
     assert sleeps == [1800]
     assert len(log_files) == 5
-    assert "quota exhausted again after resume; waiting" in (
+    assert "resume 後に quota が再度枯渇したため、待機します" in (
         capsys.readouterr().out
     )
 
@@ -1862,7 +1862,10 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
         )
     ]
     assert "quota 復旧確認に失敗しました。" in error.value.message
-    assert "quota poll output-last-message was not ok." in error.value.detail
+    assert (
+        "quota poll の output-last-message が ok ではありませんでした。"
+        in error.value.detail
+    )
     assert not any("--resume" in content for content in log_contents)
 
 

@@ -195,7 +195,7 @@ def _resolve_conflicts(repo_root: Path) -> None:
     run_codex_exec(
         repo_root,
         _conflict_prompt(repo_root, unmerged),
-        purpose="resolve session join conflicts",
+        purpose="session join conflict 解消",
         read_only=False,
         expect_json=False,
         skip_index_maintenance=True,

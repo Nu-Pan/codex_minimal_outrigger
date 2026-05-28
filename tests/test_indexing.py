@@ -552,8 +552,8 @@ def test_maintain_indexes_regenerates_non_utf8_index(
     assert changed is True
     assert "# `README.md`" in content
     assert "# `target.txt`" in content
-    assert "generate INDEX entry for README.md" in purposes
-    assert "generate INDEX entry for target.txt" in purposes
+    assert "INDEX entry 生成 README.md" in purposes
+    assert "INDEX entry 生成 target.txt" in purposes
 
 
 def test_maintain_indexes_retries_invalid_structured_output(
@@ -769,9 +769,9 @@ def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
     root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
 
     assert changed is True
-    assert "generate INDEX entry for folder" in purposes
+    assert "INDEX entry 生成 folder" in purposes
     assert "# `folder`" in root_index
-    assert "- generate INDEX entry for folder" in root_index
+    assert "- INDEX entry 生成 folder" in root_index
 
 
 def test_maintain_indexes_reuses_current_index_with_empty_sections(

@@ -103,7 +103,7 @@ def run_codex_exec(
     last_message_path: Path | None = None
     for attempt in range(1, attempts + 1):
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
-        step = f"codex exec attempt ({attempt}/{attempts})"
+        step = f"codex exec 試行 ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
         _maintain_indexes_before_codex(
             repo_root,
@@ -145,7 +145,7 @@ def run_codex_exec(
             ):
                 session_id = _extract_session_id(result.stdout, result.stderr)
                 command = _resume_command(command, session_id)
-                print("quota exhausted; waiting before resume")
+                print("quota が枯渇したため、resume 前に復旧を待機します")
                 run = _wait_for_quota_and_resume(
                     repo_root,
                     command,
@@ -284,7 +284,7 @@ def _wait_for_quota_and_resume(
     # quota 待機中の疎通確認も Codex CLI 呼び出しなので、通常経路と同じ直前処理を通す。
     while True:
         poll_prompt = _quota_poll_prompt(repo_root)
-        print("quota poll: running minimal codex exec check")
+        print("quota poll: 最小限の codex exec 疎通確認を実行します")
         print(f"quota poll prompt: {_head80(poll_prompt)}")
         poll_command = _build_codex_command(
             read_only=True,
@@ -301,7 +301,7 @@ def _wait_for_quota_and_resume(
             repo_root,
             poll_command,
             poll_prompt,
-            "quota recovery check",
+            "quota 復旧確認",
             attempt,
             None,
             None,
@@ -311,7 +311,7 @@ def _wait_for_quota_and_resume(
             poll_run,
             poll_command,
             poll_prompt,
-            "quota recovery check",
+            "quota 復旧確認",
             attempt,
             None,
             skip_index_maintenance,
@@ -328,9 +328,9 @@ def _wait_for_quota_and_resume(
             if poll_output.strip() != "ok":
                 _raise_quota_poll_failure(
                     poll_run,
-                    "quota poll output-last-message was not ok.",
+                    "quota poll の output-last-message が ok ではありませんでした。",
                 )
-            print("quota restored; resuming codex exec")
+            print("quota が復旧したため、codex exec を resume します")
             _maintain_indexes_before_codex(
                 repo_root,
                 skip_index_maintenance,
@@ -363,7 +363,7 @@ def _wait_for_quota_and_resume(
                 resume_run.last_message_path,
             ):
                 _raise_codex_failure(resume_run.log_path, resume_run.result)
-            print("quota exhausted again after resume; waiting")
+            print("resume 後に quota が再度枯渇したため、待機します")
             _sleep_for_quota_poll_interval()
             continue
         if not _last_message_indicates_quota_exhaustion(
@@ -399,9 +399,9 @@ def _retry_after_capacity_if_needed(
         if not _last_message_indicates_capacity(current_run.last_message_path):
             return current_run
         print(
-            "selected model is at capacity; "
-            f"retrying codex exec ({retry_index}/{_CAPACITY_RETRY_LIMIT}) "
-            f"after {delay_seconds} sec"
+            "選択された model が capacity 上限に達しています。"
+            f"{delay_seconds} sec 後に codex exec を再試行します "
+            f"({retry_index}/{_CAPACITY_RETRY_LIMIT})"
         )
         time.sleep(delay_seconds)
         delay_seconds *= 2
@@ -492,7 +492,7 @@ def _run_codex_command(
     last_message_path = paths["last_message"]
     run_command = _command_with_last_message(command, last_message_path)
     print(
-        "codex exec call: "
+        "codex exec 呼び出し: "
         f"{_head80(prompt)} -> {log_path}"
     )
     oracle_guard = _start_oracle_guard(
@@ -757,7 +757,7 @@ def _print_codex_notification(
         },
     )
     print(
-        "codex exec: "
+        "codex exec 完了: "
         f"{purpose} "
         f"log={log_path} "
         f"elapsed={format_duration(elapsed_seconds)} "

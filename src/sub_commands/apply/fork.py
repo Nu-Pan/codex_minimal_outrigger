@@ -286,8 +286,8 @@ def cmoc_apply_impl(
         _maintain_apply_indexes(apply_worktree)
 
         # 不整合調査と追従作業を指定回数まで反復する。
-        failed_stage = "investigate and apply discrepancies"
-        start_step(timer, 5, 6, "investigate and apply discrepancies")
+        failed_stage = "要修正点の調査と適用"
+        start_step(timer, 5, 6, "要修正点の調査と適用")
         completed = False
         for loop_index in range(1, repeat_investigate_and_fix + 1):
             loop_step_path = (
@@ -298,7 +298,7 @@ def cmoc_apply_impl(
                 timer,
                 loop_step_path,
                 None,
-                "investigation and fix loop",
+                "調査・修正ループ",
             )
             discrepancies = _investigate_discrepancies(
                 apply_worktree,
@@ -311,8 +311,8 @@ def cmoc_apply_impl(
             )
             discrepancy_counts.append(len(discrepancies))
             print(
-                "implementation loop "
-                f"({loop_index}/{repeat_investigate_and_fix}) discrepancies: "
+                "実装ループ "
+                f"({loop_index}/{repeat_investigate_and_fix}) 要修正点: "
                 f"{len(discrepancies)}"
             )
             if not discrepancies:
@@ -584,7 +584,7 @@ def _investigate_discrepancies(
         timer,
         (*step_path, (1, 5)),
         None,
-        "select investigation targets",
+        "調査対象選択",
     )
     oracle_targets = _target_oracle_files(
         repo_root,
@@ -605,10 +605,10 @@ def _investigate_discrepancies(
             timer,
             (*step_path, (2, 5), (index, len(oracle_targets))),
             None,
-            f"investigate oracle {oracle_target.path}",
+            f"oracle 調査 {oracle_target.path}",
         )
         print(
-            f"investigate oracle ({index}/{len(oracle_targets)}) "
+            f"oracle 調査 ({index}/{len(oracle_targets)}) "
             f"{oracle_target.path}"
         )
         # Structured Output の fixing_points を 1 つの一覧へ結合する。
@@ -617,7 +617,7 @@ def _investigate_discrepancies(
                 repo_root,
                 _investigation_prompt(repo_root, oracle_target),
                 purpose=(
-                    "investigate oracle "
+                    "oracle 調査 "
                     f"{oracle_target.path.relative_to(repo_root)}"
                 ),
                 read_only=True,
@@ -642,10 +642,10 @@ def _investigate_discrepancies(
             timer,
             (*step_path, (3, 5), (index, len(implementation_targets))),
             None,
-            f"investigate implementation {implementation_target.path}",
+            f"実装調査 {implementation_target.path}",
         )
         print(
-            "investigate implementation "
+            "実装調査 "
             f"({index}/{len(implementation_targets)}) "
             f"{implementation_target.path}"
         )
@@ -657,7 +657,7 @@ def _investigate_discrepancies(
                     implementation_target,
                 ),
                 purpose=(
-                    "investigate implementation "
+                    "実装調査 "
                     f"{implementation_target.path.relative_to(repo_root)}"
                 ),
                 read_only=True,
@@ -898,7 +898,7 @@ def _improove_fixing_list(
             timer,
             (*step_path, (loop_index, repeat_improove_fixing_list)),
             None,
-            "improve fixing list",
+            "要修正点リスト改善",
         )
         next_improved = _organize_discrepancies(
             repo_root,
@@ -906,8 +906,8 @@ def _improove_fixing_list(
             base_commit,
         )
         print(
-            "fixing list improvement loop "
-            f"({loop_index}/{repeat_improove_fixing_list}) discrepancies: "
+            "要修正点リスト改善ループ "
+            f"({loop_index}/{repeat_improove_fixing_list}) 要修正点: "
             f"{len(next_improved)}"
         )
         if not next_improved:
@@ -939,7 +939,7 @@ def _organize_discrepancies(
                 base_commit,
                 head_commit_hash,
             ),
-            purpose="organize discrepancies",
+            purpose="要修正点整理",
             read_only=True,
             expect_json=True,
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
@@ -984,13 +984,13 @@ def _apply_discrepancies(
             timer,
             (*step_path, (index, len(discrepancies))),
             None,
-            "apply discrepancy",
+            "要修正点適用",
         )
-        print(f"apply discrepancy ({index}/{len(discrepancies)})")
+        print(f"要修正点適用 ({index}/{len(discrepancies)})")
         run_codex_exec(
             repo_root,
             _apply_prompt(repo_root, discrepancy),
-            purpose=f"apply discrepancy {index}/{len(discrepancies)}",
+            purpose=f"要修正点適用 {index}/{len(discrepancies)}",
             read_only=False,
             expect_json=False,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
@@ -1015,7 +1015,7 @@ def _commit_all_changes(repo_root: Path) -> None:
     message = run_codex_exec(
         repo_root,
         _commit_message_prompt(repo_root),
-        purpose="generate commit message",
+        purpose="commit message 生成",
         read_only=True,
         expect_json=False,
         model=COMMIT_MESSAGE_MODEL,
@@ -1191,7 +1191,7 @@ def _generate_change_summary(
         run_codex_exec(
             repo_root,
             prompt,
-            purpose="summarize apply changes",
+            purpose="apply 変更要約",
             read_only=True,
             expect_json=True,
             output_schema=_CHANGE_SUMMARY_OUTPUT_SCHEMA,

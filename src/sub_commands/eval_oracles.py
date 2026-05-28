@@ -203,11 +203,11 @@ def cmoc_eval_oracles_impl(
         commit_hash = head_commit(repo_root)
 
         # oracle ファイルごとに Codex CLI 評価を実行する。
-        failed_stage = "evaluate oracle files"
-        start_step(timer, 4, 5, "evaluate oracle files")
+        failed_stage = "oracle ファイル評価"
+        start_step(timer, 4, 5, "oracle ファイル評価")
         for index, oracle_file in enumerate(oracle_files, start=1):
             print(
-                f"evaluate oracle ({index}/{len(oracle_files)}) "
+                f"oracle 評価 ({index}/{len(oracle_files)}) "
                 f"{oracle_file}"
             )
             payload = parse_json_object(
@@ -215,7 +215,7 @@ def cmoc_eval_oracles_impl(
                     repo_root,
                     _evaluation_prompt(repo_root, oracle_file),
                     purpose=(
-                        f"evaluate oracle {oracle_file.relative_to(repo_root)}"
+                        f"oracle 評価 {oracle_file.relative_to(repo_root)}"
                     ),
                     read_only=True,
                     expect_json=True,
