@@ -264,6 +264,7 @@ def cmoc_apply_impl(
         session_id,
     )
     discrepancy_counts: list[int] = []
+    apply_completed_recorded = False
     try:
         failed_stage = "create apply worktree"
         start_step(timer, 3, 6, "create apply worktree")
@@ -327,9 +328,15 @@ def cmoc_apply_impl(
             )
 
         # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定してから
-        # report を生成する。
+        # apply run の完了状態を記録し、その後 report を生成する。
         _assert_forbidden_paths_clean(apply_worktree)
         _commit_all_changes(apply_worktree)
+        _mark_apply_completed(
+            state_root,
+            session_id,
+            state,
+        )
+        apply_completed_recorded = True
 
         # 実行結果を人間向け report と exit code に変換する。
         failed_stage = "write report"
@@ -352,17 +359,13 @@ def cmoc_apply_impl(
             completed,
             discrepancy_counts,
         )
-        _mark_apply_completed(
-            state_root,
-            session_id,
-            state,
-        )
         print(f"apply run id: {apply_run_id}")
         print(str(report_path))
         timer.report()
         return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
     except Exception as error:
-        _mark_apply_error(state_root, session_id, state)
+        if not apply_completed_recorded:
+            _mark_apply_error(state_root, session_id, state)
         try:
             session_head_at_apply_finish = _session_branch_head_for_report(
                 repo_root,

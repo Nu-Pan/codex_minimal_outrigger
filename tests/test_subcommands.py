@@ -3606,7 +3606,7 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """必須内容を欠く Codex 変更要約はエラーレポートを保存する。"""
+    """report 失敗時も完了済み apply run を error へ戻さない。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -3662,7 +3662,7 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
         ).read_text(encoding="utf-8")
     )
     report_dir = repo / ".cmoc" / "reports" / "apply" / "fork"
-    assert state["apply"]["state"] == "error"
+    assert state["apply"]["state"] == "completed"
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_123/"
     )
