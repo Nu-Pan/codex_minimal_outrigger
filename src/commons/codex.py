@@ -4,7 +4,7 @@ import json
 import re
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -67,6 +67,7 @@ def run_codex_exec(
     json_validator: Callable[[object], None] | None = None,
     text_validator: Callable[[str], None] | None = None,
     skip_index_maintenance: bool = False,
+    index_excluded_roots: Iterable[Path | str] | None = None,
     model: str = _DEFAULT_MODEL,
     reasoning_effort: str = _DEFAULT_REASONING_EFFORT,
 ) -> str:
@@ -100,7 +101,11 @@ def run_codex_exec(
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec attempt ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
-        _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
+        _maintain_indexes_before_codex(
+            repo_root,
+            skip_index_maintenance,
+            index_excluded_roots,
+        )
         run = _run_codex_command(
             repo_root,
             command,
@@ -118,6 +123,7 @@ def run_codex_exec(
             attempt,
             schema_path,
             skip_index_maintenance,
+            index_excluded_roots,
         )
         result = run.result
         last_log_path = run.log_path
@@ -143,6 +149,7 @@ def run_codex_exec(
                         attempt,
                         schema_path,
                         skip_index_maintenance,
+                        index_excluded_roots,
                     )
                     result = run.result
                     last_log_path = run.log_path
@@ -271,6 +278,7 @@ def _wait_for_quota_and_resume(
     attempt: int,
     schema_path: Path | None,
     skip_index_maintenance: bool,
+    index_excluded_roots: Iterable[Path | str] | None,
 ) -> _CodexCommandRun:
     """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
     # quota 待機中の疎通確認も Codex CLI 呼び出しなので、通常経路と同じ直前処理を通す。
@@ -284,7 +292,11 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
         )
         poll_command.append("-")
-        _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
+        _maintain_indexes_before_codex(
+            repo_root,
+            skip_index_maintenance,
+            index_excluded_roots,
+        )
         poll_run = _run_codex_command(
             repo_root,
             poll_command,
@@ -302,6 +314,7 @@ def _wait_for_quota_and_resume(
             attempt,
             None,
             skip_index_maintenance,
+            index_excluded_roots,
         )
         poll_result = poll_run.result
         if poll_result.returncode == 0:
@@ -316,7 +329,11 @@ def _wait_for_quota_and_resume(
                     "quota poll output-last-message was not ok.",
                 )
             print("quota restored; resuming codex exec")
-            _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
+            _maintain_indexes_before_codex(
+                repo_root,
+                skip_index_maintenance,
+                index_excluded_roots,
+            )
             resume_run = _run_codex_command(
                 repo_root,
                 command,
@@ -334,6 +351,7 @@ def _wait_for_quota_and_resume(
                 attempt,
                 schema_path,
                 skip_index_maintenance,
+                index_excluded_roots,
             )
         if not _last_message_indicates_quota_exhaustion(
             poll_run.last_message_path,
@@ -353,6 +371,7 @@ def _retry_after_capacity_if_needed(
     attempt: int,
     schema_path: Path | None,
     skip_index_maintenance: bool,
+    index_excluded_roots: Iterable[Path | str] | None,
 ) -> _CodexCommandRun:
     """capacity 一時失敗なら同じ Codex CLI 呼び出しを指数 backoff で再実行する。"""
     delay_seconds = _CAPACITY_INITIAL_RETRY_DELAY_SECONDS
@@ -367,7 +386,11 @@ def _retry_after_capacity_if_needed(
         )
         time.sleep(delay_seconds)
         delay_seconds *= 2
-        _maintain_indexes_before_codex(repo_root, skip_index_maintenance)
+        _maintain_indexes_before_codex(
+            repo_root,
+            skip_index_maintenance,
+            index_excluded_roots,
+        )
         current_run = _run_codex_command(
             repo_root,
             command,
@@ -384,13 +407,17 @@ def _retry_after_capacity_if_needed(
 def _maintain_indexes_before_codex(
     repo_root: Path,
     skip_index_maintenance: bool,
+    index_excluded_roots: Iterable[Path | str] | None,
 ) -> None:
     """通常の Codex CLI 起動直前に INDEX.md メンテナンスを実行する。"""
     if skip_index_maintenance or not (repo_root / ".git").exists():
         return
     from .indexing import maintain_indexes
 
-    maintain_indexes(repo_root)
+    if index_excluded_roots is None:
+        maintain_indexes(repo_root)
+        return
+    maintain_indexes(repo_root, excluded_index_roots=index_excluded_roots)
 
 
 def _quota_poll_prompt(repo_root: Path) -> str:

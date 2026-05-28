@@ -272,7 +272,7 @@ def _unexpected_diffs(repo_root: Path, join_state: _JoinState) -> list[str]:
         invalid_paths = [
             path
             for path in entry.paths
-            if not is_implementation_path(repo_root, path)
+            if not _is_apply_branch_expected_path(repo_root, path)
         ]
         for path in invalid_paths:
             unexpected.append(f"{join_state.apply_branch}: {path}")
@@ -323,6 +323,16 @@ def _changed_path_entries_between(
 def _is_oracle_path(path: str) -> bool:
     """oracle ファイル側の変更とみなす path か判定する。"""
     return path == "oracles" or path.startswith("oracles/")
+
+
+def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
+    """apply branch 側で cmoc が積み得る想定内 path か判定する。"""
+    if _is_oracle_path(path):
+        return False
+    return (
+        is_implementation_path(repo_root, path)
+        or Path(path).name == "INDEX.md"
+    )
 
 
 def _force_resolve_unexpected_diffs(

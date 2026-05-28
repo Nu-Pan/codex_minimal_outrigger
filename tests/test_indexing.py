@@ -137,6 +137,40 @@ def test_maintain_indexes_creates_empty_index_for_empty_directory(
     assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
 
 
+def test_maintain_indexes_skips_excluded_index_roots(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """除外 root 配下には INDEX.md を作成・更新しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    nested_oracle = oracle_root / "nested"
+    nested_oracle.mkdir(parents=True)
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (nested_oracle / "more.md").write_text("more\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracles")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo, excluded_index_roots=["oracles"])
+
+    assert changed is True
+    assert (repo / "INDEX.md").exists()
+    assert not (oracle_root / "INDEX.md").exists()
+    assert not (nested_oracle / "INDEX.md").exists()
+
+
 def test_maintain_indexes_includes_build_and_tmp_as_entries(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

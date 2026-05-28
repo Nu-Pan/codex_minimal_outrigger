@@ -2133,18 +2133,65 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
         repo,
         oracle_snapshot,
     )
-    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
-    _git(apply_worktree, "add", "INDEX.md")
+    memo_root = apply_worktree / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
+    _git(apply_worktree, "add", "memo/note.md")
     _git(apply_worktree, "commit", "-m", "edit non implementation file")
 
     with pytest.raises(CmocError) as error_info:
         cmoc_apply_join_impl(repo)
 
     assert "想定外の差分" in error_info.value.message
-    assert f"{apply_branch}: INDEX.md" in error_info.value.detail
-    assert not (repo / "INDEX.md").exists()
+    assert f"{apply_branch}: memo/note.md" in error_info.value.detail
+    assert not (repo / "memo" / "note.md").exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
     assert apply_worktree.exists()
+
+
+def test_apply_join_accepts_apply_branch_index_diff(
+    tmp_path: Path,
+) -> None:
+    """apply branch 側の cmoc 管理 INDEX.md 差分は merge 対象にする。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(apply_worktree, "add", "INDEX.md")
+    _git(apply_worktree, "commit", "-m", "maintain index")
+
+    cmoc_apply_join_impl(repo)
+
+    assert (repo / "INDEX.md").read_text(encoding="utf-8") == "index\n"
+
+
+def test_apply_join_stops_on_apply_branch_oracles_index_diff(
+    tmp_path: Path,
+) -> None:
+    """apply branch 側の oracles/INDEX.md 差分は想定外差分として停止する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "oracles" / "INDEX.md").write_text(
+        "index\n",
+        encoding="utf-8",
+    )
+    _git(apply_worktree, "add", "oracles/INDEX.md")
+    _git(apply_worktree, "commit", "-m", "maintain oracle index")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: oracles/INDEX.md" in error_info.value.detail
 
 
 def test_apply_join_stops_on_apply_branch_rename_from_oracles(
@@ -2184,10 +2231,12 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
         repo,
         oracle_snapshot,
     )
-    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
+    memo_root = apply_worktree / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "INDEX.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected index")
+    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
 
     cmoc_apply_join_impl(repo, force_resolve=True)
 
@@ -2198,9 +2247,9 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "INDEX.md").exists()
+    assert not (repo / "memo" / "note.md").exists()
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: INDEX.md" in output
+    assert f"- {apply_branch}: memo/note.md" in output
 
 
 def test_apply_join_force_resolves_with_missing_apply_worktree(
@@ -2215,10 +2264,12 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
         repo,
         oracle_snapshot,
     )
-    (apply_worktree / "INDEX.md").write_text("index\n", encoding="utf-8")
+    memo_root = apply_worktree / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "INDEX.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected index")
+    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
     _git(repo, "worktree", "remove", "--force", str(apply_worktree))
 
     cmoc_apply_join_impl(repo, force_resolve=True)
@@ -2230,12 +2281,12 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "INDEX.md").exists()
+    assert not (repo / "memo" / "note.md").exists()
     assert state["apply"]["state"] == "ready"
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
     assert list((repo / ".cmoc" / "worktrees" / "tmp").glob("*")) == []
-    assert f"- {apply_branch}: INDEX.md" in output
+    assert f"- {apply_branch}: memo/note.md" in output
 
 
 def test_apply_join_force_resolves_apply_branch_copy_from_oracles(

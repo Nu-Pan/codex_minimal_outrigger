@@ -5,6 +5,7 @@ import hashlib
 import os
 import re
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -39,13 +40,25 @@ _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
 }
 
 
-def maintain_indexes(repo_root: Path) -> bool:
+def maintain_indexes(
+    repo_root: Path,
+    *,
+    excluded_index_roots: Iterable[Path | str] | None = None,
+) -> bool:
     """配置対象ディレクトリへ `INDEX.md` を用意し、必要なら自動コミットする。"""
     changed_paths: list[str] = []
     gitignore_matcher = _GitignoreMatcher(repo_root)
+    excluded_roots = _normalize_excluded_index_roots(
+        repo_root,
+        excluded_index_roots,
+    )
 
     # 深い階層から順に INDEX.md を更新し、親の hash が最新子目次を反映するようにする。
-    directories = _index_directories(repo_root, gitignore_matcher)
+    directories = _index_directories(
+        repo_root,
+        gitignore_matcher,
+        excluded_roots,
+    )
     for directory in sorted(
         directories,
         key=lambda path: len(path.parts),
@@ -67,6 +80,7 @@ def maintain_indexes(repo_root: Path) -> bool:
 def _index_directories(
     repo_root: Path,
     gitignore_matcher: "_GitignoreMatcher",
+    excluded_index_roots: set[Path],
 ) -> list[Path]:
     """仕様の除外条件に従って INDEX.md 配置対象を列挙する。"""
     # repo root とその配下ディレクトリを配置候補として集める。
@@ -91,6 +105,8 @@ def _index_directories(
     # 配置対象ディレクトリ専用の除外条件を適用する。
     gitignored_directories = gitignore_matcher.ignored_paths(directories)
     for directory in directories:
+        if _is_under_any_path(directory, excluded_index_roots):
+            continue
         relative_parts = directory.relative_to(repo_root).parts
         if any(
             part.startswith(".") or part in _INDEX_DIRECTORY_EXCLUDED_NAMES
@@ -103,6 +119,39 @@ def _index_directories(
             continue
         result.append(directory)
     return result
+
+
+def _normalize_excluded_index_roots(
+    repo_root: Path,
+    excluded_index_roots: Iterable[Path | str] | None,
+) -> set[Path]:
+    """INDEX.md を書かない root 群を repo 内の絶対 path に正規化する。"""
+    if excluded_index_roots is None:
+        return set()
+    normalized_roots: set[Path] = set()
+    for root in excluded_index_roots:
+        path = Path(root)
+        if not path.is_absolute():
+            path = repo_root / path
+        try:
+            relative = path.resolve().relative_to(repo_root.resolve())
+        except ValueError:
+            continue
+        normalized_roots.add(repo_root / relative)
+    return normalized_roots
+
+
+def _is_under_any_path(path: Path, roots: set[Path]) -> bool:
+    """path が指定 root のいずれか自身または配下か判定する。"""
+    for root in roots:
+        if path == root:
+            return True
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        return True
+    return False
 
 
 def _write_index_if_needed(

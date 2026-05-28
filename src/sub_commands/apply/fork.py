@@ -4,6 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from inspect import Parameter, signature
 from pathlib import Path
 from time import sleep
 
@@ -278,7 +279,7 @@ def cmoc_apply_impl(
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
         failed_stage = "maintain INDEX.md files"
         start_step(timer, 4, 6, "maintain INDEX.md files")
-        maintain_indexes(apply_worktree)
+        _maintain_apply_indexes(apply_worktree)
 
         # 不整合調査と追従作業を指定回数まで反復する。
         failed_stage = "investigate and apply discrepancies"
@@ -611,6 +612,7 @@ def _investigate_discrepancies(
                 json_validator=_validate_discrepancy_payload,
                 model=COST_PERFORMANCE_MODEL,
                 reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
+                index_excluded_roots=_apply_index_excluded_roots(repo_root),
             )
         )
         discrepancies.extend(
@@ -650,6 +652,7 @@ def _investigate_discrepancies(
                 json_validator=_validate_discrepancy_payload,
                 model=COST_PERFORMANCE_MODEL,
                 reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
+                index_excluded_roots=_apply_index_excluded_roots(repo_root),
             )
         )
         discrepancies.extend(
@@ -909,6 +912,7 @@ def _organize_discrepancies(
             expect_json=True,
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
             json_validator=_validate_discrepancy_payload,
+            index_excluded_roots=_apply_index_excluded_roots(repo_root),
         )
     )
     return _fixing_points_with_head_commit_hash(repo_root, payload)
@@ -957,6 +961,7 @@ def _apply_discrepancies(
             purpose=f"apply discrepancy {index}/{len(discrepancies)}",
             read_only=False,
             expect_json=False,
+            index_excluded_roots=_apply_index_excluded_roots(repo_root),
         )
         _assert_forbidden_paths_clean(repo_root)
         _commit_all_changes(repo_root)
@@ -969,7 +974,7 @@ def _commit_all_changes(repo_root: Path) -> None:
         return
 
     # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
-    maintain_indexes(repo_root)
+    _maintain_apply_indexes(repo_root)
     _assert_forbidden_paths_clean(repo_root)
     if not changed_paths(repo_root):
         return
@@ -983,6 +988,7 @@ def _commit_all_changes(repo_root: Path) -> None:
         expect_json=False,
         model=COMMIT_MESSAGE_MODEL,
         reasoning_effort=COMMIT_MESSAGE_REASONING_EFFORT,
+        index_excluded_roots=_apply_index_excluded_roots(repo_root),
     ).strip()
     if not message:
         message = "Apply oracle implementation changes"
@@ -990,6 +996,33 @@ def _commit_all_changes(repo_root: Path) -> None:
     # 最終的な全差分を 1 commit にまとめる。
     run_git(repo_root, ["add", "--all"])
     run_git(repo_root, ["commit", "-m", message])
+
+
+def _maintain_apply_indexes(repo_root: Path) -> bool:
+    """apply worktree 上で編集禁止の `oracles/` を避けて INDEX を保守する。"""
+    excluded_roots = _apply_index_excluded_roots(repo_root)
+    if _maintain_indexes_accepts_excluded_roots():
+        return maintain_indexes(
+            repo_root,
+            excluded_index_roots=excluded_roots,
+        )
+    return maintain_indexes(repo_root)
+
+
+def _maintain_indexes_accepts_excluded_roots() -> bool:
+    """テスト用 monkeypatch も考慮して除外 root 引数の有無を判定する。"""
+    parameters = signature(maintain_indexes).parameters.values()
+    for parameter in parameters:
+        if parameter.name == "excluded_index_roots":
+            return True
+        if parameter.kind == Parameter.VAR_KEYWORD:
+            return True
+    return False
+
+
+def _apply_index_excluded_roots(repo_root: Path) -> list[Path]:
+    """apply worktree の INDEX メンテナンスで書かない root 群を返す。"""
+    return [repo_root / "oracles"]
 
 
 def _assert_forbidden_paths_clean(repo_root: Path) -> None:
