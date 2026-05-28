@@ -59,13 +59,13 @@
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や `apply_fork.md` の仕様断片だけを確認したいとき。
+- `cmoc apply fork` の利用手順や引数仕様だけを確認したいとき。
 - `cmoc apply join` や `cmoc apply abandon` など、別の apply サブコマンドの実装だけを確認したいとき。
 - `cmoc session` 系や他のサブコマンドの実装・仕様だけを確認したいとき。
 
 ## hash
 
-- 234f46f11ed0cd70dfef25b6a3301e27f386b3ef7ba136c8c4cc11639410b8ba
+- 51f6059029442dc3ef66947b2a66ac12e1af024dfcc11209679ff19dd8c32da0
 
 # `join.py`
 
