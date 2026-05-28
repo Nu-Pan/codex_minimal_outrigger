@@ -42,11 +42,11 @@
 
 - `cmoc apply` の利用手順、引数、事前条件、終了条件だけを確認したいとき。
 - `fork.py`、`join.py`、`abandon.py` のうち 1 つだけを深く追いたいときは、この目次ではなく該当モジュールを直接読むべきです。
-- `cmoc session` 系や `review oracles` など、apply 以外のサブコマンド実装や入口を確認したいとき。
+- `cmoc apply` 以外のサブコマンド実装や入口を確認したいとき。
 
 ## hash
 
-- 13198fe0c156e07008085a522966dbadee0c86edd28737ecc7ed8e27131e2458
+- 112a1f7ae7a4faf4c47eb612404f0d039bcaedee81d1cbfdc9d29145f06e5fcf
 
 # `eval_oracles.py`
 

@@ -55,7 +55,7 @@
 ## Read this when
 
 - `cmoc apply fork` の実装・修正・レビュー・テストで、処理全体の流れを追いたいとき。
-- session state の前提条件、apply branch / worktree の作成、不整合調査・改善・適用ループを確認したいとき。
+- session state の前提条件、apply branch / worktree の作成、不整合調査・改善ループを確認したいとき。
 - Structured Output の検証、編集禁止領域のチェック、commit メッセージ生成、apply レポート出力やエラー報告の実装を確認したいとき。
 
 ## Do not read this when
@@ -66,7 +66,7 @@
 
 ## hash
 
-- 61c24cf464c511d7a4846dcb7884b619f7b32beed18a1b8f02e374c384114a41
+- f67d13658f1dd76807661e1bee861a0ac697f031875d2d4e9e1c877c45b27ee2
 
 # `join.py`
 
