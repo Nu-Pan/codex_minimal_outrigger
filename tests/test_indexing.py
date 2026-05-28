@@ -109,6 +109,53 @@ def test_maintain_indexes_uses_local_exclude_but_ignores_external_excludes(
     assert "# `system-only.txt`" in content
 
 
+def test_maintain_indexes_respects_gitignore_for_newline_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """newline を含む path でも gitignore 判定の path 境界を保つ。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    kept = repo / "kept\nname.txt"
+    ignored = repo / "ignored\nname.txt"
+    kept.write_text("kept\n", encoding="utf-8")
+    ignored.write_text("ignored\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "kept\nname.txt")
+    _git(repo, "commit", "-m", "newline paths")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成対象を記録する fake Codex CLI。"""
+        purposes.append(str(kwargs["purpose"]))
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `kept%0Aname.txt`" in content
+    assert "# `ignored%0Aname.txt`" not in content
+    assert all("ignored\nname.txt" not in purpose for purpose in purposes)
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """newline path の最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for current newline path INDEX"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
 def test_maintain_indexes_creates_empty_index_for_empty_directory(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

@@ -1527,13 +1527,14 @@ def _root_gitignored_paths(
                 "-c",
                 f"core.excludesFile={os.devnull}",
                 "check-ignore",
+                "-z",
                 "--no-index",
                 "--stdin",
             ],
             cwd=temp_root,
             check=False,
-            input="\n".join(relative_paths) + "\n",
-            text=True,
+            input=b"\0".join(os.fsencode(path) for path in relative_paths)
+            + b"\0",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=env,
@@ -1547,11 +1548,15 @@ def _root_gitignored_paths(
                 ".gitignore の構文を確認してからコマンドを再実行してください。",
                 "一時的に root .gitignore を単純化してから cmoc を再実行してください。",
             ],
-            result.stderr.strip(),
+            result.stderr.decode(errors="replace").strip(),
         )
 
     # `git check-ignore` が出力した path だけを ignore 対象集合として返す。
-    return set(result.stdout.splitlines())
+    return {
+        os.fsdecode(path)
+        for path in result.stdout.split(b"\0")
+        if path
+    }
 
 
 def _root_gitignore_git_env() -> dict[str, str]:
@@ -1574,11 +1579,14 @@ def _gitignored_paths(repo_root: Path, relative_paths: list[str]) -> set[str]:
     # nested .gitignore も含め、Git 自身の判定に path 集合をまとめて渡す。
     if not relative_paths:
         return set()
-    result = run_git(
-        repo_root,
-        ["check-ignore", "--no-index", "--stdin"],
+    result = subprocess.run(
+        ["git", "check-ignore", "-z", "--no-index", "--stdin"],
+        cwd=repo_root,
         check=False,
-        input_text="\n".join(relative_paths) + "\n",
+        input=b"\0".join(os.fsencode(path) for path in relative_paths)
+        + b"\0",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     if result.returncode not in {0, 1}:
         raise CmocError(
@@ -1587,9 +1595,13 @@ def _gitignored_paths(repo_root: Path, relative_paths: list[str]) -> set[str]:
                 ".gitignore の構文を確認してからコマンドを再実行してください。",
                 "一時的に .gitignore を単純化してから cmoc を再実行してください。",
             ],
-            result.stderr.strip(),
+            result.stderr.decode(errors="replace").strip(),
         )
-    return set(result.stdout.splitlines())
+    return {
+        os.fsdecode(path)
+        for path in result.stdout.split(b"\0")
+        if path
+    }
 
 
 def run_git(

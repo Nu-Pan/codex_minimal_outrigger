@@ -444,13 +444,14 @@ class _GitignoreMatcher:
                 "-c",
                 f"core.excludesFile={os.devnull}",
                 "check-ignore",
+                "-z",
                 "--no-index",
                 "--stdin",
             ],
             cwd=self._repo_root,
             check=False,
-            input="\n".join(relatives) + "\n",
-            text=True,
+            input=b"\0".join(os.fsencode(relative) for relative in relatives)
+            + b"\0",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=_gitignore_git_env(),
@@ -463,9 +464,13 @@ class _GitignoreMatcher:
                     "cmoc を再実行してください。",
                     "一時的に ignore rule を単純化してから cmoc を再実行してください。",
                 ],
-                result.stderr.strip(),
+                result.stderr.decode(errors="replace").strip(),
             )
-        ignored = set(result.stdout.splitlines())
+        ignored = {
+            os.fsdecode(relative)
+            for relative in result.stdout.split(b"\0")
+            if relative
+        }
         return {relative: relative in ignored for relative in relatives}
 
 

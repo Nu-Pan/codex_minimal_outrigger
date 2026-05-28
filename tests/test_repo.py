@@ -235,6 +235,27 @@ def test_list_implementation_files_excludes_specified_paths(
     assert relative_paths == [".gitignore", "README.md", "app.py"]
 
 
+def test_list_implementation_files_respects_gitignore_for_newline_paths(
+    tmp_path: Path,
+) -> None:
+    """root .gitignore 判定でも newline を含む path 境界を保つ。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    (repo / "kept\nname.py").write_text("kept\n", encoding="utf-8")
+    (repo / "ignored\nname.py").write_text("ignored\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == [
+        ".gitignore",
+        "README.md",
+        "kept\nname.py",
+    ]
+
+
 def test_list_implementation_files_excludes_only_root_memo(
     tmp_path: Path,
 ) -> None:
