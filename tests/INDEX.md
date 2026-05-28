@@ -37,7 +37,7 @@
 
 - `commons.codex.run_codex_exec()` の引数組み立て、`read_only` / `workspace-write`、`--json`、`--output-schema`、`reasoning_effort` の扱いを確認したいとき。
 - Structured Output の parse 失敗、JSON Schema 不一致、意味的検証失敗に対するリトライやエラー表示を追いたいとき。
-- Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の待機と `--resume` 再実行の流れを確認したいとき。
+- Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の待機と `resume` サブコマンド再実行の流れを確認したいとき。
 - `INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の `oracles` 保護、`session_id` 抽出や `_resume_command` を追いたいとき。
 - `_prepare_codex_exec_paths` のログ予約、JSON Schema の文字列長・enum 検証、テスト用 git リポジトリ初期化の補助関数を確認したいとき。
 

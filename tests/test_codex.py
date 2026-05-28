@@ -1286,8 +1286,8 @@ def test_extract_session_id_keeps_session_id_compatibility() -> None:
     assert _extract_session_id(stdout, "") == "session-1"
 
 
-def test_resume_command_uses_resume_option_form() -> None:
-    """quota 復旧時の再実行は停止 session を --resume で復元する。"""
+def test_resume_command_uses_resume_subcommand_form() -> None:
+    """quota 復旧時の再実行は停止 session を resume サブコマンドで復元する。"""
     command = [
         "codex",
         "exec",
@@ -1307,7 +1307,7 @@ def test_resume_command_uses_resume_option_form() -> None:
         "--sandbox",
         "read-only",
         "--json",
-        "--resume",
+        "resume",
         "thread-1",
         "-",
     ]
@@ -1447,7 +1447,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """quota 枯渇時は疎通確認後に --resume で同じ prompt を再実行する。"""
+    """quota 枯渇時は疎通確認後に resume で同じ prompt を再実行する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
@@ -1467,7 +1467,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
                 "PREV=''",
                 "HAS_RESUME=0",
                 "for ARG in \"$@\"; do",
-                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
                 "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
                 "    LAST=\"$ARG\"",
                 "  fi",
@@ -1532,10 +1532,13 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     )
     assert any("quota limit exhausted" in content for content in log_contents)
     assert any("Codex CLI の疎通確認担当" in content for content in log_contents)
-    assert any("--resume" in content for content in log_contents)
+    assert any(
+        '  - "resume"\n  - "thread-1"' in content
+        for content in log_contents
+    )
     assert "original prompt" not in args
     assert "Codex CLI の疎通確認担当" not in args
-    assert "--resume\nthread-1\n-" in args
+    assert "resume\nthread-1\n-" in args
     assert args.count("\n-\n") == 3
     assert "original prompt" in prompts
     assert "Codex CLI の疎通確認担当" in prompts
@@ -1566,7 +1569,7 @@ def test_run_codex_exec_waits_again_when_resume_is_still_quota_exhausted(
                 "PREV=''",
                 "HAS_RESUME=0",
                 "for ARG in \"$@\"; do",
-                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
                 "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
                 "    LAST=\"$ARG\"",
                 "  fi",
@@ -1642,7 +1645,7 @@ def test_run_codex_exec_fails_when_resume_returns_unexpected_error(
                 "PREV=''",
                 "HAS_RESUME=0",
                 "for ARG in \"$@\"; do",
-                "  if [ \"$ARG\" = \"--resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
                 "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
                 "    LAST=\"$ARG\"",
                 "  fi",
@@ -1874,7 +1877,10 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
         "quota poll の output-last-message が ok ではありませんでした。"
         in error.value.detail
     )
-    assert not any("--resume" in content for content in log_contents)
+    assert not any(
+        '  - "resume"\n  - "session-1"' in content
+        for content in log_contents
+    )
 
 
 def test_run_codex_exec_retries_schema_validation_failure(

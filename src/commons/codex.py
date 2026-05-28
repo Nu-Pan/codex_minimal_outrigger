@@ -905,7 +905,7 @@ def _session_id_from_json(value: object) -> str | None:
 
 
 def _resume_command(command: list[str], session_id: str | None) -> list[str]:
-    """元コマンドを `codex exec --resume <session-id> ...` に変換する。"""
+    """元コマンドを `codex exec ... resume <session-id> ...` に変換する。"""
     if session_id is None:
         raise CmocError(
             "quota 枯渇後の resume session id を取得できませんでした。",
@@ -915,14 +915,13 @@ def _resume_command(command: list[str], session_id: str | None) -> list[str]:
             ],
             "Codex CLI の JSONL 出力から session_id/thread_id を取得できませんでした。",
         )
-    # 既に resume 化済みならそのまま使う。
-    if "--resume" in command:
-        return command
     resumed = [*command]
+    if "resume" in resumed[2:]:
+        return resumed
     insert_index = len(resumed)
     if resumed and resumed[-1] == "-":
         insert_index -= 1
-    resumed[insert_index:insert_index] = ["--resume", session_id]
+    resumed[insert_index:insert_index] = ["resume", session_id]
     return resumed
 
 

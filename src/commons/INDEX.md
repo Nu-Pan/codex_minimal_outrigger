@@ -23,7 +23,7 @@
 
 ## Summary
 
-- Codex CLI 呼び出しの共通ラッパーで、`codex exec` の起動、`--output-last-message` を含む実行ログ保存、`--resume` 再開、quota 待機と再開をまとめるモジュールです。
+- Codex CLI 呼び出しの共通ラッパーで、`codex exec` の起動、`--output-last-message` を含む実行ログ保存、`resume` サブコマンドによる再開、quota 待機と再開をまとめるモジュールです。
 - Structured Output 用の `--output-schema` ファイル生成とキャッシュ、JSON 解析、JSON Schema 検証、意味検査までを扱います。
 - workspace-write 実行時の `oracles` 変更検査と、`INDEX.md` メンテナンス前処理、model と reasoning_effort の制約も含みます。
 
@@ -31,7 +31,7 @@
 
 - Codex CLI の呼び出し方法や sandbox の切り替え、`codex exec` のコマンド組み立てを確認したいとき。
 - Structured Output の schema 保存・検証、JSON パース、リトライの流れを見直したいとき。
-- quota 枯渇時の待機と `--resume` 再開、capacity リトライ、`oracles` 保護や `INDEX.md` 事前更新の挙動を追いたいとき。
+- quota 枯渇時の待機と `resume` サブコマンドによる再開、capacity リトライ、`oracles` 保護や `INDEX.md` 事前更新の挙動を追いたいとき。
 - 呼び出しログ、`--output-last-message`、model と reasoning_effort の制約を確認したいとき。
 
 ## Do not read this when
