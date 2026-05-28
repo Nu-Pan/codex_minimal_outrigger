@@ -51,25 +51,25 @@
 
 ## Summary
 
-- `cmoc review oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめたモジュールです。
-- 現在ブランチと `--full` から部分評価・全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルの評価実行、問題点リストの改善、`.cmoc/reports/review_oracles` への保存までを扱います。
-- 評価プロンプトの組み立て、Structured Output の検証、評価結果の集計、成功時とエラー時の Markdown レポート生成を支える補助関数も含みます。
+- cmoc review oracles の実装本体で、oracles 配下の仕様断片を Codex CLI で評価し、問題点を集約した Markdown レポートに書き出す処理をまとめたモジュールです。
+- 現在ブランチと `--full` から部分評価・全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルへの評価依頼、問題点リストの改善、`.cmoc/reports/review_oracles` への保存までを扱います。
+- 評価プロンプトの組み立て、Structured Output の検証、評価結果の再配分、エラー時レポート生成を支える補助関数も含みます。
 
 ## Read this when
 
-- `cmoc review oracles` の実装・修正・レビューをするとき。
-- `--full` の有無とブランチ種別から、部分評価か全体評価かを決めるロジックを確認したいとき。
-- Codex CLI に渡す評価プロンプト、Structured Output の schema、入力値検証、評価レポート生成の流れを確認したいとき。
+- cmoc review oracles の実装・修正・レビューをしたいとき。
+- 部分評価か全体評価かの切り替え条件、対象 oracle の選び方、評価の流れを確認したいとき。
+- Codex CLI に渡す評価プロンプト、Structured Output の schema、レポート生成の処理を追いたいとき。
 
 ## Do not read this when
 
-- `cmoc review oracles` のユーザー向け仕様や前提条件だけを確認したいとき。
+- cmoc review oracles のユーザー向け仕様や前提条件だけを確認したいとき。
 - CLI のコマンド登録や `--help` の定義だけを確認したいとき。
-- `cmoc session` や `cmoc apply` など、他サブコマンドの実装だけを確認したいとき。
+- cmoc session や cmoc apply など、他サブコマンドの実装だけを確認したいとき。
 
 ## hash
 
-- f721661e404efe04bd645b16dce4b5853135d1942b000b6561432c36fc87566c
+- e9208d93542ff54fd16a521d1febd211deaa72c888f5d70ba947ccf79c26bc9f
 
 # `init.py`
 

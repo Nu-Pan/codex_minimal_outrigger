@@ -136,31 +136,31 @@
 
 ## Summary
 
-- tests/test_subcommands.py は cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の入口です。
-- run_command のログ出力、終了集計、例外時レポート、repo_root 解決失敗時の振る舞いを扱います。
-- init、session 系、apply 系、eval_oracles 系、CLI 登録、エラーレポート、conflict marker 判定までを広く回帰確認します。
+- `tests/test_subcommands.py` は cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の入口です。
+- `run_command` のログ出力、終了集計、例外時レポート、`repo_root` 解決失敗時の振る舞いを扱います。
+- `init`、`session` 系、`apply` 系、`eval_oracles` 系、CLI 登録、エラーレポート、conflict marker 判定までを広く回帰確認します。
 - 各サブコマンドの prompt、report、state 遷移、補助関数の順序や入力検証も含みます。
 
 ## Read this when
 
 - cmoc の主要サブコマンドがどの順序で呼ばれ、どのエラーや出力を返すかを確認したいとき。
-- init、session fork/join/abandon、apply fork/join/abandon、eval_oracles の制御フローや state 遷移を追いたいとき。
-- run_command、StepTimer、start_step、format_error_report のテスト観点を確認したいとき。
-- CLI の main、ヘルプ表示、bin/cmoc、review oracles 互換コマンドの登録状況を確認したいとき。
-- conflict marker 判定や、apply / session join の境界条件テストを探したいとき。
-- apply / eval_oracles の prompt、report、Structured Output schema、要修正点整理の仕様を確認したいとき。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の制御フローや state 遷移を追いたいとき。
+- `run_command`、`StepTimer`、`start_step`、`format_error_report` のテスト観点を確認したいとき。
+- CLI の `main`、ヘルプ表示、`bin/cmoc`、`review oracles` 互換コマンドの登録状況を確認したいとき。
+- conflict marker 判定や、`apply` / `session join` の境界条件テストを探したいとき。
+- `apply` / `eval_oracles` の prompt、report、Structured Output schema、要修正点整理の仕様を確認したいとき。
 
 ## Do not read this when
 
-- src/ 配下の実装ロジックそのものを確認したいとき。
-- tests/test_codex.py、tests/test_indexing.py、tests/test_repo.py など、別のテスト群だけを追いたいとき。
-- 個別サブコマンドの正本仕様を、oracles から直接確認したいとき。
-- README.md、AGENTS.md、memo の運用や編集可否だけを確認したいとき。
-- INDEX.md の生成ルールやルーティング方針だけを確認したいとき。
+- cmoc の実装ロジックそのものを確認したいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを追いたいとき。
+- 個別サブコマンドの正本仕様を `oracles` から直接確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- `INDEX.md` の生成ルールやルーティング方針だけを確認したいとき。
 
 ## hash
 
-- 9e28c9b37670f55a3fab0b0b525863136184e84793c48ae2591a075b404a5e1c
+- 951c280e85e032027f6bf24fb985548b5e51c60111b79467694ba152e0d7357f
 
 # `test_timestamps.py`
 
