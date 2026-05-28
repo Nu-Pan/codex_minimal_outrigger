@@ -224,6 +224,7 @@ def cmoc_eval_oracles_impl(
                     read_only=True,
                     expect_json=True,
                     output_schema=_EVALUATION_OUTPUT_SCHEMA,
+                    skip_index_maintenance=True,
                     json_validator=lambda value, current_oracle=oracle_file: (
                         _validate_evaluation_payload(
                             value,
@@ -350,6 +351,7 @@ def _improve_evaluations(
                 read_only=True,
                 expect_json=True,
                 output_schema=_EVALUATION_OUTPUT_SCHEMA,
+                skip_index_maintenance=True,
                 json_validator=lambda value: _validate_issues_payload(
                     value,
                     repo_root,

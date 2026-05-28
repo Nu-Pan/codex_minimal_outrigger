@@ -933,10 +933,17 @@ def test_eval_oracles_writes_report_with_fake_codex(
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
+    maintain_calls: list[Path] = []
+
+    def fake_maintain_indexes(repo_root: Path) -> bool:
+        """review oracles 冒頭の INDEX.md メンテナンスを記録する。"""
+        maintain_calls.append(repo_root)
+        return False
+
     monkeypatch.setattr(
         eval_oracles_module,
         "maintain_indexes",
-        lambda repo_root: False,
+        fake_maintain_indexes,
     )
     codex_kwargs: list[dict[str, object]] = []
 
@@ -955,10 +962,12 @@ def test_eval_oracles_writes_report_with_fake_codex(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
+    assert maintain_calls == [repo]
     assert codex_kwargs[0]["expect_json"] is True
     assert codex_kwargs[0]["output_schema"] == (
         eval_oracles_module._EVALUATION_OUTPUT_SCHEMA
     )
+    assert codex_kwargs[0]["skip_index_maintenance"] is True
     assert "json_validator" in codex_kwargs[0]
     assert "mode: full" in report
     assert "result: ok" in report
@@ -1318,6 +1327,7 @@ def test_review_oracles_improves_combined_issue_list(
         lambda repo_root: False,
     )
     calls: list[str] = []
+    codex_kwargs: list[dict[str, object]] = []
 
     def issue(title: str) -> dict[str, object]:
         result = _eval_oracle_issue("warning", title, oracle_file, 1, 1)
@@ -1329,6 +1339,7 @@ def test_review_oracles_improves_combined_issue_list(
         """評価結果を改善呼び出しで置き換える Codex 実行を模擬する。"""
         purpose = str(kwargs["purpose"])
         calls.append(purpose)
+        codex_kwargs.append(kwargs)
         if "問題点リスト改善" in purpose:
             return json.dumps(
                 {"issues": [issue("Improved warning")]},
@@ -1348,6 +1359,9 @@ def test_review_oracles_improves_combined_issue_list(
         "oracle 問題点リスト改善 1",
         "oracle 問題点リスト改善 2",
     ]
+    assert [
+        kwargs["skip_index_maintenance"] for kwargs in codex_kwargs
+    ] == [True, True, True]
     assert "Improved warning" in report
     assert "Raw warning" not in report
 
