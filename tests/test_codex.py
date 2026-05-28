@@ -1368,7 +1368,7 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     calls: list[Path] = []
 
     def fake_maintain(repo_root: Path) -> bool:
-        """capacity retry 直前には再メンテナンスしないことを記録する。"""
+        """capacity retry 直前にも再メンテナンスすることを記録する。"""
         calls.append(repo_root)
         return False
 
@@ -1387,7 +1387,7 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     assert output.strip() == "done"
     assert state.read_text(encoding="utf-8").strip() == "2"
     assert sleeps == [5]
-    assert calls == [repo]
+    assert calls == [repo, repo]
     assert len(log_files) == 2
 
 
@@ -1515,7 +1515,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     calls: list[Path] = []
 
     def fake_maintain(repo_root: Path) -> bool:
-        """初回 Codex CLI 直前メンテナンスを記録する。"""
+        """quota poll と resume 直前のメンテナンスも記録する。"""
         calls.append(repo_root)
         return False
 
@@ -1533,7 +1533,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
         )
     ]
     assert output.strip() == "resumed"
-    assert calls == [repo]
+    assert calls == [repo, repo, repo]
     assert len(log_contents) == 3
     assert all(
         content.count("## Codex Exec Call") == 1

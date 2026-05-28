@@ -87,6 +87,11 @@ def run_codex_exec(
     _validate_model_options(model, reasoning_effort)
     if output_schema is not None:
         _validate_output_schema(output_schema)
+    normalized_index_excluded_roots = (
+        tuple(index_excluded_roots)
+        if index_excluded_roots is not None
+        else None
+    )
 
     # 必要なら output schema ファイルを準備する。call log と last message は実行単位で払い出す。
     command = _build_codex_command(
@@ -114,7 +119,7 @@ def run_codex_exec(
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
-            index_excluded_roots,
+            normalized_index_excluded_roots,
         )
         run = _run_codex_command(
             repo_root,
@@ -134,6 +139,8 @@ def run_codex_exec(
             attempt,
             schema_path,
             allowed_uncommitted_oracle_paths,
+            skip_index_maintenance,
+            normalized_index_excluded_roots,
         )
         result = run.result
         last_log_path = run.log_path
@@ -156,6 +163,8 @@ def run_codex_exec(
                     attempt,
                     schema_path,
                     allowed_uncommitted_oracle_paths,
+                    skip_index_maintenance,
+                    normalized_index_excluded_roots,
                 )
                 result = run.result
                 last_log_path = run.log_path
@@ -277,6 +286,8 @@ def _wait_for_quota_and_resume(
     attempt: int,
     schema_path: Path | None,
     allowed_uncommitted_oracle_paths: Iterable[Path | str] | None,
+    skip_index_maintenance: bool,
+    index_excluded_roots: Iterable[Path | str] | None,
 ) -> _CodexCommandRun:
     """quota 復活まで疎通確認を繰り返してから元セッションを再開する。"""
     while True:
@@ -289,6 +300,11 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
         )
         poll_command.append("-")
+        _maintain_indexes_before_codex(
+            repo_root,
+            skip_index_maintenance,
+            index_excluded_roots,
+        )
         poll_run = _run_codex_command(
             repo_root,
             poll_command,
@@ -307,6 +323,8 @@ def _wait_for_quota_and_resume(
             attempt,
             None,
             None,
+            skip_index_maintenance,
+            index_excluded_roots,
         )
         poll_result = poll_run.result
         if poll_result.returncode == 0:
@@ -321,6 +339,11 @@ def _wait_for_quota_and_resume(
                     "quota poll の output-last-message が ok ではありませんでした。",
                 )
             print("quota が復旧したため、codex exec を resume します")
+            _maintain_indexes_before_codex(
+                repo_root,
+                skip_index_maintenance,
+                index_excluded_roots,
+            )
             resume_run = _run_codex_command(
                 repo_root,
                 command,
@@ -339,6 +362,8 @@ def _wait_for_quota_and_resume(
                 attempt,
                 schema_path,
                 allowed_uncommitted_oracle_paths,
+                skip_index_maintenance,
+                index_excluded_roots,
             )
             if resume_run.result.returncode == 0:
                 return resume_run
@@ -372,6 +397,8 @@ def _retry_after_capacity_if_needed(
     attempt: int,
     schema_path: Path | None,
     allowed_uncommitted_oracle_paths: Iterable[Path | str] | None,
+    skip_index_maintenance: bool,
+    index_excluded_roots: Iterable[Path | str] | None,
 ) -> _CodexCommandRun:
     """capacity 一時失敗なら同じ Codex CLI 呼び出しを指数 backoff で再実行する。"""
     delay_seconds = _CAPACITY_INITIAL_RETRY_DELAY_SECONDS
@@ -386,6 +413,11 @@ def _retry_after_capacity_if_needed(
         )
         time.sleep(delay_seconds)
         delay_seconds *= 2
+        _maintain_indexes_before_codex(
+            repo_root,
+            skip_index_maintenance,
+            index_excluded_roots,
+        )
         current_run = _run_codex_command(
             repo_root,
             command,
