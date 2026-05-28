@@ -62,15 +62,15 @@
 ## Read this when
 
 - `src/sub_commands` 配下にどのサブコマンド実装があるかを一覧で把握したいとき。
-- `cmoc` の各サブコマンド入口がどのモジュールに分かれているかを整理したいとき。
+- `cmoc` の各サブコマンド入口がどのモジュールやディレクトリに分かれているかを整理したいとき。
 - 実装やテストを始める前に、`src/sub_commands` のルーティング先を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc review oracles`、`cmoc session`、`cmoc apply` の個別仕様や引数を深掘りしたいとき。
-- `src/sub_commands/apply` や `src/sub_commands/session` のような下位ディレクトリの詳細だけを確認したいとき。
-- `src/sub_commands/__init__.py` や `init.py` など、単一モジュールの実装詳細を直接追いたいとき。
+- `cmoc init`、`cmoc review oracles`、`cmoc session`、`cmoc apply` の個別仕様や引数だけを確認したいとき。
+- `src/sub_commands/apply` や `src/sub_commands/session` の下位ディレクトリだけを深く追いたいとき。
+- `src/sub_commands/__init__.py` や `init.py` など、単一モジュールの実装詳細を直接見たいとき。
 
 ## hash
 
-- fdbffe7e51ba851768982b2119b7770127da46267940ede1ea27a115ba57f37a
+- 488483ac8fc63aa478c68c4951b6223658e0817421a6e64cf1f40a68d14f12f6

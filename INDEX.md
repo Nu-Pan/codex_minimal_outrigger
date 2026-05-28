@@ -182,25 +182,25 @@
 
 ## Summary
 
-- `src` は cmoc の実装コード一式を置くルートです。
-- CLI エントリーポイントの `main.py`、共通基盤の `commons/`、サブコマンド実装の `sub_commands/` をまとめています。
-- 各配下の詳細は、それぞれの `INDEX.md` を起点に追います。
+- `src` は cmoc の実装ルートで、CLI エントリーポイント、共通基盤、サブコマンド実装をまとめる最上位の領域です。
+- `main.py` が Typer ベースの CLI を組み立て、`commons/` が共通処理、`sub_commands/` が各コマンド本体を持ちます。
+- 個別の動作や詳細仕様は、それぞれの下位 `INDEX.md` か対応モジュールを参照します。
 
 ## Read this when
 
-- cmoc の実装全体の配置や役割分担をざっと確認したいとき。
-- エントリーポイント、共通処理、サブコマンド本体のどこを読むべきか整理したいとき。
-- 新しい実装や修正に着手する前に、`src` 直下の入口を把握したいとき。
+- cmoc 全体のコード配置を先に把握したいとき。
+- CLI 起動点、共通基盤、サブコマンド実装のどこに何があるかを整理したいとき。
+- `src` 配下のどのディレクトリやファイルを読むべきかを判断したいとき。
 
 ## Do not read this when
 
-- 具体的なサブコマンド仕様だけを確認したいときは、`src/sub_commands/` 側を直接読むべきです。
-- 共通ユーティリティの個別実装だけを確認したいときは、`src/commons/` を直接読むべきです。
-- CLI の引数定義や起動挙動だけを確認したいときは、`main.py` や該当モジュールを直接読むべきです。
+- 個別サブコマンドの引数、状態遷移、業務ロジックだけを確認したいとき。
+- 共通ユーティリティの細部や `INDEX.md` 生成ロジックだけを追いたいとき。
+- CLI の利用手順や出力例だけを知りたいとき。
 
 ## hash
 
-- b2d22e24a16b1cf4adac3818e14468aa2e1810e5925d8c749e5fb002ed97346f
+- 346cf054da112d19f41e23b9422680aa2b953151b0af17476e4abb30f2ec54fa
 
 # `test.sh`
 
@@ -230,7 +230,7 @@
 
 ## Summary
 
-- `tests` は cmoc の回帰テスト群をまとめるディレクトリで、`commons`、`sub_commands`、`INDEX.md` 生成、git 取り扱い、Codex 呼び出し、タイムスタンプなどを検証します。
+- `tests` は cmoc の回帰テスト群をまとめるディレクトリで、`commons.repo`、`commons.indexing`、`commons.codex`、サブコマンド制御、タイムスタンプ、ファイル命名規則などを検証します。
 - `conftest.py` は pytest から `<cmoc-root>/src` を import しやすくする共通設定です。
 - `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_file_naming.py`、`test_timestamps.py` が主要な個別テスト群です。
 
@@ -238,14 +238,16 @@
 
 - `tests` 配下のどのテストがどの機能を見ているか確認したいとき。
 - pytest 共通設定やテスト補助関数の役割を把握したいとき。
-- `INDEX.md` 生成や repository / common / subcommand 層の回帰観点を整理したいとき。
+- `INDEX.md` 生成、git / リポジトリ処理、Codex 呼び出し、CLI サブコマンド、日時・時間表示、ファイル命名の回帰観点を整理したいとき。
+- 新しいテストをどのファイルに追加すべきか判断したいとき。
 
 ## Do not read this when
 
 - `src` 側の実装詳細や `oracles` 正本仕様を直接追いたいとき。
 - 個別テストケースのアサーションや fixture 実装だけを確認したいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用可否だけを確認したいとき。
+- テストの内容ではなく、依存関係やビルド設定を確認したいとき。
 
 ## hash
 
-- d0b73eece3911ffd3186cbb8a4255e14c77334676ddac6e551e2fda5b6660e8d
+- 71f0a654b56d10171bf4c8ca60d8508528d2a9973d4d0d32ad287292b3991315
