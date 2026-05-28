@@ -2510,6 +2510,28 @@ def test_apply_abandon_accepts_apply_branch_worktree(
     assert not apply_worktree.exists()
 
 
+def test_apply_abandon_relocates_from_apply_branch_before_cleanup(
+    tmp_path: Path,
+) -> None:
+    """apply branch からの実行時は session branch の worktree へ移動してから消す。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    _git(repo, "switch", home_branch)
+
+    cmoc_apply_abandon_impl(apply_worktree)
+
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+
+
 def test_apply_abandon_ignores_worktree_local_log_cmoc(
     tmp_path: Path,
 ) -> None:

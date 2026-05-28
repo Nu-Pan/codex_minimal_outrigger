@@ -50,6 +50,7 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     warnings = _stop_running_apply(abandon_state)
 
     start_step(timer, 3, 4, "cleanup apply artifacts")
+    _relocate_from_apply_branch(cmoc_root, branch_name, abandon_state)
     warnings.extend(_cleanup_apply_artifacts(cmoc_root, abandon_state))
 
     start_step(timer, 4, 4, "record ready apply state")
@@ -71,11 +72,13 @@ class _AbandonState:
         self,
         *,
         apply_branch: str,
+        session_branch: str,
         apply_worktree: Path,
         previous_apply_state: str,
         process_id: int | None,
     ) -> None:
         self.apply_branch = apply_branch
+        self.session_branch = session_branch
         self.apply_worktree = apply_worktree
         self.previous_apply_state = previous_apply_state
         self.process_id = process_id
@@ -171,6 +174,7 @@ def _validate_abandonable_state(
         process_id = read_apply_process_id(repo_root, session_id)
     return _AbandonState(
         apply_branch=apply_branch,
+        session_branch=session_branch,
         apply_worktree=apply_worktree,
         previous_apply_state=apply_state,
         process_id=process_id,
@@ -254,6 +258,32 @@ def _child_process_ids(process_id: int) -> list[int]:
     except OSError:
         return []
     return [int(value) for value in content.split() if value.isdigit()]
+
+
+def _relocate_from_apply_branch(
+    repo_root: Path,
+    current_branch_name: str,
+    abandon_state: _AbandonState,
+) -> None:
+    """apply branch 上からの実行時に cleanup 基点を session branch へ移す。"""
+    if current_branch_name != abandon_state.apply_branch:
+        return
+    switch_result = run_git(
+        repo_root,
+        ["switch", abandon_state.session_branch],
+        check=False,
+    )
+    if switch_result.returncode == 0:
+        return
+    detail = switch_result.stderr.strip()
+    raise CmocError(
+        "apply cleanup のため session branch へ移動できませんでした。",
+        [
+            "session branch の worktree 状態を確認してください。",
+            "問題を解消してから `cmoc apply abandon` を再実行してください。",
+        ],
+        detail or f"session branch: {abandon_state.session_branch}",
+    )
 
 
 def _cleanup_apply_artifacts(
