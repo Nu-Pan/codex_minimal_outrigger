@@ -2,6 +2,7 @@
 
 - oracles として用語集が必要
     - 用語関係は将来的には cmoc の機能にしたいが、直近は oracles に手作業で書く
+- `--resume` がまだ残ってるので、 cmoc apply join した後に個別の Codex 呼び出しで修正する
 
 # `eval-oracles` に用語統一機能を組み込みたい
 
