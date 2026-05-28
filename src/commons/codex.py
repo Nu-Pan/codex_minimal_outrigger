@@ -943,15 +943,14 @@ def _append_codex_log(
     last_message_path: Path,
 ) -> None:
     """1 回分の Codex CLI 入出力を Markdown フルログへ書き出す。"""
+    output_last_message = _read_optional_text(last_message_path)
     body = "\n".join(
         [
             "## Codex Exec Call",
             "",
             "### Prompt",
             "",
-            "```text",
-            prompt,
-            "```",
+            _markdown_text_block(prompt),
             "",
             "### Return Code",
             "",
@@ -959,23 +958,17 @@ def _append_codex_log(
             "",
             "### Stdout",
             "",
-            "```text",
-            result.stdout,
-            "```",
+            _markdown_text_block(result.stdout),
             "",
             "### Stderr",
             "",
-            "```text",
-            result.stderr,
-            "```",
+            _markdown_text_block(result.stderr),
             "",
             "### Output Last Message",
             "",
             f"`{last_message_path}`",
             "",
-            "```text",
-            _read_optional_text(last_message_path),
-            "```",
+            _markdown_text_block(output_last_message),
             "",
         ]
     )
@@ -990,6 +983,16 @@ def _append_codex_log(
         front_matter + body,
         encoding="utf-8",
     )
+
+
+def _markdown_text_block(text: str) -> str:
+    """Markdown code fence と衝突しない text code block を組み立てる。"""
+    max_backtick_run = max(
+        (len(match.group(0)) for match in re.finditer(r"`+", text)),
+        default=0,
+    )
+    fence = "`" * max(3, max_backtick_run + 1)
+    return "\n".join([f"{fence}text", text, fence])
 
 
 def _write_output_schema(

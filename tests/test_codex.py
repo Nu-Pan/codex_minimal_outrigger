@@ -110,6 +110,56 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     assert "codex exec 試行 (3/3) output:" in captured
 
 
+def test_run_codex_exec_full_log_uses_fence_longer_than_payload(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """入出力内の Markdown fence で codex exec フルログの区切りを壊さない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "printf 'stdout before\\n```\\nstdout after\\n'",
+                "printf 'stderr before\\n```\\nstderr after\\n' >&2",
+                "printf 'last before\\n```\\nlast after\\n' > \"$LAST\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    prompt = "prompt before\n```\nprompt after"
+
+    output = run_codex_exec(repo, prompt, read_only=True)
+
+    log_path = next((repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log"))
+    log_content = log_path.read_text(encoding="utf-8")
+    assert output == "last before\n```\nlast after\n"
+    assert "### Prompt\n\n````text\nprompt before\n```\nprompt after\n````" in log_content
+    assert "### Stdout\n\n````text\nstdout before\n```\nstdout after\n\n````" in log_content
+    assert "### Stderr\n\n````text\nstderr before\n```\nstderr after\n\n````" in log_content
+    assert (
+        "### Output Last Message" in log_content
+        and "````text\nlast before\n```\nlast after\n\n````" in log_content
+    )
+    assert log_content.count("## Codex Exec Call") == 1
+    assert log_content.count("### Stdout") == 1
+    assert log_content.count("### Stderr") == 1
+
+
 def test_prepare_codex_exec_paths_reserves_call_log_atomically(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
