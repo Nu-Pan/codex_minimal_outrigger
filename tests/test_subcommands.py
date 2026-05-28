@@ -152,8 +152,9 @@ def test_run_command_tees_subcommand_output_and_summary(
 def test_run_command_logs_summary_on_exception(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """例外終了時も可能な範囲の経過時間と戻り値をログに残す。"""
+    """例外終了時も stdout へエラーレポートと終了集計を出す。"""
     repo = _init_repo(tmp_path)
     monkeypatch.chdir(repo)
 
@@ -166,10 +167,17 @@ def test_run_command_logs_summary_on_exception(
     with pytest.raises(typer.Exit) as exit_info:
         run_command(handler)
 
+    captured = capsys.readouterr()
     log_content = next(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
+    assert captured.err == ""
+    assert "ERROR" in captured.out
+    assert "RuntimeError" in captured.out
+    assert "boom" in captured.out
+    assert "# Command completion report" in captured.out
+    assert "subcommand return code: 1" in captured.out
     log_events = [json.loads(line) for line in log_content.splitlines()]
     assert any(
         event["event"] == "step_start" and event["step"] == "failing step"
