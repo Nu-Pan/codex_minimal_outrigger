@@ -21,11 +21,11 @@ from commons.errors import CmocError
 from commons.indexing import maintain_indexes
 from commons.repo import (
     APPLY_BRANCH_PREFIX,
-    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
     changed_paths,
     clear_apply_process_id,
     current_branch,
+    ensure_cmoc_ignored,
     filter_oracle_file_paths,
     head_commit,
     is_session_branch,
@@ -238,22 +238,22 @@ def cmoc_apply_impl(
             f"現在の branch: {session_branch or '(detached HEAD)'}",
         )
 
-    start_step(timer, 1, 6, "validate session state")
+    start_step(timer, 1, 6, "ensure .cmoc is ignored")
     session_id = session_id_from_branch(session_branch)
     state_root = session_state_root(repo_root)
+    _validate_repeat_options(
+        repeat_investigate_and_fix,
+        repeat_improove_fixing_list,
+    )
+    ensure_cmoc_ignored(repo_root)
+    assert_no_uncommitted_changes(repo_root)
+
+    start_step(timer, 2, 6, "validate session state")
     state = read_session_state(state_root, session_id)
     session_start_commit = _validate_apply_fork_state(
         state,
         session_branch,
     )
-    assert_no_uncommitted_changes(repo_root)
-    _validate_repeat_options(
-        repeat_investigate_and_fix,
-        repeat_improove_fixing_list,
-    )
-
-    start_step(timer, 2, 6, "ensure .cmoc is ignored")
-    assert_cmoc_ignored(repo_root)
     assert_no_uncommitted_changes(repo_root)
     oracle_snapshot_commit = head_commit(repo_root)
 

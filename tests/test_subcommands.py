@@ -545,22 +545,44 @@ def test_session_fork_creates_session_branch_and_records_state(
     assert "create session branch attempt (1/10)" in output
 
 
-def test_session_fork_rejects_uninitialized_cmoc_without_side_effects(
+def test_session_fork_repairs_missing_cmoc_ignore_before_clean_check(
     tmp_path: Path,
 ) -> None:
-    """`cmoc init` 未実行なら `.gitignore` を補修せずに停止する。"""
+    """`.cmoc` ignore 不足は補修し、その差分を通常の未コミット差分として扱う。"""
     repo = _init_repo(tmp_path)
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
 
     with pytest.raises(CmocError) as error:
         cmoc_session_fork_impl(repo)
 
-    assert ".cmoc" in error.value.message
-    assert "cmoc init" in "\n".join(error.value.actions)
+    assert "未コミットの変更" in error.value.message
+    assert ".gitignore" in error.value.detail
     assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
-    assert not (repo / ".gitignore").exists()
-    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.cmoc/\n"
+    assert _git(repo, "status", "--porcelain", "--", ".gitignore").stdout == (
+        "?? .gitignore\n"
+    )
     assert _session_state_paths(repo) == []
+
+
+def test_session_fork_ensures_cmoc_ignore_before_active_state_scan(
+    tmp_path: Path,
+) -> None:
+    """ignore 保証が済む前に `.cmoc/sessions` の壊れた state を読まない。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    broken_path = repo / ".cmoc" / "sessions" / "broken.json"
+    broken_path.parent.mkdir(parents=True)
+    broken_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(repo)
+
+    assert "未コミットの変更" in error.value.message
+    assert ".cmoc/" in error.value.detail
+    assert "JSON が不正" not in error.value.message
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert _session_state_paths(repo) == [broken_path]
 
 
 @pytest.mark.parametrize(
@@ -3190,7 +3212,7 @@ def test_apply_rejects_non_oracle_changes_after_cmoc_guarantee(
 
     assert "未コミットの変更" in error.value.message
     assert "app.py" in error.value.detail
-    assert not (repo / ".gitignore").exists()
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.cmoc/\n"
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
@@ -3214,7 +3236,7 @@ def test_apply_does_not_commit_preexisting_gitignore_changes(
 def test_apply_rejects_tracked_cmoc_before_worktree_creation(
     tmp_path: Path,
 ) -> None:
-    """apply fork は worktree 作成前に `.cmoc` 非追跡を副作用なしで検証する。"""
+    """apply fork は state 読み取り前に `.cmoc` 非追跡を保証する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     state_path = ".cmoc/sessions/2026-05-10_22-21_10_123.json"
@@ -3224,11 +3246,33 @@ def test_apply_rejects_tracked_cmoc_before_worktree_creation(
     with pytest.raises(CmocError) as error:
         cmoc_apply_impl(repo)
 
-    assert ".cmoc" in error.value.message
+    assert "未コミットの変更" in error.value.message
+    assert ".gitignore" in error.value.detail
     assert state_path in error.value.detail
-    assert not (repo / ".gitignore").exists()
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.cmoc/\n"
     assert not (repo / ".cmoc" / "worktrees").exists()
-    assert _git(repo, "ls-files", "--", ".cmoc").stdout == f"{state_path}\n"
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert "cmoc/apply/" not in branches
+
+
+def test_apply_ensures_cmoc_ignore_before_session_state_read(
+    tmp_path: Path,
+) -> None:
+    """ignore 保証が済む前に `.cmoc/sessions` の壊れた state を読まない。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", "cmoc/session/2026-05-10_22-21_10_123")
+    broken_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    broken_path.parent.mkdir(parents=True)
+    broken_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_apply_impl(repo)
+
+    assert "未コミットの変更" in error.value.message
+    assert ".gitignore" in error.value.detail
+    assert "JSON が不正" not in error.value.message
+    assert not (repo / ".cmoc" / "worktrees").exists()
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
     assert "cmoc/apply/" not in branches
 
@@ -3266,6 +3310,9 @@ def test_apply_marks_error_when_running_state_write_fails(
     """apply 開始中の state 書き込み失敗も error state として残す。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
     real_write_session_state = apply_module.write_session_state
     calls = 0
 
@@ -3311,6 +3358,9 @@ def test_apply_marks_error_when_worktree_creation_fails(
     """apply 開始後の worktree 作成失敗は error state として残す。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
 
     def fail_create_apply_worktree(
         _repo_root: Path,
