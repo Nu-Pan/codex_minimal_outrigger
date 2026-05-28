@@ -4415,6 +4415,39 @@ def test_format_error_report_fills_empty_generic_detail() -> None:
     assert "Call stack:" in report
 
 
+def test_format_error_report_uses_passed_exception_traceback() -> None:
+    """except 外でも、渡された例外自身の traceback を表示する。"""
+
+    def raise_target_error() -> None:
+        raise RuntimeError("target failure")
+
+    try:
+        raise_target_error()
+    except RuntimeError as captured:
+        error = captured
+
+    try:
+        raise ValueError("unrelated failure")
+    except ValueError:
+        report = format_error_report(error)
+
+    assert "RuntimeError: target failure" in report
+    assert "raise_target_error()" in report
+    assert 'raise RuntimeError("target failure")' in report
+    assert "ValueError: unrelated failure" not in report
+
+
+def test_format_error_report_describes_missing_traceback() -> None:
+    """未 raise の例外では NoneType ではなく traceback 不在を明示する。"""
+    error = RuntimeError("not raised")
+
+    report = format_error_report(error)
+
+    assert "RuntimeError: not raised" not in report
+    assert "NoneType: None" not in report
+    assert "Traceback is not available for this exception." in report
+
+
 def test_user_facing_error_text_does_not_keep_known_english_phrases() -> None:
     """共通エラーレポートに渡す説明・次アクションを日本語方針で固定する。"""
     repo_root = Path(__file__).resolve().parents[1]
