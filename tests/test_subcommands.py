@@ -4399,10 +4399,10 @@ def test_session_join_merges_current_session_branch_and_deletes_it(
     assert "cmoc/session/2026-05-10_22-21_10_123" not in branches
 
 
-def test_session_join_rejects_tracked_cmoc_without_side_effects(
+def test_session_join_ensures_cmoc_ignored_before_switch(
     tmp_path: Path,
 ) -> None:
-    """未初期化の tracked `.cmoc` state は補修せず merge 前に止める。"""
+    """tracked `.cmoc` state を補修し、発生差分を検出して switch 前に止める。"""
     repo = _init_repo(tmp_path)
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     _checkout_session_branch(repo)
@@ -4413,13 +4413,17 @@ def test_session_join_rejects_tracked_cmoc_without_side_effects(
     with pytest.raises(CmocError) as error:
         cmoc_session_join_impl(repo)
 
-    assert ".cmoc" in error.value.message
+    status = _git(repo, "status", "--porcelain").stdout
+    assert "未コミットの変更" in error.value.message
+    assert ".gitignore" in error.value.detail
     assert state_path in error.value.detail
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_123"
     )
-    assert not (repo / ".gitignore").exists()
-    assert _git(repo, "ls-files", "--", ".cmoc").stdout == f"{state_path}\n"
+    assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert ".gitignore" in status
+    assert state_path in status
     assert home_branch in _git(repo, "branch", "--format=%(refname:short)").stdout
 
 
@@ -4834,10 +4838,10 @@ def test_session_abandon_marks_state_and_force_deletes_branch(
     )
 
 
-def test_session_abandon_rejects_tracked_cmoc_without_side_effects(
+def test_session_abandon_ensures_cmoc_ignored_before_cleanup(
     tmp_path: Path,
 ) -> None:
-    """tracked `.cmoc` state は補修せず cleanup 前に止める。"""
+    """tracked `.cmoc` state を補修し、発生差分を検出して cleanup 前に止める。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     state_path = ".cmoc/sessions/2026-05-10_22-21_10_123.json"
@@ -4847,13 +4851,17 @@ def test_session_abandon_rejects_tracked_cmoc_without_side_effects(
     with pytest.raises(CmocError) as error:
         cmoc_session_abandon_impl(repo)
 
-    assert ".cmoc" in error.value.message
+    status = _git(repo, "status", "--porcelain").stdout
+    assert "未コミットの変更" in error.value.message
+    assert ".gitignore" in error.value.detail
     assert state_path in error.value.detail
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_123"
     )
-    assert not (repo / ".gitignore").exists()
-    assert _git(repo, "ls-files", "--", ".cmoc").stdout == f"{state_path}\n"
+    assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert ".gitignore" in status
+    assert state_path in status
 
 
 def test_session_abandon_rejects_apply_run_before_cleanup(
