@@ -71,7 +71,7 @@
 ## 「ファイル毎の評価」の詳細
 
 - 1 回の `codex exec` 呼び出しで、ファイル 1 つを評価し、問題点リストを生成する
-- 問題点リストは Structured Output schema で受け取る
+- 問題点リストは Structured Output で受け取る
 
 ## 「問題点リストを改善」の詳細
 
@@ -85,9 +85,11 @@
 - この改善作業は繰り返し実行する
   - 最大で 3 回 (`--repeat-improve-issues-list` で指定された場合そちらを優先) 繰り返す
   - 入力として与えた問題点リストと、出力として返ってきた問題点リストとが完全一致する場合はそこでループを打ち切る
-- 問題点リストは Structured Output schema で受け取る
+- 問題点リストは Structured Output で受け取る
 
 ## 問題点リストの Structured Output schema
+
+「ファイル毎の評価」「問題点リストを改善」共に、以下の schema を使用する。
 
 ```json
 {
@@ -99,7 +101,7 @@
   "properties": {
     "issues": {
       "type": "array",
-      "description": "評価対象 oracle から検出した問題点。問題がない場合は空配列。",
+      "description": "検出した問題点。問題がない場合は空配列。",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -129,19 +131,35 @@
           },
           "oracle_path": {
             "type": "string",
-            "description": "問題点の根拠となる oracle ファイルの絶対パス。通常は target_oracle_path と同じだが、関連 oracle 側に問題がある場合はそのファイルを指してよい。"
+            "description": "問題点の根拠となる oracle ファイルの絶対パス。"
           },
           "oracle_line_start": {
-            "type": ["integer", "null"],
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "問題点の根拠となる oracle 記述の開始行。特定できない場合は null。"
           },
           "oracle_line_end": {
-            "type": ["integer", "null"],
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "問題点の根拠となる oracle 記述の終了行。特定できない場合は null。"
           },
           "referenced_paths": {
             "type": "array",
-            "description": "評価時に参照した oracle / INDEX ファイルの絶対パス。対象 oracle 自身は除外する。",
+            "description": "この問題点の評価時に参照した oracle / INDEX ファイルの絶対パス。oracle_path 自身は含めても含めなくてもよいが、レポートでは重複排除する。",
             "items": {
               "type": "string"
             }
@@ -168,8 +186,8 @@
           },
           "specification_only_basis": {
             "type": "string",
-            "description": "この評価が oracles 配下の仕様断片と INDEX だけに基づくことの説明。"
-          },
+            "description": "この問題点の評価が oracles 配下の仕様断片と INDEX だけに基づくことの説明。"
+          }
         }
       }
     }
