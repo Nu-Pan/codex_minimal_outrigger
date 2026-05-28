@@ -43,7 +43,7 @@
 
 ## hash
 
-- 973e2293ead58af5e7c4d183d5aadde63ddec9ec7498375c5cc5aebf98fd946f
+- 2acda3eea367c47ac75fb0a2f8e5248d426e21494c1ec3ae63e0257f96393ee5
 
 # `console_and_file_log.md`
 
@@ -62,13 +62,13 @@
 
 ## Do not read this when
 
-- 個別サブコマンドの引数、状態遷移、業務ロジックだけを確認したいとき。
-- branch model や session/apply の手順など、出力規則以外の仕様を確認したいとき。
-- README や AGENTS などのリポジトリ運用ルールだけを確認したいとき。
+- 個別サブコマンドの引数、状態遷移、業務ロジックだけを確認したいときは、この文書ではなく該当するサブコマンド仕様を直接読むべきです。
+- branch model や session/apply の手順など、出力規則以外の仕様を確認したいときは、別の正本仕様を読むべきです。
+- README や AGENTS などのリポジトリ運用ルールだけを確認したいときは、この文書を読む必要はありません。
 
 ## hash
 
-- 1a25a649cbb5e89e2a60b28aba4c29b6b69a2371984a459ebcfefcc95d3b2e9d
+- 7e35c3f6da39d2ad82facfac92b54cfa43609f3e336397ccbf53ae1a9269bf3f
 
 # `error_handling.md`
 

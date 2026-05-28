@@ -130,25 +130,27 @@
 
 ## Summary
 
-- `cmoc` の `oracles` 配下にある正本仕様断片への入口で、`app_specs`、`considered_alternatives`、`dev_rules` の 3 つの案内をまとめます。
-- `app_specs` はアプリ仕様、`considered_alternatives` は採用しなかった設計案、`dev_rules` は開発ルールへのルーティングを担います。
-- `oracles` 配下の具体的な正本を探すときの最初の分岐点になります。
+- `cmoc` の正本仕様断片をまとめた入口で、`app_specs`、`considered_alternatives`、`dev_rules` への案内をまとめます。
+- `app_specs/INDEX.md` から共通仕様や個別サブコマンド仕様へ、`considered_alternatives/INDEX.md` から採用しなかった設計案へ、`dev_rules/INDEX.md` から実装・テスト規約へ進めます。
+- `oracles` 配下のファイルは人間が所有する正本仕様であり、AI は読み取りはできても編集しない前提を整理します。
 
 ## Read this when
 
-- `oracles` 配下でどの仕様カテゴリを読むべきか整理したいとき。
-- `cmoc` のアプリ仕様、代替案、開発ルールのどれに属するかを切り分けたいとき。
-- `oracles` 全体の入口として、下位ディレクトリへ進む前に案内だけ確認したいとき。
+- cmoc の正本仕様断片をどこから辿るか確認したいとき。
+- `oracles` 配下の各ディレクトリの役割を切り分けたいとき。
+- 実装やテストに進む前に、参照すべき仕様群を整理したいとき。
+- 採用案と不採用案の判断材料を、仕様断片として横断的に見直したいとき。
 
 ## Do not read this when
 
-- 個別の仕様本文を読みたいときは、`app_specs`、`considered_alternatives`、`dev_rules` の各 `INDEX.md` から直接進むべきです。
-- `oracles` 配下の特定ファイルの内容だけを確認したいときは、この入口ではなく該当ファイルを直接読むべきです。
-- 実装コードやテストコードだけで足りるときは、この案内を読む必要はありません。
+- 個別仕様本文だけを確認したいときは、この `INDEX.md` ではなく各ディレクトリの `INDEX.md` や個別の `*.md` を直接読むべきです。
+- 実装コードやテストコードだけで足りるときは、この案内は不要です。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`app_specs/indexing.md` を読むべきです。
+- `oracles` ファイルの編集可否や所有権だけを確認したいときは、`app_specs/oracles.md` を読むべきです。
 
 ## hash
 
-- d9dd75b4c6a0b0236260c10a6c949daa4d767c760cb778d3b94d136313b38f08
+- 4f29fb4b2b5dda110ddfe6391a7e6ec0b8e034dc7244bbef970a7053a9ae13bf
 
 # `pyproject.toml`
 
