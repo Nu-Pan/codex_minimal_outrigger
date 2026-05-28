@@ -4626,6 +4626,47 @@ def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     )
 
 
+def test_session_join_ignores_markers_outside_conflict_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """conflict 対象外の通常内容にある marker 風文字列では止めない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+    (repo / "literal_markers.txt").write_text(
+        "<<<<<<< sample\n"
+        "left\n"
+        "=======\n"
+        "right\n"
+        ">>>>>>> sample\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "literal_markers.txt")
+    _git(repo, "commit", "-m", "add literal marker sample")
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """本物の Codex CLI なしで conflict 対象だけを解消する。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    cmoc_session_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert state["session"]["state"] == "joined"
+    assert (repo / "literal_markers.txt").read_text(encoding="utf-8").startswith(
+        "<<<<<<< sample\n"
+    )
+
+
 def test_session_join_rejects_codex_change_in_forbidden_path(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -5336,14 +5377,17 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     assert "解決内容と未解決ファイルの有無を報告" in prompt
 
 
-def test_files_with_conflict_markers_checks_all_tracked_files(
+def test_files_with_conflict_markers_checks_requested_paths_only(
     tmp_path: Path,
 ) -> None:
-    """marker 検査は渡された対象一覧に限定せず git 管理対象全体を見る。"""
+    """marker 検査は渡された対象一覧だけを見る。"""
     repo = _init_repo(tmp_path)
     conflicted = repo / "conflicted.txt"
     unrelated = repo / "unrelated.txt"
-    conflicted.write_text("resolved\n", encoding="utf-8")
+    conflicted.write_text(
+        "<<<<<<< HEAD\nleft\n=======\nright\n>>>>>>> branch\n",
+        encoding="utf-8",
+    )
     unrelated.write_text(
         "<<<<<<< HEAD\nleft\n=======\nright\n>>>>>>> branch\n",
         encoding="utf-8",
@@ -5352,7 +5396,7 @@ def test_files_with_conflict_markers_checks_all_tracked_files(
     _git(repo, "commit", "-m", "add tracked files")
 
     assert _files_with_conflict_markers(repo, ["conflicted.txt"]) == [
-        "unrelated.txt"
+        "conflicted.txt"
     ]
 
 
