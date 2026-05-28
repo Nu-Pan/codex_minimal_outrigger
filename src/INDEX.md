@@ -55,22 +55,22 @@
 
 ## Summary
 
-- `src/sub_commands` は cmoc のサブコマンド実装を集約する入口で、`apply`、`session`、`eval_oracles.py`、`init.py`、`__init__.py` へのルーティングを提供します。
-- ディレクトリ配下の実装は `apply/` と `session/` に分かれ、各 `INDEX.md` から個別サブコマンドへ辿れます。
-- この `INDEX.md` は、どの実装モジュールを読むべきかを素早く判断するための目次です。
+- `cmoc` のサブコマンド実装をまとめる入口で、`apply/`、`session/`、`eval_oracles.py`、`init.py`、`__init__.py` への案内を提供します。
+- `apply` と `session` はそれぞれ下位の `INDEX.md` で個別サブコマンドへ辿れる構成です。
+- このディレクトリの目次は、目的の実装モジュールを素早く見つけるための案内です。
 
 ## Read this when
 
-- cmoc のサブコマンド実装全体の入口を確認したいとき。
-- `apply` 系と `session` 系のどちらへ進むべきか、また `init.py` や `eval_oracles.py` を含めて実装の所在を整理したいとき。
-- `src/sub_commands` 配下の `__init__.py`、`apply/`、`session/`、`eval_oracles.py`、`init.py` の役割分担を把握したいとき。
+- `src/sub_commands` 配下の実装全体の入口を確認したいとき。
+- `apply` 系、`session` 系、`eval_oracles.py`、`init.py`、`__init__.py` の役割分担を整理したいとき。
+- どのサブコマンド実装へ進むべきかを素早く判断したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの仕様や実装を直接確認したいときは、該当する `apply/INDEX.md`、`session/INDEX.md`、`eval_oracles.py`、`init.py` を読むべきです。
-- cmoc 全体の設計規則や開発規則だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を読むべきです。
-- このディレクトリの Python パッケージ宣言だけで足りるときは、`__init__.py` 以外を読む必要はありません。
+- `apply` や `session` など個別サブコマンドの処理内容を直接確認したいときは、この目次ではなく各実装ファイルや下位の `INDEX.md` を読むべきです。
+- `init.py` や `eval_oracles.py` の詳細な挙動だけを追いたいときは、このディレクトリの入口情報ではなく該当モジュールを直接参照すべきです。
+- `cmoc` 全体の設計規則や `oracles` 側の正本仕様だけを確認したいときは、この実装ディレクトリの目次は不要です。
 
 ## hash
 
-- 2578a329a5e5e251bcd66b50b3c72ded7004f40762fbe85dbc9a1876f9f0b519
+- 1c17625e9d10900484cb552b1b450f5605fd9a28949faeb09ce2e2cce0680035

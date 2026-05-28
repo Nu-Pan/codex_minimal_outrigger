@@ -136,26 +136,29 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`run_command` と各サブコマンドの決定論的な制御ロジック、CLI 登録、エラーレポートをまとめて検証する入口です。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の主要経路に加え、`main` と `bin/cmoc` の起動経路も扱います。
-- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`oracles` / `memo` の扱い、`session join` の conflict prompt や補助関数の並び順検証も含みます。
+- `tests/test_subcommands.py` は、サブコマンド群の決定論的な制御ロジック、CLI 登録、共通エラーレポートをまとめて検証する入口です。
+- `init`、`session`、`apply`、`eval-oracles` の主要経路に加えて、`main` と `bin/cmoc` の起動経路も扱います。
+- `run_command` の出力とログ、`Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`oracles` / `memo` の扱い、`session join` の conflict prompt までをカバーします。
+- エラー報告の文面や補助関数の配置順、prompt 文面の制約など、実装の横断的な規約もここから追えます。
 
 ## Read this when
 
-- サブコマンド実装や `run_command` の出力、終了コード、ログ、エラーレポート仕様を確認したいとき。
-- `init`、`session`、`apply`、`eval-oracles` の制御フローや前提条件、`main` の登録、`bin/cmoc` の起動経路を追いたいとき。
-- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`session join` の conflict prompt、ヘルパー順序の検証意図を確認したいとき。
+- `tests/test_subcommands.py` が `run_command` やエラー整形、終了コード伝播をどう検証しているか確認したいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の制御フローや前提条件をテスト観点で追いたいとき。
+- `main` のコマンド登録や `bin/cmoc` の起動経路、`--help` の表示内容を確認したいとき。
+- `Fake Codex CLI`、Structured Output、`INDEX.md` 更新、`session join` の conflict prompt、補助関数の並び順検証の意図を把握したいとき。
+- 共通エラーレポートの文面、`format_error_report()` の振る舞い、ユーザー向け日本語エラー方針を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` を直接読むべきです。
-- テストの書き方や `Fake Codex CLI` の扱いだけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など別のテスト群だけを追いたいときには、このファイルは適しません。
-- `run_command` の個別ヘルパーや prompt 文面だけを追いたいときは、対応する実装ファイルや仕様文書へ直接進むべきです。
+- 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` 配下の該当文書を直接読むべきです。
+- `run_command` の実装やサブコマンド本体のコードだけを追いたいときは、このテスト目次ではなく `src/` 側を読むべきです。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群の観点だけを追いたいときは、このファイルは適しません。
+- テスト規約や Fake Codex CLI の使い方だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
 
 ## hash
 
-- 9868e0fe66947eb2eabf134423664080adc46c1cb196e7837a7c21e34efd4f89
+- f3cb968cd43e0a494476b62d3ed3d2128f9918be11e1cf9ba76866085630ebdb
 
 # `test_timestamps.py`
 

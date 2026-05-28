@@ -110,10 +110,10 @@
 
 ## Do not read this when
 
-- `cmoc apply` 系や `eval-oracles` など、session 以外のサブコマンドだけを確認したいとき。
-- `cmoc session` の利用手順や正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
-- CLI 入口や共通処理だけを追いたいときは、このディレクトリの実装詳細を読む必要はありません。
+- `cmoc session` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を直接読むべきです。
+- `cmoc apply` 系や `eval-oracles` など、session 以外のサブコマンドだけを確認したいときは、このディレクトリを読む必要はありません。
+- CLI の入口や共通処理だけを追いたいときは、このディレクトリではなく該当する上位の案内や共通仕様を読むべきです。
 
 ## hash
 
-- 265cfce5c6361633fc4be2aa4b011a219d97809a83f52fec8ea8ac2dfaa1a935
+- 781120d64240d94e841479095a7dc88aa771e9709ac66fa4a203ffcb040a9d31
