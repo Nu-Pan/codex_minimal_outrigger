@@ -122,7 +122,7 @@
 - ただし、以下は例外として実行対象から除外する
     - `INDEX.md` を生成するための Codex CLI 呼び出し
     - merge コンフリクト解決用の Codex CLI 呼び出し
-- e.g. `eval-oracles` で Codex CLI による調査作業を行う前に `INDEX.md` メンテナンスを実行する
+- e.g. `review oracles` で Codex CLI による調査作業を行う前に `INDEX.md` メンテナンスを実行する
 
 ## `INDEX.md` が最新に保たている状態でメンテンナス処理が実行されたら
 

@@ -29,13 +29,13 @@
 ## Summary
 
 - `cmoc` CLI のエントリーポイントで、Typer アプリ本体と `session` / `apply` のサブアプリを組み立てています。
-- `init`、`session`、`apply`、`eval-oracles` の各コマンドを定義し、実処理は `src/sub_commands/` 側の実装へ委譲しています。
+- `init`、`session`、`apply`、`review oracles` の各コマンドを定義し、実処理は `src/sub_commands/` 側の実装へ委譲しています。
 - Typer / Click の例外処理をまとめて受け、`NoArgsIsHelpError` を含むエラーを `format_error_report()` で整形して終了コード付きで終了します。
 
 ## Read this when
 
 - `cmoc` のエントリーポイント、Typer アプリの構成、サブコマンド登録を修正・レビューしたいとき。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` とその引数定義を確認したいとき。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` とその引数定義を確認したいとき。
 - サブコマンドなし起動時の `NoArgsIsHelpError` の扱い、`--help` 相当の挙動、終了コードの伝播を確認したいとき。
 - Typer / Click の例外を `CmocError` と共通エラーレポートへ変換する起動経路を確認したいとき。
 - `python src/main.py` で直接起動する経路の振る舞いを確認したいとき。

@@ -1,4 +1,4 @@
-# `cmoc eval-oracles`
+# `cmoc review oracles`
 
 ## 概要
 
@@ -15,7 +15,7 @@
 
 ## 部分・全体評価モード
 
-- `cmoc eval-oracles` は部分評価・全体評価の２つのモードを持つ
+- `cmoc review oracles` は部分評価・全体評価の２つのモードを持つ
 - `<cmoc-session-branch>` 上に居る場合
     - `--full` がついている場合は全体評価モードへ
     - `--full` が付いていない場合は部分評価モードへ
@@ -129,7 +129,7 @@
           },
           "affected_workflow": {
             "type": "string",
-            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply fork, cmoc eval-oracles, overall。"
+            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply fork, cmoc review oracles, overall。"
           },
           "requirement": {
             "type": "string",
@@ -219,7 +219,7 @@ frontmatter には少なくとも以下の項目を書く。
 
 本文には以下のセクションをこの順番で必ず含める。
 
-1. `# cmoc eval-oracles report`
+1. `# cmoc review oracles report`
 2. `## Summary`
 3. `## Verdict`
 4. `## Evaluated oracle files`
@@ -262,7 +262,7 @@ frontmatter には少なくとも以下の項目を書く。
 ```markdown
 | No. | Oracle file | Issues |
 |---:|---|---:|
-| 1 | `oracles/app_specs/sub_commands/eval_oracles.md` | 2 |
+| 1 | `oracles/app_specs/sub_commands/review_oracles.md` | 2 |
 | 2 | `oracles/app_specs/workflow.md` | 0 |
 ```
 
@@ -275,15 +275,15 @@ frontmatter には少なくとも以下の項目を書く。
 ```markdown
 ### FATAL-001: レポートの成功判定条件が曖昧
 
-- Oracle file: `oracles/app_specs/sub_commands/eval_oracles.md`
+- Oracle file: `oracles/app_specs/sub_commands/review_oracles.md`
 - Lines: `72-80`
-- Affected workflow: `cmoc eval-oracles`
+- Affected workflow: `cmoc review oracles`
 - Requirement:
   - 評価結果を人間が判断可能な形でレポートする。
 - Problem:
   - レポート本文の形式が固定されておらず、致命的問題の有無を安定して確認できない。
 - Reason:
-  - `cmoc eval-oracles` の中核目的は oracle スナップショットの致命的問題を人間に報告することだが、報告形式が曖昧だと作業完了を判断できない。
+  - `cmoc review oracles` の中核目的は oracle スナップショットの致命的問題を人間に報告することだが、報告形式が曖昧だと作業完了を判断できない。
 - Suggested oracle change:
   - レポート本文の必須セクションと issue 項目の必須フィールドを仕様化する。
 ```
@@ -305,7 +305,7 @@ frontmatter には少なくとも以下の項目を書く。
 
 ## レポートの提示方法
 
-- 評価レポートは `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md` にファイルに保存する
+- 評価レポートは `<repo-root>/.cmoc/reports/review_oracles/<time-stamp>.md` にファイルに保存する
 - レポートファイルのフルパスを stdout に流す
 
 ## 評価時のワークフロー解釈

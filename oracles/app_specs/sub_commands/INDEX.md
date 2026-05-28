@@ -40,7 +40,7 @@
 - `cmoc apply join` のマージ手順、想定外の差分の処理、`--force-resolve` の挙動だけを確認したいとき。
 - `cmoc apply abandon` の破棄手順や cleanup の挙動だけを確認したいとき。
 - `cmoc session fork` や `cmoc session join` など、session 側の開始・終了・統合だけを確認したいとき。
-- `cmoc eval-oracles` の評価モードや評価レポート仕様だけを確認したいとき。
+- `cmoc review oracles` の評価モードや評価レポート仕様だけを確認したいとき。
 
 ## hash
 
@@ -70,30 +70,6 @@
 ## hash
 
 - 14c42e2456a968120d2e15cfd4294daa05ed984e67efe7717adfd2c7bc07b128
-
-# `eval_oracles.md`
-
-## Summary
-
-- `cmoc eval-oracles` の仕様断片への入口です。
-- 現在の `<repo-root>/oracles` スナップショットに致命的な問題がないかを評価し、その結果を人間向けレポートとしてまとめる手順を扱います。
-- 部分評価・全体評価モードの分岐、`codex exec` による 1 ファイル単位の評価、評価レポートの構成を確認するための文書です。
-
-## Read this when
-
-- `cmoc eval-oracles` の実装・修正・テスト・レビューを行うとき。
-- `--full` による部分評価 / 全体評価の切り替え条件を確認したいとき。
-- `codex exec` を使って `<repo-root>/oracles` の各ファイルを評価し、Structured Output のレポートをまとめる流れを確認したいとき。
-
-## Do not read this when
-
-- `cmoc eval-oracles` ではなく、`cmoc session` や `cmoc apply` など他サブコマンドの手順だけを確認したいとき。
-- 実装コードやテストコードの作業だけで足りるとき。
-- `INDEX.md` の生成・更新ルールや、`oracles` 全体の扱いだけを確認したいとき。
-
-## hash
-
-- 04dddafebf3feba523bb4be89a990dead4c7e4c5f698221e352ad45e8fd8f16e
 
 # `init.md`
 

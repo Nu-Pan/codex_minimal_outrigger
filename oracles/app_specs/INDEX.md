@@ -137,7 +137,7 @@
 ## Do not read this when
 
 - `cmoc` の具体的なサブコマンドの手順や入出力仕様を探しているとき
-- `apply` / `eval-oracles` / `session-fork` など個別機能の詳細仕様を探しているとき
+- `apply` / `review oracles` / `session fork` など個別機能の詳細仕様を探しているとき
 - リポジトリ固有の実装方針やドメイン知識を確認したいとき
 
 ## hash
@@ -196,19 +196,19 @@
 
 ## Summary
 
-- `cmoc` の個別サブコマンド仕様への入口で、`apply`、`session`、`eval-oracles`、`init` の各正本仕様へ案内するディレクトリです。
-- `apply_abandon.md`、`apply_fork.md`、`apply_join.md`、`session_abandon.md`、`session_fork.md`、`session_join.md`、`eval_oracles.md`、`init.md` に分かれた手順・前提条件・状態遷移・終了条件をまとめます。
+- `cmoc` の個別サブコマンド仕様への入口で、`apply`、`session`、`review oracles`、`init` の各正本仕様へ案内するディレクトリです。
+- `apply_abandon.md`、`apply_fork.md`、`apply_join.md`、`session_abandon.md`、`session_fork.md`、`session_join.md`、`review_oracles.md`、`init.md` に分かれた手順・前提条件・状態遷移・終了条件をまとめます。
 - このディレクトリを起点に、各サブコマンドの目的や読むべき詳細仕様を素早く選べるようにします。
 
 ## Read this when
 
 - cmoc の個別サブコマンドの入口をまとめて確認したいとき。
-- `apply`、`session`、`eval-oracles`、`init` のどの仕様断片へ進むべきか整理したいとき。
+- `apply`、`session`、`review oracles`、`init` のどの仕様断片へ進むべきか整理したいとき。
 - サブコマンドごとの目的、入力条件、実行手順、状態遷移、終了条件を俯瞰したいとき。
 
 ## Do not read this when
 
-- 個別のサブコマンド仕様だけを確認したいときは、この `INDEX.md` ではなく該当する `apply_*`、`session_*`、`eval_oracles.md`、`init.md` を直接読むべきです。
+- 個別のサブコマンド仕様だけを確認したいときは、この `INDEX.md` ではなく該当する `apply_*`、`session_*`、`review_oracles.md`、`init.md` を直接読むべきです。
 - 実装コードやテストコードだけで足りる作業では、このディレクトリの案内を読む必要はありません。
 - `branch_model`、`codex_call`、ログ、エラーハンドリング、`oracles` 全体の扱いなど、他の共通仕様を確認したいときは別の入口文書を読むべきです。
 

@@ -177,32 +177,6 @@
 
 - c20014553a4e48f3a2f9f5221852179231c76594ccc1bc4c82b8dddc651b203e
 
-# `src`
-
-## Summary
-
-- `src` は `cmoc` の Python 実装の入口で、CLI エントリーポイント、共有基盤、サブコマンド実装への案内をまとめるディレクトリです。
-- `main.py` は `cmoc` CLI の起動口で、Typer アプリの組み立てとコマンド登録を担います。
-- `commons/` は共通処理群、`sub_commands/` は `init`、`eval-oracles`、`session`、`apply` などのサブコマンド実装群への入口です。
-
-## Read this when
-
-- `src` 配下の全体構成を把握して、どの入口ファイルへ進むべきか判断したいとき。
-- `cmoc` の CLI 起動口、共通基盤、サブコマンド実装の役割分担を整理したいとき。
-- `main.py`、`commons/`、`sub_commands/` のどれを読むべきか、このディレクトリの目次から素早く切り分けたいとき。
-- ソースコード全体のルーティングを確認してから、個別モジュールの実装やレビューに進みたいとき。
-
-## Do not read this when
-
-- 個別サブコマンドの動作だけを確認したいときは、`src/main.py` や `src/sub_commands/` の該当モジュールを直接読むべきです。
-- 共有処理の実装詳細だけを確認したいときは、この目次ではなく `src/commons/` 配下の個別モジュールを読むべきです。
-- `INDEX.md` の生成・維持ルールだけを確認したいときは、`src/commons/indexing.py` と `oracles/app_specs/indexing.md` を読むべきです。
-- CLI の利用手順やユーザー向け仕様だけを確認したいときは、`oracles/app_specs/` 配下の文書を優先して読むべきです。
-
-## hash
-
-- 9dad4660cc15ca5091d6855a875cbb66f1fd27502a8a3b8393b8e5affe1440e1
-
 # `test.sh`
 
 ## Summary
