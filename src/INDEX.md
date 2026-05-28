@@ -67,10 +67,10 @@
 
 ## Do not read this when
 
-- `cmoc init`、`cmoc review oracles`、`cmoc session`、`cmoc apply` の個別仕様や引数だけを確認したいとき。
-- `src/sub_commands/apply` や `src/sub_commands/session` の下位ディレクトリだけを深く追いたいとき。
+- `cmoc init`、`cmoc review oracles`、`cmoc apply`、`cmoc session` の個別仕様や引数だけを確認したいとき。
+- `src/sub_commands/apply` や `src/sub_commands/session` の下位実装だけを深く追いたいとき。
 - `src/sub_commands/__init__.py` や `init.py` など、単一モジュールの実装詳細を直接見たいとき。
 
 ## hash
 
-- 488483ac8fc63aa478c68c4951b6223658e0817421a6e64cf1f40a68d14f12f6
+- 6539598a41f50f1079d71f4cc52008fab828eb980e36a019740dad413cf43e8b

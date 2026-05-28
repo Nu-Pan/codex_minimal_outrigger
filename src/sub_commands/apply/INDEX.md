@@ -48,7 +48,7 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply` の本体処理を実装するモジュールです。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体処理を実装するモジュールです。
 - session state の検証から apply branch / worktree の作成、要修正点の調査・改善・適用ループ、`INDEX.md` 保守、変更要約つきレポート生成までをまとめています。
 - 途中エラー時の `apply.state` 更新、編集禁止パスの検査、Structured Output の検証と prompt 生成も含みます。
 
@@ -60,13 +60,13 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の利用手順、引数、事前条件、終了条件だけを確認したいときは、このモジュールではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- `cmoc apply fork` の利用手順、引数、前提条件、終了条件だけを確認したいときは、このモジュールではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
 - `cmoc apply join` や `cmoc apply abandon`、`cmoc session` 系など、別サブコマンドの実装だけを確認したいときは、このモジュールではなく該当モジュールを読むべきです。
 - `INDEX.md` の生成・更新ルールや、`branch_model`・`error_handling`・レポート仕様などの共通仕様だけを確認したいときは、このモジュールではなく該当する正本仕様を読むべきです。
 
 ## hash
 
-- f67d13658f1dd76807661e1bee861a0ac697f031875d2d4e9e1c877c45b27ee2
+- 6da4060e2b8184a0b908f07dd007644060ca4599a4c429cde3b975df41e8a258
 
 # `join.py`
 

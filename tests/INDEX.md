@@ -145,7 +145,7 @@
 
 - cmoc の主要サブコマンド入口や `main.py` から各実装への委譲関係を確認したいとき。
 - `run_command`、`StepTimer`、`start_step`、`format_error_report` の出力や終了集計を追いたいとき。
-- `init`、`session` 系、`apply` 系、`review oracles` 系の状態遷移、例外処理、CLI 登録、ヘルプ表示を広く回帰確認したいとき。
+- `init`、`session`、`apply`、`review oracles` 系の状態遷移、例外処理、CLI 登録、ヘルプ表示を広く回帰確認したいとき。
 - conflict marker 判定や `bin/cmoc` ランチャーの振る舞いを確認したいとき。
 
 ## Do not read this when
@@ -157,7 +157,7 @@
 
 ## hash
 
-- 95bb5a24d075c890b31b019af5c9e896000f2fce032e458a00c23bebad373b59
+- a84cd67d9e06d6453c97920d3d433ab7243f4c1eb61fd111fead31480d0e2543
 
 # `test_timestamps.py`
 
