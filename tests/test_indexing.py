@@ -56,11 +56,11 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     )
 
 
-def test_maintain_indexes_ignores_external_and_local_excludes_files(
+def test_maintain_indexes_uses_local_exclude_but_ignores_external_excludes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """INDEX 生成対象は global/system と `.git/info/exclude` に依存しない。"""
+    """INDEX 生成対象は `.git/info/exclude` を反映し、global/system は無視する。"""
     global_ignore = tmp_path / "global-excludes"
     global_ignore.write_text("/global-only.txt\n", encoding="utf-8")
     global_config = tmp_path / "global-gitconfig"
@@ -105,7 +105,7 @@ def test_maintain_indexes_ignores_external_and_local_excludes_files(
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
     assert changed is True
     assert "# `global-only.txt`" in content
-    assert "# `local-only.txt`" in content
+    assert "# `local-only.txt`" not in content
     assert "# `system-only.txt`" in content
 
 
