@@ -4061,10 +4061,10 @@ def test_apply_partial_targets_exclude_tracked_root_gitignored_files(
     assert implementation_targets == ["kept.py"]
 
 
-def test_apply_partial_targets_exclude_deleted_and_include_reverted_paths(
+def test_apply_partial_targets_include_deleted_and_reverted_paths(
     tmp_path: Path,
 ) -> None:
-    """部分 apply は削除済みを除外し、存在する履歴変更 path を対象にする。"""
+    """部分 apply は削除済みと存在する履歴変更 path を対象にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -4113,10 +4113,12 @@ def test_apply_partial_targets_exclude_deleted_and_include_reverted_paths(
     }
 
     assert oracle_targets == {
+        "oracles/obsolete.md": True,
         "oracles/spec.md": False,
     }
     assert implementation_targets == {
         "app.py": False,
+        "obsolete.py": True,
     }
 
 

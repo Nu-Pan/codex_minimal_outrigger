@@ -725,9 +725,11 @@ def _target_oracle_files(
         )
     )
     return [
-        _InvestigationTarget(path)
+        _InvestigationTarget(
+            path,
+            deleted_at_snapshot=path not in snapshot_paths,
+        )
         for path in sorted(changed)
-        if path in snapshot_paths
     ]
 
 
@@ -754,9 +756,11 @@ def _target_implementation_files(
         )
     )
     return [
-        _InvestigationTarget(path)
+        _InvestigationTarget(
+            path,
+            deleted_at_snapshot=path not in snapshot_paths,
+        )
         for path in sorted(changed)
-        if path in snapshot_paths
     ]
 
 
@@ -853,7 +857,10 @@ def _changed_files_between_commits(
     commit_hash: str,
     pathspec: str,
 ) -> list[str]:
-    """指定 commit 範囲で変更された変更後 path を返す。"""
+    """指定 commit 範囲で変更された path を返す。
+
+    削除差分は変更後 path が存在しないため、削除前 path を返す。
+    """
     result = run_git(
         repo_root,
         [
@@ -873,7 +880,7 @@ def _changed_files_between_commits(
             continue
         status = parts[0]
         status_kind = status[:1]
-        if status_kind not in {"A", "C", "M", "R", "T"}:
+        if status_kind not in {"A", "C", "D", "M", "R", "T"}:
             continue
         if status_kind in {"C", "R"}:
             if len(parts) >= 3 and parts[2]:
