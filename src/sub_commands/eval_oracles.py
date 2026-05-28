@@ -1,6 +1,7 @@
 """`cmoc review oracles` の本体処理。"""
 
 import json
+from inspect import signature
 from pathlib import Path
 
 from commons.codex import parse_json_object, run_codex_exec
@@ -174,14 +175,9 @@ def cmoc_eval_oracles_impl(
         start_step(timer, 1, 6, "ensure .cmoc is ignored")
         ensure_cmoc_ignored(repo_root)
 
-        # 既存のユーザー向けステップとして INDEX.md メンテナンスを実行する。
-        failed_stage = "maintain INDEX.md files"
-        start_step(timer, 2, 6, "maintain INDEX.md files")
-        maintain_indexes(repo_root)
-
         # branch 状態と `--full` だけから、部分評価か全体評価かを決める。
         failed_stage = "select oracle files"
-        start_step(timer, 3, 6, "select oracle files")
+        start_step(timer, 2, 6, "select oracle files")
         branch_name = current_branch(repo_root)
         cmoc_branch = is_cmoc_branch(branch_name)
         session_branch = is_session_branch(branch_name)
@@ -205,6 +201,12 @@ def cmoc_eval_oracles_impl(
         else:
             oracle_files = all_oracle_files
         commit_hash = head_commit(repo_root)
+
+        # review は開始時点の oracles tree を評価対象にするため、ここから先の
+        # INDEX.md メンテナンスでは oracles 配下を更新しない。
+        failed_stage = "maintain INDEX.md files"
+        start_step(timer, 3, 6, "maintain INDEX.md files")
+        _maintain_indexes_preserving_oracle_snapshot(repo_root)
 
         # oracle ファイルごとに Codex CLI 評価を実行する。
         failed_stage = "oracle ファイル評価"
@@ -286,6 +288,19 @@ def cmoc_eval_oracles_impl(
         raise
     print(str(report_path))
     timer.report()
+
+
+def _maintain_indexes_preserving_oracle_snapshot(repo_root: Path) -> bool:
+    """review 対象の `oracles` tree を変更せずに INDEX.md をメンテナンスする。"""
+    if _maintain_indexes_accepts_excluded_roots():
+        return maintain_indexes(repo_root, excluded_index_roots=["oracles"])
+    return maintain_indexes(repo_root)
+
+
+def _maintain_indexes_accepts_excluded_roots() -> bool:
+    """現在の maintain_indexes が excluded_index_roots を受け取るか判定する。"""
+    parameters = signature(maintain_indexes).parameters.values()
+    return any(parameter.name == "excluded_index_roots" for parameter in parameters)
 
 
 def _evaluation_prompt(repo_root: Path, oracle_file: Path) -> str:

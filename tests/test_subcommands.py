@@ -976,6 +976,65 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "## Specification-only basis" not in report
 
 
+def test_eval_oracles_freezes_snapshot_before_index_maintenance(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """review 対象と report head は INDEX.md メンテナンス前に固定する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    original_oracle = oracle_root / "original.md"
+    original_oracle.write_text("original\n", encoding="utf-8")
+    _git(repo, "add", "oracles")
+    _git(repo, "commit", "-m", "add original oracle")
+    review_start_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    maintain_exclusions: list[list[str]] = []
+
+    def fake_maintain_indexes(
+        repo_root: Path,
+        *,
+        excluded_index_roots: list[str],
+    ) -> bool:
+        """メンテナンス中に HEAD と oracle file set が動く状況を模擬する。"""
+        maintain_exclusions.append(excluded_index_roots)
+        (repo_root / "oracles" / "generated.md").write_text(
+            "generated\n",
+            encoding="utf-8",
+        )
+        (repo_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+        _git(repo_root, "add", "INDEX.md", "oracles/generated.md")
+        _git(repo_root, "commit", "-m", "fake index maintenance")
+        return True
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        fake_maintain_indexes,
+    )
+    evaluated_purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """固定済み oracle だけが評価されることを記録する。"""
+        evaluated_purposes.append(str(kwargs["purpose"]))
+        return json.dumps({"issues": []}, ensure_ascii=False)
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+
+    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+
+    report = next(
+        (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
+    ).read_text(encoding="utf-8")
+    assert maintain_exclusions == [["oracles"]]
+    assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
+    assert f"head_commit: {review_start_head}" in report
+    assert "oracle_count_total: 1" in report
+    assert "oracle_count_evaluated: 1" in report
+    assert "oracles/generated.md" not in report
+
+
 def test_eval_oracles_writes_error_report_when_evaluation_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1050,15 +1109,15 @@ def test_eval_oracles_writes_error_report_when_preparation_fails(
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
     assert "result: error" in report
-    assert "mode: unknown" in report
-    assert "branch: null" in report
-    assert "head_commit: null" in report
-    assert "deleted_oracles_detected: null" in report
-    assert "oracle_count_total: null" in report
+    assert "mode: full" in report
+    assert "branch:" in report
+    assert "head_commit: null" not in report
+    assert "deleted_oracles_detected: false" in report
+    assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
     assert "- Failed stage: `maintain INDEX.md files`" in report
     assert "| - | No completed evaluations. | - |" in report
-    assert "No requested oracle files remained unevaluated." in report
+    assert "1. `oracles/spec.md`" in report
 
 
 def test_eval_oracles_error_report_separates_unevaluated_files(
