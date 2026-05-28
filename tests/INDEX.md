@@ -136,14 +136,14 @@
 
 ## Summary
 
-- このテストファイルは、`cmoc` の各サブコマンドの決定論的な制御ロジックをまとめて検証する目次です。
-- `run_command` の共通処理、`init`、`session`、`apply`、`eval-oracles` の実装経路とエラー分岐、CLI 登録やヘルプ表示までを扱います。
+- `tests/test_subcommands.py` は、`cmoc` の各サブコマンドに関する決定論的な制御ロジックをまとめて検証するテスト群の入口です。
+- `run_command` の共通処理に加えて、`init`、`session`、`apply`、`eval-oracles` の実装経路、エラー分岐、CLI 登録、ヘルプ表示までを広く扱います。
 - 詳細なテスト観点は `dev_rules/test_rules.md` と各サブコマンド仕様へ案内します。
 
 ## Read this when
 
 - サブコマンドの振る舞いを実装・修正・レビューするとき。
-- 共通ランナー `run_command`、セッション開始・統合・破棄、apply の fork/join/abandon、`eval-oracles` の評価処理を確認したいとき。
+- 共通ランナー `run_command`、`init`、`session`、`apply`、`eval-oracles` の制御フローやエラー分岐を確認したいとき。
 - CLI の公開コマンド登録、`--help` 表示、エラー報告、ログ出力、state 更新の期待値を知りたいとき。
 - pytest ベースのテスト方針や Fake Codex CLI を使う前提を確認したいとき。
 
@@ -156,7 +156,7 @@
 
 ## hash
 
-- cbbeead8ee1d012810aec40f3113f4e8da3ed7ea7110227274bab7ccd6346d9a
+- 9d91dff02f1bc016a4e28cbe054feb66e286f557c8abf84c316e301161c54c1d
 
 # `test_timestamps.py`
 
