@@ -1558,6 +1558,67 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     assert "quota が復旧したため、codex exec を resume します" in captured
 
 
+def test_run_codex_exec_waits_and_resumes_after_zero_exit_quota_jsonl(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """0 終了でも stdout JSONL が quota 枯渇なら停止 session を resume する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    args_file = tmp_path / "args.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"printf '%s\\n' \"$@\" >> {args_file}",
+                "LAST=''",
+                "PREV=''",
+                "HAS_RESUME=0",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$ARG\" = \"resume\" ]; then HAS_RESUME=1; fi",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "PROMPT=\"$(cat)\"",
+                "if [ \"$PROMPT\" = \"original prompt\" ]; then",
+                "  if [ \"$HAS_RESUME\" = 0 ]; then",
+                "    echo '{\"type\":\"thread.started\","
+                "\"thread_id\":\"thread-zero\"}'",
+                "    echo '{\"type\":\"turn.failed\","
+                "\"error\":{\"message\":\"out of credits\"}}'",
+                "    echo 'not a quota final message' > \"$LAST\"",
+                "    exit 0",
+                "  fi",
+                "fi",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  echo ok > \"$LAST\"",
+                "  echo '{\"event\":\"poll-ok\"}'",
+                "  exit 0",
+                "fi",
+                "echo resumed > \"$LAST\"",
+                "echo '{\"event\":\"resumed\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
+
+    output = run_codex_exec(repo, "original prompt", read_only=True)
+
+    args = args_file.read_text(encoding="utf-8")
+    assert output.strip() == "resumed"
+    assert "resume\nthread-zero\n-" in args
+    assert args.count("\n-\n") == 3
+
+
 def test_run_codex_exec_waits_again_when_resume_is_still_quota_exhausted(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

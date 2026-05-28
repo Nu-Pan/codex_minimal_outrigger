@@ -149,31 +149,32 @@ def run_codex_exec(
         last_stdout_log = result.stdout
         last_stderr = result.stderr
 
-        # quota 枯渇だけは待機・resume に入り、それ以外の CLI 失敗は中断する。
+        # stdout JSONL の既知意味エラーは終了コードに依存せず扱う。
+        if _stdout_jsonl_indicates_quota_exhaustion(result.stdout):
+            session_id = _extract_session_id(result.stdout, result.stderr)
+            command = _resume_command(command, session_id)
+            print("quota が枯渇したため、resume 前に復旧を待機します")
+            run = _wait_for_quota_and_resume(
+                repo_root,
+                command,
+                prompt,
+                purpose,
+                attempt,
+                schema_path,
+                allowed_uncommitted_oracle_paths,
+                skip_index_maintenance,
+                normalized_index_excluded_roots,
+            )
+            result = run.result
+            last_log_path = run.log_path
+            last_message_path = run.last_message_path
+            command = run.command
+            last_stdout_log = result.stdout
+            last_stderr = result.stderr
+
+        # quota 枯渇以外の CLI 失敗は中断する。
         if result.returncode != 0:
-            if _stdout_jsonl_indicates_quota_exhaustion(result.stdout):
-                session_id = _extract_session_id(result.stdout, result.stderr)
-                command = _resume_command(command, session_id)
-                print("quota が枯渇したため、resume 前に復旧を待機します")
-                run = _wait_for_quota_and_resume(
-                    repo_root,
-                    command,
-                    prompt,
-                    purpose,
-                    attempt,
-                    schema_path,
-                    allowed_uncommitted_oracle_paths,
-                    skip_index_maintenance,
-                    normalized_index_excluded_roots,
-                )
-                result = run.result
-                last_log_path = run.log_path
-                last_message_path = run.last_message_path
-                command = run.command
-                last_stdout_log = result.stdout
-                last_stderr = result.stderr
-            else:
-                _raise_codex_failure(run.log_path, result)
+            _raise_codex_failure(run.log_path, result)
 
         try:
             output = _read_last_message(last_message_path)
@@ -327,6 +328,9 @@ def _wait_for_quota_and_resume(
             index_excluded_roots,
         )
         poll_result = poll_run.result
+        if _stdout_jsonl_indicates_quota_exhaustion(poll_result.stdout):
+            _sleep_for_quota_poll_interval()
+            continue
         if poll_result.returncode == 0:
             try:
                 poll_output = _read_last_message(poll_run.last_message_path)
@@ -365,15 +369,15 @@ def _wait_for_quota_and_resume(
                 skip_index_maintenance,
                 index_excluded_roots,
             )
-            if resume_run.result.returncode == 0:
-                return resume_run
-            if not _stdout_jsonl_indicates_quota_exhaustion(
+            if _stdout_jsonl_indicates_quota_exhaustion(
                 resume_run.result.stdout,
             ):
-                _raise_codex_failure(resume_run.log_path, resume_run.result)
-            print("resume 後に quota が再度枯渇したため、待機します")
-            _sleep_for_quota_poll_interval()
-            continue
+                print("resume 後に quota が再度枯渇したため、待機します")
+                _sleep_for_quota_poll_interval()
+                continue
+            if resume_run.result.returncode == 0:
+                return resume_run
+            _raise_codex_failure(resume_run.log_path, resume_run.result)
         if not _stdout_jsonl_indicates_quota_exhaustion(
             poll_run.result.stdout,
         ):
