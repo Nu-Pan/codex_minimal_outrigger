@@ -50,9 +50,10 @@
 
 ## Summary
 
-- Typer から呼ばれるサブコマンド共通の実行ラッパーで、`<repo-root>` の解決、例外の変換、終了コード決定、終了時レポート出力をまとめています。
+- Typer から呼ばれるサブコマンド共通の実行ラッパーで、`<repo-root>` の解決、`subcommand_log` の開始、例外の変換、終了コード決定をまとめています。
 - 通常のサブコマンド本体は `Path` を受け取り、`subcommand_log` と `timing` と連携して実行結果を集約します。
-- `typer.Exit` と通常例外を分けて扱い、必要に応じて `format_error_report()` で利用者向けのエラー表示を行います。
+- `typer.Exit` と通常例外を分けて扱い、必要に応じて `CmocError` と `format_error_report()` で利用者向けのエラー表示を行います。
+- 終了時には `log_event()`、`report_current_timer()`、`format_duration()`、`clear_current_timer()` を使って完了レポートを出します。
 
 ## Read this when
 
@@ -64,14 +65,14 @@
 ## Do not read this when
 
 - 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
-- `<repo-root>` 探索の詳細や `.cmoc` の扱いを詳しく追いたいときは、`repo.py` を読むべきです。
-- エラーメッセージ本文の整形や例外クラスの定義そのものを確認したいときは、`errors.py` を読むべきです。
+- `<repo-root>` 探索や `.cmoc` の扱いの詳細を追いたいときは、`repo.py` を読むべきです。
+- エラーメッセージ本文の整形や共通例外の定義そのものを確認したいときは、`errors.py` を読むべきです。
 - サブコマンドログやタイミング計測の実装だけを調べたいときは、`subcommand_log.py` と `timing.py` を直接読むべきです。
 - Codex CLI 呼び出し、Structured Output、`INDEX.md` 生成など別機能を調べたいとき。
 
 ## hash
 
-- fa94adc0c4c6a5cb4e79ff77a41dccd75872028ff92f20493f584415f6e048c6
+- 5464d0e62e6d10ccdc888415490d0ead1a958e3da4dddf0c0cb337fb61b09a09
 
 # `errors.py`
 
@@ -131,28 +132,27 @@
 
 ## Summary
 
-- `cmoc` が使う git リポジトリ関連の共通処理をまとめたモジュールで、リポジトリルート探索、現在ブランチや HEAD の取得、cmoc 管理ブランチ判定、session/apply のパス解決を扱います。
-- `session state` JSON の生成・読込・形式検証・不変条件検証を担当し、active な session の列挙も行います。
-- `.cmoc` を git 追跡対象外に保つための ignore 保証、未コミット差分の検査、初期化時の差分分離・保護に関する git 補助処理も含みます。
+- git リポジトリのルート探索、現在ブランチ・HEAD の取得、cmoc 管理ブランチ判定、session/apply のブランチ名から worktree や保存先パスを復元する共通モジュール。
+- session state JSON の初期値生成、保存、読込、スキーマ検証、状態値の妥当性確認、active session の列挙を扱う。
+- .cmoc を追跡対象外に保つ保証、未コミット差分の検査、初期化時や pathspec 単位の commit、root `.gitignore` の評価補助も含む。
 
 ## Read this when
 
-- git リポジトリのルート探索や、現在の cwd をリポジトリルートへ移したいとき。
-- `cmoc` 管理ブランチの判定、session ID の抽出、apply branch から worktree パスを復元したいとき。
-- `session state` JSON の保存・読込・スキーマ検証、または active な session の列挙を行いたいとき。
-- `.cmoc` を git の追跡対象外に保つ保証、`git status` による未コミット差分の確認、初期化時の差分保護ロジックを確認したいとき。
-- `session` / `apply` に関わる共通のパス解決や、git 操作をまとめた低レベル基盤を確認したいとき。
+- リポジトリルート探索や `cwd` の切り替え方法を確認したいとき。
+- `cmoc session` / `cmoc apply` のブランチ名判定、session ID 抽出、apply worktree パス復元を実装・修正したいとき。
+- session state の保存形式、読み込みエラー、状態遷移の検証、active session の列挙を追いたいとき。
+- `.cmoc` の ignore 保証、`git status` による差分検査、`cmoc init` 相当の差分分離や commit ロジックを見直したいとき。
 
 ## Do not read this when
 
-- `cmoc` のユーザー向けサブコマンド仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` 側の該当文書を読むべきです。
-- `cmoc` 全体のエラー整形や終了処理だけを確認したいときは、このファイルではなく `src/commons/errors.py` を読むべきです。
-- `INDEX.md` の生成・更新ルールだけを確認したいときは、このファイルではなく `oracles/app_specs/indexing.md` を読むべきです。
-- `.cmoc` の配置ルールやリポジトリ探索の方針だけを確認したいときは、このファイルではなく他の共通仕様や設計ルールを読むべきです。
+- `cmoc` のユーザー向けサブコマンドの手順だけを確認したいときは、`src/sub_commands` 側を読むべきです。
+- 共通エラー整形や終了コードの扱いだけを確認したいときは、`src/commons/errors.py` を読むべきです。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
+- タイムスタンプ、経過時間、ログ tee など別の共通ユーティリティを調べたいときは、このモジュールではありません。
 
 ## hash
 
-- 987967290f930571dddc7b8bbe580b6175b60a056f018f02857eba0f48d6e364
+- 548fcb84a8feba816800b71016dbe1904b5faf172e495ea7365d2ba1665a6a74
 
 # `subcommand_log.py`
 

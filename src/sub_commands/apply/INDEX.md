@@ -42,13 +42,13 @@
 
 ## hash
 
-- 6b22bc9462748c5b103ab2ce84908157438f20caf06ef2d09b2b6ec195632fac
+- d31040395b413efd3e23fe9073141814add1bebd4b75268aa397c5a2e99fe128
 
 # `fork.py`
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体処理を実装するモジュールで、session branch の前提確認から apply branch / worktree の作成、調査・修正ループ、レポート出力までをまとめて扱います。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体処理を実装するモジュールで、session branch の前提確認から apply branch / worktree の作成、調査・修正ループ、レポート生成までをまとめて扱います。
 - 要修正点の Structured Output 検証、部分適用・全体適用の切り替え、対象 oracle / 実装ファイルの列挙、改善ループ、禁止領域チェック、コミット生成と state 更新を担います。
 - このディレクトリの入口として、`cmoc apply fork` の処理順や責務境界を追うための案内です。
 
@@ -62,20 +62,20 @@
 ## Do not read this when
 
 - `cmoc apply join` や `cmoc apply abandon` の挙動だけを確認したいときは、このファイルではなく該当モジュールを読むべきです。
-- `cmoc session fork/join/abandon` など、session 側の処理だけを確認したいときは、このファイルではなく session 系の実装を読むべきです。
-- `cmoc apply fork` の仕様断片そのものを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を読むべきで、この実装ファイルを読む必要はありません。
-- Codex CLI 呼び出しの共通基盤や `INDEX.md` メンテナンスの一般ルールだけを確認したいときは、このファイルではなく関連する共通仕様を読むべきです。
+- `cmoc session` 系や他のサブコマンドの実装だけを確認したいときは、このファイルではなく session 側や別の実装を読むべきです。
+- `cmoc apply fork` の仕様断片そのものを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
+- Codex CLI 呼び出しの共通基盤や `INDEX.md` メンテナンスの一般ルールだけを確認したいときは、このファイルではなく共通仕様を読むべきです。
 
 ## hash
 
-- 4229a53e8b37d0ca1a16a47b4b26d1583a0697a126e94ec2123c96568c983b46
+- f77151e931e8b69fcd471ff22d488dd06b700aa8047bd7b0591c1bb2bc8d05cf
 
 # `join.py`
 
 ## Summary
 
 - `src/sub_commands/apply/join.py` は `cmoc apply join` の本体処理を実装するモジュールです。
-- 完了済みの apply branch を session branch に `git merge --no-ff` で取り込み、session/apply state を更新します。
+- 完了済みの apply branch を session branch へ `git merge --no-ff` で取り込み、session/apply state を更新します。
 - 想定外差分の検出と `--force-resolve` による revert、merge conflict の報告、終了後の apply branch / worktree の削除判定を扱います。
 
 ## Read this when
@@ -87,11 +87,11 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループだけを確認したいときは、このモジュールではなく `fork.py` を読むべきです。
-- `cmoc apply abandon` の破棄処理や cleanup 方針だけを確認したいときは、このモジュールではなく `abandon.py` を読むべきです。
-- `cmoc session` 系や他のサブコマンドの実装だけを確認したいときは、このモジュールではなく該当モジュールを読むべきです。
+- `cmoc apply fork` の調査・修正ループだけを確認したいときは、`fork.py` を読むべきです。
+- `cmoc apply abandon` の破棄処理や cleanup 方針だけを確認したいときは、`abandon.py` を読むべきです。
+- `cmoc session` 系や他のサブコマンドの実装だけを確認したいときは、該当モジュールを読むべきです。
 - `cmoc apply join` の仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_join.md` を直接読むべきです。
 
 ## hash
 
-- 4963b76ba9d91902d0cef9ff873e93da010569ac29fcc0aa378498582cbc795c
+- 0eec1d65cdcdcf6b2df9057107b0e9f50ca8051749b41bcbdd4dd1159ab612e8

@@ -23,25 +23,24 @@
 
 ## Summary
 
-- `src/sub_commands/session/abandon.py` は `cmoc session abandon` の本体処理を実装するモジュールです。
-- 現在の session branch が active で、apply.state が ready で、home branch が存在し、未コミット差分がないことを確認したうえで、session branch を merge せず破棄します。
-- cleanup では home branch へ switch し、session.state を `abandoned` に更新して session branch を強制削除し、失敗時は state と branch を元に戻して再実行可能な状態にします。
+- 現在の session branch を merge せずに破棄し、session state を `abandoned` に更新して home branch に戻す `cmoc session abandon` の実装本体です。
+- 事前条件の検証、`.cmoc` が無視対象であることの確認、branch 切り替え、session state 更新、session branch の強制削除、失敗時の rollback を扱います。
 
 ## Read this when
 
-- `cmoc session abandon` の実装・修正・テスト・レビューを行いたいとき。
-- 現在の session branch 判定、session/apply state の前提条件、cleanup 失敗時の rollback 仕様を確認したいとき。
-- session branch を merge せず破棄する実行フローと、`abandoned` への状態遷移を追いたいとき。
+- `cmoc session abandon` の実装・修正・レビュー・テストをするとき。
+- session branch を merge せずに破棄する流れや、`session.state` と `apply.state` の前提条件を確認したいとき。
+- cleanup 失敗時の rollback や、利用者に再実行を促すエラー処理を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session fork` の開始条件や session branch 作成だけを確認したいとき。
-- `cmoc session join` の merge 手順や session 完了処理だけを確認したいとき。
-- `cmoc apply abandon` など、apply 側の破棄仕様だけを確認したいとき。
+- `cmoc session fork` の作成手順や active session の競合回避だけを確認したいとき。
+- `cmoc session join` の merge 処理や conflict 解消だけを確認したいとき。
+- `cmoc apply abandon` など apply run 側の破棄仕様だけを確認したいとき。
 
 ## hash
 
-- 117b0ea64b6a2066a172d1493de8cc37345abf939848a75ecd52cad9f1f03c02
+- 4c7cac149bce7214ba981372fbf4e339144602d0f3f5c11de905b3ea5dde6a61
 
 # `fork.py`
 
@@ -80,7 +79,7 @@
 
 - `cmoc session join` の実装・修正・レビューで、事前条件と実行順を確認したいとき。
 - session branch を home branch に merge し、`session.state` を `joined` に更新する処理を追いたいとき。
-- merge conflict の解消依頼、禁止領域の扱い、` .cmoc` の非追跡保証、後始末としての branch 削除条件を確認したいとき。
+- merge conflict の解消依頼、禁止領域の扱い、`.cmoc` の非追跡保証、後始末としての branch 削除条件を確認したいとき。
 
 ## Do not read this when
 
@@ -91,4 +90,4 @@
 
 ## hash
 
-- b94387b9f743ebb75a779ce24a9d719a8d19c28122c6909d7c281de94407f3d3
+- 5b217e7454941cbd3262f1169b0a4f4e870922d5b88b8867f469bbf55909906a

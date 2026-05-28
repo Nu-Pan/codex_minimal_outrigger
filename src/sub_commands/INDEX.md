@@ -25,29 +25,28 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドのパッケージ入口です。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドのパッケージ入口で、`__init__.py`、`abandon.py`、`fork.py`、`join.py` への案内をまとめます。
 - `__init__.py` はパッケージ宣言のみを担います。
-- `abandon.py` は未 join の apply run を破棄する処理を担当します。
-- `fork.py` は apply の調査・修正ループと成果物作成を担当します。
-- `join.py` は完了済み apply branch を session branch に取り込む処理を担当します。
+- `abandon.py` は未 join の apply run を破棄し、`fork.py` は調査・修正ループと成果物作成を担当します。
+- `join.py` は完了済み apply branch を session branch へ取り込み、想定外差分の解消と cleanup を扱います。
 
 ## Read this when
 
-- `src/sub_commands/apply` が Python パッケージとしてどう構成されているか確認したいとき。
-- `cmoc apply` 系サブコマンドの実装入口と、各モジュールの責務分担を把握したいとき。
-- `cmoc apply abandon`、`cmoc apply fork`、`cmoc apply join` のどれを見ればよいか切り分けたいとき。
+- `src/sub_commands/apply` 配下の役割分担をまとめて把握したいとき。
+- `cmoc apply` 系サブコマンドの入口と、`abandon`、`fork`、`join` の対応関係を確認したいとき。
 - このディレクトリ配下の実装ファイルへ、用途ベースで案内したいとき。
+- `cmoc apply` の実装、修正、レビューの前に、どのモジュールを読むべきか切り分けたいとき。
 
 ## Do not read this when
 
-- `cmoc apply abandon` の破棄処理だけを確認したいときは、`abandon.py` を直接読むべきです。
-- `cmoc apply fork` の調査・修正ループだけを確認したいときは、`fork.py` を直接読むべきです。
-- `cmoc apply join` のマージ処理だけを確認したいときは、`join.py` を直接読むべきです。
-- `cmoc apply` 系の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/` 側の該当文書を読むべきです。
+- `cmoc apply abandon`、`cmoc apply fork`、`cmoc apply join` のどれか 1 つだけを直接確認したいときは、該当する `*.py` を読むべきです。
+- `src/sub_commands/apply` が Python パッケージとして存在するかだけを確認したいときは、`__init__.py` だけで足ります。
+- `cmoc apply` の仕様断片や利用手順を確認したいときは、`oracles/app_specs/sub_commands/` 側の該当文書を読むべきです。
+- このディレクトリの実装ファイル一覧ではなく、実装コードの詳細やテストだけを見たいときは、この INDEX は不要です。
 
 ## hash
 
-- e59ac3ac3207518dfc5dc355959e14cbb57fd0af81f9a466d915a2ae8b9654d3
+- f1a84e26a2fd602c09b00fbced0da2f1c4e5269203f982ec269688d0399e5988
 
 # `eval_oracles.py`
 
@@ -102,24 +101,22 @@
 
 ## Summary
 
-- `src/sub_commands/session` 配下の `cmoc session` 系実装モジュールの入口です。
-- `__init__.py` はパッケージ宣言のみ、`fork.py` は session 開始、`join.py` は session 完了、`abandon.py` は session 破棄を担います。
-- この目次から、各モジュールへ進んで session 系処理の順序、前提条件、状態遷移、cleanup の責務を確認できます。
+- `src/sub_commands/session` の入口で、`__init__.py` と `fork.py`、`join.py`、`abandon.py` をまとめるディレクトリです。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` の実装本体へのルーティング情報を提供します。
+- session の開始・完了・破棄の役割分担を整理して、目的の実装へ直接進めるようにします。
 
 ## Read this when
 
-- `cmoc session` 系実装の入口をまとめて把握したいとき。
-- `fork` / `join` / `abandon` のどのモジュールを読むべきか整理したいとき。
-- session の開始、完了、破棄の責務境界を確認したいとき。
-- `src/sub_commands/session` 配下の実装ファイル一覧を、処理の役割と対応づけてたどりたいとき。
+- `cmoc session` 系サブコマンドの実装・修正・レビュー・テストを進めたいとき。
+- このディレクトリ内の `__init__.py`、`fork.py`、`join.py`、`abandon.py` がそれぞれ何を担当するか確認したいとき。
+- session の開始、統合、破棄の処理フローを実装順にたどりたいとき。
 
 ## Do not read this when
 
-- 個別の `cmoc session fork`、`cmoc session join`、`cmoc session abandon` の実装だけを確認したいときは、この INDEX ではなく該当モジュールを直接読むべきです。
-- `cmoc session` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
-- `src/sub_commands/session` が Python パッケージとして存在するかだけを確認したいときは、`__init__.py` のみを見れば足ります。
-- session 以外のサブコマンドや `cmoc` 全体の入口だけを確認したいときは、このディレクトリの INDEX は適しません。
+- `cmoc apply` 系や `eval-oracles` など、session 以外のサブコマンドだけを確認したいとき。
+- `cmoc session` の利用手順や正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
+- `src/sub_commands/session` の実装詳細ではなく、CLI 入口や共通処理だけを追いたいときは別のモジュールを読むべきです。
 
 ## hash
 
-- 08cc4b2a7a22370b79a03b1ac7d489bd9dd5a56c776224d40834de1950d479c5
+- 369b57b77ab468cb15d6e0a2a9241e7de1e021092dbbf1bd91f6198d03fbe340
