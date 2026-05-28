@@ -1330,6 +1330,7 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     """0 終了でも stdout JSONL が capacity なら同じ条件で再実行する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
+    _git(repo, "init")
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     state = tmp_path / "attempts.txt"
@@ -1364,12 +1365,19 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     )
     codex.chmod(0o755)
     sleeps: list[int] = []
+    calls: list[Path] = []
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """capacity retry 直前には再メンテナンスしないことを記録する。"""
+        calls.append(repo_root)
+        return False
 
     monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setattr(
         "commons.codex.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
 
     output = run_codex_exec(repo, "prompt", read_only=True)
 
@@ -1379,6 +1387,7 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     assert output.strip() == "done"
     assert state.read_text(encoding="utf-8").strip() == "2"
     assert sleeps == [5]
+    assert calls == [repo]
     assert len(log_files) == 2
 
 
@@ -1506,7 +1515,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     calls: list[Path] = []
 
     def fake_maintain(repo_root: Path) -> bool:
-        """quota 復旧経路を含む Codex CLI 直前メンテナンスを記録する。"""
+        """初回 Codex CLI 直前メンテナンスを記録する。"""
         calls.append(repo_root)
         return False
 
@@ -1524,7 +1533,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
         )
     ]
     assert output.strip() == "resumed"
-    assert calls == [repo, repo, repo]
+    assert calls == [repo]
     assert len(log_contents) == 3
     assert all(
         content.count("## Codex Exec Call") == 1
