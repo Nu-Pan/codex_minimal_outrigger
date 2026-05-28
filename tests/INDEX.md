@@ -81,27 +81,27 @@
 ## Summary
 
 - `tests/test_indexing.py` は `commons.indexing.maintain_indexes()` による `INDEX.md` メンテナンスの回帰テスト群の入口です。
-- .gitignore`、`.git/info/exclude`、空ディレクトリ、`build` / `tmp`、symlink、バイナリ、UTF-8 境界、`memo` の扱いを確認します。
+- `.gitignore`、`.git/info/exclude`、空ディレクトリ、`build` / `tmp`、symlink、バイナリ、UTF-8 境界、`memo` の扱いを確認します。
 - 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の連鎖更新、自動コミット範囲を確認します。
 - テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` を含みます。
 
 ## Read this when
 
-- `commons.indexing.maintain_indexes()` の除外条件と更新条件を確認したいとき。
-- 既存 `INDEX.md` の不備検出、再生成、再利用、Structured Output のリトライ挙動を追いたいとき。
-- 自動コミットの対象が `INDEX.md` などのメンテナンス差分に限定されるか確認したいとき。
-- テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` の役割を見たいとき。
+- `commons.indexing.maintain_indexes()` の除外条件や更新条件を確認したいとき。
+- 既存 `INDEX.md` の再利用・再生成・再生成リトライの挙動を追いたいとき。
+- symlink、バイナリ、UTF-8 境界、空ディレクトリ、`memo` の扱いを確認したいとき。
+- 自動コミット範囲やテスト用 git リポジトリ初期化の `_init_repo` / `_git` の役割を見たいとき。
 
 ## Do not read this when
 
-- `src/commons/indexing.py` の実装そのものを確認したいとき。
-- `INDEX.md` の生成・更新ルール全体ではなく、他の仕様ファイルや別のテスト群を見たいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など別機能のテスト観点だけを追いたいとき。
+- `src/commons/indexing.py` の実装ロジックそのものを追いたいとき。
+- `INDEX.md` の全体仕様や生成ルールを確認したいとき。
+- `tests/test_repo.py` や `tests/test_subcommands.py` など別のテスト群だけを見たいとき。
+- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいとき。
 
 ## hash
 
-- c1099c2b54f79953b20a13c6aac70163c47f102391f2c5fb62478c05bdbf24d8
+- 841f4a092a17535683043227da6f43a1b98cccf49114c02921f550af2c86afc7
 
 # `test_repo.py`
 
@@ -130,7 +130,7 @@
 
 ## hash
 
-- 7b0496e9dd91cb9180a4b5633298859ba050bfa172ae9227a412869c5ddea155
+- 34619cc03e45edd61570226c862272014935f60a647313125a6c4be820352a64
 
 # `test_subcommands.py`
 

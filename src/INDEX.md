@@ -2,27 +2,25 @@
 
 ## Summary
 
-- `cmoc` 全体で共有する共通処理をまとめたパッケージです。
-- Codex CLI 呼び出し、共通実行ラッパー、エラー整形、git / session state 操作、サブコマンドログ、経過時間計測、タイムスタンプ、`INDEX.md` 維持を含みます。
-- 個別サブコマンドの業務ロジックではなく、横断的な土台を探す入口です。
+- `src/commons` 配下の共通処理をまとめるパッケージの目次です。
+- `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timestamps.py`、`timing.py`、`__init__.py` への入口をまとめます。
+- 個別サブコマンドではなく、CLI 実行・エラー処理・git / session state・ログ・時刻・`INDEX.md` 生成の共通基盤を案内します。
 
 ## Read this when
 
-- cmoc 全体で共有する共通基盤の実装や修正をしたいとき。
-- Codex CLI 実行、Structured Output、リトライ、quota 待ちの流れを確認したいとき。
-- repo root 探索、branch / session state、サブコマンドログ、タイマー、タイムスタンプ、`INDEX.md` 保守を追いたいとき。
-- 共通エラー処理や実行ラッパーの責務境界を整理したいとき。
+- cmoc 全体で共有する共通処理の所在を一覧で確認したいとき。
+- Codex CLI 呼び出し、共通実行ラッパー、エラー整形、repo / session state、サブコマンドログ、タイムスタンプ、経過時間計測、INDEX.md 生成のどこを読むべきか整理したいとき。
+- 実装やテストの前に、共通基盤の担当範囲を俯瞰したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの引数や業務ロジックだけを確認したいとき。
-- `src/sub_commands` 配下の実装や利用手順を追いたいとき。
-- 1 つの機能だけを深掘りしたいときは、該当モジュールを直接読むべきです。
-- テストコードや別パッケージの実装を探しているとき。
+- `src/sub_commands` 配下の実装や利用手順だけを追いたいとき。
+- 共通機能 1 つだけを深掘りしたいときは、この目次ではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- a2317f74e03142268cfba8736cc7425fc6417052d0ed7b6aefab0b7b88eff4b3
+- 29697e9faea611decf72d6d9710cd92d63b86942c759e470f559851d8e31e420
 
 # `main.py`
 
