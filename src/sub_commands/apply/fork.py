@@ -36,6 +36,7 @@ from commons.repo import (
     write_apply_process_id,
 )
 from commons.timing import StepTimer, start_step
+from commons.timing import StepIndexPath
 from commons.timestamps import make_timestamp
 
 _APPLY_INCOMPLETE_EXIT_CODE: int = 2
@@ -284,10 +285,22 @@ def cmoc_apply_impl(
         start_step(timer, 5, 6, "investigate and apply discrepancies")
         completed = False
         for loop_index in range(1, repeat_investigate_and_fix + 1):
+            loop_step_path = (
+                (5, 6),
+                (loop_index, repeat_investigate_and_fix),
+            )
+            start_step(
+                timer,
+                loop_step_path,
+                None,
+                "investigation and fix loop",
+            )
             discrepancies = _investigate_discrepancies(
                 apply_worktree,
                 session_start_commit,
                 oracle_snapshot_commit,
+                timer=timer,
+                step_path=loop_step_path,
                 repeat_improove_fixing_list=repeat_improove_fixing_list,
                 full=full,
             )
@@ -301,7 +314,12 @@ def cmoc_apply_impl(
                 completed = True
                 break
 
-            _apply_discrepancies(apply_worktree, discrepancies)
+            _apply_discrepancies(
+                apply_worktree,
+                discrepancies,
+                timer=timer,
+                step_path=(*loop_step_path, (5, 5)),
+            )
 
         # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定してから
         # report を生成する。
@@ -537,6 +555,8 @@ def _investigate_discrepancies(
     base_commit: str,
     oracle_snapshot_commit: str,
     *,
+    timer: StepTimer,
+    step_path: StepIndexPath,
     repeat_improove_fixing_list: int,
     full: bool,
 ) -> list[dict[str, object]]:
@@ -545,6 +565,12 @@ def _investigate_discrepancies(
     discrepancies: list[dict[str, object]] = []
     # --full の有無だけで全体適用・部分適用を切り替える。
     partial = not full
+    start_step(
+        timer,
+        (*step_path, (1, 5)),
+        None,
+        "select investigation targets",
+    )
     oracle_targets = _target_oracle_files(
         repo_root,
         base_commit,
@@ -560,6 +586,12 @@ def _investigate_discrepancies(
 
     # oracle ファイルを 1 件ずつ独立に調査する。
     for index, oracle_target in enumerate(oracle_targets, start=1):
+        start_step(
+            timer,
+            (*step_path, (2, 5), (index, len(oracle_targets))),
+            None,
+            f"investigate oracle {oracle_target.path}",
+        )
         print(
             f"investigate oracle ({index}/{len(oracle_targets)}) "
             f"{oracle_target.path}"
@@ -590,6 +622,12 @@ def _investigate_discrepancies(
         implementation_targets,
         start=1,
     ):
+        start_step(
+            timer,
+            (*step_path, (3, 5), (index, len(implementation_targets))),
+            None,
+            f"investigate implementation {implementation_target.path}",
+        )
         print(
             "investigate implementation "
             f"({index}/{len(implementation_targets)}) "
@@ -623,6 +661,8 @@ def _investigate_discrepancies(
         discrepancies,
         base_commit,
         repeat_improove_fixing_list,
+        timer=timer,
+        step_path=(*step_path, (4, 5)),
     )
 
 
@@ -813,11 +853,20 @@ def _improove_fixing_list(
     discrepancies: list[dict[str, object]],
     base_commit: str,
     repeat_improove_fixing_list: int,
+    *,
+    timer: StepTimer,
+    step_path: StepIndexPath,
 ) -> list[dict[str, object]]:
     """要修正点リストを最大指定回数まで Codex CLI に改善させる。"""
     # 改善結果が前回と同一なら、改善点なしとして早期終了する。
     improved = discrepancies
     for loop_index in range(1, repeat_improove_fixing_list + 1):
+        start_step(
+            timer,
+            (*step_path, (loop_index, repeat_improove_fixing_list)),
+            None,
+            "improve fixing list",
+        )
         next_improved = _organize_discrepancies(
             repo_root,
             improved,
@@ -888,10 +937,19 @@ def _fixing_points_with_head_commit_hash(
 def _apply_discrepancies(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
+    *,
+    timer: StepTimer,
+    step_path: StepIndexPath,
 ) -> None:
     """Codex CLI に不整合追従作業を依頼する。"""
     # 不整合 1 件ごとに修正、禁止領域検査、commit までを完結させる。
     for index, discrepancy in enumerate(discrepancies, start=1):
+        start_step(
+            timer,
+            (*step_path, (index, len(discrepancies))),
+            None,
+            "apply discrepancy",
+        )
         print(f"apply discrepancy ({index}/{len(discrepancies)})")
         run_codex_exec(
             repo_root,

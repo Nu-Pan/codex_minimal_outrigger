@@ -149,6 +149,42 @@ def test_run_command_tees_subcommand_output_and_summary(
     assert _git(repo, "status", "--porcelain").stdout == ""
 
 
+def test_start_step_logs_hierarchical_step_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """階層ステップ番号は console と JSONL の両方に全階層を出す。"""
+    repo = _init_repo(tmp_path)
+    monkeypatch.chdir(repo)
+
+    def handler(_repo: Path) -> int:
+        """階層化されたサブステップ開始を 1 件出す。"""
+        timer = StepTimer("sample")
+        start_step(
+            timer,
+            ((5, 6), (2, 3), (1, 4)),
+            None,
+            "nested step",
+        )
+        return 0
+
+    run_command(handler)
+
+    captured = capsys.readouterr()
+    log_content = next(
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
+    ).read_text(encoding="utf-8")
+    log_events = [json.loads(line) for line in log_content.splitlines()]
+    assert "(5/6, 2/3, 1/4) nested step" in captured.out
+    assert any(
+        event["event"] == "step_start"
+        and event["step"] == "nested step"
+        and event["step_index"] == "5/6, 2/3, 1/4"
+        for event in log_events
+    )
+
+
 def test_run_command_logs_summary_on_exception(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -2555,6 +2591,8 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     output = capsys.readouterr().out
     assert exit_code == 2
     assert len(organize_prompts) == 3
+    assert "(5/6, 1/1, 4/5, 3/3) improve fixing list" in output
+    assert "(5/6, 1/1, 5/5, 1/1) apply discrepancy" in output
     assert "fixing list improvement loop (3/3) discrepancies: 1" in output
     assert "second improvement" in apply_prompts[0]
     assert "initial" in organize_prompts[0]
