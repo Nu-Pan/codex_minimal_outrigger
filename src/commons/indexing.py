@@ -486,7 +486,10 @@ def _safe_index_text(value: str) -> str:
         character if _is_index_text_character(character) else " "
         for character in value
     )
-    return re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
+    # Structured Output の項目文字列は「本文」として扱い、Markdown bullet は
+    # cmoc 側で 1 つだけ付与する。
+    return re.sub(r"^(?:[-*+]\s+)+", "", text).strip()
 
 
 def _is_index_text_character(character: str) -> bool:

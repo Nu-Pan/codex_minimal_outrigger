@@ -772,7 +772,7 @@ def test_maintain_indexes_round_trips_special_names_and_multiline_text(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """特殊文字を含む名前と複数行説明文でも INDEX を再利用できる。"""
+    """特殊文字を含む名前と説明文でも INDEX を再利用できる。"""
     repo = _init_repo(tmp_path)
     target = repo / "we`ird\n%.txt"
     target.write_text("target\n", encoding="utf-8")
@@ -783,8 +783,8 @@ def test_maintain_indexes_round_trips_special_names_and_multiline_text(
         """Markdown 境界に見える文字を含む Structured Output を返す。"""
         return json.dumps(
             {
-                "summary": ["first\n# `ghost`\nsecond"],
-                "read_this_when": ["read\r\nwhen"],
+                "summary": ["- first\n# `ghost`\nsecond"],
+                "read_this_when": ["* read\r\nwhen"],
                 "do_not_read_this_when": ["skip\twhen"],
             }
         )
@@ -798,8 +798,10 @@ def test_maintain_indexes_round_trips_special_names_and_multiline_text(
     assert "# `we%60ird%0A%25.txt`" in content
     assert "# `we`ird" not in content
     assert "- first # `ghost` second" in content
-    assert "read when" in content
+    assert "- read when" in content
     assert "skip when" in content
+    assert "- - first" not in content
+    assert "- * read" not in content
 
     def fail_codex(*args: object, **kwargs: object) -> str:
         """特殊文字を含む最新 INDEX では呼ばれてはいけない。"""

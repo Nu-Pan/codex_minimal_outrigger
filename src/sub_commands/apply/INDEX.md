@@ -2,18 +2,18 @@
 
 ## Summary
 
-- - `src/sub_commands/apply/__init__.py` は `cmoc apply` 系サブコマンドのパッケージ宣言だけを担う最小モジュールです。
-- - 公開 API、定数、実行ロジック、再エクスポートは持ちません。
+- `src/sub_commands/apply/__init__.py` は `cmoc apply` 系サブコマンドのパッケージ宣言だけを担う最小モジュールです。
+- 公開 API、定数、実行ロジック、再エクスポートは持ちません。
 
 ## Read this when
 
-- - `src/sub_commands/apply` が Python パッケージとして宣言されていることを確認したいとき。
-- - `cmoc apply` 系サブコマンドの入口となるパッケージ構造を把握したいとき。
+- `src/sub_commands/apply` が Python パッケージとして宣言されていることを確認したいとき。
+- `cmoc apply` 系サブコマンドの入口となるパッケージ構造を把握したいとき。
 
 ## Do not read this when
 
-- - 個別の `cmoc apply fork/join/abandon` の実行フローや状態遷移を確認したいときは、このファイルではなく各実装モジュールを読むべきです。
-- - `cmoc apply` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
+- 個別の `cmoc apply fork/join/abandon` の実行フローや状態遷移を確認したいときは、このファイルではなく各実装モジュールを読むべきです。
+- `cmoc apply` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
 
 ## hash
 
