@@ -151,13 +151,13 @@
 ## Do not read this when
 
 - 個別サブコマンドの正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/INDEX.md` から該当文書へ進むべきです。
-- テスト全般の書き方や `Fake Codex CLI` の使い方だけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、他のテスト群を見たいときはこのファイルは適しません。
+- テスト全般の書き方や `Fake Codex CLI` の扱いだけを確認したいときは、`oracles/dev_rules/test_rules.md` を読むべきです。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群を見たいときにはこのファイルは適しません。
 - `run_command` や各サブコマンドの個別ヘルパー、prompt 文面だけを追いたいときは、対応する実装ファイルや仕様文書へ直接進むべきです。
 
 ## hash
 
-- 1ffa2a7b9fc4b027c39cfdc43838ccfff34c0db9b5723c539f5636dcf2999f55
+- 5e642eb58077459fa880fa08095fb7c1dbc5a283f54b500b25f381e724ff335c
 
 # `test_timestamps.py`
 

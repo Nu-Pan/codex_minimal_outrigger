@@ -68,11 +68,11 @@
 
 ## Do not read this when
 
-- `cmoc apply`、`cmoc session`、`cmoc eval-oracles`、`cmoc init` の個別仕様だけを確認したいときは、この入口ではなく該当するモジュールや正本仕様を直接読むべきです。
+- `cmoc apply`、`cmoc session`、`cmoc eval-oracles`、`cmoc init` の個別仕様や実装だけを確認したいときは、この目次ではなく該当するモジュールや正本仕様を直接読むべきです。
 - `src/sub_commands` のうち特定 1 ファイルだけの詳細を見たいときは、この目次ではなく `__init__.py`、`apply/`、`session/`、`eval_oracles.py`、`init.py` の該当箇所を直接参照すべきです。
 - `cmoc` の利用手順や正本仕様だけを確認したいときは、このディレクトリではなく `oracles/app_specs/sub_commands/` 側を読むべきです。
 - 共通の branch model、ログ、エラーハンドリング、`INDEX.md` メンテナンス規則だけを確認したいときは、このディレクトリを読む必要はありません。
 
 ## hash
 
-- 0c81701f7a243c774a7423d04fcc54a43678394f8cda96afa84bf1f4bb64901c
+- af25267d4fc0a223e4e30817698f4518a79d670491abf3452abdb02bd4833746
