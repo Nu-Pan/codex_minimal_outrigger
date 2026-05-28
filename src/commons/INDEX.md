@@ -29,21 +29,21 @@
 
 ## Read this when
 
-- Codex CLI 呼び出し方法や sandbox の切り替え、`codex exec` のコマンド組み立てを確認したいとき。
+- Codex CLI の呼び出し方法や sandbox の切り替え、`codex exec` のコマンド組み立てを確認したいとき。
 - Structured Output の schema 保存・検証、JSON パース、リトライの流れを見直したいとき。
 - quota 枯渇時の待機と `--resume` 再開、capacity リトライ、`oracles` 保護や `INDEX.md` 事前更新の挙動を追いたいとき。
 - 呼び出しログ、`--output-last-message`、model と reasoning_effort の制約を確認したいとき。
 
 ## Do not read this when
 
-- Codex CLI 以外のサブコマンド本体や業務ロジックを見たいときは、このモジュールではなく `src/sub_commands/` を読むべきです。
+- `codex exec` 以外のサブコマンド本体や業務ロジックを確認したいときは、このモジュールではなく `src/sub_commands` を読むべきです。
 - 共通エラー整形だけを確認したいときは `src/commons/errors.py`、タイムスタンプだけなら `src/commons/timestamps.py` を読むべきです。
 - `INDEX.md` の自動生成ルールそのものだけを確認したいときは、このモジュールではなく `src/commons/indexing.py` と `oracles/app_specs/indexing.md` を読むべきです。
 - ファイル操作やテスト実装だけを確認したいときは、このモジュールの範囲外です。
 
 ## hash
 
-- 8a796cbd5fd5efe16da697afa674fe2a93e6adee14c6c86b2430fce8d11d89e2
+- 252a9e3953b8ee9485403e6d6d4bb0191606d155d6799dd09120e2da2b130f10
 
 # `command_runner.py`
 
@@ -117,13 +117,13 @@
 
 ## Do not read this when
 
-- `codex exec` の汎用的な呼び出し方だけを知りたいときは、`commons/codex.py` を読むべきです。
-- 共通エラー処理、タイムスタンプ、サブコマンドログ、リポジトリ探索など、INDEX メンテナンス以外の共通機能を調べたいときは別モジュールを読むべきです。
+- `codex exec` の汎用的な呼び出し方だけを知りたいときは、`src/commons/codex.py` を読むべきです。
+- 共通エラー処理、タイムスタンプ、サブコマンドログ、リポジトリ探索など、`INDEX.md` メンテナンス以外の共通機能を調べたいときは別モジュールを読むべきです。
 - `INDEX.md` の正本仕様だけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきです。
 
 ## hash
 
-- b4d370399520b388519ecfee1a52b482765e9166fa2c65cc27fdaa206feb4183
+- cb8403ff8ed29965811c4617e5972ba734e69a3ce7db1431f0573ccfb65bed6d
 
 # `repo.py`
 
