@@ -138,17 +138,17 @@
 
 - `tests/test_subcommands.py` は cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の入口です。
 - `run_command` のログ出力、終了集計、例外時レポート、`repo_root` 解決失敗時の振る舞いを扱います。
-- `init`、`session` 系、`apply` 系、`eval_oracles` 系、CLI 登録、エラーレポート、conflict marker 判定までを広く回帰確認します。
+- `init`、`session` 系、`apply` 系、`eval-oracles` 系、CLI 登録、エラーレポート、conflict marker 判定までを広く回帰確認します。
 - 各サブコマンドの prompt、report、state 遷移、補助関数の順序や入力検証も含みます。
 
 ## Read this when
 
 - cmoc の主要サブコマンドがどの順序で呼ばれ、どのエラーや出力を返すかを確認したいとき。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の制御フローや state 遷移を追いたいとき。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval-oracles` の制御フローや state 遷移を追いたいとき。
 - `run_command`、`StepTimer`、`start_step`、`format_error_report` のテスト観点を確認したいとき。
 - CLI の `main`、ヘルプ表示、`bin/cmoc`、`review oracles` 互換コマンドの登録状況を確認したいとき。
 - conflict marker 判定や、`apply` / `session join` の境界条件テストを探したいとき。
-- `apply` / `eval_oracles` の prompt、report、Structured Output schema、要修正点整理の仕様を確認したいとき。
+- `apply` / `eval-oracles` の prompt、report、Structured Output schema、要修正点整理の仕様を確認したいとき。
 
 ## Do not read this when
 
@@ -160,7 +160,7 @@
 
 ## hash
 
-- 951c280e85e032027f6bf24fb985548b5e51c60111b79467694ba152e0d7357f
+- d0f8eccaf75866de137de4f1fb7d33fabe2861947758f057f0a4bb49546f0ba8
 
 # `test_timestamps.py`
 

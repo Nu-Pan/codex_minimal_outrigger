@@ -182,25 +182,26 @@
 
 ## Summary
 
-- `src` は cmoc の Python 実装ルートで、CLI 入口、共通処理、サブコマンド実装をまとめる。
-- `main.py` は Typer ベースの CLI 起動点で、`init`、`session`、`apply`、`review oracles` の登録と例外整形を担う。
-- `commons/` は全体共通の基盤処理、`sub_commands/` は各サブコマンド本体の入口である。
+- `cmoc` の実装本体を置く `src` パッケージの入口です。
+- `main.py` が CLI エントリーポイント、`commons` が共通基盤、`sub_commands` が個別コマンド実装を担います。
+- 上位の CLI ルーティングや共通処理、各サブコマンドの入口をたどるための目次です。
 
 ## Read this when
 
-- cmoc 実装全体の配置と、どの入口から辿るべきかを把握したいとき。
-- CLI 起動、共通処理、サブコマンド実装の役割分担を確認したいとき。
-- `src/main.py`、`src/commons/`、`src/sub_commands/` のどこを読むべきか判断したいとき。
+- `cmoc` の CLI 起動経路や `src/main.py` の役割を確認したいとき。
+- 共通基盤の `src/commons` とサブコマンド実装の `src/sub_commands` の役割分担を俯瞰したいとき。
+- どの実装ファイルを読むべきか、最初の入口を整理したいとき。
+- 機能追加や修正で、実装の所在を素早く見分けたいとき。
 
 ## Do not read this when
 
-- 個別コマンドや共通モジュールの詳細仕様だけを確認したいとき。
-- oracles 側の正本仕様だけを確認したいとき。
-- テストコードや `src` 以外の実装を探しているとき。
+- 個別モジュールの詳細仕様だけを確認したいときは、`src/commons` や `src/sub_commands` 配下の該当ファイルを直接読むべきです。
+- `oracles` の正本仕様やユーザー向け利用手順だけを確認したいときは、この目次ではなく `oracles` 側を読むべきです。
+- 実装の所在ではなく、1つの関数やクラスの挙動だけを追いたいときは、この階層の目次ではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- 777b76be5e1cc031d1140ad73660571be7e9cf901f8a8ea45287f8293ff2a69e
+- 1689706eb546d28aa8d028f9336ff9c0fd9fd276751f9d54e353ed3d50f2f001
 
 # `test.sh`
 
@@ -230,22 +231,22 @@
 
 ## Summary
 
-- pytest を使った cmoc の回帰テスト群をまとめるディレクトリです。
-- `conftest.py` による import path 設定と、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py` などの機能別テストで構成されています。
-- Codex CLI 連携、INDEX.md 生成、git 共通処理、サブコマンド制御、タイムスタンプや命名規則の確認を扱います。
+- pytest の共通設定と、cmoc 本体の振る舞いを固定する回帰テスト群の入口です。
+- Codex CLI 呼び出し、INDEX.md 生成、git リポジトリ共通処理、サブコマンド制御、タイムスタンプ、命名規則を確認します。
+- src の変更がどのテストに影響するかを切り分けるための目次です。
 
 ## Read this when
 
-- pytest を使った cmoc の回帰テスト群の入口を確認したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`sub_commands` などの決定論的な挙動を検証したいとき。
-- 共通の pytest 設定や、機能別テストの役割分担を把握したいとき。
+- tests 全体の役割や、どのテストファイルを読むべきかを知りたいとき。
+- src の変更に対して、どの回帰テストが関連するか確認したいとき。
+- pytest の共通設定、モック、git 補助、Structured Output の検証観点を探したいとき。
 
 ## Do not read this when
 
-- 個別の実装ロジックや CLI 仕様だけを追いたいとき。
-- `src` や `oracles` の本体仕様を直接確認したいとき。
-- テスト以外のファイルアクセス規則や運用ルールだけを確認したいとき。
+- 実装コードそのものや、個別サブコマンドの正本仕様だけを確認したいとき。
+- oracles の仕様断片や、README・AGENTS・memo の運用規則だけを確認したいとき。
+- 特定の一つのテスト関数の詳細だけを追いたいとき。
 
 ## hash
 
-- 55f7ef6978f65955a43f773a986e8278cc0655ec2f450da73f77125c1fc230b2
+- 38d7ee82110c601013282cd5d16d18ab54577e706f607480413e1359391e81d1

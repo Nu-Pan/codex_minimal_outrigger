@@ -51,7 +51,7 @@
 
 ## Summary
 
-- cmoc review oracles の実装本体で、oracles 配下の仕様断片を Codex CLI で評価し、問題点を集約した Markdown レポートに書き出す処理をまとめたモジュールです。
+- `cmoc review oracles` の本体処理で、oracles 配下の仕様断片を Codex CLI で評価し、問題点を集約した Markdown レポートに書き出すモジュールです。
 - 現在ブランチと `--full` から部分評価・全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルへの評価依頼、問題点リストの改善、`.cmoc/reports/review_oracles` への保存までを扱います。
 - 評価プロンプトの組み立て、Structured Output の検証、評価結果の再配分、エラー時レポート生成を支える補助関数も含みます。
 
@@ -59,7 +59,7 @@
 
 - cmoc review oracles の実装・修正・レビューをしたいとき。
 - 部分評価か全体評価かの切り替え条件、対象 oracle の選び方、評価の流れを確認したいとき。
-- Codex CLI に渡す評価プロンプト、Structured Output の schema、レポート生成の処理を追いたいとき。
+- Codex CLI に渡す評価プロンプト、Structured Output の schema、レポート生成やエラー時の振る舞いを追いたいとき。
 
 ## Do not read this when
 
@@ -69,7 +69,7 @@
 
 ## hash
 
-- e9208d93542ff54fd16a521d1febd211deaa72c888f5d70ba947ccf79c26bc9f
+- 5d1d02a8a827958fcc41447cbdec52de378b642c6d7e8f2bc20ca2b3fd604f4d
 
 # `init.py`
 
