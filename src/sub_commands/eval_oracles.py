@@ -353,6 +353,7 @@ def _improve_evaluations(
                 json_validator=lambda value: _validate_issues_payload(
                     value,
                     repo_root,
+                    _target_oracle_paths(evaluations),
                 ),
             )
         )
@@ -424,7 +425,11 @@ def _redistribute_improved_issues(
         if not isinstance(issue, dict):
             raise ValueError("issues item must be an object.")
         target = str(Path(str(issue["oracle_path"])).resolve())
-        index = target_to_index.get(target, 0)
+        if target not in target_to_index:
+            raise ValueError(
+                "issues item oracle_path must match an evaluated oracle file."
+            )
+        index = target_to_index[target]
         result[index]["issues"].append(issue)
     return [_refresh_evaluation_metadata(evaluation) for evaluation in result]
 
@@ -495,13 +500,47 @@ def _validate_evaluation_payload(
     _validate_evaluation_issues(value["issues"], repo_root)
 
 
-def _validate_issues_payload(value: object, repo_root: Path) -> None:
+def _validate_issues_payload(
+    value: object,
+    repo_root: Path,
+    target_oracle_paths: set[Path],
+) -> None:
     """改善済み issue list の Structured Output を検査する。"""
     if not isinstance(value, dict):
         raise ValueError("Expected JSON object.")
     if set(value) != {"issues"}:
         raise ValueError("Issues payload keys do not match schema.")
     _validate_evaluation_issues(value["issues"], repo_root)
+    _validate_issue_oracle_paths_match_targets(
+        value["issues"],
+        target_oracle_paths,
+    )
+
+
+def _target_oracle_paths(evaluations: list[dict[str, object]]) -> set[Path]:
+    """評価済み target_oracle_path の集合を返す。"""
+    return {
+        Path(str(evaluation["target_oracle_path"])).resolve()
+        for evaluation in evaluations
+    }
+
+
+def _validate_issue_oracle_paths_match_targets(
+    issues: object,
+    target_oracle_paths: set[Path],
+) -> None:
+    """改善後 issue の帰属先が評価対象と一致することを検査する。"""
+    if not isinstance(issues, list):
+        raise ValueError("issues must be a list.")
+    for index, issue in enumerate(issues):
+        if not isinstance(issue, dict):
+            raise ValueError(f"issues[{index}] must be an object.")
+        target = Path(str(issue["oracle_path"])).resolve()
+        if target not in target_oracle_paths:
+            raise ValueError(
+                f"issues[{index}].oracle_path must match an "
+                "evaluated oracle file."
+            )
 
 
 def _write_report(

@@ -1352,6 +1352,54 @@ def test_review_oracles_improves_combined_issue_list(
     assert "Raw warning" not in report
 
 
+def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
+    tmp_path: Path,
+) -> None:
+    """改善後 issue は評価対象外 oracle へ黙って再配布しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    evaluated_oracle = oracle_root / "evaluated.md"
+    unevaluated_oracle = oracle_root / "unevaluated.md"
+    evaluated_oracle.write_text("evaluated\n", encoding="utf-8")
+    unevaluated_oracle.write_text("unevaluated\n", encoding="utf-8")
+
+    evaluations = [
+        {
+            "target_oracle_path": str(evaluated_oracle.resolve()),
+            "referenced_paths": [],
+            "specification_only_basis": "",
+            "issues": [],
+        }
+    ]
+    improved_issue = _eval_oracle_issue(
+        "warning",
+        "outside target",
+        unevaluated_oracle,
+        1,
+        1,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="oracle_path must match an evaluated oracle file",
+    ):
+        eval_oracles_module._validate_issues_payload(
+            {"issues": [improved_issue]},
+            repo,
+            {evaluated_oracle.resolve()},
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="oracle_path must match an evaluated oracle file",
+    ):
+        eval_oracles_module._redistribute_improved_issues(
+            evaluations,
+            [improved_issue],
+        )
+
+
 def test_eval_oracles_result_precedence() -> None:
     """result は評価対象数と severity 件数から機械的に決まる。"""
     assert eval_oracles_module._evaluation_result(
