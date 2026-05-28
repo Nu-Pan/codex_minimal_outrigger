@@ -66,6 +66,34 @@ def test_python_sources_do_not_use_future_annotations() -> None:
     assert violating_paths == []
 
 
+def test_literal_cmoc_error_actions_offer_multiple_choices() -> None:
+    """CmocError の静的な actions は oracle 通り複数提示する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    violating_locations: list[str] = []
+
+    for source_root in (repo_root / "src", repo_root / "tests"):
+        for path in source_root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if getattr(node.func, "id", None) != "CmocError":
+                    continue
+                actions = None
+                if len(node.args) >= 2:
+                    actions = node.args[1]
+                for keyword in node.keywords:
+                    if keyword.arg == "actions":
+                        actions = keyword.value
+                if not isinstance(actions, ast.List):
+                    continue
+                if len(actions.elts) < 2:
+                    relative_path = path.relative_to(repo_root)
+                    violating_locations.append(f"{relative_path}:{node.lineno}")
+
+    assert violating_locations == []
+
+
 def test_run_command_tees_subcommand_output_and_summary(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -205,13 +233,14 @@ def test_run_command_reports_nonzero_typer_exit(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 7
-    assert "ERROR" in captured.err
-    assert "Summary:" in captured.err
-    assert "サブコマンドがエラー終了しました。" in captured.err
-    assert "Next actions:" in captured.err
-    assert "Detail:" in captured.err
-    assert "typer.Exit(7)" in captured.err
-    assert "Call stack:" in captured.err
+    assert captured.err == ""
+    assert "ERROR" in captured.out
+    assert "Summary:" in captured.out
+    assert "サブコマンドがエラー終了しました。" in captured.out
+    assert "Next actions:" in captured.out
+    assert "Detail:" in captured.out
+    assert "typer.Exit(7)" in captured.out
+    assert "Call stack:" in captured.out
     assert "# Command completion report" in captured.out
     assert "subcommand return code: 7" in captured.out
     log_events = [json.loads(line) for line in log_content.splitlines()]
@@ -252,13 +281,14 @@ def test_run_command_reports_repo_root_resolution_error(
 
     captured = capsys.readouterr()
     assert exit_info.value.exit_code == 1
-    assert "ERROR" in captured.err
-    assert "Summary:" in captured.err
-    assert "Git リポジトリのルートが見つかりませんでした。" in captured.err
-    assert "Next actions:" in captured.err
-    assert "Detail:" in captured.err
-    assert f"開始パス: {tmp_path.resolve()}" in captured.err
-    assert "Call stack:" in captured.err
+    assert captured.err == ""
+    assert "ERROR" in captured.out
+    assert "Summary:" in captured.out
+    assert "Git リポジトリのルートが見つかりませんでした。" in captured.out
+    assert "Next actions:" in captured.out
+    assert "Detail:" in captured.out
+    assert f"開始パス: {tmp_path.resolve()}" in captured.out
+    assert "Call stack:" in captured.out
     assert "# Command completion report" in captured.out
     assert "subcommand total elapsed:" in captured.out
     assert "subcommand quota wait elapsed:" in captured.out
@@ -4330,8 +4360,9 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
     )
 
     assert result.returncode == 1
-    assert "ERROR" in result.stderr
-    assert "Summary:" in result.stderr
+    assert result.stderr == ""
+    assert "ERROR" in result.stdout
+    assert "Summary:" in result.stdout
 
 
 def test_main_reports_no_args_error_with_non_empty_detail() -> None:

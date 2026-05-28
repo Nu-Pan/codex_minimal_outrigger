@@ -101,7 +101,10 @@ def _validate_joinable_state(
     if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session/apply セクションを確認してください。"],
+            [
+                "state JSON の session/apply セクションを確認して復旧してください。",
+                "復旧できない場合は、現在の session を abandon して新しい session を開始してください。",
+            ],
             f"現在の branch: {session_branch}",
         )
     if session.get("state") != "active":
@@ -163,7 +166,10 @@ def _mark_session_joined(
     if not isinstance(session, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session セクションを確認してください。"],
+            [
+                "state JSON の session セクションを確認して復旧してください。",
+                "復旧できない場合は、現在の session を使わず新しい session を開始してください。",
+            ],
         )
     session["state"] = "joined"
     write_session_state(repo_root, session_id, state)

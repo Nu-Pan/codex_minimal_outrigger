@@ -372,7 +372,10 @@ def _validate_apply_fork_state(
     if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session/apply セクションを確認してください。"],
+            [
+                "state JSON の session/apply セクションを確認して復旧してください。",
+                "復旧できない場合は、現在の session を使わず新しい session を開始してください。",
+            ],
             f"現在の branch: {session_branch}",
         )
     if session.get("state") != "active":
@@ -397,7 +400,10 @@ def _validate_apply_fork_state(
     if not isinstance(start_commit, str) or not start_commit:
         raise CmocError(
             "session start commit が session state に記録されていません。",
-            ["session state の session.session_start_commit を確認してください。"],
+            [
+                "session state の session.session_start_commit を確認して復旧してください。",
+                "復旧できない場合は、現在の session を使わず新しい session を開始してください。",
+            ],
             f"現在の branch: {session_branch}",
         )
     return start_commit
@@ -518,7 +524,10 @@ def _mutable_apply_section(
     if not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の apply セクションを確認してください。"],
+            [
+                "state JSON の apply セクションを確認して復旧してください。",
+                "復旧できない場合は、現在の session を使わず新しい session を開始してください。",
+            ],
         )
     return apply
 

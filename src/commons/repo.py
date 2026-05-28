@@ -1186,7 +1186,10 @@ def read_session_start_commit(repo_root: Path, branch_name: str) -> str:
     if not isinstance(session, dict):
         raise CmocError(
             "session state ファイルに session セクションがありません。",
-            ["state JSON の内容を確認してください。"],
+            [
+                "state JSON の内容を確認し、session セクションを復旧してください。",
+                "復旧できない場合は、現在の session を使わず新しい session を開始してください。",
+            ],
             f"branch: {branch_name}",
         )
     start_commit = session.get("session_start_commit")

@@ -93,7 +93,10 @@ def _validate_abandonable_state(
     if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session/apply セクションを確認してください。"],
+            [
+                "state JSON の session/apply セクションを確認して復旧してください。",
+                "復旧できない場合は、対象 session を使わず新しい session を開始してください。",
+            ],
             f"現在の branch: {current_branch_name}",
         )
     session_branch = f"cmoc/session/{session_id}"
@@ -119,7 +122,10 @@ def _validate_abandonable_state(
     if not isinstance(apply_state, str) or not apply_state:
         raise CmocError(
             "apply state を session state から特定できませんでした。",
-            ["session state の apply.state を確認してください。"],
+            [
+                "session state の apply.state を確認して復旧してください。",
+                "復旧できない場合は、対象 session を使わず新しい session を開始してください。",
+            ],
             f"apply.state: {apply_state}",
         )
     if apply_state not in {"running", "completed", "error"}:
@@ -310,7 +316,10 @@ def _mark_apply_ready(
     if not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の apply セクションを確認してください。"],
+            [
+                "state JSON の apply セクションを確認して復旧してください。",
+                "復旧できない場合は、対象 session を使わず新しい session を開始してください。",
+            ],
         )
     state["apply"] = {
         "state": "ready",

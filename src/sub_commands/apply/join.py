@@ -171,7 +171,10 @@ def _validate_joinable_state(
     if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の session/apply セクションを確認してください。"],
+            [
+                "state JSON の session/apply セクションを確認して復旧してください。",
+                "復旧できない場合は、対象 apply run を破棄して新しい session でやり直してください。",
+            ],
             f"現在の branch: {current_branch_name}",
     )
     session_branch = f"cmoc/session/{session_id}"
@@ -498,7 +501,10 @@ def _mark_apply_ready(
     if not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
-            ["state JSON の apply セクションを確認してください。"],
+            [
+                "state JSON の apply セクションを確認して復旧してください。",
+                "復旧できない場合は、対象 apply run を破棄して新しい session でやり直してください。",
+            ],
         )
     state["apply"] = {
         "state": "ready",
