@@ -200,6 +200,59 @@ def test_maintain_indexes_respects_gitignore_for_newline_paths(
     assert maintain_indexes(repo) is False
 
 
+def test_maintain_indexes_round_trips_non_utf8_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """非 UTF-8 filename でも INDEX 生成と再利用を停止せず行う。"""
+    repo = _init_repo(tmp_path)
+    raw_dir_name = b"bad_\xff_dir"
+    raw_file_name = b"note_\xfe.txt"
+    raw_dir = os.fsencode(repo) + b"/" + raw_dir_name
+    os.mkdir(raw_dir)
+    _write_bytes_file(raw_dir + b"/" + raw_file_name, b"note\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "non utf8 paths")
+    prompts: list[str] = []
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """非 UTF-8 path の安全な表示だけを受け取る fake Codex CLI。"""
+        prompts.append(str(args[1]))
+        purposes.append(str(kwargs["purpose"]))
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+    bad_dir = repo / os.fsdecode(raw_dir_name)
+    child_index = (bad_dir / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `bad_%FF_dir`" in root_index
+    assert "# `note_%FE.txt`" in child_index
+    assert any("bad_%FF_dir" in purpose for purpose in purposes)
+    assert any("bad_%FF_dir" in prompt for prompt in prompts)
+    assert not any(_has_surrogate(text) for text in [*prompts, *purposes])
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """非 UTF-8 path の最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for current non-UTF-8 path INDEX"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
 def test_maintain_indexes_creates_empty_index_for_empty_directory(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1430,6 +1483,20 @@ def _wait_until_path_exists(path: Path) -> None:
             return
         sleep(0.01)
     raise AssertionError(f"{path} was not created")
+
+
+def _write_bytes_file(path: bytes, content: bytes) -> None:
+    """bytes path の通常ファイルへ bytes を書く。"""
+    fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o644)
+    try:
+        os.write(fd, content)
+    finally:
+        os.close(fd)
+
+
+def _has_surrogate(value: str) -> bool:
+    """文字列に surrogateescape 由来文字が残っているか判定する。"""
+    return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
 
 
 def _directory_digest(repo: Path, directory: Path) -> str:

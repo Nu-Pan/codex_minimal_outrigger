@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote_to_bytes
 
 from .codex import (
     INDEX_GENERATION_MODEL,
@@ -304,7 +304,7 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
         run_codex_exec(
             repo_root,
             _index_prompt(repo_root, path, digest),
-            purpose=f"INDEX entry 生成 {path.relative_to(repo_root)}",
+            purpose=f"INDEX entry 生成 {_display_index_path(repo_root, path)}",
             read_only=True,
             expect_json=True,
             output_schema=_INDEX_OUTPUT_SCHEMA,
@@ -346,10 +346,11 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
 def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
     """INDEX 目次情報生成用の Codex prompt を作る。"""
     # Codex 側には hash を返させず、cmoc が計算した値だけを後段で埋め込む。
+    display_path = _display_index_path(repo_root, path)
     return "\n".join(
         [
             "あなたはリポジトリのルーティング文書を作るアシスタントです。",
-            f"`{path}` の `INDEX.md` 目次情報を作成してください。",
+            f"`{display_path}` の `INDEX.md` 目次情報を作成してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "summary、read_this_when、do_not_read_this_when はそれぞれ",
             "日本語の文字列配列にしてください。",
@@ -378,7 +379,7 @@ def _hash_path(
         return None
 
     # ディレクトリは直下目次対象の type/path/hash を安定形式で連結する。
-    serialized_entries: list[str] = []
+    serialized_entries: list[bytes] = []
     try:
         children = sorted(
             path.iterdir(),
@@ -393,11 +394,18 @@ def _hash_path(
         if content_hash is None:
             continue
         serialized_entries.append(
-            f"{entry_type}\0{relative_path}\0{content_hash}\n"
+            b"".join(
+                [
+                    entry_type.encode("ascii"),
+                    b"\0",
+                    _filesystem_text_bytes(relative_path),
+                    b"\0",
+                    content_hash.encode("ascii"),
+                    b"\n",
+                ]
+            )
         )
-    return hashlib.sha256(
-        "".join(serialized_entries).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(b"".join(serialized_entries)).hexdigest()
 
 
 def _index_entry_targets(
@@ -614,8 +622,16 @@ def _safe_index_text(value: str) -> str:
 
 def _is_index_text_character(character: str) -> bool:
     """INDEX.md の説明行へそのまま置ける文字か判定する。"""
-    # Unicode の通常文字は維持し、ASCII 制御文字だけを除外する。
-    return ord(character) >= 0x20 and ord(character) != 0x7F
+    # Unicode の通常文字は維持し、ASCII 制御文字と surrogate は除外する。
+    codepoint = ord(character)
+    return codepoint >= 0x20 and codepoint != 0x7F and not (
+        0xD800 <= codepoint <= 0xDFFF
+    )
+
+
+def _display_index_path(repo_root: Path, path: Path) -> str:
+    """Codex prompt やログ用途の repo 相対 path を安全な 1 行表現にする。"""
+    return _encode_index_token(path.relative_to(repo_root).as_posix())
 
 
 def _encode_index_token(value: str) -> str:
@@ -629,7 +645,7 @@ def _encode_index_token(value: str) -> str:
             or not _is_index_text_character(character)
         ):
             encoded_parts.extend(
-                f"%{byte:02X}" for byte in character.encode("utf-8")
+                f"%{byte:02X}" for byte in _filesystem_text_bytes(character)
             )
         else:
             encoded_parts.append(character)
@@ -638,7 +654,12 @@ def _encode_index_token(value: str) -> str:
 
 def _decode_index_token(value: str) -> str:
     """heading 内 token を元のファイル・ディレクトリ名へ戻す。"""
-    return unquote(value, encoding="utf-8", errors="strict")
+    return os.fsdecode(unquote_to_bytes(value))
+
+
+def _filesystem_text_bytes(value: str) -> bytes:
+    """filesystem 由来文字列を surrogateescape を含めて bytes へ戻す。"""
+    return os.fsencode(value)
 
 
 def _parse_index_entries(content: str) -> dict[str, str]:
