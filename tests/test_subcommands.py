@@ -1541,6 +1541,51 @@ def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
         )
 
 
+def test_review_oracles_redistribution_preserves_original_provenance(
+    tmp_path: Path,
+) -> None:
+    """改善後 issue の provenance 欠落時は元 evaluation の根拠情報を残す。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle_index = oracle_root / "INDEX.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    oracle_index.write_text("index\n", encoding="utf-8")
+    basis = "元評価は oracles 配下の仕様断片と INDEX だけを参照しました。"
+    evaluations = [
+        {
+            "target_oracle_path": str(oracle.resolve()),
+            "referenced_paths": [
+                str(oracle.resolve()),
+                str(oracle_index.resolve()),
+            ],
+            "specification_only_basis": basis,
+            "issues": [],
+        }
+    ]
+    improved_issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    improved_issue["referenced_paths"] = []
+    improved_issue["specification_only_basis"] = ""
+
+    redistributed = eval_oracles_module._redistribute_improved_issues(
+        evaluations,
+        [improved_issue],
+    )
+
+    issue = redistributed[0]["issues"][0]
+    assert issue["referenced_paths"] == [
+        str(oracle.resolve()),
+        str(oracle_index.resolve()),
+    ]
+    assert issue["specification_only_basis"] == basis
+    assert redistributed[0]["referenced_paths"] == [
+        str(oracle.resolve()),
+        str(oracle_index.resolve()),
+    ]
+    assert redistributed[0]["specification_only_basis"] == basis
+
+
 def test_eval_oracles_result_precedence() -> None:
     """result は評価対象数と severity 件数から機械的に決まる。"""
     assert eval_oracles_module._evaluation_result(
@@ -1637,6 +1682,49 @@ def test_eval_oracles_payload_rejects_legacy_issue_metadata(
     with pytest.raises(
         ValueError,
         match="issues\\[0\\] keys do not match schema",
+    ):
+        eval_oracles_module._validate_evaluation_payload(
+            {"issues": [issue]},
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_empty_referenced_paths(
+    tmp_path: Path,
+) -> None:
+    """issues[].referenced_paths は空配列を受理しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    issue["referenced_paths"] = []
+
+    with pytest.raises(ValueError, match="referenced_paths must not be empty"):
+        eval_oracles_module._validate_evaluation_payload(
+            {"issues": [issue]},
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_empty_specification_only_basis(
+    tmp_path: Path,
+) -> None:
+    """issues[].specification_only_basis は空文字を受理しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    issue["specification_only_basis"] = "  "
+
+    with pytest.raises(
+        ValueError,
+        match="issues\\[0\\].specification_only_basis must not be empty",
     ):
         eval_oracles_module._validate_evaluation_payload(
             {"issues": [issue]},

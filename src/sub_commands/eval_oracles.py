@@ -89,6 +89,7 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
         },
         "referenced_paths": {
             "type": "array",
+            "minItems": 1,
             "description": (
                 "この問題点の評価時に参照した oracle / INDEX ファイルの絶対パス。"
             ),
@@ -122,6 +123,7 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
         },
         "specification_only_basis": {
             "type": "string",
+            "minLength": 1,
             "description": (
                 "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
                 "基づくことの説明。"
@@ -453,8 +455,10 @@ def _redistribute_improved_issues(
     result = [
         {
             "target_oracle_path": evaluation["target_oracle_path"],
-            "referenced_paths": [],
-            "specification_only_basis": "",
+            "referenced_paths": _string_list(evaluation.get("referenced_paths", [])),
+            "specification_only_basis": str(
+                evaluation.get("specification_only_basis", "")
+            ),
             "issues": [],
         }
         for evaluation in evaluations
@@ -472,8 +476,26 @@ def _redistribute_improved_issues(
                 "issues item oracle_path must match an evaluated oracle file."
             )
         index = target_to_index[target]
+        issue = _issue_with_fallback_provenance(issue, result[index])
         result[index]["issues"].append(issue)
     return [_refresh_evaluation_metadata(evaluation) for evaluation in result]
+
+
+def _issue_with_fallback_provenance(
+    issue: dict[object, object],
+    evaluation: dict[str, object],
+) -> dict[object, object]:
+    """改善後 issue の provenance 欠落を元 evaluation の情報で補完する。"""
+    result = dict(issue)
+    if not _string_list(result.get("referenced_paths", [])):
+        result["referenced_paths"] = _string_list(
+            evaluation.get("referenced_paths", [])
+        )
+    if not str(result.get("specification_only_basis", "")).strip():
+        result["specification_only_basis"] = str(
+            evaluation.get("specification_only_basis", "")
+        )
+    return result
 
 
 def _evaluation_payload_to_record(
@@ -818,6 +840,8 @@ def _validate_referenced_paths(value: object, repo_root: Path) -> set[Path]:
     """referenced_paths を絶対 oracle / INDEX ファイル配列として検査する。"""
     if not isinstance(value, list):
         raise ValueError("referenced_paths must be a list.")
+    if not value:
+        raise ValueError("referenced_paths must not be empty.")
     paths = set()
     for index, item in enumerate(value):
         paths.add(
@@ -915,6 +939,8 @@ def _require_issue_string(
     """issue item の string 項目を検査する。"""
     if not isinstance(item[key], str):
         raise ValueError(f"issues[{index}].{key} must be a string.")
+    if not item[key].strip():
+        raise ValueError(f"issues[{index}].{key} must not be empty.")
 
 
 def _validate_issue_lines(item: dict[object, object], index: int) -> None:
