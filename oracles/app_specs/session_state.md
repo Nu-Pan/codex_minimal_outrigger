@@ -14,7 +14,9 @@
   "session": {
     "state": "active | joined | abandoned | error",
     "session_home_branch": "...",
-    "session_start_commit": "..."
+    "session_start_commit": "...",
+    "last_joined_apply_oracle_snapshot_commit": "...",
+
   },
   "apply": {
     "state": "ready | running | completed | error",
@@ -24,13 +26,41 @@
 }
 ```
 
-## ステート初期値
+## フィールドの説明
 
-`cmoc session fork` によってセッションが新規作成された時の初期値は以下の通り
+### `session.state`
 
-- `session.state = active`
-- `apply.state = ready`
+- 現在のセッションのステート
+- セッション新規作成直後の初期値は `active`
+- `cmoc session` 系サブコマンドによって遷移する
 
-## `apply.state` が `ready` に遷移した時の初期化処理
+### `session.session_home_branch`
 
-- `apply.state` が `ready` に遷移した時、 `apply` セクションの `state` を除く各フィールドは null で初期化する
+- そのセッションの fork 元ブランチ名であり join 先でもある
+- セッション新規作成直後の初期値は null
+- `cmoc apply join` によって適切な値に更新される
+
+### `session_start_commit`
+
+- そのセッションの fork 元コミット
+
+### `session.last_joined_apply_oracle_snapshot_commit`
+
+- そのセッション上で最後に join した apply の `<oracle-snapshot-commit>`
+- セッション新規作成直後の初期値は null
+- `cmoc apply join` によって適切な値に更新される
+
+### `apply.state`
+
+- その apply 処理のステート
+- セッション新規作成直後の初期値は `ready`
+
+### `apply.apply_branch`
+
+- その apply 処理で修正内容を積み上げる先となるブランチ名
+- `apply.state` が `ready` に遷移した時に null で初期化される
+
+### `apply.oracle_snapshot_commit`
+
+- その apply で oracles ファイルの参照に使用するコミットのハッシュ
+- `apply.state` が `ready` に遷移した時に null で初期化される
