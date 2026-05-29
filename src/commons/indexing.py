@@ -174,8 +174,7 @@ def _index_maintenance_lock_path(repo_root: Path) -> Path:
             "git",
             "rev-parse",
             "--path-format=absolute",
-            "--git-path",
-            "cmoc-index-maintenance.lock",
+            "--git-common-dir",
         ],
         cwd=repo_root,
         text=True,
@@ -184,8 +183,24 @@ def _index_maintenance_lock_path(repo_root: Path) -> Path:
         check=False,
     )
     if result.returncode == 0:
-        return Path(result.stdout.strip())
-    return repo_root / ".git" / "cmoc-index-maintenance.lock"
+        common_dir_text = result.stdout.removesuffix("\n")
+        if common_dir_text:
+            return Path(common_dir_text) / "cmoc-index-maintenance.lock"
+
+    raise CmocError(
+        "INDEX.md メンテナンス用 lock file path の取得に失敗しました。",
+        [
+            "git repository 内で cmoc を再実行してください。",
+            "git rev-parse --git-common-dir が失敗する場合は、git repository の状態を確認してください。",
+        ],
+        detail=(
+            "git rev-parse --path-format=absolute --git-common-dir "
+            f"failed in {repo_root}.\n"
+            f"exit_code: {result.returncode}\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        ),
+    )
 
 
 def _index_directories(

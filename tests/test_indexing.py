@@ -16,6 +16,7 @@ from pytest import MonkeyPatch
 
 from commons.errors import CmocError
 from commons.indexing import _INDEX_OUTPUT_SCHEMA
+from commons.indexing import _index_maintenance_lock_path
 from commons.indexing import _locked_index_maintenance
 from commons.indexing import is_maintained_index_path
 from commons.indexing import maintain_indexes
@@ -359,6 +360,82 @@ def test_index_maintenance_lock_serializes_processes(
             if process.is_alive():
                 process.terminate()
                 process.join(5)
+
+
+def test_index_maintenance_lock_path_preserves_git_stdout_spaces(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """git 管理 directory path の空白は lock path でも保持する。"""
+    common_dir_text = " /tmp/cmoc common dir "
+
+    def fake_run(
+        *args: object,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        """空白を含む git stdout を返す。"""
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=f"{common_dir_text}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("commons.indexing.subprocess.run", fake_run)
+
+    lock_path = _index_maintenance_lock_path(tmp_path)
+
+    assert lock_path == Path(common_dir_text) / "cmoc-index-maintenance.lock"
+
+
+def test_index_maintenance_lock_path_is_shared_by_linked_worktrees(
+    tmp_path: Path,
+) -> None:
+    """linked worktree でも同一 repository の lock path を共有する。"""
+    repo = _init_repo(tmp_path)
+    linked_worktree = tmp_path / "linked-worktree"
+    _git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "linked-worktree-test",
+        linked_worktree.as_posix(),
+        "HEAD",
+    )
+
+    assert _index_maintenance_lock_path(linked_worktree) == (
+        _index_maintenance_lock_path(repo)
+    )
+
+
+def test_index_maintenance_lock_path_fails_without_git_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """git 管理 directory を取得できない場合は誤った fallback を使わない。"""
+
+    def fake_run(
+        *args: object,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        """git rev-parse の失敗を返す。"""
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=128,
+            stdout="",
+            stderr="fatal: not a git repository\n",
+        )
+
+    monkeypatch.setattr("commons.indexing.subprocess.run", fake_run)
+
+    with pytest.raises(CmocError) as error:
+        _index_maintenance_lock_path(tmp_path)
+
+    assert "git-common-dir" in error.value.detail
+    assert str(tmp_path / ".git" / "cmoc-index-maintenance.lock") not in (
+        error.value.detail
+    )
 
 
 def test_maintain_indexes_uses_local_exclude_but_ignores_external_excludes(
