@@ -279,7 +279,15 @@ def _raise_codex_failure(
             "codex exec のログを確認してください。",
             "Codex CLI またはリポジトリ側の原因を修正してから、cmoc を再実行してください。",
         ],
-        f"Log: {log_path}\nSTDERR:\n{result.stderr}",
+        "\n".join(
+            [
+                f"Log: {log_path}",
+                "STDOUT:",
+                result.stdout,
+                "STDERR:",
+                result.stderr,
+            ]
+        ),
     )
 
 

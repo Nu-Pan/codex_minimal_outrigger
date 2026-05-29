@@ -2419,6 +2419,43 @@ def test_run_codex_exec_does_not_treat_plain_limit_error_as_quota(
     assert len(log_files) == 1
 
 
+def test_run_codex_exec_failure_detail_includes_stdout_and_stderr(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """通常の非 0 終了も stdout/stderr の両方を利用者向け detail に残す。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "echo '{\"type\":\"error\",\"message\":\"stdout diagnostic\"}'",
+                "echo 'stderr diagnostic' >&2",
+                "exit 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    detail = error.value.detail
+    assert "codex exec が失敗しました。" in error.value.message
+    assert "Log: " in detail
+    assert "STDOUT:" in detail
+    assert "stdout diagnostic" in detail
+    assert "STDERR:" in detail
+    assert "stderr diagnostic" in detail
+
+
 def test_run_codex_exec_ignores_stdout_quota_code_without_message(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
