@@ -23,28 +23,28 @@
 
 ## Summary
 
-- `codex exec` の共通実行ラッパーと、その補助関数群をまとめるモジュールです。
-- `--json`、`--output-schema`、`--output-last-message` の組み立て、JSON 解析、Structured Output の検証を扱います。
-- quota 枯渇時の待機と `resume`、capacity の指数バックオフ再試行を担当します。
-- workspace-write 実行時の `oracles` 保護、実行前の `INDEX.md` メンテナンス、呼び出しログの保存も行います。
+- `codex exec` を共通実行するラッパーと補助関数群をまとめるモジュールです。
+- `--json`、`--output-last-message`、Structured Output schema の組み立てと検証を扱います。
+- quota 枯渇時の待機・再開と、capacity 一時失敗時の指数バックオフ再試行を担当します。
+- workspace-write 実行時の `oracles` 保護、`INDEX.md` メンテナンスの事前実行、呼び出しログ保存も担います。
 
 ## Read this when
 
-- `codex exec` の起動引数や `read_only` と `workspace-write` の切り替えを確認したいとき。
-- Structured Output の schema 付与、JSON 解析、`output-last-message` の回収と検証の流れを追いたいとき。
-- quota 枯渇時の待機と `resume`、capacity の指数バックオフ再試行、`oracles` 保護の流れを確認したいとき。
-- `INDEX.md` の事前メンテナンスや、Codex CLI 呼び出しログの保存方法を確認したいとき。
+- `codex exec` の起動引数、`read_only` と `workspace-write` の切り替え、`resume` の扱いを確認したいとき。
+- Structured Output の schema 検査、JSON 解析、`output-last-message` の読み取り・検証を追いたいとき。
+- quota 枯渇時の待機と再開、capacity による指数バックオフ再試行、失敗時の共通エラーを確認したいとき。
+- `oracles` 変更検査、`INDEX.md` の事前メンテナンス、`codex exec` 呼び出しログの保存方法を確認したいとき。
 
 ## Do not read this when
 
-- `INDEX.md` の生成・更新ロジックそのものを確認したいときは、このファイルではなく `src/commons/indexing.py` を読むべきです。
-- `<repo-root>` 探索、ブランチ判定、session/apply 状態管理だけを確認したいときは、このモジュールではなく `src/commons/repo.py` を読むべきです。
-- 共通例外やエラーレポートの整形だけを確認したいときは、`src/commons/errors.py` を読むべきです。
-- タイムスタンプ生成や経過時間表示だけを確認したいときは、`src/commons/timestamps.py` と `src/commons/timing.py` を読むべきです。
+- `INDEX.md` の生成ルールそのものを確認したいときは `src/commons/indexing.py` を読むべきです。
+- `<repo-root>` 探索、branch 判定、session/apply 状態管理だけを確認したいときは `src/commons/repo.py` を読むべきです。
+- 共通例外のメッセージ整形だけを確認したいときは `src/commons/errors.py` を読むべきです。
+- タイムスタンプ生成や経過時間表示だけを確認したいときは `src/commons/timestamps.py` と `src/commons/timing.py` を読むべきです。
 
 ## hash
 
-- dc077974c7c0f7c9354be07aae107b1a4a9de3d3e746ca4b8ac5ebbd01ba2424
+- 363dfaf4744fc7fb1d3c8531ae7cb27d682782483cc924b56d7f85631d0a6000
 
 # `command_runner.py`
 
