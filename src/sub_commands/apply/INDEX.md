@@ -54,19 +54,19 @@
 
 ## Read this when
 
-- `cmoc apply fork` の処理全体の流れを実装・修正・レビュー・テストしたいとき。
+- `cmoc apply fork` の処理全体を実装・修正・レビュー・テストしたいとき。
 - session state の前提条件や、apply branch / worktree の作成、ロック制御を確認したいとき。
 - 不整合調査・修正ループ、Structured Output 検証、`INDEX.md` 保守、apply report / error report 生成の実装を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の利用手順や引数、終了条件だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
-- `cmoc apply join` や `cmoc apply abandon`、`cmoc session` 系など、別サブコマンドの実装だけを確認したいときは、このモジュールではなく該当モジュールを読むべきです。
-- `INDEX.md` の生成・更新ルールや `branch_model`、`error_handling`、レポート仕様などの共通仕様だけを確認したいときは、このモジュールではなく該当する正本仕様を読むべきです。
+- `cmoc apply fork` の利用手順や引数、終了条件だけを確認したいときは、実装ではなく `oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- `cmoc apply join` や `cmoc apply abandon`、`cmoc session` 系など、別サブコマンドの実装を確認したいとき。
+- `INDEX.md` の生成・更新ルールや `branch_model`、`error_handling`、レポート仕様などの共通仕様だけを確認したいとき。
 
 ## hash
 
-- e008fe4ec07eeabef447801002b6a43a45bbb0687ec6b8a90293fd06f6b11502
+- bd5abd96d5ef01900c549f46db0a5af14c7bdb4892d40ceeba2409f70340c9e7
 
 # `join.py`
 

@@ -138,19 +138,19 @@
 ## Read this when
 
 - cmoc のサブコマンド全体にまたがる共通ランナーのログ、終了コード、エラーレポートの流れを確認したいとき。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、保護条件、例外処理、実行前提を横断的に回帰確認したいとき。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、保護条件、例外処理、実行前提を横断して確認したいとき。
 - `bin/cmoc` の起動条件、CLI 登録、`--help` の見え方、互換エイリアスの有無を確認したいとき。
-- 各サブコマンドの prompt、Structured Output 検証、payload 検証、worktree や session state の扱いをまとめてたどりたいとき。
+- 各サブコマンドの prompt、Structured Output 検証、payload 検証、worktree や session state の扱いをまとめて追いたいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/*` の個別実装だけを追いたいとき。
-- `commons.repo`、`commons.indexing`、`commons.codex` など、サブコマンド以外の共通処理だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_timestamps.py` など、別のテスト群だけを確認したいとき。
+- `tests/test_subcommands.py` 以外の個別テスト群だけを確認したいとき。
+- `src/sub_commands/*` の個別実装そのものだけを追いたいとき。
+- `commons.repo`、`commons.codex`、`commons.indexing` など、サブコマンド共通処理だけを確認したいとき。
 
 ## hash
 
-- 0c327866d482f1450ab04fc3e8d7d03a0afd2288d2b088fafc9b6094b2462d9d
+- 86294575f0e8a1014991e8076a97e3bbed789e34ff226c97c70905b03c20ad49
 
 # `test_timestamps.py`
 
