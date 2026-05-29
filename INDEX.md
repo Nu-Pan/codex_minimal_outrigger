@@ -179,13 +179,13 @@
 
 ## Summary
 
-- src は cmoc 本体の Python 実装をまとめたルートで、CLI 入口と共通基盤、サブコマンド実装への導線を置くディレクトリです。
-- 直下の `commons` は共通処理、`sub_commands` は `init` / `review oracles` / `apply` / `session` 系の実装入口です。
-- `main.py` は Typer のルートアプリを組み立てる起動点で、この目次は各配下へ進む前の案内図です。
+- `src` は cmoc 本体の Python 実装をまとめるルートで、CLI 起動点・共通基盤・サブコマンド実装への入口を置くディレクトリです。
+- `commons` は共通処理群、`sub_commands` は `init` / `review oracles` / `apply` / `session` 系の実装入口です。
+- `main.py` は Typer のルート app を組み立てて起動するエントリーポイントです。
 
 ## Read this when
 
-- src 配下のどのディレクトリやモジュールを先に読むべきか整理したいとき。
+- `src` 配下のどのディレクトリやモジュールを先に読むべきか整理したいとき。
 - CLI 入口、共通基盤、サブコマンド実装の役割分担を俯瞰したいとき。
 - 個別ファイルを読む前に、`src` 全体の構造を把握したいとき。
 
@@ -197,7 +197,7 @@
 
 ## hash
 
-- 97db2ecf91fc4be04d10ee4cae9474e9e7aaaa9116d4bd0ca95ebb2beed1e98b
+- 62b6a0864b3a88239f20ea911759cfcefa7a693e9a9099a9095ef50912b62e30
 
 # `test.sh`
 
@@ -227,24 +227,22 @@
 
 ## Summary
 
-- `cmoc` 本体に対する pytest ベースの回帰テスト群を置くディレクトリです。
-- `conftest.py` で `src` を import 可能にし、Fake Codex CLI や一時 git リポジトリを使って決定論的な挙動を検証します。
-- Codex 呼び出しラッパー、`INDEX.md` 生成、repo 共通処理、`apply` / `session` / `eval-oracles` / `init`、レポート保存、タイムスタンプ・命名規則の回帰をまとめて守ります。
+- `tests` 配下の pytest 回帰テスト全体をまとめる入口で、共通設定の `conftest.py` と各機能別テストへの案内を担います。
+- Codex CLI 呼び出し、`INDEX.md` 保守、git 共通処理、レポート保存、サブコマンド制御、タイムスタンプ処理に関する検証を含みます。
+- 個別のテストファイルへ進む前に、`tests` で何を検証しているかを俯瞰するための目次です。
 
 ## Read this when
 
-- `cmoc` の既存仕様を壊していないか、pytest で回帰確認したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.report_files`、`commons.timestamps`、`commons.timing` の変更に伴う影響範囲を知りたいとき。
-- `init`、`session`、`apply`、`eval-oracles` などの CLI 挙動、エラーレポート、状態遷移のテストを探したいとき。
-- Fake Codex CLI、git 作業ツリー、linked worktree、submodule を使うテスト補助の置き場を確認したいとき。
+- pytest の共通設定と、`tests` 配下にどの回帰テストがあるかをまとめて把握したいとき。
+- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.report_files`、`sub_commands`、`timestamps` まわりのテストを探したいとき。
+- `cmoc` の CLI 挙動、`INDEX.md` 保守、git 共通処理、レポート保存、タイムスタンプ処理のどこがテストで守られているかを俯瞰したいとき。
 
 ## Do not read this when
 
-- `oracles` の正本仕様や利用手順そのものを確認したいとき。
-- `src` の実装ロジックや CLI 本体のコードを直接追いたいとき。
-- `pytest` 以外の開発用スクリプトや、テスト以外の運用文書を探しているとき。
-- Codex CLI や LLM の品質評価そのものを確認したいとき。
+- 個別のテスト実装や期待値だけを確認したいときは、この目次ではなく該当する `test_*.py` を直接読むべきです。
+- `src` 側の本体実装や `oracles` の正本仕様だけを確認したいときは、このディレクトリを読む必要はありません。
+- `INDEX.md` の生成ルールや配置規約だけを確認したいときは、テスト本体ではなく indexing 関連の仕様を参照すべきです。
 
 ## hash
 
-- 12eeb6598432086296eadf98227d14d81578075682674b36ad5f882953b3ca73
+- cf487974e83f781c5dd8007edd500797eec2ecb694111d85028cc682253b803b
