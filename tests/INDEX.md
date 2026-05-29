@@ -27,27 +27,27 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` を中心に、Codex CLI 呼び出し時のログ、通知、Structured Output 検証、再試行、quota 復旧、workspace-write 保護を検証するテスト群です。
-- `subcommand_log`、セッション ID 抽出、`resume` コマンド生成、出力 schema の保存・再利用、`INDEX.md` メンテナンスなど、Codex 実行に付随する補助機能もまとめて確認します。
-- Fake Codex CLI と git の一時リポジトリを使い、未コミット差分、commit range、reflog、特殊な path 文字、worktree / submodule / linked worktree まで含めた境界条件を押さえます。
+- `tests/test_codex.py` は `commons.codex.run_codex_exec` を中心に、Codex CLI 呼び出し時のログ生成、通知、Structured Output 検証、再試行、quota 復旧、workspace-write 保護を検証するテスト群です。
+- `subcommand_log`、`_extract_session_id`、`_resume_command`、`_write_output_schema` など、Codex 実行に付随する補助関数の境界条件もまとめて確認します。
+- Fake Codex CLI と一時 git リポジトリを使い、oracle 変更、commit range、reflog、特殊 path、worktree / submodule まで含む挙動を押さえます。
 
 ## Read this when
 
-- `commons.codex.run_codex_exec` のログ出力、Structured Output 検証、JSON / テキストの再試行条件を変更するとき。
-- workspace-write 時の oracle 変更検知、`INDEX.md` メンテナンス、特殊な path 名や linked worktree / submodule まわりの境界条件を確認したいとき。
-- quota 枯渇時の待機と resume、`resume_command`、`extract_session_id`、`subcommand_log` の回帰を追いたいとき。
-- Codex CLI 呼び出しの前処理・後処理・再実行・エラー報告のテスト観点をまとめて確認したいとき。
+- `commons.codex.run_codex_exec` の入出力、Structured Output 検証、再試行条件、エラー詳細を変更するとき。
+- quota 枯渇時の待機と resume、`_extract_session_id`、`_resume_command`、`subcommand_log` の回帰を確認したいとき。
+- workspace-write の oracle 変更検知、`INDEX.md` 保守、特殊 path、linked worktree、submodule の扱いを確認したいとき。
+- Codex CLI 呼び出し前後の前処理・後処理・再実行・通知仕様をまとめて追いたいとき。
 
 ## Do not read this when
 
 - `commons.repo` の git 共通処理やリポジトリ初期化だけを確認したいとき。
-- CLI サブコマンド全体の入出力やルーティングだけを確認したいとき。
+- `commons.timestamps` や `commons.timing` など、Codex 実行と無関係な共通関数を調べたいとき。
+- `src/sub_commands` 側の個別サブコマンド実装だけを追いたいとき。
 - `INDEX.md` の生成ルールや配置規約だけを確認したいとき。
-- `commons.codex` ではなく `src/sub_commands` 側の個別実装を追いたいとき。
 
 ## hash
 
-- 704855572d96e971997f367ec65af7b6177e202cfd6f47bcd2bfaf9234eba6e2
+- b4aab13faf36d9aa9cfb049eb7e796cb84c1d3898b7b001772234c2c97d4ed01
 
 # `test_file_naming.py`
 
