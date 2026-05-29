@@ -197,7 +197,7 @@
 
 ## hash
 
-- 43a428e9125ecc8aedca2d590a764adba8dfd7c0f73a0ca36bf09fb99853a6bb
+- 1015fb11963762e995183c449c62287ac7f23351c05133580faa4bf2071de579
 
 # `test.sh`
 
@@ -227,26 +227,22 @@
 
 ## Summary
 
-- pytest による cmoc のテスト群の入口です。
-- `test_codex.py` は Codex CLI 呼び出しラッパーと Structured Output の検証を扱います。
-- `test_indexing.py` は `INDEX.md` の自動メンテナンス処理を検証します。
-- `test_repo.py` は git リポジトリ共通処理と state 読み書きを検証します。
-- `test_subcommands.py` は `init`、`session`、`apply`、`eval_oracles` などの制御ロジックを検証します。
-- `test_file_naming.py` は旧ルーティングファイルの不存在と構成規則を確認します。
-- `test_timestamps.py` はタイムスタンプ生成と経過時間表示の仕様を確認します。
+- `tests` 配下の pytest テスト群の入口で、`conftest.py` と `test_*` ファイルの目次をまとめます。
+- `commons.indexing`、`commons.repo`、`commons.codex`、`sub_commands`、`timestamps`、ファイル命名規則に関する回帰テストを案内します。
+- テスト実行時の import 設定や、cmoc の主要な共通処理・CLI 挙動をどのテストで確認するかを整理するための目次です。
 
 ## Read this when
 
-- `tests` 配下の回帰テスト全体の役割分担を把握したいとき。
-- 個別のテスト群が何を検証しているかを探したいとき。
-- `pytest` 実行時の共通設定や、INDEX 生成・repo 処理・CLI 制御・時刻仕様のどれを見ればよいか判断したいとき。
+- `tests` 配下でどの機能領域に対するテストがあるか把握したいとき。
+- `commons.indexing`、`commons.repo`、`commons.codex`、`sub_commands` まわりの回帰テストを探したいとき。
+- pytest の共通設定やファイル命名規則、タイムスタンプ仕様のテスト位置を確認したいとき。
 
 ## Do not read this when
 
-- 実装本体のロジックだけを確認したいとき。
-- `src` 配下の各モジュール仕様やサブコマンドの詳細だけを追いたいとき。
-- `oracles` の正本仕様やルーティング方針だけを確認したいとき。
+- cmoc の実装ロジックやサブコマンド仕様そのものを追いたいとき。
+- `oracles` の正本仕様や `INDEX.md` 生成ルールだけを確認したいとき。
+- README、AGENTS、memo の運用や編集可否だけを確認したいとき。
 
 ## hash
 
-- deb1385acd862dd5394dd8a33be96f53c83e122b00b2f8078a2c408f53c1397a
+- bba9d44c6c79f9d761470c4b91fb0b310fd3b921b63b129c01f00c81fd76466c

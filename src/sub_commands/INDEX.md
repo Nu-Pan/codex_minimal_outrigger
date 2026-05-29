@@ -64,12 +64,12 @@
 
 - `cmoc review oracles` のユーザー向け仕様や使い方だけを確認したいとき。
 - コマンド登録や引数定義だけを確認したいとき。
-- `review oracles` 以外のサブコマンド実装を追いたいとき。
+- `cmoc review oracles` 以外のサブコマンド実装を追いたいとき。
 - `oracles` 配下の個別仕様断片そのものを読む必要があるとき。
 
 ## hash
 
-- 0cff3f03c64f2c7b75359d3bc701314f32bb42c01df01d954e75f9a4668936cb
+- 7238ce4741e726adcf6504c109d19a9528ca6b09da44f019718a17102a8ab8ab
 
 # `init.py`
 
