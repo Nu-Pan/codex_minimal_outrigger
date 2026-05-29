@@ -52,6 +52,8 @@ _QUOTA_MESSAGES = (
 _CAPACITY_RETRY_LIMIT = 8
 _CAPACITY_INITIAL_RETRY_DELAY_SECONDS = 5
 _FORBIDDEN_REASONING_EFFORTS = {"xhigh"}
+_CODEX_TEXT_ENCODING = "utf-8"
+_CODEX_TEXT_ERRORS = "replace"
 
 
 @dataclass(frozen=True)
@@ -534,6 +536,8 @@ def _run_codex_command(
         cwd=repo_root,
         input=prompt,
         text=True,
+        encoding=_CODEX_TEXT_ENCODING,
+        errors=_CODEX_TEXT_ERRORS,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -955,7 +959,10 @@ def _read_last_message(path: Path) -> str:
     # Codex CLI の成果物は stdout ではなく last message ファイルとする。
     if not path.exists():
         raise ValueError(f"output-last-message was not created: {path}")
-    return path.read_text(encoding="utf-8")
+    return path.read_text(
+        encoding=_CODEX_TEXT_ENCODING,
+        errors=_CODEX_TEXT_ERRORS,
+    )
 
 
 def _raise_quota_poll_failure(
@@ -1300,7 +1307,10 @@ def _read_optional_text(path: Path) -> str:
     """存在するテキストファイルだけをログ本文へ取り込む。"""
     if not path.exists():
         return ""
-    return path.read_text(encoding="utf-8")
+    return path.read_text(
+        encoding=_CODEX_TEXT_ENCODING,
+        errors=_CODEX_TEXT_ERRORS,
+    )
 
 
 def _validate_json_schema(value: object, schema: dict[str, object]) -> None:

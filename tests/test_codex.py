@@ -162,6 +162,51 @@ def test_run_codex_exec_full_log_uses_fence_longer_than_payload(
     assert log_content.count("### Stderr") == 1
 
 
+def test_run_codex_exec_uses_utf8_for_process_text_and_logs_japanese(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex CLI 入出力と呼び出しログは locale 既定に依存せず UTF-8 で扱う。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    prompt = "日本語 prompt"
+    captured_kwargs: dict[str, object] = {}
+
+    def fake_run(
+        command: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        last_message_path = Path(
+            command[command.index("--output-last-message") + 1]
+        )
+        last_message_path.write_text("最後の応答", encoding="utf-8")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="標準出力",
+            stderr="標準エラー",
+        )
+
+    monkeypatch.setattr("commons.codex.subprocess.run", fake_run)
+
+    output = run_codex_exec(repo, prompt, read_only=True)
+
+    log_path = next(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    log_content = log_path.read_text(encoding="utf-8")
+    assert output == "最後の応答"
+    assert captured_kwargs["input"] == prompt
+    assert captured_kwargs["text"] is True
+    assert captured_kwargs["encoding"] == "utf-8"
+    assert captured_kwargs["errors"] == "replace"
+    assert "```text\n日本語 prompt\n```" in log_content
+    assert "```text\n標準出力\n```" in log_content
+    assert "```text\n標準エラー\n```" in log_content
+    assert "```text\n最後の応答\n```" in log_content
+
+
 def test_prepare_codex_exec_paths_reserves_call_log_atomically(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
