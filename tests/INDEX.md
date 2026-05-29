@@ -80,28 +80,26 @@
 
 ## Summary
 
-- `tests/test_indexing.py` は `commons.indexing.maintain_indexes()` による `INDEX.md` メンテナンスの回帰テスト群です。
-- `.gitignore` やローカル exclude、symlink、バイナリ、空ディレクトリ、特殊文字パス、UTF-8 境界、`memo` の扱いを広く検証します。
-- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` のハッシュ連鎖、自動コミット範囲も確認します。
-- テスト用 git repo 初期化の `_init_repo` と git 実行補助の `_git`、ロック制御の補助関数も含みます。
+- `INDEX.md` メンテナンス処理の挙動を検証する回帰テスト群です。
+- 対象ファイル・ディレクトリの列挙、除外規則、再生成条件、自動コミット、ロック直列化までをカバーしています。
+- `INDEX.md` 生成ロジックを変更する前に、このテストで期待される境界条件を確認します。
 
 ## Read this when
 
-- `commons.indexing.maintain_indexes()` の除外条件・更新条件・自動コミット範囲を確認したいとき。
-- `.gitignore`、`.git/info/exclude`、`build`、`tmp`、`memo`、symlink、バイナリ、UTF-8 境界の扱いを追いたいとき。
-- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の連鎖更新を確認したいとき。
-- テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` の役割を見たいとき.
+- `commons.indexing` の `maintain_indexes` やロック制御の回帰テストを確認したいとき。
+- gitignore、symlink、バイナリ、非 UTF-8、空ディレクトリなどの `INDEX.md` 対象判定を見直したいとき。
+- 既存 `INDEX.md` の再生成条件、ハッシュ更新、差分の自動コミット条件を確認したいとき。
+- Structured Output のリトライや、親子ディレクトリへ hash 変更が伝播する挙動を確認したいとき。
 
 ## Do not read this when
 
-- `src/commons/indexing.py` の実装ロジックそのものを追いたいとき。
-- `INDEX.md` 全体の生成ルールや `oracles` 正本仕様だけを確認したいとき。
-- `tests/test_repo.py`、`tests/test_codex.py`、`tests/test_subcommands.py` など別のテスト群だけを見たいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- `INDEX.md` の正本仕様や生成ルールそのものを確認したいとき。
+- `cmoc` の個別サブコマンド仕様や実装コードだけを追いたいとき。
+- `INDEX.md` 以外のメンテナンス対象や一般的な pytest の書き方だけを確認したいとき。
 
 ## hash
 
-- 6290acb4bfd7431516aed0979b924183b0c8e1072e6873214c213d17ad496baf
+- 51c93df1011fcd05ea46ba1a42cd8a67559d7d2f5e5a9f18681594b77d23e65a
 
 # `test_repo.py`
 
