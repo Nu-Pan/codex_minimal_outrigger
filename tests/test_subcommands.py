@@ -5719,6 +5719,35 @@ def test_session_join_rejects_codex_rewrite_of_auto_merged_file(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
+def test_session_join_rejects_codex_rewrite_of_auto_merged_special_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """改行や tab を含む非 conflict path の内容変更も検出する。"""
+    auto_path = "dir/auto\nname\tfile.txt"
+    repo = _repo_with_session_join_conflict(tmp_path, auto_path=auto_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """特殊 path の自動 merge 済みファイルを書き換える。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / auto_path).write_text("tampered\n", encoding="utf-8")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "conflict 対象外" in error.value.message
+    assert auto_path in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
 def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -6697,7 +6726,10 @@ def _checkout_session_branch(repo: Path) -> None:
     exclude.write_text(f"{exclude.read_text(encoding='utf-8')}\n.cmoc/\n")
 
 
-def _repo_with_session_join_conflict(tmp_path: Path) -> Path:
+def _repo_with_session_join_conflict(
+    tmp_path: Path,
+    auto_path: str = "auto.txt",
+) -> Path:
     """session join で conflict と自動 merge path が発生する repo を作る。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -6708,8 +6740,10 @@ def _repo_with_session_join_conflict(tmp_path: Path) -> Path:
     _checkout_session_branch(repo)
     session_branch = _git(repo, "branch", "--show-current").stdout.strip()
     (repo / "conflict.txt").write_text("session\n", encoding="utf-8")
-    (repo / "auto.txt").write_text("session auto\n", encoding="utf-8")
-    _git(repo, "add", "conflict.txt", "auto.txt")
+    auto_file = repo / auto_path
+    auto_file.parent.mkdir(parents=True, exist_ok=True)
+    auto_file.write_text("session auto\n", encoding="utf-8")
+    _git(repo, "add", "conflict.txt", auto_path)
     _git(repo, "commit", "-m", "session change")
     _git(repo, "switch", home_branch)
     (repo / "conflict.txt").write_text("home\n", encoding="utf-8")

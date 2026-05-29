@@ -11,6 +11,8 @@ from commons.repo import (
     assert_no_uncommitted_changes,
     current_branch,
     ensure_cmoc_ignored,
+    git_name_only_paths,
+    git_status_paths,
     is_session_branch,
     read_session_state,
     run_git,
@@ -407,21 +409,12 @@ def _assert_protected_conflict_snapshot_unchanged(
 
 
 def _porcelain_status_entries(repo_root: Path) -> list[tuple[str, str]]:
-    """git status porcelain から status と path を取得する。"""
+    """git status porcelain から status と変更後 path を取得する。"""
     result = run_git(
         repo_root,
-        ["status", "--porcelain", "--untracked-files=all"],
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
     )
-    entries: list[tuple[str, str]] = []
-    for line in result.stdout.splitlines():
-        if not line:
-            continue
-        status = line[:2]
-        path = line[3:]
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        entries.append((status, path))
-    return entries
+    return git_status_paths(result.stdout)
 
 
 def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
@@ -437,8 +430,8 @@ def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
 def _unmerged_paths(repo_root: Path) -> list[str]:
     """unmerged path を git から取得する。"""
     # git diff の unmerged filter で現在残っている conflict path を読む。
-    result = run_git(repo_root, ["diff", "--name-only", "--diff-filter=U"])
-    return [line for line in result.stdout.splitlines() if line]
+    result = run_git(repo_root, ["diff", "--name-only", "-z", "--diff-filter=U"])
+    return git_name_only_paths(result.stdout)
 
 
 def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
