@@ -1760,11 +1760,11 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
     assert "oracle_count: 1" in report
 
 
-def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
+def test_eval_oracles_full_mode_does_not_depend_on_session_state(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """session branch 上では full mode でも削除済み oracle 有無を metadata に出す。"""
+    """session branch 上の full mode は session state を前提にしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1776,6 +1776,8 @@ def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
     _git(repo, "commit", "-m", "add oracles")
     _checkout_session_branch(repo)
     deleted_oracle.unlink()
+    session_state = next((repo / ".cmoc" / "sessions").glob("*.json"))
+    session_state.write_text("{broken\n", encoding="utf-8")
 
     monkeypatch.setattr(
         eval_oracles_module,
@@ -1800,7 +1802,8 @@ def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
     assert "mode: full" in report
     assert "full_requested: true" in report
     assert "is_cmoc_branch: true" in report
-    assert "deleted_oracles_detected: true" in report
+    assert "base_commit: null" in report
+    assert "deleted_oracles_detected: false" in report
     assert "| 1 | `oracles/existing.md` | 0 |" in report
 
 

@@ -183,7 +183,7 @@ def cmoc_eval_oracles_impl(
         session_branch = is_session_branch(branch_name)
         partial = session_branch and not full
         mode = "partial" if partial else "full"
-        if session_branch:
+        if partial:
             base_commit = read_session_start_commit(repo_root, branch_name)
             deleted_oracles = has_deleted_oracle_files(repo_root, base_commit)
         else:
