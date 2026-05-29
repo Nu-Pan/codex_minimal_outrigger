@@ -6491,7 +6491,7 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
 
 
 def test_main_reports_no_args_error_with_non_empty_detail() -> None:
-    """引数なし起動も詳細説明を含む共通エラーレポートにする。"""
+    """引数なし起動も help と混ざらない共通エラーレポートにする。"""
     repo_root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [sys.executable, "-m", "main"],
@@ -6511,6 +6511,44 @@ def test_main_reports_no_args_error_with_non_empty_detail() -> None:
     assert "- 利用可能なコマンドを確認するには `cmoc --help` を実行してください。" in result.stdout
     assert "Detail:\ncmoc がサブコマンドなしで起動されました。" in result.stdout
     assert "Call stack:" in result.stdout
+    assert "Traceback (most recent call last):" in result.stdout
+    assert "raise _missing_command_error(\"cmoc\")" in result.stdout
+    assert "Traceback is not available for this exception." not in result.stdout
+    assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." not in result.stdout
+
+
+@pytest.mark.parametrize("command_group", ["session", "apply", "review"])
+def test_main_reports_command_group_without_subcommand_as_single_error_report(
+    command_group: str,
+) -> None:
+    """command group だけの起動も help と混ぜず共通エラーレポートにする。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "main", command_group],
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode == 2
+    assert result.stderr == ""
+    assert result.stdout.count("ERROR") == 1
+    assert "Summary:\nコマンドが指定されていません。" in result.stdout
+    assert (
+        f"- 利用可能なコマンドを確認するには `cmoc {command_group} --help` を実行してください。"
+        in result.stdout
+    )
+    assert (
+        f"Detail:\ncmoc {command_group} がサブコマンドなしで起動されました。"
+        in result.stdout
+    )
+    assert "Call stack:" in result.stdout
+    assert "Traceback (most recent call last):" in result.stdout
+    assert "Traceback is not available for this exception." not in result.stdout
+    assert f"Usage: cmoc {command_group}" not in result.stdout
 
 
 def test_format_error_report_fills_empty_generic_detail() -> None:
