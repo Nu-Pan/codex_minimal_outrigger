@@ -5672,7 +5672,7 @@ def test_session_join_rejects_codex_change_outside_conflict_paths(
         """conflict を解消しつつ、対象外ファイルを誤って変更する。"""
         del prompt, kwargs
         (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
-        (repo_root / "README.md").write_text("tampered\n", encoding="utf-8")
+        (repo_root / ".gitignore").write_text("tampered\n", encoding="utf-8")
 
     monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
 
@@ -5685,7 +5685,7 @@ def test_session_join_rejects_codex_change_outside_conflict_paths(
         ).read_text(encoding="utf-8")
     )
     assert "conflict 対象外" in error.value.message
-    assert "README.md" in error.value.detail
+    assert ".gitignore" in error.value.detail
     assert state["session"]["state"] == "active"
     assert (repo / ".git" / "MERGE_HEAD").exists()
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
@@ -5756,6 +5756,33 @@ def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == (
         "resolved oracle\n"
     )
+
+
+@pytest.mark.parametrize("forbidden_path", ["README.md", "AGENTS.md"])
+def test_session_join_rejects_forbidden_root_file_conflict(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    forbidden_path: str,
+) -> None:
+    """README/AGENTS の conflict は Codex に渡さず手動解消にする。"""
+    repo = _repo_with_session_join_forbidden_conflict(tmp_path, forbidden_path)
+    codex_calls: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> None:
+        """Codex 呼び出しが誤って発生したことを記録する。"""
+        del args, kwargs
+        codex_calls.append("called")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "禁止領域で conflict" in error.value.message
+    assert forbidden_path in error.value.detail
+    assert codex_calls == []
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
 def test_session_join_ignores_markers_outside_conflict_paths(
@@ -6505,6 +6532,8 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     prompt = _conflict_prompt(repo, ["app.py", "oracles/spec.md"])
 
     assert "`/repo/oracles` は編集禁止です。" not in prompt
+    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
     assert "['/repo/app.py', '/repo/oracles/spec.md']" in prompt
     assert "['app.py" not in prompt
     assert "conflict marker 解消に限って編集できます" in prompt
@@ -6707,6 +6736,31 @@ def _repo_with_session_join_oracle_conflict(tmp_path: Path) -> Path:
     (oracle_root / "spec.md").write_text("home oracle\n", encoding="utf-8")
     _git(repo, "add", "oracles/spec.md")
     _git(repo, "commit", "-m", "home oracle change")
+    _git(repo, "switch", session_branch)
+    return repo
+
+
+def _repo_with_session_join_forbidden_conflict(
+    tmp_path: Path,
+    relative_path: str,
+) -> Path:
+    """session join で root の編集禁止 file conflict が発生する repo を作る。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / relative_path
+    target.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", relative_path)
+    _git(repo, "commit", "-m", "prepare forbidden session")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    target.write_text("session\n", encoding="utf-8")
+    _git(repo, "add", relative_path)
+    _git(repo, "commit", "-m", "session change")
+    _git(repo, "switch", home_branch)
+    target.write_text("home\n", encoding="utf-8")
+    _git(repo, "add", relative_path)
+    _git(repo, "commit", "-m", "home change")
     _git(repo, "switch", session_branch)
     return repo
 

@@ -328,8 +328,13 @@ def _assert_no_forbidden_conflict_paths(unmerged: list[str]) -> None:
 
 def _is_forbidden_conflict_path(path: str) -> bool:
     """session join の自動 conflict 解消で編集禁止の path か判定する。"""
-    return path == ".agents" or path.startswith(".agents/") or (
-        path == "memo" or path.startswith("memo/")
+    return (
+        path == "README.md"
+        or path == "AGENTS.md"
+        or path == ".agents"
+        or path.startswith(".agents/")
+        or path == "memo"
+        or path.startswith("memo/")
     )
 
 
@@ -457,6 +462,8 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
         "完了条件は、conflict marker を削除し、解決内容と未解決ファイルの有無を報告することです。",
         "`git add` と `git commit` は実行禁止です。",
         "conflict 対象外のファイルは編集禁止です。",
+        f"`{concrete_repo_root / 'README.md'}` は編集禁止です。",
+        f"`{concrete_repo_root / 'AGENTS.md'}` は編集禁止です。",
         f"`{concrete_repo_root / '.agents'}` は編集禁止です。",
         f"`{concrete_repo_root / 'memo'}` は読み書き禁止です。",
     ]
