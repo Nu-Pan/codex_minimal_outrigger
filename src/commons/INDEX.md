@@ -136,7 +136,7 @@
 
 ## Read this when
 
-- git リポジトリルート探索、現在ブランチ、HEAD、`cmoc/session/...` と `cmoc/apply/...` の branch 判定を確認したいとき。
+- git リポジトリルート探索、現在ブランチ、`cmoc/session/...` と `cmoc/apply/...` の branch 判定を確認したいとき。
 - session state JSON の保存・読込・固定スキーマ検証、active session の列挙を確認したいとき。
 - `.cmoc` を追跡対象外に保つ保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを追いたいとき。
 - `oracles` と実装ファイルの列挙、変更検出、削除検出、root `.gitignore` の評価方法を確認したいとき。
@@ -149,7 +149,7 @@
 
 ## hash
 
-- 35629abeab6a2a337b25fe57aac78795ad87700b7b6fe69b3253fed8b49b6b20
+- 992dc81904a4c15e215c313deba20fd61024ba7c9b21fc58bf81b166d513f69c
 
 # `subcommand_log.py`
 
