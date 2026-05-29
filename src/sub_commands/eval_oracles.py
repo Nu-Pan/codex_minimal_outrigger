@@ -124,7 +124,6 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
         },
         "specification_only_basis": {
             "type": "string",
-            "minLength": 1,
             "description": (
                 "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
                 "基づくことの説明。"
@@ -970,9 +969,14 @@ def _validate_evaluation_issues(
             "problem",
             "reason",
             "suggested_oracle_change",
-            "specification_only_basis",
         ]:
             _require_issue_string(item, key, index)
+        _require_issue_string(
+            item,
+            "specification_only_basis",
+            index,
+            allow_empty=True,
+        )
 
 
 def _require_absolute_oracle_path(
@@ -1040,11 +1044,13 @@ def _require_issue_string(
     item: dict[object, object],
     key: str,
     index: int,
+    *,
+    allow_empty: bool = False,
 ) -> None:
     """issue item の string 項目を検査する。"""
     if not isinstance(item[key], str):
         raise ValueError(f"issues[{index}].{key} must be a string.")
-    if not item[key].strip():
+    if not allow_empty and not item[key].strip():
         raise ValueError(f"issues[{index}].{key} must not be empty.")
 
 

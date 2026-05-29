@@ -998,6 +998,17 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert codex_kwargs[0]["output_schema"] == (
         eval_oracles_module._EVALUATION_OUTPUT_SCHEMA
     )
+    issue_schema = eval_oracles_module._EVALUATION_OUTPUT_SCHEMA["properties"][
+        "issues"
+    ]["items"]
+    basis_schema = issue_schema["properties"]["specification_only_basis"]
+    assert basis_schema == {
+        "type": "string",
+        "description": (
+            "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
+            "基づくことの説明。"
+        ),
+    }
     assert codex_kwargs[0]["skip_index_maintenance"] is True
     assert "json_validator" in codex_kwargs[0]
     assert 'mode: "full"' in report
@@ -1959,27 +1970,23 @@ def test_eval_oracles_payload_accepts_empty_referenced_paths(
     )
 
 
-def test_eval_oracles_payload_rejects_empty_specification_only_basis(
+def test_eval_oracles_payload_accepts_empty_specification_only_basis(
     tmp_path: Path,
 ) -> None:
-    """issues[].specification_only_basis は空文字を受理しない。"""
+    """issues[].specification_only_basis は空文字を受理する。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     oracle = oracle_root / "spec.md"
     oracle.write_text("spec\n", encoding="utf-8")
     issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
-    issue["specification_only_basis"] = "  "
+    issue["specification_only_basis"] = ""
 
-    with pytest.raises(
-        ValueError,
-        match="issues\\[0\\].specification_only_basis must not be empty",
-    ):
-        eval_oracles_module._validate_evaluation_payload(
-            {"issues": [issue]},
-            repo,
-            oracle,
-        )
+    eval_oracles_module._validate_evaluation_payload(
+        {"issues": [issue]},
+        repo,
+        oracle,
+    )
 
 
 def test_eval_oracles_payload_rejects_missing_referenced_path(
