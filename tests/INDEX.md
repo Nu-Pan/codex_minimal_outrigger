@@ -103,52 +103,53 @@
 
 ## Summary
 
-- git リポジトリ共通処理に対する pytest テスト群です。
-- repo root の探索、`.cmoc` ignore の補修と検証、oracle/implementation ファイルの列挙、変更・削除の検出、session/apply state の永続化と読込検証を扱います。
-- 特殊なパス文字列や gitignore の細かな解釈、schema 不一致や UTF-8 decode failure などの境界条件も含みます。
+- `src/commons/repo.py` の git まわり共通処理を検証するテスト群です。
+- repo root 検出、ignore ルール、oracle/implementation ファイル列挙、変更・削除判定、commit 処理を広く扱います。
+- session state と apply process id の読み書き、スキーマ検証、active session 判定の異常系も含みます。
 
 ## Read this when
 
-- `commons.repo` の git リポジトリ共通処理を変更するとき
-- repo root 検出、`.cmoc` ignore、oracle/implementation ファイル列挙、変更検出、削除検出の挙動を確認したいとき
-- session state や apply process id の読み書き、形式検証、エラーハンドリングの期待値を確認したいとき
+- git リポジトリ共通処理のテスト範囲を把握したいとき。
+- `.gitignore`、`oracles`、`memo`、`INDEX.md` の列挙・除外ルールを確認したいとき。
+- session state、apply process id、cmoc ブランチ判定の期待動作を見たいとき。
+- 削除検出、変更抽出、`commit_if_changed` の境界条件を確認したいとき。
 
 ## Do not read this when
 
-- cmoc の個別サブコマンドの仕様や CLI 全体の使い方だけを確認したいとき
-- `commons.repo` とは無関係な機能や、git 状態判定以外の実装を調べたいとき
-- `oracles` の正本仕様や `INDEX.md` 生成ルールそのものを確認したいとき
+- git 共通処理の実装ロジックそのものを追いたいとき。
+- `src/commons/repo.py` の個別関数仕様を確認したいとき。
+- `oracles` や `session state` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 67dd838f700a5a315b07af2b272d4efd7c23a40d48885bd692757b263627ba56
+- da789f11906686e297ed01c7c7bd6d400ecbd4d1743aa4dfc5c3f7452dcca3b8
 
 # `test_subcommands.py`
 
 ## Summary
 
 - `tests/test_subcommands.py` は `cmoc` のサブコマンド群に対する決定論的な振る舞いを検証するテスト入口です。
-- `init`、`session`、`apply`、`eval-oracles` の開始・終了・破棄・統合・調査ループ・レポート生成・状態遷移を横断して確認します。
-- 共通の実行ラッパー、CLI 登録、エラー報告、prompt / Structured Output schema / validation helper まで含めて、サブコマンド周辺の回帰をまとめて守ります。
+- `init`、`session`、`apply`、`eval-oracles` を横断して、開始・終了・破棄・統合・評価・レポート生成・状態遷移をまとめて確認します。
+- 共通の実行ラッパー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper まで含めて、サブコマンド周辺の回帰を守ります。
 
 ## Read this when
 
-- `cmoc init` の `.cmoc` 追跡対象外化や初期化コミットの挙動を確認したいとき。
-- `session fork/join/abandon` と `apply fork/join/abandon` の状態遷移、worktree、branch、cleanup 条件を確認したいとき。
+- `cmoc init` の初期化、`.cmoc` の追跡対象外化、初期化コミットの挙動を確認したいとき。
+- `session fork/join/abandon` と `apply fork/join/join/abandon` の状態遷移、worktree、branch、cleanup 条件を確認したいとき。
 - `review oracles` / `eval-oracles` の評価対象選定、レポート生成、改善ループ、payload 検証を確認したいとき。
 - `run_command`、`main`、`format_error_report`、CLI 登録や help 文言など共通入口の挙動を確認したいとき。
 - prompt 文面、Structured Output schema、`_validate_*` 系ヘルパーの制約やエラー条件を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの実装ロジックそのものを追いたいときは、このテストではなく `src/sub_commands` 側を読むべきです。
-- `commons.repo`、`commons.codex`、`commons.command_runner` などの共通実装を単独で確認したいときは、専用の本体やテストを参照すべきです。
-- `INDEX.md` の生成ルールや `oracles` 正本仕様だけを確認したいときは、このファイルではなく該当する仕様文書を読むべきです。
-- ルーティング文書の更新や配置ルールだけを確認したいときは、`tests/INDEX.md` や `oracles/app_specs/indexing.md` を優先すべきです。
+- `commons.repo` の一般的な git 処理や `commons.codex` の実行詳細だけを確認したいとき。
+- `src/sub_commands` 側の個別コマンド実装そのものを追いたいとき。
+- `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
+- `tests/test_codex.py`、`tests/test_repo.py` など、別のテスト群を見れば足りるとき。
 
 ## hash
 
-- fc00cc04bbc0d7215b51db6c59d94127ab6adf8faa71c777d4342226cad44e12
+- 95c0bcf7ae085b14d01956119a6af37a2dd3be272894c9952993eca53fb9db10
 
 # `test_timestamps.py`
 

@@ -3,17 +3,17 @@
 ## Summary
 
 - `src/commons` は、cmoc 全体で使う共通基盤モジュール群をまとめたディレクトリです。
-- `codex.py` が Codex CLI 呼び出しと Structured Output、再試行、ログ保存、`INDEX.md` 事前メンテナンスを担当します。
-- `command_runner.py` がサブコマンドの共通実行ラッパー、`errors.py` が共通例外とエラーレポート整形を担当します。
-- `indexing.py` が `INDEX.md` の自動生成・再生成・更新・自動コミットを担い、`repo.py` が git リポジトリと cmoc の状態管理を扱います。
-- `subcommand_log.py` が JSON Lines ログ、`timestamps.py` が `<time-stamp>` 生成、`timing.py` がステップ経過時間計測を担当します。
-- `__init__.py` は `src.commons` をパッケージとして定義するだけの最小モジュールです。
+- `codex.py` は Codex CLI 呼び出し、Structured Output の JSON 解析と検証、リトライ、ログ保存、`INDEX.md` 事前メンテナンスを担います。
+- `command_runner.py` はサブコマンドの共通実行ラッパー、`errors.py` は共通例外と stdout 向けエラーレポート整形を担います。
+- `indexing.py` は `INDEX.md` の自動生成・更新・自動コミットを扱い、`repo.py` は git リポジトリと `.cmoc` の状態管理を扱います。
+- `subcommand_log.py` は JSON Lines ログ、`timestamps.py` は `<time-stamp>` 生成、`timing.py` はステップ経過時間計測を扱います。
+- `__init__.py` は `src.commons` パッケージを宣言する最小モジュールです。
 
 ## Read this when
 
-- `src/commons` にある共通処理の役割分担をまとめて把握したいとき。
-- repo ルート探索、ブランチ判定、session/apply 状態管理などの git 共通処理を確認したいとき。
-- `codex exec` 呼び出し、エラー整形、サブコマンドログ、タイムスタンプ、経過時間計測、`INDEX.md` メンテナンスの実装を追いたいとき。
+- 共通処理の役割分担をまとめて把握したいとき。
+- repo root 探索、branch 判定、session/apply 状態管理などの git 共通処理を確認したいとき。
+- Codex CLI 呼び出し、エラー整形、サブコマンドログ、タイムスタンプ、経過時間計測、`INDEX.md` メンテナンスの実装を追いたいとき。
 
 ## Do not read this when
 
@@ -23,7 +23,7 @@
 
 ## hash
 
-- 97404f4833288d7bea57f3c5538425b7e5797a3fe4a59d46d426772b62396695
+- 5f832824aa560db29f71412404bd99a6e9066928d50b8b830f9ecca3d878584f
 
 # `main.py`
 
