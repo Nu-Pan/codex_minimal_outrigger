@@ -18,9 +18,11 @@ from commons.repo import (
     commit_if_changed,
     ensure_cmoc_ignored,
     find_repo_root,
+    filter_apply_implementation_file_paths,
     gitignore_has_cmoc_rule,
     has_deleted_implementation_files,
     has_deleted_oracle_files,
+    is_apply_implementation_path,
     is_cmoc_branch,
     list_implementation_files,
     list_oracle_files,
@@ -410,6 +412,35 @@ def test_list_implementation_files_ignores_system_excludes_file(
     ]
 
     assert relative_paths == [".gitignore", "README.md", "system-only.txt"]
+
+
+def test_filter_apply_implementation_file_paths_excludes_forbidden_paths(
+    tmp_path: Path,
+) -> None:
+    """apply の実装対象は workspace-write で禁止する path を含めない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored.py\n", encoding="utf-8")
+    relative_paths = [
+        "README.md",
+        "AGENTS.md",
+        ".agents/skill.md",
+        ".cmoc/state.json",
+        "memo/note.md",
+        "oracles/spec.md",
+        "INDEX.md",
+        "ignored.py",
+        "app.py",
+        "docs/memo/note.md",
+    ]
+
+    assert filter_apply_implementation_file_paths(repo, relative_paths) == [
+        "app.py",
+        "docs/memo/note.md",
+    ]
+    assert not is_apply_implementation_path(repo, "README.md")
+    assert not is_apply_implementation_path(repo, "AGENTS.md")
+    assert not is_apply_implementation_path(repo, ".agents/skill.md")
+    assert is_apply_implementation_path(repo, "app.py")
 
 
 def test_changed_oracle_files_uses_session_start_and_uncommitted_changes(

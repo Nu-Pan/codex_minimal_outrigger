@@ -33,6 +33,7 @@ from commons.repo import (
     clear_apply_process_id,
     current_branch,
     ensure_cmoc_ignored,
+    filter_apply_implementation_file_paths,
     filter_oracle_file_paths,
     git_name_only_paths,
     git_name_status_entries,
@@ -41,7 +42,6 @@ from commons.repo import (
     is_session_branch,
     read_session_state,
     read_session_start_commit,
-    root_gitignored_paths,
     run_git,
     session_id_from_branch,
     session_state_root,
@@ -923,15 +923,7 @@ def _filter_implementation_file_paths(
     relative_paths: list[str],
 ) -> list[str]:
     """root 相対 path から apply fork の実装調査対象だけを返す。"""
-    candidates = sorted(
-        {
-            path
-            for path in relative_paths
-            if not _is_excluded_implementation_path(path)
-        }
-    )
-    ignored = root_gitignored_paths(repo_root, candidates)
-    return [path for path in candidates if path not in ignored]
+    return filter_apply_implementation_file_paths(repo_root, relative_paths)
 
 
 def _tracked_files_at_commit(
@@ -982,22 +974,6 @@ def _changed_files_between_commits(
         if status_paths:
             paths.add(status_paths[0])
     return sorted(paths)
-
-
-def _is_excluded_implementation_path(relative_path: str) -> bool:
-    """実装ファイル列挙から除外する path か判定する。"""
-    path = Path(relative_path)
-    return (
-        relative_path == "oracles"
-        or relative_path.startswith("oracles/")
-        or relative_path == "memo"
-        or relative_path.startswith("memo/")
-        or relative_path == ".git"
-        or relative_path.startswith(".git/")
-        or relative_path == ".cmoc"
-        or relative_path.startswith(".cmoc/")
-        or path.name == "INDEX.md"
-    )
 
 
 def _improove_fixing_list(

@@ -2827,6 +2827,42 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
     assert apply_worktree.exists()
 
 
+@pytest.mark.parametrize(
+    ("relative_path", "content"),
+    [
+        ("README.md", "tampered\n"),
+        ("AGENTS.md", "tampered\n"),
+        (".agents/note.txt", "tampered\n"),
+    ],
+)
+def test_apply_join_stops_on_apply_branch_forbidden_edit_diff(
+    tmp_path: Path,
+    relative_path: str,
+    content: str,
+) -> None:
+    """apply branch 側の workspace-write 禁止 path 変更は想定外差分にする。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    target = apply_worktree / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    _git(apply_worktree, "add", relative_path)
+    _git(apply_worktree, "commit", "-m", "edit forbidden path")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: {relative_path}" in error_info.value.detail
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
 def test_apply_join_reports_unexpected_diff_with_control_chars(
     tmp_path: Path,
 ) -> None:
@@ -4853,14 +4889,18 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     assert _git(repo, "status", "--porcelain").stdout
 
 
-def test_apply_implementation_files_at_commit_excludes_root_memo(
+def test_apply_implementation_files_at_commit_excludes_forbidden_paths(
     tmp_path: Path,
 ) -> None:
-    """apply の実装調査対象は read-only 禁止領域の root memo を含めない。"""
+    """apply の実装調査対象は workspace-write 禁止 path を含めない。"""
     repo = _init_repo(tmp_path)
     memo_root = repo / "memo"
     memo_root.mkdir()
     (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
+    (repo / "AGENTS.md").write_text("agents\n", encoding="utf-8")
+    agents_root = repo / ".agents"
+    agents_root.mkdir()
+    (agents_root / "skill.md").write_text("skill\n", encoding="utf-8")
     nested_memo = repo / "docs" / "memo"
     nested_memo.mkdir(parents=True)
     (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
@@ -4878,7 +4918,10 @@ def test_apply_implementation_files_at_commit_excludes_root_memo(
     ]
 
     assert "memo/note.md" not in relative_paths
-    assert relative_paths == ["README.md", "app.py", "docs/memo/note.md"]
+    assert "README.md" not in relative_paths
+    assert "AGENTS.md" not in relative_paths
+    assert ".agents/skill.md" not in relative_paths
+    assert relative_paths == ["app.py", "docs/memo/note.md"]
 
 
 def test_apply_files_at_commit_exclude_tracked_root_gitignored_files(
@@ -4914,7 +4957,7 @@ def test_apply_files_at_commit_exclude_tracked_root_gitignored_files(
     ]
 
     assert oracle_paths == ["oracles/kept.md"]
-    assert implementation_paths == [".gitignore", "README.md", "kept.py"]
+    assert implementation_paths == [".gitignore", "kept.py"]
 
 
 def test_apply_partial_targets_exclude_tracked_root_gitignored_files(

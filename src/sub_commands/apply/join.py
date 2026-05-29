@@ -19,7 +19,7 @@ from commons.repo import (
     git_name_only_paths,
     git_name_status_entries,
     is_apply_branch,
-    is_implementation_path,
+    is_apply_implementation_path,
     is_session_branch,
     read_session_state,
     run_git,
@@ -357,7 +357,7 @@ def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
     if _is_oracle_path(path):
         return False
     return (
-        is_implementation_path(repo_root, path)
+        is_apply_implementation_path(repo_root, path)
         or Path(path).name == "INDEX.md"
     )
 
