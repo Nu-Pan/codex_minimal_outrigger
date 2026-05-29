@@ -179,13 +179,13 @@
 
 ## Summary
 
-- `src` は cmoc の実装本体を置くソースルートです。
+- cmoc の実装本体を置くソースルートです。
 - `main.py` は Typer ベースの CLI エントリーポイントで、`session`、`apply`、`review` の各サブアプリを束ねます。
 - `commons/` は共通基盤、`sub_commands/` は各サブコマンド実装への入口です。
 
 ## Read this when
 
-- `cmoc` の実装構成全体を俯瞰したいとき。
+- cmoc の実装構成全体を俯瞰したいとき。
 - CLI の起動点とサブコマンド登録の流れを確認したいとき。
 - 共通処理と個別コマンドの役割分担を見分けたいとき。
 - `src` 配下のどのディレクトリやモジュールを先に読むべきか整理したいとき。
@@ -198,7 +198,7 @@
 
 ## hash
 
-- f03234a4de65d650c3ab7542b34ac5ba88e15453dcbaf4a0ec27d81267ceba4c
+- 1e5cfa6dea02147d6e18806be9bc7ed302e7fccab79d95d29fdd0be27d4afaee
 
 # `test.sh`
 
@@ -228,26 +228,25 @@
 
 ## Summary
 
-- `tests` は cmoc の pytest 一式をまとめる入口で、共通設定と個別テスト群を案内する。
-- `conftest.py` は `src` を import path の先頭に追加し、テストから実装モジュールを直接参照できるようにする。
-- `test_codex.py` は Codex 実行まわり、`test_indexing.py` は `INDEX.md` メンテナンス、`test_repo.py` は git 共通処理、`test_subcommands.py` は CLI 入口を主に検証する。
-- `test_file_naming.py` はルーティング用ファイル名の規約、`test_timestamps.py` はタイムスタンプと経過時間表示の仕様を確認する。
+- `tests` 配下の pytest 回帰テスト群の入口です。
+- `conftest.py` による import path 設定と、`commons.codex` の呼び出し・ログ・Structured Output 検証を扱います。
+- `commons.indexing` の `INDEX.md` 生成、`commons.repo` の git/ignore/session 系共通処理、サブコマンドの決定論的制御ロジックを確認できます。
+- ファイル命名規則とタイムスタンプ・経過時間表示の仕様もここからたどれます。
 
 ## Read this when
 
-- pytest で cmoc 本体をどう検証しているか全体を把握したいとき。
-- `tests/conftest.py` の import path 設定を確認したいとき。
-- `test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py` など主要な回帰テストの入口を探したいとき。
-- `test_file_naming.py` や `test_timestamps.py` のような補助的な規約・ユーティリティ検証を追いたいとき。
-- 個別テストファイルへ進む前に、`tests` 配下の役割分担を整理したいとき。
+- pytest の共通設定と `src` の import path 追加方法を確認したいとき。
+- Codex 呼び出しラッパー、INDEX.md メンテナンス、git 共通処理の回帰テストを探したいとき。
+- サブコマンド制御ロジック、エラーレポート、CLI 起動時の挙動を広く確認したいとき。
+- ファイル命名規則、タイムスタンプ形式、テスト配置の意図を把握したいとき。
 
 ## Do not read this when
 
-- `src` 配下の実装ロジックそのものを確認したいとき。
-- `oracles` の正本仕様や個別仕様断片を確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
-- pytest とは無関係な一般的な Python プロジェクト構成を確認したいとき。
+- 個別の実装コードや本番ロジックを確認したいとき。
+- `src` 配下のモジュール仕様だけを追いたいとき。
+- `INDEX.md` の生成・更新ルールそのものを確認したいとき。
+- README、AGENTS、oracles の運用規則だけを確認したいとき。
 
 ## hash
 
-- 7bd8f11f837475d0a138c9cb2c03972fa291ce3d4b0176402be87e03bad6ae0f
+- 86580e236d6bc348c83957097f66d4e21c89834e384fb3a6c5341c8b0adb6caf
