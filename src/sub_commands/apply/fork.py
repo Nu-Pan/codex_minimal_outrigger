@@ -5,6 +5,7 @@ import json
 import os
 import re
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from inspect import Parameter, signature
@@ -16,6 +17,8 @@ from commons.codex import (
     COMMIT_MESSAGE_REASONING_EFFORT,
     COST_PERFORMANCE_MODEL,
     COST_PERFORMANCE_REASONING_EFFORT,
+    FRONTIER_MODEL,
+    FRONTIER_REASONING_EFFORT,
     parse_json_object,
     run_codex_exec,
 )
@@ -56,6 +59,16 @@ class _InvestigationTarget:
 
     path: Path
     deleted_at_snapshot: bool = False
+
+
+@dataclass(frozen=True)
+class _InvestigationJob:
+    """file 起点調査として並列実行する Codex CLI 呼び出し単位。"""
+
+    kind: str
+    index: int
+    total: int
+    target: _InvestigationTarget
 
 
 _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
@@ -668,79 +681,36 @@ def _investigate_discrepancies(
         partial,
     )
 
-    # oracle ファイルを 1 件ずつ独立に調査する。
-    for index, oracle_target in enumerate(oracle_targets, start=1):
-        start_step(
-            timer,
-            (*step_path, (2, 5), (index, len(oracle_targets))),
-            None,
-            f"oracle 調査 {oracle_target.path}",
+    jobs = [
+        _InvestigationJob("oracle", index, len(oracle_targets), target)
+        for index, target in enumerate(oracle_targets, start=1)
+    ]
+    jobs.extend(
+        _InvestigationJob(
+            "implementation",
+            index,
+            len(implementation_targets),
+            target,
         )
-        print(
-            f"oracle 調査 ({index}/{len(oracle_targets)}) "
-            f"{oracle_target.path}"
-        )
-        # Structured Output の fixing_points を 1 つの一覧へ結合する。
-        payload = parse_json_object(
-            run_codex_exec(
-                repo_root,
-                _investigation_prompt(repo_root, oracle_target),
-                purpose=(
-                    "oracle 調査 "
-                    f"{oracle_target.path.relative_to(repo_root)}"
-                ),
-                read_only=True,
-                expect_json=True,
-                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
-                json_validator=_validate_discrepancy_payload,
-                model=COST_PERFORMANCE_MODEL,
-                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
-                index_excluded_roots=_apply_index_excluded_roots(repo_root),
-            )
-        )
-        discrepancies.extend(
-            _fixing_points_with_head_commit_hash(repo_root, payload)
-        )
-
-    # 実装ファイルも 1 件ずつ独立に調査する。
-    for index, implementation_target in enumerate(
-        implementation_targets,
-        start=1,
-    ):
-        start_step(
-            timer,
-            (*step_path, (3, 5), (index, len(implementation_targets))),
-            None,
-            f"実装調査 {implementation_target.path}",
-        )
-        print(
-            "実装調査 "
-            f"({index}/{len(implementation_targets)}) "
-            f"{implementation_target.path}"
-        )
-        payload = parse_json_object(
-            run_codex_exec(
-                repo_root,
-                _implementation_investigation_prompt(
-                    repo_root,
-                    implementation_target,
-                ),
-                purpose=(
-                    "実装調査 "
-                    f"{implementation_target.path.relative_to(repo_root)}"
-                ),
-                read_only=True,
-                expect_json=True,
-                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
-                json_validator=_validate_discrepancy_payload,
-                model=COST_PERFORMANCE_MODEL,
-                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
-                index_excluded_roots=_apply_index_excluded_roots(repo_root),
-            )
-        )
-        discrepancies.extend(
-            _fixing_points_with_head_commit_hash(repo_root, payload)
-        )
+        for index, target in enumerate(implementation_targets, start=1)
+    )
+    start_step(
+        timer,
+        (*step_path, (2, 5)),
+        None,
+        "file 起点調査を並列実行",
+    )
+    for job in jobs:
+        label = "oracle 調査" if job.kind == "oracle" else "実装調査"
+        print(f"{label} ({job.index}/{job.total}) {job.target.path}")
+    if jobs:
+        with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
+            futures = [
+                executor.submit(_run_investigation_job, repo_root, job)
+                for job in jobs
+            ]
+            for future in futures:
+                discrepancies.extend(future.result())
 
     return _improove_fixing_list(
         repo_root,
@@ -750,6 +720,35 @@ def _investigate_discrepancies(
         timer=timer,
         step_path=(*step_path, (4, 5)),
     )
+
+
+def _run_investigation_job(
+    repo_root: Path,
+    job: _InvestigationJob,
+) -> list[dict[str, object]]:
+    """1 file 起点の不整合調査を実行し、fixing_points を返す。"""
+    if job.kind == "oracle":
+        prompt = _investigation_prompt(repo_root, job.target)
+        purpose = f"oracle 調査 {job.target.path.relative_to(repo_root)}"
+    else:
+        prompt = _implementation_investigation_prompt(repo_root, job.target)
+        purpose = f"実装調査 {job.target.path.relative_to(repo_root)}"
+    payload = parse_json_object(
+        run_codex_exec(
+            repo_root,
+            prompt,
+            purpose=purpose,
+            read_only=True,
+            expect_json=True,
+            output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
+            json_validator=_validate_discrepancy_payload,
+            model=FRONTIER_MODEL,
+            reasoning_effort=FRONTIER_REASONING_EFFORT,
+            skip_index_maintenance=True,
+            index_excluded_roots=_apply_index_excluded_roots(repo_root),
+        )
+    )
+    return _fixing_points_with_head_commit_hash(repo_root, payload)
 
 
 def _target_oracle_files(

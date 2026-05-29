@@ -6,6 +6,8 @@ import json
 import re
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,8 @@ import sub_commands.session.join as session_join_module
 import commons.repo as repo_module
 from commons.codex import COST_PERFORMANCE_MODEL
 from commons.codex import COST_PERFORMANCE_REASONING_EFFORT
+from commons.codex import FRONTIER_MODEL
+from commons.codex import FRONTIER_REASONING_EFFORT
 from commons.codex import COMMIT_MESSAGE_MODEL
 from commons.codex import COMMIT_MESSAGE_REASONING_EFFORT
 from commons.command_runner import run_command
@@ -2053,11 +2057,15 @@ def test_apply_returns_complete_when_no_discrepancies(
         for purpose in investigation_purposes
     )
     assert all(
-        kwargs["model"] == COST_PERFORMANCE_MODEL
+        kwargs["model"] == FRONTIER_MODEL
         for kwargs in investigation_kwargs
     )
     assert all(
-        kwargs["reasoning_effort"] == COST_PERFORMANCE_REASONING_EFFORT
+        kwargs["reasoning_effort"] == FRONTIER_REASONING_EFFORT
+        for kwargs in investigation_kwargs
+    )
+    assert all(
+        kwargs["skip_index_maintenance"] is True
         for kwargs in investigation_kwargs
     )
     report_kwargs = [
@@ -2070,6 +2078,67 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert (
         "今回の自動適用処理以前の作業も含めてください"
         not in "\n".join(codex_prompts)
+    )
+
+
+def test_apply_investigates_file_origin_targets_in_parallel(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """apply fork の file 起点調査は事前列挙対象を N+M 並列で実行する。"""
+    repo = _init_repo(tmp_path)
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "targets")
+    oracle_snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+    codex_kwargs: list[dict[str, object]] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査呼び出しが重なっているかを記録する。"""
+        nonlocal active
+        nonlocal max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+            codex_kwargs.append(kwargs)
+        try:
+            time.sleep(0.05)
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    discrepancies = apply_module._investigate_discrepancies(
+        repo,
+        base_commit,
+        oracle_snapshot_commit,
+        timer=StepTimer("test"),
+        step_path=((1, 1),),
+        repeat_improove_fixing_list=0,
+        full=False,
+    )
+
+    purposes = [str(kwargs.get("purpose", "")) for kwargs in codex_kwargs]
+    assert discrepancies == []
+    assert len(codex_kwargs) >= 2
+    assert max_active >= 2
+    assert any(purpose.startswith("oracle 調査 ") for purpose in purposes)
+    assert any(purpose.startswith("実装調査 ") for purpose in purposes)
+    assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in codex_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == FRONTIER_REASONING_EFFORT
+        for kwargs in codex_kwargs
     )
 
 
@@ -2191,19 +2260,21 @@ def test_apply_report_records_session_head_at_finish_when_session_advances(
         lambda repo_root: False,
     )
     advanced_session = False
+    advance_lock = threading.Lock()
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査中に session branch を進め、調査自体は収束させる。"""
         nonlocal advanced_session
         if kwargs.get("expect_json") is True:
-            if not advanced_session:
-                (repo / "session-progress.txt").write_text(
-                    "session advanced\n",
-                    encoding="utf-8",
-                )
-                _git(repo, "add", "session-progress.txt")
-                _git(repo, "commit", "-m", "advance session during apply")
-                advanced_session = True
+            with advance_lock:
+                if not advanced_session:
+                    (repo / "session-progress.txt").write_text(
+                        "session advanced\n",
+                        encoding="utf-8",
+                    )
+                    _git(repo, "add", "session-progress.txt")
+                    _git(repo, "commit", "-m", "advance session during apply")
+                    advanced_session = True
             return '{"git_head_commit_hash": null, "fixing_points": []}'
         if kwargs.get("purpose") == "apply 変更要約":
             return _change_summary_json()
