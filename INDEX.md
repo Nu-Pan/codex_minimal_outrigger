@@ -179,25 +179,25 @@
 
 ## Summary
 
-- `cmoc` の実装コードを置く `src` 配下の入口です。
-- CLI エントリーポイントの `main.py`、共通処理の `commons/`、サブコマンド実装の `sub_commands/` をまとめて案内します。
-- 各詳細は子要素の `INDEX.md` または個別モジュールを参照する前提の目次です。
+- `src` 配下の実装コードの入口で、CLI エントリーポイントの `main.py`、共通処理の `commons/`、サブコマンド実装の `sub_commands/` をまとめる。
+- 各詳細は子ディレクトリの `INDEX.md` や個別モジュールへ進む前提の目次である。
+- `cmoc` の実装配置を俯瞰し、どの入口から辿るかを判断するために使う。
 
 ## Read this when
 
-- `src` 配下にどの実装入口があるかを一覧で把握したいとき。
-- CLI エントリーポイント、共通処理、サブコマンド実装の配置関係を確認したいとき。
-- `src` 直下からどの子ディレクトリ・モジュールへ進めばよいかを判断したいとき。
+- `src` 配下のどこに CLI 入口、共通処理、サブコマンド本体があるかを一覧したいとき。
+- `main.py`、`commons/`、`sub_commands/` の役割分担や遷移先を確認したいとき。
+- 具体的な実装ファイルに進む前に、まず `src` 全体の構成を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc` の使い方や `oracles` 側の仕様だけを確認したいとき。
-- テストコードや `tests` 配下だけを追いたいとき。
-- `src` 全体ではなく、`main.py`・`commons`・`sub_commands` のいずれか 1 つの詳細だけを見たいとき。
+- `cmoc` の利用手順だけを知りたいときは、`oracles/app_specs/` 側を読む。
+- すでに対象モジュールが決まっていて、`main.py` や各サブコマンドの実装詳細を直接確認したいとき。
+- テストコードや `oracles` の正本仕様だけを追いたいとき。
 
 ## hash
 
-- 6590c2a81d123ec20569def9eaca24f181fad1d4053b18620f08050b1b9548d0
+- 68567c22cabd5b32be753a4de3dd9f23f756ae48630b2f94af8500fbb59678cf
 
 # `test.sh`
 
@@ -227,23 +227,22 @@
 
 ## Summary
 
-- `tests` 配下の pytest 共通設定と回帰テスト群をまとめた入口です。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`sub_commands`、`timestamps` / `timing`、ファイル命名規則を検証するテストを含みます。
-- `conftest.py` で `src` を import path に追加し、テストから本体コードを直接参照できるようにしています。
+- pytest による cmoc 全体の回帰テスト群の入口で、共通 fixture と各機能のテストファイルをまとめています。
+- Codex CLI 呼び出し、`INDEX.md` 生成、git リポジトリ共通処理、サブコマンド制御、タイムスタンプ、命名規則を検証するテストが入っています。
+- `conftest.py` で `src` を import 可能にし、各 `test_*.py` が対象モジュールごとの仕様を分担しています。
 
 ## Read this when
 
-- `tests` 配下にどんな回帰テストがあるかを一覧したいとき。
-- `conftest.py` の役割や pytest の共通設定を確認したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、CLI サブコマンド、タイムスタンプ表示のどのテストを参照すべきか切り分けたいとき。
+- テスト群のどのファイルを読めばよいかを判断したいとき。
+- cmoc の共通処理やサブコマンドの回帰テストを探したいとき。
+- pytest の import 設定やテスト補助の役割を確認したいとき。
 
 ## Do not read this when
 
-- `src` の実装ロジックそのものを追いたいとき。
-- `oracles` の正本仕様や個別サブコマンドの仕様だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用規則だけを確認したいとき。
-- 個別テストケースの詳細だけを見たいときは、各 `test_*.py` を直接読むべきです。
+- 実装コードそのものやサブコマンド本体の仕様だけを確認したいとき。
+- `oracles` 配下の正本仕様や `INDEX.md` 生成ルールだけを確認したいとき。
+- 特定のテストケース詳細を追う目的なら、この目次より各 `test_*.py` を直接読むべきとき。
 
 ## hash
 
-- 6e6d287fe9d0a38fd9c2bfa7413ce6c3242809e14970523e97fea5bda6ecbacf
+- c79808142f4c431ead706abfc254ebe5b20a3203532dcadaf55b5181f5ed1197

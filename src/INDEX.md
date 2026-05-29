@@ -9,7 +9,7 @@
 ## Read this when
 
 - cmoc 全体で再利用する共通処理の置き場を確認したいとき。
-- Codex CLI 呼び出し、サブコマンド実行制御、共通エラー、git / repo 処理を見たいとき。
+- Codex CLI 呼び出し、サブコマンド共通実行制御、共通エラー、git / repo 処理を見たいとき。
 - `INDEX.md` 生成、ログ、タイムスタンプ、経過時間計測の共通実装を追いたいとき。
 
 ## Do not read this when
@@ -20,7 +20,7 @@
 
 ## hash
 
-- 49072c96e2bbf4c79dfe551562671b8b54e6a94aba732a7be10bf1bef5ddfec7
+- 0b95ec0333b121b79fc4b924be89e0fe672169cb08ac02b2e45ae8ba7cdbc7c2
 
 # `main.py`
 
