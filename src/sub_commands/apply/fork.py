@@ -36,6 +36,7 @@ from commons.repo import (
     filter_oracle_file_paths,
     git_name_only_paths,
     git_name_status_entries,
+    git_status_paths,
     head_commit,
     is_session_branch,
     read_session_state,
@@ -1391,7 +1392,8 @@ def _generate_change_summary(
             "あなたはソフトウェア変更内容の要約担当です。",
             f"`{repo_root}` のブランチ `{branch_name}` の変更内容をカテゴリ別に要約してください。",
             "完了条件は Structured Output schema に従い、changes 配列だけを返すことです。",
-            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分だけを対象にしてください。",
+            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分と、"
+            "working tree / staging area に残っている未コミット差分を対象にしてください。",
             "変更内容の意味論に基づいてカテゴリ分けしてください。",
             "changed_paths は repo 相対パスで、要約の根拠になる主要ファイルだけを列挙してください。",
             f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
@@ -1424,13 +1426,64 @@ def _branch_has_changes(
     base_commit: str,
     branch_name: str,
 ) -> bool:
-    """base..branch に変更があるかを git diff で判定する。"""
-    result = run_git(
+    """base..branch と未コミット差分に変更があるかを判定する。"""
+    return bool(_changed_paths_on_apply_branch(repo_root, base_commit, branch_name))
+
+
+def _changed_paths_on_apply_branch(
+    repo_root: Path,
+    base_commit: str,
+    branch_name: str,
+) -> list[str]:
+    """apply branch 上の commit 済み/未コミット変更 path を集約する。"""
+    collected: set[str] = set()
+    commands = [
+        [
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACMRT",
+            f"{base_commit}..{branch_name}",
+            "--",
+        ],
+        [
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACMRT",
+            "HEAD",
+            "--",
+        ],
+        [
+            "diff",
+            "--cached",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACMRT",
+            "--",
+        ],
+    ]
+    for command in commands:
+        result = run_git(repo_root, command, check=False)
+        if result.returncode not in (0, 1):
+            continue
+        for status, paths in git_name_status_entries(result.stdout):
+            if status[:1] in {"A", "C", "M", "R", "T"} and paths:
+                collected.add(paths[-1])
+
+    status_result = run_git(
         repo_root,
-        ["diff", "--quiet", f"{base_commit}..{branch_name}", "--"],
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--"],
         check=False,
     )
-    return result.returncode == 1
+    if status_result.returncode in (0, 1):
+        for status, path in git_status_paths(status_result.stdout):
+            if status == "??":
+                collected.add(path)
+    return sorted(collected)
 
 
 def _validate_change_summary_payload(value: object) -> None:
@@ -1541,16 +1594,10 @@ def _fallback_change_summary_from_git(
 ) -> list[dict[str, object]]:
     """Codex CLI 要約が使えない場合、git から取得できる範囲を report に残す。"""
     try:
-        diff_result = run_git(
+        changed_paths = _changed_paths_on_apply_branch(
             repo_root,
-            [
-                "diff",
-                "--name-only",
-                "-z",
-                f"{oracle_snapshot_commit}..{branch_name}",
-                "--",
-            ],
-            check=False,
+            oracle_snapshot_commit,
+            branch_name,
         )
     except Exception as diff_error:
         return [
@@ -1565,27 +1612,14 @@ def _fallback_change_summary_from_git(
                 "changed_paths": [],
             }
         ]
-    changed_paths = git_name_only_paths(diff_result.stdout)
-    if diff_result.returncode not in (0, 1):
-        return [
-            {
-                "category": "変更要約生成失敗",
-                "summary": (
-                    "Codex CLI による変更内容要約に失敗し、git diff による"
-                    "変更ファイル一覧の取得にも失敗しました。"
-                    f"要約生成エラー: {type(error).__name__}: {error}"
-                ),
-                "changed_paths": [],
-            }
-        ]
     if not changed_paths:
         return [
             {
                 "category": "変更なし",
                 "summary": (
                     "Codex CLI による変更内容要約には失敗しましたが、"
-                    "git diff で確認できる apply branch 上の変更ファイルは"
-                    "ありませんでした。"
+                    "git で確認できる apply branch 上の commit 済み変更と"
+                    "未コミット変更のファイルはありませんでした。"
                     f"要約生成エラー: {type(error).__name__}: {error}"
                 ),
                 "changed_paths": [],
@@ -1597,7 +1631,8 @@ def _fallback_change_summary_from_git(
             "summary": (
                 "Codex CLI による意味論的カテゴリ別要約には失敗しました。"
                 "代替情報として、oracle snapshot commit から apply branch の"
-                "HEAD までに変更されたファイル一覧を記録します。"
+                "HEAD までの変更と、working tree / staging area に残っている"
+                "未コミット変更のファイル一覧を記録します。"
                 f"要約生成エラー: {type(error).__name__}: {error}"
             ),
             "changed_paths": changed_paths,

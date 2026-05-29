@@ -3924,6 +3924,66 @@ def test_apply_fallback_change_summary_preserves_special_path_tokens(
     assert summary[0]["changed_paths"] == [" changed\nfile.py "]
 
 
+def test_apply_fallback_change_summary_includes_uncommitted_paths(
+    tmp_path: Path,
+) -> None:
+    """fallback report は staged/working tree/untracked の変更も列挙する。"""
+    repo = _init_repo(tmp_path)
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+
+    (repo / "working.py").write_text("working\n", encoding="utf-8")
+    _git(repo, "add", "working.py")
+    _git(repo, "commit", "-m", "add working")
+    (repo / "staged.py").write_text("staged\n", encoding="utf-8")
+    _git(repo, "add", "staged.py")
+    (repo / "working.py").write_text("working changed\n", encoding="utf-8")
+    (repo / "untracked.py").write_text("untracked\n", encoding="utf-8")
+
+    summary = apply_module._fallback_change_summary_from_git(
+        repo,
+        branch_name,
+        snapshot_commit,
+        RuntimeError("summary failed"),
+    )
+
+    assert summary[0]["category"] == "変更ファイル一覧"
+    assert summary[0]["changed_paths"] == [
+        "staged.py",
+        "untracked.py",
+        "working.py",
+    ]
+
+
+def test_apply_change_summary_treats_uncommitted_paths_as_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """変更要約は commit 間差分が空でも未コミット差分があれば Codex に依頼する。"""
+    repo = _init_repo(tmp_path)
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "working.py").write_text("working\n", encoding="utf-8")
+
+    prompts: list[str] = []
+
+    def fake_codex(repo_root: Path, prompt: str, **kwargs: object) -> str:
+        prompts.append(prompt)
+        return _change_summary_json()
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    summary = apply_module._generate_change_summary(
+        repo,
+        branch_name,
+        snapshot_commit,
+    )
+
+    assert prompts
+    assert "working tree / staging area" in prompts[0]
+    assert summary[0]["category"] == "実装修正"
+
+
 def test_apply_writes_error_report_when_midway_stage_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
