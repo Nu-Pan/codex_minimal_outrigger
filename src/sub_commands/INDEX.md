@@ -50,24 +50,24 @@
 ## Summary
 
 - `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
-- `oracles` 配下の仕様断片を対象に、部分評価・全体評価の切り替え、Codex CLI による評価、問題点リストの改善、レポート保存までをまとめて担当します。
-- 評価前の `INDEX.md` メンテナンスを含み、エラー時には `.cmoc/reports/review_oracles` に失敗レポートを残します。
+- `oracles` 配下の仕様断片を対象に、評価モードの選択、Codex CLI による評価、問題点の集約と改善、レポート保存までを担当します。
+- 評価前の `INDEX.md` メンテナンスを含み、失敗時には `.cmoc/reports/review_oracles` にエラーレポートを残します。
 
 ## Read this when
 
-- `cmoc review oracles` の処理順や、部分評価・全体評価の切り替え条件を確認したいとき。
+- `cmoc review oracles` の処理順や部分評価・全体評価の切り替え条件を確認したいとき。
 - Structured Output の検証、問題点リストの改善、レポート生成の実装やテストを追いたいとき。
-- `INDEX.md` の保守や、評価エラー時の保存先・出力内容を確認したいとき。
+- 評価前の `INDEX.md` メンテナンスや、エラー時の保存先・出力内容を確認したいとき。
 
 ## Do not read this when
 
-- cmoc review oracles のユーザー向け仕様だけを確認したいときは、`oracles/app_specs/sub_commands/review_oracles.md` を読むべきです。
-- cmoc のコマンド登録や引数定義だけを確認したいときは、`src/main.py` を読むべきです。
-- review oracles 以外のサブコマンド実装を追いたいときは、このファイルではなく該当モジュールを読むべきです。
+- `cmoc review oracles` のユーザー向け仕様だけを確認したいとき。
+- コマンド登録や引数定義だけを確認したいとき。
+- `review oracles` 以外のサブコマンド実装を追いたいとき。
 
 ## hash
 
-- e2599e319d010c28c8a41ed34f3a24ca43229caa3303b1d8ab17420ac4f82b52
+- 477c0eaa6ff8a58f9b5a2a7c6e26db8d2e9f037ed270d568a222ce322aa5a0c9
 
 # `init.py`
 

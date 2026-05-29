@@ -131,27 +131,29 @@
 
 ## Summary
 
-- cmoc のサブコマンド本体に関する決定論的な制御ロジックを検証する pytest 群の入口です。
-- 共通実行入口のログ出力、エラーレポート、経過時間集計、`typer.Exit` の扱いを確認します。
-- `init`、`session`、`apply`、`review oracles`、CLI 登録、ヘルプ表示、互換コマンドの整合性を広くカバーします。
-- Fake Codex CLI、git worktree、`.cmoc` の状態遷移や cleanup、merge、report 生成など副作用のある経路も検証します。
+- `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
+- `run_command` のログ出力、終了コード、例外時レポート、`repo_root` 解決失敗時の扱いを確認します。
+- `init`、`session`、`apply`、`review oracles`、`eval_oracles` の各コマンド登録とヘルプ表示を回帰確認します。
+- conflict marker の判定、補助関数の配置順、`bin/cmoc` ランチャーの挙動も含みます。
 
 ## Read this when
 
-- サブコマンド本体の状態遷移、終了コード、cleanup、副作用を見直したいとき。
-- 共通 runner のログ出力、エラーレポート、経過時間集計の仕様を確認したいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles`、`main` の CLI 登録やヘルプ文言を検証したいとき。
-- Fake Codex CLI や git worktree を使う決定論的テスト設計を追いたいとき。
+- cmoc の主要サブコマンド入口と `main.py` から各実装への委譲関係を確認したいとき。
+- `run_command`、`StepTimer`、`start_step`、`format_error_report` のログ出力や終了集計を追いたいとき。
+- `init`、`session`、`apply`、`review oracles`、`eval_oracles` 系の状態遷移、例外処理、CLI 登録、ヘルプ表示を広く回帰確認したいとき。
+- conflict marker 判定や `bin/cmoc` ランチャーの振る舞いを確認したいとき。
+- テスト内の補助関数の並び順や、共通のテスト前提を確認したいとき。
 
 ## Do not read this when
 
-- `tests/conftest.py` の import path 設定だけを確認したいとき。
-- `src/sub_commands` 以下の実装ロジックそのものを追いたいとき。
-- ファイル命名規則や `INDEX.md` 生成ルール、あるいは `tests/test_indexing.py` や `tests/test_repo.py` など別のテスト群だけを確認したいとき。
+- `src/sub_commands/*` の個別実装だけを追いたいとき。
+- `commons.repo`、`commons.indexing`、`commons.codex` など共通処理の仕様だけを確認したいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など別のテスト群だけを見たいとき。
+- `oracles` 配下の正本仕様や `INDEX.md` の生成ルールそのものを確認したいとき。
 
 ## hash
 
-- 45305ab7761a79536e03d6f62bc37fac07e84404fd4187f5ac8d2b447df4f7a6
+- 9ee1c7b729890cea4556e891e0c168f03aedb68d617bc83f6cdfba4df6505361
 
 # `test_timestamps.py`
 
