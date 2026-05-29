@@ -247,8 +247,8 @@ def _write_index_if_needed(
     # 目次作成対象の除外条件だけを使い、配置対象除外名とは切り分ける。
     try:
         children = sorted(directory.iterdir(), key=lambda path: path.name)
-    except OSError:
-        return False
+    except OSError as error:
+        _raise_index_io_error("directory の直下項目列挙", directory, error)
     for child in _index_entry_targets(repo_root, children, gitignore_matcher):
         digest = _hash_path(repo_root, child, gitignore_matcher)
         if digest is None:
@@ -278,8 +278,8 @@ def _write_index_if_needed(
         return False
     try:
         _replace_index_file(index_path, new_content)
-    except OSError:
-        return False
+    except OSError as error:
+        _raise_index_io_error("INDEX.md の置換", index_path, error)
     return True
 
 
@@ -340,8 +340,10 @@ def _read_existing_index_content(index_path: Path) -> str | None:
         )
     try:
         return index_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except UnicodeDecodeError:
         return None
+    except OSError as error:
+        _raise_index_io_error("既存 INDEX.md の読み取り", index_path, error)
 
 
 def _replace_index_file(index_path: Path, content: str) -> None:
@@ -439,8 +441,8 @@ def _hash_path(
     if path.is_file():
         try:
             return hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
-            return None
+        except OSError as error:
+            _raise_index_io_error("ファイル内容の hash 計算", path, error)
 
     if not path.is_dir():
         return None
@@ -452,8 +454,8 @@ def _hash_path(
             path.iterdir(),
             key=lambda item: item.relative_to(repo_root).as_posix(),
         )
-    except OSError:
-        return None
+    except OSError as error:
+        _raise_index_io_error("directory 内容の hash 計算", path, error)
     for child in _index_entry_targets(repo_root, children, gitignore_matcher):
         entry_type = "directory" if child.is_dir() else "file"
         relative_path = child.relative_to(repo_root).as_posix()
@@ -533,9 +535,25 @@ def _looks_binary(path: Path) -> bool:
         decoder.decode(b"", final=True)
     except UnicodeDecodeError:
         return True
-    except OSError:
-        return True
+    except OSError as error:
+        _raise_index_io_error("バイナリ判定", path, error)
     return False
+
+
+def _raise_index_io_error(
+    operation: str,
+    path: Path,
+    error: OSError,
+) -> None:
+    """INDEX メンテナンス中の I/O failure をユーザー向け CmocError にする。"""
+    raise CmocError(
+        "INDEX.md メンテナンス中にファイルシステム操作へ失敗しました。",
+        [
+            "Detail の path と OS エラーを確認し、権限やファイル種別を修正してから cmoc を再実行してください。",
+            "一時的な I/O 障害の場合は、対象ファイルやディレクトリにアクセスできる状態で cmoc を再実行してください。",
+        ],
+        f"operation: {operation}\npath: {path}\nerror: {error}",
+    ) from error
 
 
 def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:

@@ -11,8 +11,10 @@ from pathlib import Path
 from time import monotonic
 from time import sleep
 
+import pytest
 from pytest import MonkeyPatch
 
+from commons.errors import CmocError
 from commons.indexing import _INDEX_OUTPUT_SCHEMA
 from commons.indexing import _locked_index_maintenance
 from commons.indexing import maintain_indexes
@@ -60,6 +62,119 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert all(
         kwargs["reasoning_effort"] == "medium" for kwargs in codex_kwargs
     )
+
+
+def test_maintain_indexes_reports_directory_iteration_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """直下項目列挙の I/O failure は no-op にせず CmocError にする。"""
+    repo = _init_repo(tmp_path)
+    original_iterdir = Path.iterdir
+
+    def failing_iterdir(path: Path) -> object:
+        """repo root の直下列挙だけを失敗させる。"""
+        if path == repo:
+            raise OSError("cannot list directory")
+        return original_iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", failing_iterdir)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "ファイルシステム操作へ失敗" in error.value.message
+    assert "直下項目列挙" in error.value.detail
+    assert str(repo) in error.value.detail
+
+
+def test_maintain_indexes_reports_index_replace_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX.md 置換の I/O failure は成功相当の no-op にしない。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    def failing_replace(source: object, destination: object) -> None:
+        """INDEX.md 置換を失敗させる。"""
+        raise OSError(f"cannot replace {destination}")
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    monkeypatch.setattr("commons.indexing.os.replace", failing_replace)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "INDEX.md の置換" in error.value.detail
+    assert str(repo / "INDEX.md") in error.value.detail
+
+
+def test_maintain_indexes_reports_file_hash_read_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """hash 計算用の file read failure は対象除外にせず CmocError にする。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+    original_read_bytes = Path.read_bytes
+
+    def failing_read_bytes(path: Path) -> bytes:
+        """対象ファイルの hash read だけを失敗させる。"""
+        if path == target:
+            raise OSError("cannot read target")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", failing_read_bytes)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "ファイル内容の hash 計算" in error.value.detail
+    assert str(target) in error.value.detail
+
+
+def test_maintain_indexes_reports_binary_detection_open_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """binary 判定の open failure は binary 扱いで除外しない。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+    original_open = Path.open
+
+    def failing_open(path: Path, *args: object, **kwargs: object) -> object:
+        """対象ファイルの binary 判定 open だけを失敗させる。"""
+        if path == target and args[:1] == ("rb",):
+            raise OSError("cannot open target")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "バイナリ判定" in error.value.detail
+    assert str(target) in error.value.detail
 
 
 def test_maintain_indexes_generates_entries_in_parallel_with_stable_order(
