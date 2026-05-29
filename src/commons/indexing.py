@@ -75,7 +75,7 @@ def is_maintained_index_path(
     index_path = repo_root / path
     directory = index_path.parent
     try:
-        relative_parts = directory.relative_to(repo_root).parts
+        directory.relative_to(repo_root)
     except ValueError:
         return False
 
@@ -85,18 +85,11 @@ def is_maintained_index_path(
     )
     if _is_under_any_path(directory, excluded_roots):
         return False
-    if any(
-        part.startswith(".") or part in _INDEX_DIRECTORY_EXCLUDED_NAMES
-        for part in relative_parts
-    ):
-        return False
-    if _is_repo_memo(repo_root, directory):
+    if _has_pruned_index_directory_ancestor(repo_root, directory):
         return False
 
-    gitignored_paths = _GitignoreMatcher(repo_root).ignored_paths(
-        [directory, index_path]
-    )
-    return directory not in gitignored_paths and index_path not in gitignored_paths
+    gitignored_paths = _GitignoreMatcher(repo_root).ignored_paths([directory])
+    return directory not in gitignored_paths
 
 
 def _maintain_indexes_unlocked(
@@ -606,6 +599,22 @@ def _should_prune_index_directory(repo_root: Path, directory: Path) -> bool:
         or name in _INDEX_DIRECTORY_EXCLUDED_NAMES
         or _is_repo_memo(repo_root, directory)
     )
+
+
+def _has_pruned_index_directory_ancestor(
+    repo_root: Path,
+    directory: Path,
+) -> bool:
+    """探索時に prune される ancestor 配下の INDEX 配置か判定する。"""
+    try:
+        relative_parts = directory.relative_to(repo_root).parts
+    except ValueError:
+        return True
+    for depth in range(1, len(relative_parts) + 1):
+        ancestor = repo_root.joinpath(*relative_parts[:depth])
+        if _should_prune_index_directory(repo_root, ancestor):
+            return True
+    return False
 
 
 def _is_repo_memo(repo_root: Path, path: Path) -> bool:

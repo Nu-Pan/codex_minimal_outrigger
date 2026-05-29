@@ -72,6 +72,7 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
         ("docs/INDEX.md", True),
         ("docs/memo/INDEX.md", True),
         ("memo/INDEX.md", False),
+        ("memo/sub/INDEX.md", False),
         ("oracles/INDEX.md", False),
         ("oracles/nested/INDEX.md", False),
         (".cmoc/INDEX.md", False),
@@ -98,6 +99,18 @@ def test_is_maintained_index_path_matches_index_placement_rules(
         )
         is expected
     )
+
+
+def test_is_maintained_index_path_allows_ignored_index_file(
+    tmp_path: Path,
+) -> None:
+    """INDEX.md file 自体が ignored でも配置対象 directory なら許可する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("INDEX.md\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore index")
+
+    assert is_maintained_index_path(repo, "INDEX.md") is True
 
 
 def test_maintain_indexes_reports_directory_iteration_failure(
