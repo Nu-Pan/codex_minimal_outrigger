@@ -895,13 +895,22 @@ def _print_codex_notification(
             "returncode": returncode,
         },
     )
-    print(
-        "codex exec 完了: "
-        f"{purpose} "
-        f"log={log_path} "
-        f"elapsed={format_duration(elapsed_seconds)} "
-        f"returncode={returncode}"
-    )
+    print("## Codex CLI 呼び出し完了")
+    print(f"- purpose: {_console_log_safe_text(purpose)}")
+    print(f"- log path: {_console_log_safe_text(str(log_path))}")
+    print(f"- elapsed: {format_duration(elapsed_seconds)}")
+    print(f"- returncode: {returncode}")
+
+
+def _console_log_safe_text(value: str) -> str:
+    """制御文字で markdown の行構造が壊れない表示文字列へ変換する。"""
+    parts: list[str] = []
+    for char in value:
+        if char == "%" or ord(char) < 0x20 or ord(char) == 0x7F:
+            parts.extend(f"%{byte:02X}" for byte in char.encode("utf-8"))
+        else:
+            parts.append(char)
+    return "".join(parts)
 
 
 def _read_last_message(path: Path) -> str:

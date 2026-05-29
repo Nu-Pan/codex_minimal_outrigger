@@ -239,20 +239,68 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
         json.loads(line)
         for line in subcommand_logs[0].read_text(encoding="utf-8").splitlines()
     ]
-    notification_head = (
-        "codex exec 完了: unit test codex 呼び出し "
-        f"log={repo}/.cmoc/logs/codex_exec/call/"
-    )
     assert output == "ok\n"
-    assert notification_head in captured
-    assert " elapsed=" in captured
-    assert " returncode=0" in captured
+    assert "## Codex CLI 呼び出し完了" in captured
+    assert "- purpose: unit test codex 呼び出し" in captured
+    assert f"- log path: {repo}/.cmoc/logs/codex_exec/call/" in captured
+    assert "- elapsed:" in captured
+    assert "- returncode: 0" in captured
     assert any(
         event["event"] == "codex_exec_call"
         and event["purpose"] == "unit test codex 呼び出し"
         and event["returncode"] == 0
         for event in log_events
     )
+
+
+def test_run_codex_exec_escapes_control_chars_in_console_notification(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Codex CLI 呼び出し通知は目的文字列の制御文字で複数 record に割れない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'ok' > \"$LAST\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with subcommand_log(repo):
+        output = run_codex_exec(
+            repo,
+            "prompt",
+            purpose="oracle 調査 oracles/a\nb%25.md",
+            read_only=True,
+        )
+
+    captured = capsys.readouterr().out
+    captured_lines = captured.splitlines()
+    header_index = captured_lines.index("## Codex CLI 呼び出し完了")
+    notification_lines = captured_lines[header_index + 1 : header_index + 5]
+    assert output == "ok\n"
+    assert notification_lines[0] == "- purpose: oracle 調査 oracles/a%0Ab%2525.md"
+    assert notification_lines[1].startswith(f"- log path: {repo}/")
+    assert notification_lines[2].startswith("- elapsed: ")
+    assert notification_lines[3] == "- returncode: 0"
 
 
 def test_run_codex_exec_rejects_uncommitted_oracle_change_after_workspace_write(
