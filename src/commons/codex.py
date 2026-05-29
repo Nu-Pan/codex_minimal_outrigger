@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -1187,8 +1188,26 @@ def _write_output_schema(
     schema_dir = repo_root / ".cmoc" / "logs" / "codex_exec" / "output_schema"
     schema_dir.mkdir(parents=True, exist_ok=True)
     schema_path = schema_dir / f"{schema_hash}.log"
-    if not schema_path.exists():
-        schema_path.write_text(schema_body, encoding="utf-8")
+    if schema_path.exists() and schema_path.read_text(encoding="utf-8") == schema_body:
+        return schema_path
+
+    # 最終 path へ直接書かず、完成済みの一時ファイルを atomic に公開する。
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=schema_dir,
+            prefix=f".{schema_hash}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(schema_body)
+            temp_path = Path(temp_file.name)
+        temp_path.replace(schema_path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
     return schema_path
 
 

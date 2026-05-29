@@ -13,6 +13,7 @@ from commons.codex import _active_allowed_oracle_conflict_paths
 from commons.codex import _extract_session_id
 from commons.codex import _prepare_codex_exec_paths
 from commons.codex import _resume_command
+from commons.codex import _write_output_schema
 from commons.codex import run_codex_exec
 from commons.errors import CmocError
 from commons.subcommand_log import subcommand_log
@@ -189,6 +190,80 @@ def test_prepare_codex_exec_paths_reserves_call_log_atomically(
     assert second["last_message"].name == "2026-05-04_03-02_01_000000002.log"
     assert first["call"].exists()
     assert second["call"].exists()
+
+
+def test_write_output_schema_publishes_completed_file_atomically(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Structured Output schema は最終 path へ直接書き込まず公開する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    schema_body = json.dumps(
+        _BOOLEAN_SCHEMA,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    schema_hash = sha256(schema_body.encode("utf-8")).hexdigest()
+    expected_path = (
+        repo
+        / ".cmoc"
+        / "logs"
+        / "codex_exec"
+        / "output_schema"
+        / f"{schema_hash}.log"
+    )
+
+    original_write_text = Path.write_text
+
+    def reject_final_write(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        """最終 schema path への direct write を検出する。"""
+        if path == expected_path:
+            raise AssertionError("schema final path was written directly")
+        return original_write_text(path, data, encoding, errors, newline)
+
+    monkeypatch.setattr(Path, "write_text", reject_final_write)
+
+    schema_path = _write_output_schema(repo, _BOOLEAN_SCHEMA)
+
+    assert schema_path == expected_path
+    assert expected_path.read_text(encoding="utf-8") == schema_body
+    assert list(expected_path.parent.glob("*.tmp")) == []
+
+
+def test_write_output_schema_repairs_mismatched_cache_file(
+    tmp_path: Path,
+) -> None:
+    """hash 名の schema cache が本文不一致なら再生成する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    schema_body = json.dumps(
+        _BOOLEAN_SCHEMA,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    schema_hash = sha256(schema_body.encode("utf-8")).hexdigest()
+    schema_path = (
+        repo
+        / ".cmoc"
+        / "logs"
+        / "codex_exec"
+        / "output_schema"
+        / f"{schema_hash}.log"
+    )
+    schema_path.parent.mkdir(parents=True)
+    schema_path.write_text("broken", encoding="utf-8")
+
+    assert _write_output_schema(repo, _BOOLEAN_SCHEMA) == schema_path
+    assert schema_path.read_text(encoding="utf-8") == schema_body
 
 
 def test_run_codex_exec_notifies_console_and_subcommand_log(
