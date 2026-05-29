@@ -27,28 +27,26 @@
 
 ## Summary
 
-- `cmoc` CLI のエントリーポイントで、Typer アプリ本体と `session` / `apply` / `review` のサブアプリを組み立てています。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の各コマンドを定義し、実処理は `src/sub_commands/` 側へ委譲しています。
-- Typer / Click の例外を共通エラーレポートへ変換し、`NoArgsIsHelpError` を含む起動時エラーを終了コード付きで処理します。
+- `cmoc` CLI のエントリーポイントで、Typer のルートアプリと `session` / `apply` / `review` のサブアプリを組み立てる。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` のコマンド登録と引数定義をまとめる。
+- サブコマンド未指定時のエラー化、Typer / Click 例外の共通エラーレポート化、`python src/main.py` 直実行の起動経路を扱う。
 
 ## Read this when
 
-- `cmoc` のエントリーポイント、Typer アプリの構成、サブコマンド登録を修正・レビューしたいとき
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` とその引数定義を確認したいとき
-- サブコマンドなし起動時の `NoArgsIsHelpError` の扱い、`--help` 相当の挙動、終了コードの伝播を確認したいとき
-- Typer / Click の例外を `CmocError` と共通エラーレポートへ変換する起動経路を確認したいとき
-- `python src/main.py` で直接起動する経路の振る舞いを確認したいとき
+- `cmoc` の起動点やサブコマンド登録を修正・レビューしたいとき。
+- `init` / `session` / `apply` / `review` のコマンド名、エイリアス、オプション既定値を確認したいとき。
+- サブコマンドなし起動時の利用者向けエラー、終了コード、`--help` への誘導を確認したいとき。
+- `python src/main.py` で直接起動する経路と、その例外ハンドリングを確認したいとき。
 
 ## Do not read this when
 
-- 各サブコマンド本体の処理内容だけを確認したいとき
-- 共通エラー型やエラーレポートの整形だけを確認したいとき
-- CLI の設計ルールや配置方針だけを確認したいとき
-- サブコマンドごとの仕様断片だけを確認したいとき
+- 各サブコマンドの本体ロジックや `src/sub_commands/` 配下の業務処理だけを見たいとき。
+- 共通エラー型や `format_error_report` の整形仕様だけを確認したいとき。
+- `INDEX.md` の生成ルールや共有ユーティリティの設計だけを追いたいとき。
 
 ## hash
 
-- 0c76935e2e4d5e562d321e1b65e17c49e36e89415a7d311c6f037b13785a396f
+- f1f3971b766959a15809687fc7f59cd60f74eaa1bdee3c4da218fb15412853e0
 
 # `sub_commands`
 
