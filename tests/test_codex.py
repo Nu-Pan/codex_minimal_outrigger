@@ -1777,6 +1777,60 @@ def test_run_codex_exec_retries_missing_last_message_without_validator(
     ] == [True, True]
 
 
+def test_run_codex_exec_retries_missing_last_message_after_nonzero_exit(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """非 0 終了でも last message 欠落はレスポンス要件失敗としてリトライする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "attempts.txt"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"STATE={state}",
+                "COUNT=0",
+                "if [ -f \"$STATE\" ]; then COUNT=$(cat \"$STATE\"); fi",
+                "COUNT=$((COUNT + 1))",
+                "echo \"$COUNT\" > \"$STATE\"",
+                "if [ \"$COUNT\" -eq 1 ]; then",
+                "  echo 'transient CLI failure without last message' >&2",
+                "  exit 2",
+                "fi",
+                "echo 'plain text result' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    output = run_codex_exec(repo, "prompt", read_only=True)
+
+    log_files = sorted(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+    )
+    assert output.strip() == "plain text result"
+    assert state.read_text(encoding="utf-8").strip() == "2"
+    assert len(log_files) == 2
+    log_contents = [path.read_text(encoding="utf-8") for path in log_files]
+    assert "returncode: 2" in log_contents[0]
+    assert "returncode: 0" in log_contents[1]
+
+
 def test_run_codex_exec_reports_unreadable_last_message(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -2460,6 +2514,15 @@ def test_run_codex_exec_does_not_treat_plain_limit_error_as_quota(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'diagnostic last message' > \"$LAST\"",
                 "echo 'validation limit exceeded while processing input' >&2",
                 "exit 2",
             ]
@@ -2495,6 +2558,15 @@ def test_run_codex_exec_failure_detail_includes_stdout_and_stderr(
         "\n".join(
             [
                 "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'diagnostic last message' > \"$LAST\"",
                 "echo '{\"type\":\"error\",\"message\":\"stdout diagnostic\"}'",
                 "echo 'stderr diagnostic' >&2",
                 "exit 2",

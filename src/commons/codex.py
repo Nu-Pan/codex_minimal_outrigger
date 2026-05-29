@@ -188,15 +188,17 @@ def run_codex_exec(
             last_stdout_log = result.stdout
             last_stderr = result.stderr
 
-        # quota 枯渇以外の CLI 失敗は中断する。
-        if result.returncode != 0:
-            _raise_codex_failure(run.log_path, result)
-
         try:
             output = _read_last_message(last_message_path)
         except ValueError as error:
             last_validation_error = str(error)
             continue
+
+        # last-message 欠落は終了コードに依存しないレスポンス要件違反として retry する。
+        # last-message が正常に読めた非 0 終了は quota/capacity 以外の CLI 失敗として扱う。
+        if result.returncode != 0:
+            _raise_codex_failure(run.log_path, result)
+
         print("## Codex CLI 応答プレビュー")
         print(f"- attempt: {attempt}/{attempts}")
         print(f"- output preview: {_console_log_safe_head80(output)}")
