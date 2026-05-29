@@ -124,6 +124,30 @@
 
 - da789f11906686e297ed01c7c7bd6d400ecbd4d1743aa4dfc5c3f7452dcca3b8
 
+# `test_report_files.py`
+
+## Summary
+
+- `src/commons/report_files.py` の `write_timestamped_report` が、同名ファイルを上書きせず別名で保存することを検証するテストです。
+- タイムスタンプ衝突時の再試行と、既存レポートの内容が保持されることを確認します。
+- `make_timestamp` を差し替えて衝突条件を再現し、保存処理の境界を押さえます。
+
+## Read this when
+
+- `write_timestamped_report` の排他的作成や再試行の仕様を変更するとき。
+- レポート保存時の上書き防止や、タイムスタンプ衝突時の回帰を確認したいとき。
+- `tests/test_report_files.py` が何を守っているかを把握したいとき。
+
+## Do not read this when
+
+- レポート本文の構成や評価結果の意味づけを確認したいとき。
+- タイムスタンプ生成そのものの仕様を確認したいとき。
+- `INDEX.md` の生成ルールや、他の共通ヘルパーの仕様だけを確認したいとき。
+
+## hash
+
+- 5d46cca82b67cc3fea042c2120193bf0b83020a0f788966ea5aad42d0aa9d587
+
 # `test_subcommands.py`
 
 ## Summary
