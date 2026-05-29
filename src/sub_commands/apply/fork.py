@@ -1270,6 +1270,8 @@ def _is_forbidden_changed_path(relative_path: str) -> bool:
         or relative_path.startswith("oracles/")
         or relative_path == "README.md"
         or relative_path == "AGENTS.md"
+        or relative_path == ".cmoc"
+        or relative_path.startswith(".cmoc/")
         or relative_path == ".agents"
         or relative_path.startswith(".agents/")
         or relative_path == "memo"
@@ -2072,6 +2074,7 @@ def _apply_prompt(
             f"`{repo_root / 'oracles'}` は編集禁止です。",
             f"`{repo_root / 'README.md'}` は編集禁止です。",
             f"`{repo_root / 'AGENTS.md'}` は編集禁止です。",
+            f"`{repo_root / '.cmoc'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
         ]
