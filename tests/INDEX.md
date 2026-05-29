@@ -128,28 +128,27 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `cmoc` のサブコマンド群に対する決定論的な振る舞いを検証するテスト入口です。
+- `tests/test_subcommands.py` は `cmoc` のサブコマンド群に対する決定論的な制御ロジックを検証するテスト入口です。
 - `init`、`session`、`apply`、`eval-oracles` を横断して、開始・終了・破棄・統合・評価・レポート生成・状態遷移をまとめて確認します。
-- 共通の実行ラッパー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper まで含めて、サブコマンド周辺の回帰を守ります。
+- 共通の実行ラッパー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper まで含めて回帰を守ります。
 
 ## Read this when
 
-- `cmoc init` の初期化、`.cmoc` の追跡対象外化、初期化コミットの挙動を確認したいとき。
-- `session fork/join/abandon` と `apply fork/join/join/abandon` の状態遷移、worktree、branch、cleanup 条件を確認したいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用を変更したいとき。
 - `review oracles` / `eval-oracles` の評価対象選定、レポート生成、改善ループ、payload 検証を確認したいとき。
 - `run_command`、`main`、`format_error_report`、CLI 登録や help 文言など共通入口の挙動を確認したいとき。
-- prompt 文面、Structured Output schema、`_validate_*` 系ヘルパーの制約やエラー条件を確認したいとき。
+- prompt 文面、Structured Output schema、`_validate_*` 系ヘルパー、修正点整理や不整合調査の制約を確認したいとき。
 
 ## Do not read this when
 
-- `commons.repo` の一般的な git 処理や `commons.codex` の実行詳細だけを確認したいとき。
-- `src/sub_commands` 側の個別コマンド実装そのものを追いたいとき。
+- `src/commons/repo.py` の一般的な git 共通処理だけを確認したいとき。
+- `src/commons/codex.py` の実行詳細や Codex CLI 連携だけを確認したいとき。
+- `tests/test_codex.py` や `tests/test_repo.py` など、別のテスト群で足りるとき。
 - `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py` など、別のテスト群を見れば足りるとき。
 
 ## hash
 
-- 95c0bcf7ae085b14d01956119a6af37a2dd3be272894c9952993eca53fb9db10
+- 1c12b53151b8841b9e820fa5ddd91145aba4488ad4a5ec4d497c7bb03c155f64
 
 # `test_timestamps.py`
 

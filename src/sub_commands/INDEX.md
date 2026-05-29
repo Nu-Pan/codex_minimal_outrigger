@@ -49,27 +49,25 @@
 
 ## Summary
 
-- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体で、oracles ファイルの選別、評価実行、結果集約を担当する実装です。
-- 部分評価 / 全体評価の判定、Codex CLI への Structured Output 評価、問題点リストの反復改善をまとめています。
-- `INDEX.md` の事前メンテナンス、評価レポート保存、エラー時の error report と stderr フォールバックも扱います。
+- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
+- oracles ファイルの列挙、部分評価/全体評価の分岐、並列評価、問題点リスト改善、Markdown レポート保存をまとめています。
+- 評価前の `INDEX.md` 事前メンテナンス、Structured Output の検証、error report と stderr フォールバックも担います。
 
 ## Read this when
 
-- `cmoc review oracles` の処理順や、部分評価と全体評価の切り替えを確認したいとき。
-- Structured Output の評価スキーマ、問題点リストの改善、`referenced_paths` や `specification_only_basis` の検証を追いたいとき。
-- 評価前の `INDEX.md` 更新や、`.cmoc/reports/review_oracles` へのレポート出力経路を確認したいとき。
-- エラー時の error report 生成や stderr フォールバックの挙動を把握したいとき。
+- `cmoc review oracles` の実行順や評価モードの切り替えを確認したいとき。
+- 対象 oracle の選定、`referenced_paths` と `specification_only_basis` の検証、問題点リストの改善ロジックを追いたいとき。
+- レポート生成先、error report の出力、stderr フォールバックまで含めて実装・修正・レビューしたいとき。
 
 ## Do not read this when
 
-- `cmoc review oracles` の使い方、引数、CLI 仕様だけを確認したいとき。
-- コマンド登録や引数定義だけを確認したいとき。
-- `cmoc review oracles` 以外のサブコマンド実装を追いたいとき。
-- `oracles` 配下の個別仕様断片そのものを読む必要があるとき。
+- `cmoc review oracles` の CLI 引数やコマンド登録だけを確認したいとき。
+- `cmoc` の他サブコマンドや共通処理だけを確認したいとき。
+- `oracles` 配下の個別仕様断片そのものを読みたいとき。
 
 ## hash
 
-- d92353f13127001177e828b6fa33f26a940956cb5a675687eb258718b546fe19
+- d8ece0a3ba1ce783e4eac8044cf4c862eabe88af66be5255c33a1439eac4dae0
 
 # `init.py`
 
