@@ -1110,19 +1110,22 @@ def has_deleted_implementation_files(
     commands = [
         [
             "log",
-            "--name-only",
+            "--name-status",
             "-z",
             "-M",
-            "--diff-filter=D",
+            "--diff-filter=DR",
             "--format=",
             f"{base_commit}..HEAD",
         ],
-        ["diff", "--name-only", "-z", "-M", "--diff-filter=D", "HEAD"],
-        ["diff", "--cached", "--name-only", "-z", "-M", "--diff-filter=D"],
+        ["diff", "--name-status", "-z", "-M", "--diff-filter=DR", "HEAD"],
+        ["diff", "--cached", "--name-status", "-z", "-M", "--diff-filter=DR"],
     ]
     for command in commands:
         result = run_git(repo_root, [*command, "--", "."])
-        if _deleted_implementation_file_paths(repo_root, result.stdout):
+        if _deleted_implementation_changes_from_name_status(
+            repo_root,
+            result.stdout,
+        ):
             return True
     return False
 
@@ -1147,18 +1150,33 @@ def _deleted_oracle_changes_from_name_status(
     return deleted
 
 
-def _deleted_implementation_file_paths(
+def _deleted_implementation_changes_from_name_status(
     repo_root: Path,
     output: str,
 ) -> list[str]:
-    """削除 path から実装ファイル列挙対象外のものを除外する。"""
-    # 削除済み path は存在確認できないため、path 規則と gitignore だけで判定する。
-    relatives = [
-        path
-        for path in git_name_only_paths(output)
-        if is_implementation_path(repo_root, path)
-    ]
-    return relatives
+    """`git name-status` から実装ファイル削除相当の変更を取り出す。"""
+    # 実装ファイルから非実装ファイルへの rename は、実装ファイル集合から
+    # 見れば削除である。削除済み path は存在確認できないため、path 規則と
+    # gitignore だけで判定する。
+    deleted: list[str] = []
+    for status, paths in git_name_status_entries(output):
+        if status == "D":
+            deleted.extend(
+                path
+                for path in paths[:1]
+                if is_implementation_path(repo_root, path)
+            )
+            continue
+        if not status.startswith("R") or len(paths) < 2:
+            continue
+        source_is_implementation = is_implementation_path(repo_root, paths[0])
+        destination_is_implementation = is_implementation_path(
+            repo_root,
+            paths[1],
+        )
+        if source_is_implementation and not destination_is_implementation:
+            deleted.append(paths[0])
+    return deleted
 
 
 def _is_implementation_file(repo_root: Path, path: Path) -> bool:

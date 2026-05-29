@@ -778,6 +778,59 @@ def test_has_deleted_implementation_files_ignores_only_root_gitignore(
     assert has_deleted_implementation_files(repo, base_commit) is True
 
 
+def test_has_deleted_implementation_files_detects_committed_rename_out(
+    tmp_path: Path,
+) -> None:
+    """committed 実装外 rename は旧実装 path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "oracles/old.py")
+    _git(repo, "commit", "-m", "move implementation out")
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_detects_staged_rename_out(
+    tmp_path: Path,
+) -> None:
+    """staged 実装外 rename は旧実装 path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "oracles/old.py")
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_ignores_implementation_rename(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル同士の rename は削除扱いしない。"""
+    repo = _init_repo(tmp_path)
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "new.py")
+
+    assert has_deleted_implementation_files(repo, base_commit) is False
+
+
 def test_changed_oracle_files_respects_slash_pattern_depth(
     tmp_path: Path,
 ) -> None:
