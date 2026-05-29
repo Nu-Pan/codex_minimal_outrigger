@@ -110,10 +110,10 @@
 
 ## Do not read this when
 
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細仕様を確認したいときは、この目次ではなく該当モジュールを直接読むべきです。
-- `cmoc apply` 系の開始・終了や破棄の仕様だけを確認したいときは、このディレクトリではなく apply 側の仕様を読むべきです。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細仕様、状態遷移、例外条件を確認したいとき。
+- `cmoc apply` 系の開始・統合・破棄だけを確認したいとき。
 - `src/sub_commands/session` のパッケージ宣言だけを確認したいときは `__init__.py` を直接見れば足ります。
 
 ## hash
 
-- 04c4e076afe123b6cc60dc3d8f2ea7dd5665aea019e0ec88d73469141db74f68
+- bc7447b8742faa57708c01e11f16a119d3db020fb95799b793d0119c073dbd7b

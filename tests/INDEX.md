@@ -136,19 +136,19 @@
 
 ## Read this when
 
-- `init`、`session`、`apply`、`eval_oracles` の実装を変更して、状態遷移や cleanup 条件を確認したいとき。
-- Git ブランチ、worktree、session state、report 出力、エラーレポートの期待値を確認したいとき。
-- プロンプト生成、Structured Output schema、禁止パス検出、補助関数の振る舞いを含む回帰を確認したいとき。
+- `init`、`session`、`apply`、`eval_oracles` の実装を変更して、状態遷移や終了条件を確認したいとき。
+- Git ブランチ、worktree、state ファイル、レポート出力、エラーレポートの期待値を確認したいとき。
+- プロンプト生成、Structured Output schema、禁止パス検出、補助関数の回帰を確認したいとき。
 
 ## Do not read this when
 
-- 個別コマンドの正本仕様や `oracles` 配下のルーティング方針だけを確認したいとき。
-- 一般的な開発規則、`INDEX.md` 生成ルール、`commons.repo` など別機能の共通仕様を確認したいとき。
-- `test_codex.py`、`test_indexing.py`、`test_repo.py` など他のテスト群の挙動だけを追いたいとき。
+- 個別コマンドの正本仕様だけを確認したいとき。
+- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
+- `test_codex.py`、`test_indexing.py`、`test_repo.py` など、別のテスト群の挙動だけを追いたいとき。
 
 ## hash
 
-- 3247b3297bc5144f816003c0c836fbe13ec38518acb238398b0ffde082e53802
+- a3bd3a5303ef063a6c941575a5ad5dd5d492f7d4ed62d47df24a82f26943da67
 
 # `test_timestamps.py`
 
