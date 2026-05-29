@@ -23,27 +23,25 @@
 
 ## Summary
 
-- `codex exec` 呼び出しを組み立て、stdin 経由で prompt を送り、`--output-last-message` と `--output-schema` を実行単位の path に割り当てる共通モジュールです。
-- Structured Output の JSON 解析、JSON Schema 検証、意味検査、失敗時の診断情報生成をまとめています。
-- quota 枯渇時の待機と resume、capacity 一時失敗の指数バックオフ再試行、実行ログ保存、サブコマンド実行前の `INDEX.md` メンテナンス、workspace-write 時の oracle 保護も扱います。
+- Codex CLI の共通実行基盤で、`codex exec` の起動、再試行、`resume`、ログ保存をまとめています。
+- Structured Output の schema 検証、JSON 解析、`output-last-message` の読み取りなど、応答の受け取りと検証まわりを扱います。
+- quota 枯渇時の待機・再開、capacity 一時失敗の指数バックオフ、oracle 保護チェック、実行前の `INDEX.md` メンテナンス連携も含みます。
 
 ## Read this when
 
-- Codex CLI を共通処理から起動する実装や、sandbox / model / reasoning effort の組み立てを確認したいとき。
-- Structured Output の schema ファイル生成、JSON 解析、JSON Schema 検証、追加の意味検査を見直したいとき。
-- quota 待機と resume、capacity 一時失敗の指数バックオフ再試行、実行ログや last message の保存形式を追いたいとき。
-- workspace-write 実行時の oracle 保護や、起動前の `INDEX.md` メンテナンスの流れを確認したいとき。
+- `cmoc` から `codex exec` を起動する共通処理、`resume`、再試行、quota/capacity 対応を確認したいとき。
+- Structured Output の schema 生成・検証、JSON 解析、`output-last-message` の読み取り方法を確認したいとき。
+- Codex CLI 実行時のログ保存、表示用メッセージ、oracle 保護チェック、実行前の `INDEX.md` メンテナンス連携を確認したいとき。
 
 ## Do not read this when
 
-- `codex exec` の基本的な使い方や、個別オプションの説明だけを知りたいとき。
-- `INDEX.md` の生成・維持ルールそのものを知りたいときは、このモジュールではなく `indexing.py` を読むべきです。
-- `repo.py`、`errors.py`、`subcommand_log.py`、`timing.py` など、別の共通モジュールだけを追いたいとき。
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
+- `codex exec` の呼び出し方そのものではなく、個別サブコマンドの仕様や引数だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
+- Git 操作、サブコマンドログ、タイムスタンプなどの共通部品の個別実装だけを追いたいとき。
 
 ## hash
 
-- 75d535932dc779409b8337db00385cc889f40bb39f34deb70c7ebed03db917c9
+- 8acb39a1730f6ca2a69fbf3cee91bc99914740997de0a6b91d1e1c80831f2d68
 
 # `command_runner.py`
 

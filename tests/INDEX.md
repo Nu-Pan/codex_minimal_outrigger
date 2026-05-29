@@ -28,27 +28,25 @@
 ## Summary
 
 - `commons.codex` の `run_codex_exec` と関連ヘルパーの回帰テストをまとめたファイルです。
-- Structured Output 用の schema 準備、JSON / テキスト検証、retry、quota 復旧の `resume`、`output_schema` キャッシュ、ログとコンソール出力を検証します。
+- Structured Output 用 schema の準備、JSON / text 検証、retry、quota 復旧の `resume`、`output_schema` キャッシュ、ログとコンソール出力を検証します。
 - workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range のチェック、allowlist / conflict 例外、`skip_index_maintenance` も含めて境界条件を押さえます。
 
 ## Read this when
 
-- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume`、quota 復旧の挙動を変更したいとき。
-- `output_schema`、`json_validator`、`text_validator`、`reasoning_effort` の検証ロジックや、Structured Output の扱いを修正したいとき。
-- `output_schema` ファイル化、キャッシュ再生成、呼び出しログ、コンソール通知、prompt preview の表示仕様を確認したいとき。
-- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の事前検査、`allowed_uncommitted_oracle_paths` の例外判定を確認したいとき。
-- `skip_index_maintenance` の効果や、`_extract_session_id`、`_resume_command` の補助ロジックを変えたいとき。
+- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行の挙動を変更したいとき。
+- Structured Output の schema 検証、JSON / text validator、`reasoning_effort` の扱いを修正したいとき。
+- codex 呼び出しログ、コンソール通知、`output_schema` のファイル化やキャッシュ再生成の仕様を確認したいとき。
+- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の事前検査や例外判定を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc` 全体の利用手順やサブコマンド仕様だけを確認したいときは、このファイルではなく `oracles/app_specs` を読むべきです。
-- `commons.codex` 以外の共通処理やサブコマンド本体を追いたいときは、このファイルではなく該当モジュールや別のテストを読むべきです。
-- `INDEX.md` メンテナンスや git 共通処理の仕様だけを確認したいときは、このファイルではなく `tests/test_indexing.py` や `tests/test_repo.py` を読むべきです。
-- このファイル単体の個別テストケースではなく、`tests` ディレクトリ全体の役割だけを把握したいときは、このファイルを読む必要はありません。
+- `cmoc` 全体の利用手順や各サブコマンドの詳細仕様だけを確認したいとき。
+- `commons.codex` 以外の共通処理や、`session` / `apply` 本体の実装を追いたいとき。
+- `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- b254d8542d39ee466734fac7318029dc39c3da5e827b0815302a7a00515dba66
+- 1010f8d654672f9fd867f001701ea94adb3b6703c2b5095ce681a46148739f88
 
 # `test_file_naming.py`
 
