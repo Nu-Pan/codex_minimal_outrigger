@@ -56,7 +56,7 @@
 
 - `src/sub_commands` は cmoc のサブコマンド実装の入口で、`__init__.py`、`init.py`、`eval_oracles.py`、`apply/`、`session/` を含みます。
 - `init.py` は `cmoc init`、`eval_oracles.py` は `cmoc review oracles` を担当します。
-- `apply/` と `session/` は、それぞれ apply 系・session 系サブコマンドをまとめたサブパッケージです。
+- `apply/` と `session/` は、それぞれ apply 系・session 系サブパッケージです。
 
 ## Read this when
 
@@ -66,10 +66,10 @@
 
 ## Do not read this when
 
-- `cmoc init` や `cmoc review oracles` の個別実装だけを確認したいときは、各モジュールを直接読むべきです。
-- `cmoc apply` や `cmoc session` の配下の詳細仕様や処理順を確認したいときは、それぞれの子ディレクトリの `INDEX.md` を読むべきです。
+- 個別サブコマンドの詳細仕様だけを確認したいときは、各モジュールを直接読むべきです。
+- `cmoc apply` や `cmoc session` 配下の詳細だけを確認したいときは、それぞれの子ディレクトリの `INDEX.md` を読むべきです。
 - `src/sub_commands` のパッケージ宣言だけを確認したいときは、`__init__.py` を直接見れば足ります。
 
 ## hash
 
-- 4a44f7ece48a1e788e7e6d51cd5391778d3ee926f1c8268b1f78143c6527a766
+- eb599cb48d326c6a3a9d236be3cd568a9d42c56614e3f8bcb80b57a8aa3c8b21

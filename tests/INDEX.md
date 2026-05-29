@@ -150,27 +150,26 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `cmoc` のサブコマンド群に対する決定論的な制御ロジックを検証するテスト入口です。
-- `init`、`session`、`apply`、`eval-oracles` を横断して、開始・終了・破棄・統合・評価・レポート生成・状態遷移をまとめて確認します。
-- 共通の実行ラッパー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper まで含めて回帰を守ります。
+- `tests/test_subcommands.py` は `cmoc` サブコマンド群の決定論的な制御ロジックをまとめて検証するテスト入口です。
+- `init`、`session`、`apply`、`review oracles` / `eval-oracles` の状態遷移、branch/worktree/state/report を横断的に扱います。
+- 共通ランナー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper、レポート生成の回帰も含みます。
 
 ## Read this when
 
-- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon` の状態遷移や副作用の回帰を確認したいとき。
-- `review oracles` / `eval-oracles` の評価対象選定、問題点リストの改善、レポート生成や payload 検証を確認したいとき。
-- `run_command`、`main`、`format_error_report`、CLI 登録、help 文言など共通入口の挙動を確認したいとき。
-- prompt 文面、Structured Output schema、`_validate_*` 系ヘルパー、修正点整理や不整合調査の制約を確認したいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用の回帰を確認したいとき
+- `review oracles` / `eval-oracles` の評価対象選定、問題点リスト改善、レポート出力、payload 検証を確認したいとき
+- `run_command`、`main`、`format_error_report`、CLI 登録、prompt 文言、schema、validation helper の変更を追いたいとき
 
 ## Do not read this when
 
-- `src/sub_commands/apply/` や `src/sub_commands/session/` の実装ロジックそのものを確認したいとき。
-- `src/commons/codex.py` や `src/commons/repo.py` の共通処理だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など、個別機能のテストだけを追えば足りるとき。
-- `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
+- `src/sub_commands/apply/` や `src/sub_commands/session/` の実装ロジックそのものを追いたいとき
+- `src/commons/codex.py` や `src/commons/repo.py` など共通処理だけを確認したいとき
+- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など個別機能だけを追えば足りるとき
+- `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき
 
 ## hash
 
-- c6810596f5cd12fde71367fad2eaa651800649173ea9d7e3d6a1c356ddd05c6e
+- 807432837524f31f020872669d966253e39a26ca7a14a7fafeaa8bdb2374c0d5
 
 # `test_timestamps.py`
 
