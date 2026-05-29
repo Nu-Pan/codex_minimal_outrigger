@@ -108,29 +108,29 @@
 ## Summary
 
 - `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
-- .cmoc の ignore 保証、tracked な `.cmoc` の untrack、cmoc ブランチ判定、`session_id` 抽出、apply worktree path 復元を扱います。
-- `oracles` / 実装ファイルの列挙、変更・削除検出、`INDEX.md` / `.gitignore` / `.git/info/exclude` / `memo` の除外条件、`commit_if_changed` の index 復元と `assert_no_uncommitted_changes` の前提を確認します。
-- `.cmoc/sessions/<session-id>.json` の読み書き、固定スキーマ検証、active session 探索と session start commit 参照を扱います。
-- ファイル末尾には、テスト用 git リポジトリを初期化する `_init_repo` と、git コマンド実行用の `_git` 補助関数があります。
+- `.cmoc` の ignore 保証、tracked な `.cmoc` の untrack、`changed_paths`、`is_cmoc_branch`、`find_repo_root` を扱います。
+- `list_oracle_files` / `list_implementation_files`、`changed_oracle_files` / `changed_implementation_files`、`has_deleted_oracle_files` / `has_deleted_implementation_files` を通じて、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の除外条件を確認します。
+- `commit_if_changed` と `assert_no_uncommitted_changes` の前提条件、ならびに session state の読み書き、`active_session_ids_for_home_branch`、`read_session_start_commit`、`session_state_root` を確認します。
+- 末尾に、テスト用 git リポジトリを初期化する `_init_repo` と、git コマンド実行補助の `_git` があります。
 
 ## Read this when
 
 - `tests/test_repo.py` が `commons.repo` のどの機能を検証しているか確認したいとき。
-- `.cmoc` の ignore 保証、tracked な `.cmoc` の追跡解除、cmoc ブランチ判定、`session_id` 抽出を見直したいとき。
-- `oracles` / 実装ファイルの列挙、変更検出、削除検出、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の扱いを確認したいとき。
-- session state の読み書き、active session の探索、`commit_if_changed` や `assert_no_uncommitted_changes` の前提条件を把握したいとき。
-- テスト用 git リポジトリの初期化や、`_init_repo` / `_git` 補助関数の役割を確認したいとき。
+- `.cmoc` の ignore や tracked な `.cmoc` の untrack、`is_cmoc_branch`、`find_repo_root` を見直したいとき。
+- `oracles` / 実装ファイルの列挙、変更・削除検出、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の扱いを確認したいとき。
+- session state の読み書き、`active_session_ids_for_home_branch`、`read_session_start_commit`、`session_state_root` の前提条件を把握したいとき。
+- テスト用 git リポジトリの初期化や `_init_repo` / `_git` の役割を確認したいとき。
 
 ## Do not read this when
 
 - `src/commons/repo.py` の実装ロジックそのものを追いたいとき。
 - `INDEX.md` の生成・更新ルールだけを確認したいとき。
-- `tests/test_codex.py` や `tests/test_indexing.py` など、別のテスト群の観点だけを追いたいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など別のテスト群だけを見たいとき。
 - `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
 
 ## hash
 
-- 34619cc03e45edd61570226c862272014935f60a647313125a6c4be820352a64
+- 8bbc9dd6747b152b0e40c3e43816450965b22b5b40d930b4f428f200f06f0858
 
 # `test_subcommands.py`
 
@@ -157,7 +157,7 @@
 
 ## hash
 
-- a84cd67d9e06d6453c97920d3d433ab7243f4c1eb61fd111fead31480d0e2543
+- e459bf6559139fe7cef2dc54e953811486bdfe1c88ca34b4689b7a69feac0ec1
 
 # `test_timestamps.py`
 

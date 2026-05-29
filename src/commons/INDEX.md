@@ -143,13 +143,13 @@
 
 ## Do not read this when
 
-- `cmoc` の個別サブコマンドの引数や実行手順だけを確認したいとき。
-- `src/commons/errors.py` や `src/commons/indexing.py` など、別の共通モジュールだけを確認したいとき。
-- `.cmoc` の追跡対象外保証や git 操作の細部ではなく、CLI 仕様やワークフロー仕様だけを追いたいとき。
+- 個別サブコマンドの引数や実行手順だけを確認したいとき。
+- `src/commons/errors.py` や `src/commons/indexing.py` など、別の共通モジュールだけを追いたいとき。
+- `.cmoc` の追跡対象外保証や git 操作の細部ではなく、CLI 仕様やワークフロー仕様だけを確認したいとき。
 
 ## hash
 
-- dce7e13310d8af71646d9631b03abf3a394a80a8a57760634dd6b8a91db7516f
+- a0bbb8c8e23d7f160a0c39ab19940007b95c4e6eaf779b97bca6f8ce24bddda3
 
 # `subcommand_log.py`
 

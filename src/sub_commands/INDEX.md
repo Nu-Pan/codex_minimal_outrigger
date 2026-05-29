@@ -25,25 +25,25 @@
 
 ## Summary
 
-- `cmoc apply` 系サブコマンドのパッケージで、`fork`、`join`、`abandon` の各実装モジュールをまとめています。
-- `__init__.py` はパッケージ宣言だけを担う最小構成で、実行ロジックは持ちません。
-- apply 系の処理全体を追うときの入口として、このディレクトリの各モジュールへ案内します。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドのパッケージ入口です。
+- この配下には `abandon.py`、`fork.py`、`join.py` と、パッケージ宣言だけを担う `__init__.py` があります。
+- 個別の実行フローや状態遷移は各モジュール側で扱います。
 
 ## Read this when
 
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の実装や処理順を把握したいとき。
-- `src/sub_commands/apply` が Python パッケージとしてどう構成されているか確認したいとき。
-- apply 系サブコマンドの入口ファイルと、本体実装モジュールの対応関係を素早く知りたいとき。
+- `src/sub_commands/apply` が `cmoc apply` 系サブコマンドのパッケージであることを確認したいとき。
+- `cmoc apply abandon` / `cmoc apply fork` / `cmoc apply join` の実装モジュールの入口をまとめて把握したいとき。
+- このディレクトリ配下の構成と、どのモジュールにどの処理が置かれているかを素早く確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、このディレクトリではなく `oracles/app_specs/sub_commands/` 側を読むべきです。
-- `cmoc session` 系や `init`、`review oracles` など別サブコマンドの実装だけを確認したいときは、このディレクトリを読む必要はありません。
-- `branch_model`、`error_handling`、`indexing` などの共通仕様だけを確認したいときは、このディレクトリではなく該当する正本仕様を直接読むべきです。
+- `cmoc apply` 以外のサブコマンドの仕様や実装を確認したいとき。
+- `oracles` 配下の仕様断片だけを読みたいとき。
+- `apply` の個別モジュールではなく、共通の branch / state / ログ / エラーハンドリング仕様を確認したいとき。
 
 ## hash
 
-- c1999127b540246abb76e42833f061d6f7282623939792c4b36043e5fbfc8381
+- a9051b948efe416051329955f92ffe315b21dcd169558c77c90f885f7de7c08b
 
 # `eval_oracles.py`
 
