@@ -191,13 +191,13 @@
 
 ## Do not read this when
 
-- 個別の共通モジュールやサブコマンド本体の詳細だけを確認したいとき。
-- `tests` 配下の検証観点だけを確認したいとき。
+- 個別の共通モジュールやサブコマンド本体の実装詳細だけを確認したいとき。
+- `tests` 配下の検証観点や期待値だけを追いたいとき。
 - `INDEX.md` の生成ルールそのものや `oracles` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 3bd5ec902454be86221d94095e0bf4a081b430a4379573c7b3ec3ff704afcbde
+- 70af3847e56285bd771b258f9e10ed6e3ab5bde9f757436da48d01e78aefd25a
 
 # `test.sh`
 
@@ -227,24 +227,22 @@
 
 ## Summary
 
-- pytest による `cmoc` の回帰テスト群をまとめたディレクトリです。
-- 共通の import path 設定を行う `conftest.py` と、repo 共通処理、CLI サブコマンド、Codex 実行ラッパー、`INDEX.md` 生成、タイムスタンプ、ファイル命名規則の各テストを含みます。
-- 実装の横断的な振る舞いを、テスト専用の入口として確認する場所です。
+- `tests` は cmoc の pytest ベースの回帰テスト群をまとめたディレクトリです。
+- `conftest.py` の共通設定と、`test_repo.py`、`test_indexing.py`、`test_codex.py`、`test_subcommands.py`、`test_file_naming.py`、`test_timestamps.py` を含みます。
+- git 状態、`INDEX.md` の自動メンテナンス、Codex 呼び出し、CLI サブコマンド、命名規則、時間処理の挙動を検証する入口です。
 
 ## Read this when
 
-- pytest の共通設定や、テストから `src` 配下を import できる理由を確認したいとき。
-- `commons.repo`、`commons.codex`、`commons.indexing`、`commons.timestamps`、`commons.timing` の回帰テストを探したいとき。
-- `cmoc` のサブコマンド群や `INDEX.md` 生成まわりの変更が、どのテストに影響するか把握したいとき。
-- `routing.md` ではなく現行の `INDEX.md` ベースの案内へ統一されているかを確認したいとき。
+- pytest の共通設定や fixture の役割を確認したいとき。
+- `commons.repo`、`commons.indexing`、`commons.codex`、`src/sub_commands` に関する回帰テストを探したいとき。
+- `INDEX.md` メンテナンス、サブコマンド、ファイル命名、タイムスタンプの決定論的挙動を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの実装ロジックだけを追いたいときは `src/sub_commands` 側を読むべきです。
-- 正本仕様の詳細や作業フローだけを確認したいときは `oracles` 側を読むべきです。
-- `tests` 配下のうち特定のファイルだけを見たいときは、この目次ではなく `tests/test_*.py` を直接読むべきです。
-- テスト実装そのものを変更する目的ではなく、周辺コード全体を無差別に読む必要はありません。
+- `src` 配下の実装ロジックだけを追いたいとき。
+- `oracles` の正本仕様や `INDEX.md` 生成ルールだけを確認したいとき。
+- テストではなく、README や運用メモの内容を探しているとき。
 
 ## hash
 
-- 368c62cd8ab4727b039a9ad549c347f4cbd02248c4403cecfb3856139479fe52
+- d82f73e8a3335b31d377f478b9a6c1c1f880ce0ae8b1ceb06c4e41eeece0bef8

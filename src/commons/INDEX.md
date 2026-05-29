@@ -23,26 +23,28 @@
 
 ## Summary
 
-- `codex exec` を共通化した実行ラッパーと補助関数をまとめるモジュールです。
-- `--json` / `--output-schema` / `output-last-message` の組み立て、JSON 解析、Structured Output 検証を扱います。
-- quota 待機と resume、capacity 再試行、workspace-write 時の `oracles` 保護、実行前の `INDEX.md` メンテナンスも担当します。
+- `codex exec` の共通実行ラッパーと、その補助関数群をまとめるモジュールです。
+- `--json`、`--output-schema`、`--output-last-message` の組み立て、JSON 解析、Structured Output の検証を扱います。
+- quota 枯渇時の待機と `resume`、capacity の指数バックオフ再試行を担当します。
+- workspace-write 実行時の `oracles` 保護、実行前の `INDEX.md` メンテナンス、呼び出しログの保存も行います。
 
 ## Read this when
 
-- `codex exec` の起動引数や `read_only` / `workspace-write` の切り替えを確認したいとき。
-- Structured Output の schema 付与、JSON 解析、`output-last-message` の回収と検証の流れを見直したいとき。
-- quota 枯渇時の待機と resume、capacity の指数バックオフ再試行、oracles 保護を追いたいとき。
-- 実行ログの保存方法や、Codex CLI 起動前の `INDEX.md` メンテナンス連携を確認したいとき。
+- `codex exec` の起動引数や `read_only` と `workspace-write` の切り替えを確認したいとき。
+- Structured Output の schema 付与、JSON 解析、`output-last-message` の回収と検証の流れを追いたいとき。
+- quota 枯渇時の待機と `resume`、capacity の指数バックオフ再試行、`oracles` 保護の流れを確認したいとき。
+- `INDEX.md` の事前メンテナンスや、Codex CLI 呼び出しログの保存方法を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
 - `INDEX.md` の生成・更新ロジックそのものを確認したいときは、このファイルではなく `src/commons/indexing.py` を読むべきです。
-- `repo.py` の git 操作や `errors.py` の共通例外整形だけを確認したいとき。
+- git 操作や session/apply の状態管理だけを確認したいときは、このモジュールではなく `src/commons/repo.py` を読むべきです。
+- 共通例外やエラーレポートの整形だけを確認したいときは、`src/commons/errors.py` を読むべきです。
+- タイムスタンプ生成や経過時間表示だけを確認したいときは、`src/commons/timestamps.py` と `src/commons/timing.py` を読むべきです。
 
 ## hash
 
-- e62e79c2cbb848eb543899a118d8909b62707afc5d0007e1037afba24ac5c816
+- 84326d666a81cfd46b49573698420b020514740f7480535c954a376a40cff209
 
 # `command_runner.py`
 

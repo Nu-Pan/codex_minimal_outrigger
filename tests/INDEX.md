@@ -39,13 +39,13 @@
 
 ## Do not read this when
 
-- `commons.repo` の git 共通処理やリポジトリ初期化だけを確認したいときは、このファイルではなく `tests/test_repo.py` を読むべきです。
-- CLI サブコマンド全体の入出力やルーティングだけを確認したいときは、このファイルではなく `tests/test_subcommands.py` を読むべきです。
-- `INDEX.md` の生成ルールや配置規約だけを確認したいときは、このファイルではなく `oracles/app_specs/indexing.md` や `tests/test_indexing.py` を読むべきです。
+- `commons.repo` の git 共通処理やリポジトリ初期化だけを確認したいとき。
+- CLI サブコマンド全体の入出力やルーティングだけを確認したいとき。
+- `INDEX.md` の生成ルールや配置規約だけを確認したいとき。
 
 ## hash
 
-- 2cd57202d0ef4cf6fe26b92e1082c5fb67facf791e43b84e7949cbf443798e14
+- 603fe4d4f5b79ffd91f148ffe691e24002cd47dc56c66b1ff315b601d4e73d1e
 
 # `test_file_naming.py`
 
