@@ -299,6 +299,45 @@ def test_run_codex_exec_rejects_uncommitted_oracle_change_after_workspace_write(
     assert "oracles/spec.md" in error.value.detail
 
 
+def test_run_codex_exec_rejects_workspace_write_without_head(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """開始時 HEAD が存在しない repo では workspace-write guard を開始しない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "codex-invoked"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"touch {marker}",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert "開始 HEAD を検証できませんでした" in error.value.message
+    assert not marker.exists()
+
+
 def test_run_codex_exec_allows_active_oracle_conflict_resolution(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -459,6 +498,60 @@ def test_run_codex_exec_rejects_committed_oracle_change_after_workspace_write(
     assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
 
 
+def test_run_codex_exec_rejects_hidden_oracle_commit_after_workspace_write(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """oracle 変更 commit を reset で隠しても workspace-write guard は拒否する。"""
+    repo = _init_git_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("initial spec\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "add oracle")
+    before_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'hidden by codex' > oracles/spec.md",
+                "git add oracles/spec.md",
+                "git commit -m 'codex hidden oracle change' >/dev/null",
+                f"git reset --hard {before_head} >/dev/null",
+                "echo 'ok' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert "Codex CLI 実行中の commit range 変更:" in error.value.detail
+    assert "oracles/spec.md" in error.value.detail
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == before_head
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+
+
 def test_run_codex_exec_rejects_committed_oracle_deletion_after_workspace_write(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -507,6 +600,53 @@ def test_run_codex_exec_rejects_committed_oracle_deletion_after_workspace_write(
     assert "Codex CLI 実行中の commit range 変更:" in error.value.detail
     assert "oracles/spec.md" in error.value.detail
     assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+
+
+def test_run_codex_exec_rejects_non_forward_head_after_workspace_write(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """workspace-write 後 HEAD が実行前 HEAD の子孫でなければ拒否する。"""
+    repo = _init_git_repo(tmp_path)
+    (repo / "app.py").write_text("print('before')\n", encoding="utf-8")
+    _git(repo, "add", "app.py")
+    _git(repo, "commit", "-m", "add implementation")
+    previous_head = _git(repo, "rev-parse", "HEAD~1").stdout.strip()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"git reset --hard {previous_head} >/dev/null",
+                "echo 'ok' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert "HEAD 検査エラー:" in error.value.detail
+    assert "子孫ではありません" in error.value.detail
 
 
 def test_run_codex_exec_rejects_reverted_oracle_commit_after_workspace_write(

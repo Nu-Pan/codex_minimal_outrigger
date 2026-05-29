@@ -60,6 +60,7 @@ class _OracleGuardSnapshot:
 
     enabled: bool
     head_commit: str | None
+    head_reflog_entry_count: int | None = None
     allowed_uncommitted_paths: tuple[str, ...] = ()
 
 
@@ -566,10 +567,29 @@ def _start_oracle_guard(
         ["rev-parse", "--verify", "HEAD"],
         check=False,
     )
-    head = result.stdout.strip() if result.returncode == 0 else None
+    if result.returncode != 0:
+        raise CmocError(
+            "workspace-write oracle guard の開始 HEAD を検証できませんでした。",
+            [
+                "workspace-write で Codex CLI を実行する前に、HEAD が存在する状態へしてください。",
+                "初期 commit が未作成の場合は、先に必要な初期 commit を作成してください。",
+            ],
+            result.stderr.strip(),
+        )
+    head = result.stdout.strip()
+    head_reflog_entry_count = _head_reflog_entry_count(repo_root)
+    if head_reflog_entry_count is None:
+        raise CmocError(
+            "workspace-write oracle guard の HEAD reflog を検証できませんでした。",
+            [
+                "workspace-write で Codex CLI を実行する前に、HEAD reflog が記録される状態へしてください。",
+                "HEAD 移動の履歴を検査できない状態では、oracles ファイル保護を保証できません。",
+            ],
+        )
     return _OracleGuardSnapshot(
         enabled=True,
         head_commit=head,
+        head_reflog_entry_count=head_reflog_entry_count,
         allowed_uncommitted_paths=_active_allowed_oracle_conflict_paths(
             repo_root,
             allowed_uncommitted_oracle_paths,
@@ -590,14 +610,34 @@ def _assert_workspace_write_oracles_unchanged(
         for path in _uncommitted_oracle_file_paths(repo_root)
         if path not in allowed
     ]
-    committed = _committed_oracle_file_paths(repo_root, snapshot.head_commit)
-    if not uncommitted and not committed:
+    range_error, committed = _committed_oracle_file_paths(
+        repo_root,
+        snapshot.head_commit,
+    )
+    reflog_error, reflog_committed = _head_reflog_oracle_file_paths(
+        repo_root,
+        snapshot.head_commit,
+        snapshot.head_reflog_entry_count,
+    )
+    committed = sorted(
+        {
+            *committed,
+            *reflog_committed,
+        }
+    )
+    head_errors = [
+        error for error in [range_error, reflog_error] if error is not None
+    ]
+    if not uncommitted and not committed and not head_errors:
         return
 
     detail_lines: list[str] = []
     if uncommitted:
         detail_lines.append("未コミット差分:")
         detail_lines.extend(uncommitted)
+    if head_errors:
+        detail_lines.append("Codex CLI 実行中の HEAD 検査エラー:")
+        detail_lines.extend(head_errors)
     if committed:
         detail_lines.append("Codex CLI 実行中の commit range 変更:")
         detail_lines.extend(committed)
@@ -679,17 +719,32 @@ def _uncommitted_oracle_file_paths(repo_root: Path) -> list[str]:
 def _committed_oracle_file_paths(
     repo_root: Path,
     before_head: str | None,
-) -> list[str]:
+) -> tuple[str | None, list[str]]:
     """Codex 実行前後の HEAD range に含まれる oracle ファイルを返す。"""
     if before_head is None:
-        return []
+        return ("Codex CLI 実行前 HEAD が記録されていません。", [])
     after = run_git(
         repo_root,
         ["rev-parse", "--verify", "HEAD"],
         check=False,
     )
-    if after.returncode != 0 or after.stdout.strip() == before_head:
-        return []
+    if after.returncode != 0:
+        return ("Codex CLI 実行後 HEAD を検証できません。", [])
+    after_head = after.stdout.strip()
+    if after_head == before_head:
+        return (None, [])
+    ancestor = run_git(
+        repo_root,
+        ["merge-base", "--is-ancestor", before_head, after_head],
+        check=False,
+    )
+    if ancestor.returncode == 1:
+        return (
+            "Codex CLI 実行後 HEAD が実行前 HEAD の子孫ではありません。",
+            [],
+        )
+    if ancestor.returncode != 0:
+        return ("Codex CLI 実行前後 HEAD の祖先関係を検証できません。", [])
     log = run_git(
         repo_root,
         [
@@ -703,10 +758,76 @@ def _committed_oracle_file_paths(
             "oracles",
         ],
     )
-    return filter_oracle_file_paths(
-        repo_root,
-        _paths_from_name_status(log.stdout),
+    return (
+        None,
+        filter_oracle_file_paths(
+            repo_root,
+            _paths_from_name_status(log.stdout),
+        ),
     )
+
+
+def _head_reflog_entry_count(repo_root: Path) -> int | None:
+    """HEAD reflog の現在 entry 数を返す。"""
+    reflog = run_git(
+        repo_root,
+        ["reflog", "--format=%H", "HEAD"],
+        check=False,
+    )
+    if reflog.returncode != 0:
+        return None
+    return len(reflog.stdout.splitlines())
+
+
+def _head_reflog_oracle_file_paths(
+    repo_root: Path,
+    before_head: str | None,
+    baseline_entry_count: int | None,
+) -> tuple[str | None, list[str]]:
+    """Codex 実行中に HEAD reflog へ現れた commit の oracle 変更を返す。"""
+    if before_head is None or baseline_entry_count is None:
+        return ("Codex CLI 実行前 HEAD reflog が記録されていません。", [])
+    reflog = run_git(
+        repo_root,
+        ["reflog", "--format=%H", "HEAD"],
+        check=False,
+    )
+    if reflog.returncode != 0:
+        return ("Codex CLI 実行後 HEAD reflog を検証できません。", [])
+    # `git reflog` は新しい entry から返すため、開始時 entry 数を超える先頭部分が
+    # Codex 実行中に追加された HEAD 移動である。
+    entries = reflog.stdout.splitlines()
+    if len(entries) < baseline_entry_count:
+        return ("Codex CLI 実行中に HEAD reflog が短くなりました。", [])
+    new_commits = entries[: max(0, len(entries) - baseline_entry_count)]
+    paths: list[str] = []
+    for commit in new_commits:
+        if not commit or set(commit) == {"0"}:
+            continue
+        already_reachable = run_git(
+            repo_root,
+            ["merge-base", "--is-ancestor", commit, before_head],
+            check=False,
+        )
+        if already_reachable.returncode == 0:
+            continue
+        log = run_git(
+            repo_root,
+            [
+                "log",
+                "--format=",
+                "--name-status",
+                "-M",
+                "--diff-filter=ACDMRT",
+                f"{commit}^!",
+                "--",
+                "oracles",
+            ],
+            check=False,
+        )
+        if log.returncode == 0:
+            paths.extend(_paths_from_name_status(log.stdout))
+    return (None, filter_oracle_file_paths(repo_root, paths))
 
 
 def _paths_from_name_status(output: str) -> list[str]:
