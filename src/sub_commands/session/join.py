@@ -21,7 +21,7 @@ from commons.repo import (
 from commons.timing import StepTimer, start_step
 
 _MANUAL_RESOLUTION_MESSAGE: str = (
-    "手動解消が必要です。cmoc は merge 状態をロールバックしていません。"
+    "手動解消が必要です。cmoc は repository 状態をロールバックしていません。"
 )
 
 
@@ -33,7 +33,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("session join")
-    side_effect_started = False
+    manual_resolution_required = False
     try:
         start_step(timer, 1, 5, "validate session state")
         session_branch = _current_session_branch(repo_root)
@@ -44,12 +44,12 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         assert_no_uncommitted_changes(repo_root)
 
         start_step(timer, 2, 5, "ensure .cmoc is ignored")
+        manual_resolution_required = True
         ensure_cmoc_ignored(repo_root)
         assert_no_uncommitted_changes(repo_root)
 
         start_step(timer, 3, 5, "switch to session home branch")
         _assert_local_branch_exists(repo_root, home_branch)
-        side_effect_started = True
         run_git(repo_root, ["switch", home_branch])
 
         start_step(timer, 4, 5, "merge session branch")
@@ -72,7 +72,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         timer.report()
     except Exception:
         # 副作用段階に入った後は rollback せず、手動解決を案内する。
-        if side_effect_started:
+        if manual_resolution_required:
             print(_MANUAL_RESOLUTION_MESSAGE, file=sys.stderr)
         raise
 

@@ -5070,6 +5070,7 @@ def test_session_join_merges_current_session_branch_and_deletes_it(
 
 def test_session_join_ensures_cmoc_ignored_before_switch(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """tracked `.cmoc` state を補修し、発生差分を検出して switch 前に止める。"""
     repo = _init_repo(tmp_path)
@@ -5082,10 +5083,12 @@ def test_session_join_ensures_cmoc_ignored_before_switch(
     with pytest.raises(CmocError) as error:
         cmoc_session_join_impl(repo)
 
+    captured = capsys.readouterr()
     status = _git(repo, "status", "--porcelain").stdout
     assert "未コミットの変更" in error.value.message
     assert ".gitignore" in error.value.detail
     assert state_path in error.value.detail
+    assert "手動解消が必要です" in captured.err
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_000000123"
     )
