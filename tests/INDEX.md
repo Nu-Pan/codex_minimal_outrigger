@@ -131,28 +131,29 @@
 
 ## Summary
 
-- サブコマンド本体の決定論的な制御ロジックを検証する pytest 群です。
-- 共通実行入口のログ出力、終了コード、エラーレポート、`INDEX.md` 更新を確認します。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の状態遷移と副作用を確認します。
-- Fake Codex CLI や git worktree を使った分岐・復旧・cleanup の挙動を広くカバーします。
+- `tests/test_subcommands.py` は、cmoc のサブコマンド本体に関する決定論的な制御ロジックを検証する pytest 群です。
+- 共通実行入口のログ出力、エラー処理、`INDEX.md` 更新、CLI 登録の整合性を扱います。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、cleanup、merge、report 生成を広くカバーします。
+- Fake Codex CLI や git worktree を使う経路を含め、実運用に近い副作用まで確認します。
 
 ## Read this when
 
-- サブコマンドの状態遷移、終了コード、cleanup、状態ファイル更新を確認したいとき。
-- CLI 入口と実装関数のつながり、または `run_command` のログ挙動を確認したいとき。
-- `cmoc init` や `session` / `apply` / `review oracles` の期待される副作用を検証したいとき。
-- Fake Codex CLI を使った決定論的なテスト設計を確認したいとき。
+- サブコマンド本体の状態遷移、終了コード、cleanup、副作用を確認したいとき。
+- `run_command` のログ出力、エラーレポート、経過時間集計の仕様を確認したいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の期待動作を検証・修正したいとき。
+- Fake Codex CLI や git worktree を使った決定論的なテスト設計を確認したいとき。
+- `main.py` の CLI 登録、ヘルプ文言、互換コマンド、エラー表示の振る舞いを確認したいとき。
 
 ## Do not read this when
 
-- pytest の共通設定や import 設定だけを確認したいときは `tests/conftest.py` を読むべきです。
-- ファイル命名や旧ルーティングの有無だけを確認したいときは `tests/test_file_naming.py` を読むべきです。
-- `INDEX.md` 生成や除外判定など別の共通機能を確認したいときは `tests/test_indexing.py` を読むべきです。
-- 時間表示や duration 表示の仕様だけを確認したいときは `tests/test_timestamps.py` を読むべきです。
+- pytest の共通設定や import path の確認だけが目的で、`tests/conftest.py` を見れば足りるとき。
+- `src` 配下の実装ロジックそのものを追いたいとき。
+- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_timestamps.py` など、別のテスト群だけを確認したいとき。
+- ファイル命名規則や `INDEX.md` 生成の回帰だけを確認したいとき。
 
 ## hash
 
-- d7dd039168fbd8e7b74fdcda15ff44f430915d62e265c37f75f1c6956ea2b4c7
+- 1720ee6bdeba3ad5d6b3b5188ac3deb4a36271a705af4f484053416385539e92
 
 # `test_timestamps.py`
 

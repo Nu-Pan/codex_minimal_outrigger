@@ -49,16 +49,15 @@
 
 ## Summary
 
-- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、問題点をまとめた Markdown レポートを生成するモジュールです。
-- 現在ブランチと `--full` に応じて部分評価・全体評価を切り替え、評価対象 oracle の列挙、`INDEX.md` の整備、各ファイルへの評価依頼、改善済み issue list の反復、レポート保存までを一括で扱います。
-- Structured Output の検証、評価結果の再配分、エラー時のレポート生成、レポートの集計・整形もこのファイルにまとまっています。
+- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装を担い、`oracles` 配下の仕様断片を評価して問題点レポートを生成します。
+- 現在ブランチと `--full` に応じた部分評価・全体評価の切り替え、評価対象 oracle の列挙、`INDEX.md` の保守、評価結果の反復改善までをまとめています。
+- Structured Output の検証、エラー時のレポート保存、`.cmoc/reports/review_oracles` への出力も扱います。
 
 ## Read this when
 
-- `cmoc review oracles` の処理順や、部分評価・全体評価の切り替え条件を確認したいとき。
-- Codex CLI への評価プロンプト生成、Structured Output の検証、問題点リストの改善ロジックを追いたいとき。
-- `INDEX.md` の保守を含む `oracles` のスナップショット評価と、`.cmoc/reports/review_oracles` への出力仕様を修正・レビューしたいとき。
-- エラー時でもレポートを残す実装や、評価結果の集計・整形を確認したいとき。
+- `cmoc review oracles` の処理順や部分評価・全体評価の切り替え条件を確認したいとき。
+- Codex CLI への評価プロンプト生成や Structured Output 検証、問題点リストの改善ロジックを追いたいとき。
+- `INDEX.md` の保守を含む `oracles` スナップショット評価や、エラー時のレポート出力仕様を修正・レビューしたいとき。
 
 ## Do not read this when
 
@@ -68,7 +67,7 @@
 
 ## hash
 
-- d0f9f0518ad78de50b29da189a9f01bad2f21e9a534684b37918aad4a8767e2e
+- d816d30e3e79d50b83808b9dbb873b8a90cd3164e60107e8020b048617c9e252
 
 # `init.py`
 
