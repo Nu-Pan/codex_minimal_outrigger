@@ -132,14 +132,15 @@
 
 - `git` リポジトリと cmoc 作業ディレクトリの共通処理をまとめたモジュールです。
 - repo root 探索、branch 判定、session id 抽出、apply worktree パス復元、session state の保存・読込・検証を扱います。
-- `.cmoc` の ignore 保証、未コミット差分の検査、pathspec commit、`oracles` / 実装ファイルの列挙と変更・削除検出、root `.gitignore` の評価補助も含みます。
+- .cmoc` の ignore 保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを含みます。
+- session 状態に応じた path 生成や、固定スキーマの検証補助もこのファイルでまとめています。
 
 ## Read this when
 
 - git リポジトリルート探索、現在ブランチ、`cmoc/session/...` と `cmoc/apply/...` の branch 判定を確認したいとき。
 - session state JSON の保存・読込・固定スキーマ検証、active session の列挙を確認したいとき。
-- `.cmoc` を追跡対象外に保つ保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを追いたいとき。
-- `oracles` と実装ファイルの列挙、変更検出、削除検出、root `.gitignore` の評価方法を確認したいとき。
+- .cmoc` を追跡対象外に保つ保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを追いたいとき。
+- 作業ディレクトリの復元パス、`git` の補助処理、`session_state_root` のような共通基盤を確認したいとき。
 
 ## Do not read this when
 
@@ -149,7 +150,7 @@
 
 ## hash
 
-- 992dc81904a4c15e215c313deba20fd61024ba7c9b21fc58bf81b166d513f69c
+- 17810f9e21fdd782f0105250192972680335cd8056f5e8781caba36371eeaef2
 
 # `subcommand_log.py`
 
@@ -201,7 +202,7 @@
 
 ## hash
 
-- f1141dda897829295abed86f8308c89b7d0ca47ede9b60068dda517f850a35b8
+- d680614f3f0ce38c972594ac81fb8ef06663be408f36e822d9fcccb56d43cc51
 
 # `timing.py`
 

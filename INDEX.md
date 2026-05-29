@@ -197,7 +197,7 @@
 
 ## hash
 
-- 8929c2dd2dccf317a0bf825542f49e235d4709f62478b5777bb87a86ed4b79bd
+- b7d84d7d7d18391b95936c4a4dfee7659fa0281910d5074373392c18ca972fed
 
 # `test.sh`
 
@@ -227,21 +227,22 @@
 
 ## Summary
 
-- `tests` ディレクトリの入口です。pytest 共通設定と、cmoc の主要機能ごとのテスト群への案内をまとめます。
-- `conftest.py`、`test_codex.py`、`test_file_naming.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_timestamps.py` へのルーティング情報を提供します。
+- このディレクトリは cmoc の自動テストをまとめた入口です。
+- `commons` の共通処理、`sub_commands` の CLI ロジック、`INDEX.md` 生成、タイムスタンプ、命名規則を回帰検証します。
+- pytest の共通設定と各テスト群への案内を兼ねる目次です。
 
 ## Read this when
 
-- `tests` 配下にどんなテストがあるかを一覧で把握したいとき。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`sub_commands` など、どの機能がどのテストで検証されているかを探したいとき。
-- pytest の共通設定や、命名規則、INDEX.md 生成、CLI 挙動、タイムスタンプ仕様のどれを見ればよいかを切り分けたいとき。
+- テストを追加・修正するときに、既存のテスト群の役割分担を確認したいとき。
+- 対応する実装変更に対して、どのテストが回帰対象になるか整理したいとき。
+- pytest の共通設定や補助関数の置き場所を把握したいとき。
 
 ## Do not read this when
 
-- `tests` 全体の入口ではなく、個別のテストファイルだけを確認したいとき。
-- `src` 側の実装仕様や `oracles` の正本仕様だけを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- cmoc の利用手順やサブコマンドのユーザー向け仕様だけを確認したいとき。
+- 正本仕様の `oracles` や開発ルールだけを確認したいとき。
+- 個別テストケースの本文やアサーションの詳細だけを追いたいとき。
 
 ## hash
 
-- afdcc0fcffbac14eafb456452772adcd2f46fc1c8edea741f0eecfec7947f394
+- dbb21762a319d2ed27fdbd3580dbc8fd3fd7d7386eb4e32c71b5e8de950cb47f

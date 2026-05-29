@@ -105,27 +105,26 @@
 
 ## Summary
 
-- `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
-- .cmoc の ignore 保証、ファイル列挙、差分検出、削除検出、session state の読み書きと検証を扱います。
-- 末尾に、テスト用 git リポジトリを初期化する `_init_repo` と、git コマンド実行補助の `_git` があります。
+- `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
+- .cmoc の ignore 保証、オラクル/実装ファイルの列挙、差分抽出、削除検出を広く扱います。
+- session state の読み書きと schema 検証、`active_session_ids_for_home_branch` の異常系も確認します。
 
 ## Read this when
 
-- `tests/test_repo.py` が `commons.repo` のどの機能を検証しているか確認したいとき。
-- `.cmoc` の ignore 保証、tracked な `.cmoc` の untrack、`find_repo_root`、`is_cmoc_branch` を見直したいとき。
-- `list_oracle_files` / `list_implementation_files`、`changed_*`、`has_deleted_*` の除外条件や変更検出条件を確認したいとき。
-- session state の読み書き、`active_session_ids_for_home_branch`、`read_session_start_commit`、`session_state_root` の前提条件を把握したいとき。
-- テスト用 git リポジトリの初期化や `_init_repo` / `_git` の役割を確認したいとき。
+- `src/commons/repo.py` の振る舞い変更がどのテストに当たるか確認したいとき。
+- .cmoc の ignore 保証、`find_repo_root`、`is_cmoc_branch` を見直したいとき。
+- `changed_*`、`has_deleted_*`、`list_*_files` の除外条件や rename 判定を確認したいとき。
+- session state の保存・読込・検証や `_init_repo` / `_git` の役割を確認したいとき。
 
 ## Do not read this when
 
 - `src/commons/repo.py` の実装ロジックそのものを追いたいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など、別のテスト群だけを確認したいとき。
-- `INDEX.md` 全体の生成ルールや `oracles` 正本仕様だけを確認したいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など別のテスト群だけを見たいとき。
+- 他の `INDEX.md` や `oracles` 正本仕様のルーティングだけを確認したいとき。
 
 ## hash
 
-- 8d1f22a8a3c87544abffb708919bf39fd2c185c9b25dfe76b1da52110c40fcaa
+- e987621bc5cddced79a16af3a30166f25179fd0d060688b9a2118027082ec668
 
 # `test_subcommands.py`
 
@@ -153,14 +152,14 @@
 
 ## hash
 
-- 3ba7f033d9b0b00b8b8cd0de6a61858986d8055c45f592fe390e47d9a1cef552
+- 0053ac82b6a543b5921fe0c15a379491e1d5f41e1426988f536feabce7e0db7b
 
 # `test_timestamps.py`
 
 ## Summary
 
 - `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群の入口です。
-- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmmmmmmmm` 形式に整形されることを検証します。
+- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式に整形されることを検証します。
 - `format_duration` の固定幅表示、0.1 秒単位の切り捨て、そして同一ファイル内の補助関数が caller first, callee last で並ぶことを確認します。
 
 ## Read this when
@@ -172,11 +171,11 @@
 
 ## Do not read this when
 
-- タイムスタンプや経過時間表示とは関係のない CLI サブコマンドの仕様を確認したいとき。
+- `commons.timestamps.make_timestamp` や `commons.timing.format_duration` 以外の CLI サブコマンド仕様を確認したいとき。
 - 日時のパース、UTC 固定、その他の日時ユーティリティを探しているとき。
-- Codex CLI 呼び出し、ログ保存、`INDEX.md` 自動生成など別の共通仕様を調べたいとき。
-- このテスト群以外の `tests` 配置や別ファイルの順序検証だけを確認したいとき。
+- `INDEX.md` の自動生成や内容ハッシュの管理方法だけを調べたいとき。
+- コンソール出力、Codex CLI 呼び出し、エラー処理など別の共通実行制御を確認したいとき。
 
 ## hash
 
-- 90f4f5d595174be36883a3057c9ce8cccea795151a6ab18194478795325fdd5c
+- 11dd52f0ae222154a626c7567449aff80b4ca53d28ed40f54116c98cd70908ed
