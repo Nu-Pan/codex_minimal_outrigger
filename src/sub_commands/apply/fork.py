@@ -17,6 +17,7 @@ from commons.codex import (
     COMMIT_MESSAGE_REASONING_EFFORT,
     COST_PERFORMANCE_MODEL,
     COST_PERFORMANCE_REASONING_EFFORT,
+    FRONTIER_HIGH_REASONING_EFFORT,
     FRONTIER_MODEL,
     FRONTIER_REASONING_EFFORT,
     parse_json_object,
@@ -1017,6 +1018,8 @@ def _organize_discrepancies(
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
             json_validator=_validate_discrepancy_payload,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
+            model=FRONTIER_MODEL,
+            reasoning_effort=FRONTIER_HIGH_REASONING_EFFORT,
         )
     )
     return _fixing_points_with_head_commit_hash(repo_root, payload)

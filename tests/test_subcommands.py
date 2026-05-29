@@ -23,6 +23,7 @@ import sub_commands.session.join as session_join_module
 import commons.repo as repo_module
 from commons.codex import COST_PERFORMANCE_MODEL
 from commons.codex import COST_PERFORMANCE_REASONING_EFFORT
+from commons.codex import FRONTIER_HIGH_REASONING_EFFORT
 from commons.codex import FRONTIER_MODEL
 from commons.codex import FRONTIER_REASONING_EFFORT
 from commons.codex import COMMIT_MESSAGE_MODEL
@@ -3325,6 +3326,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
         lambda repo_root: False,
     )
     organize_prompts: list[str] = []
+    organize_kwargs: list[dict[str, object]] = []
     apply_prompts: list[str] = []
     organize_results = [
         _discrepancy_json("first improvement"),
@@ -3339,6 +3341,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
             return _discrepancy_json("initial")
         if purpose == "要修正点整理":
             organize_prompts.append(str(args[1]))
+            organize_kwargs.append(kwargs)
             return organize_results.pop(0)
         if purpose.startswith("要修正点適用"):
             apply_prompts.append(str(args[1]))
@@ -3358,6 +3361,11 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     output = capsys.readouterr().out
     assert exit_code == 2
     assert len(organize_prompts) == 3
+    assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in organize_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == FRONTIER_HIGH_REASONING_EFFORT
+        for kwargs in organize_kwargs
+    )
     assert "(5/6, 1/1, 4/5, 3/3) 要修正点リスト改善" in output
     assert "(5/6, 1/1, 5/5, 1/1) 要修正点適用" in output
     assert "要修正点リスト改善ループ (3/3) 要修正点: 1" in output
