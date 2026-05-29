@@ -720,6 +720,43 @@ def test_commit_if_changed_keeps_index_when_staged_restore_fails(
     assert _git(repo, "show", "HEAD:target.txt").stdout == "internal\n"
 
 
+def test_commit_if_changed_commits_file_with_cmoc_prefix(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` と同じ prefix の通常ファイルは commit 対象にする。"""
+    repo = _init_repo(tmp_path)
+    prefixed_file = repo / ".cmoc.py"
+    prefixed_file.write_text("regular file\n", encoding="utf-8")
+
+    assert commit_if_changed(repo, [".cmoc.py"], "add prefixed file") is True
+
+    assert _git(repo, "show", "HEAD:.cmoc.py").stdout == "regular file\n"
+
+
+def test_commit_if_changed_excludes_only_cmoc_directory(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` 配下だけを除外し、prefix が似た通常ファイルは残す。"""
+    repo = _init_repo(tmp_path)
+    cmoc_log = repo / ".cmoc" / "logs" / "internal.log"
+    cmoc_log.parent.mkdir(parents=True)
+    cmoc_log.write_text("internal\n", encoding="utf-8")
+    prefixed_file = repo / ".cmoc-config"
+    prefixed_file.write_text("regular config\n", encoding="utf-8")
+
+    assert (
+        commit_if_changed(
+            repo,
+            [".cmoc/logs/internal.log", ".cmoc-config"],
+            "add prefixed config",
+        )
+        is True
+    )
+
+    assert _git(repo, "show", "HEAD:.cmoc-config").stdout == "regular config\n"
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+
+
 def test_has_deleted_implementation_files_detects_target_deletion(
     tmp_path: Path,
 ) -> None:

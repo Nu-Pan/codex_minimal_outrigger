@@ -756,14 +756,14 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
                 env=env,
             )
 
-        add_paths = [path for path in paths if not path.startswith(".cmoc")]
+        add_paths = [path for path in paths if not _is_cmoc_managed_path(path)]
         if add_paths:
             run_git(
                 repo_root,
                 ["add", "-f", "--", *_literal_pathspecs(add_paths)],
                 env=env,
             )
-        if any(path == ".cmoc" or path.startswith(".cmoc/") for path in paths):
+        if any(_is_cmoc_managed_path(path) for path in paths):
             _remove_cmoc_from_index(repo_root, env)
 
         changed = run_git(
@@ -825,6 +825,11 @@ def _head_commit_or_none(repo_root: Path) -> str | None:
     if result.returncode == 0:
         return result.stdout.strip()
     return None
+
+
+def _is_cmoc_managed_path(relative_path: str) -> bool:
+    """`.cmoc` 管理領域そのもの、またはその配下なら True を返す。"""
+    return relative_path == ".cmoc" or relative_path.startswith(".cmoc/")
 
 
 def list_oracle_files(repo_root: Path) -> list[Path]:
