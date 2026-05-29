@@ -131,6 +131,7 @@ def test_run_command_tees_subcommand_output_and_summary(
     assert "(1/1) first step" in captured.out
     assert "sample (1/1) first step" not in captured.out
     assert "# Command completion report" in captured.out
+    assert f"subcommand log: {log_files[0]}" in captured.out
     assert captured.out.index("# Command completion report") < captured.out.index(
         "sample step timings:"
     )
@@ -146,7 +147,9 @@ def test_run_command_tees_subcommand_output_and_summary(
         for event in log_events
     )
     assert any(
-        event["event"] == "subcommand_end" and event["returncode"] == 2
+        event["event"] == "subcommand_end"
+        and event["returncode"] == 2
+        and event["subcommand_log"] == str(log_files[0])
         for event in log_events
     )
     assert "/.cmoc/logs/" in (repo / ".git" / "info" / "exclude").read_text(
@@ -178,9 +181,10 @@ def test_start_step_logs_hierarchical_step_index(
     run_command(handler)
 
     captured = capsys.readouterr()
-    log_content = next(
+    log_file = next(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
-    ).read_text(encoding="utf-8")
+    )
+    log_content = log_file.read_text(encoding="utf-8")
     log_events = [json.loads(line) for line in log_content.splitlines()]
     assert "(5/6, 2/3, 1/4) nested step" in captured.out
     assert any(
@@ -210,15 +214,17 @@ def test_run_command_logs_summary_on_exception(
         run_command(handler)
 
     captured = capsys.readouterr()
-    log_content = next(
+    log_file = next(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
-    ).read_text(encoding="utf-8")
+    )
+    log_content = log_file.read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
     assert captured.err == ""
     assert "ERROR" in captured.out
     assert "RuntimeError" in captured.out
     assert "boom" in captured.out
     assert "# Command completion report" in captured.out
+    assert f"subcommand log: {log_file}" in captured.out
     assert "subcommand return code: 1" in captured.out
     log_events = [json.loads(line) for line in log_content.splitlines()]
     assert any(
@@ -226,7 +232,9 @@ def test_run_command_logs_summary_on_exception(
         for event in log_events
     )
     assert any(
-        event["event"] == "subcommand_end" and event["returncode"] == 1
+        event["event"] == "subcommand_end"
+        and event["returncode"] == 1
+        and event["subcommand_log"] == str(log_file)
         for event in log_events
     )
 
@@ -340,6 +348,7 @@ def test_run_command_reports_repo_root_resolution_error(
     assert f"開始パス: {tmp_path.resolve()}" in captured.out
     assert "Call stack:" in captured.out
     assert "# Command completion report" in captured.out
+    assert "subcommand log: unavailable" in captured.out
     assert "subcommand total elapsed:" in captured.out
     assert "subcommand quota wait elapsed:" in captured.out
     assert "subcommand return code: 1" in captured.out
