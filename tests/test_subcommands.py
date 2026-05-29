@@ -1279,6 +1279,53 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     assert "## Specification-only basis" not in report
 
 
+def test_eval_oracles_preserves_original_error_when_error_report_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """error report 保存の二次失敗で一次失敗情報を失わない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """oracle 評価中の一次失敗を模擬する。"""
+        raise RuntimeError("primary evaluation failure")
+
+    def fake_write_error_report(*args: object, **kwargs: object) -> Path:
+        """error report 書き込み自体の二次失敗を模擬する。"""
+        raise OSError("secondary report failure")
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "_write_error_report",
+        fake_write_error_report,
+    )
+
+    with pytest.raises(RuntimeError, match="primary evaluation failure") as exc_info:
+        cmoc_eval_oracles_impl(repo, full=True)
+
+    assert [
+        "review oracles error report generation also failed: "
+        "OSError: secondary report failure"
+    ] == exc_info.value.__notes__
+    captured = capsys.readouterr()
+    assert "cmoc review oracles error report generation failed." in captured.err
+    assert "- result: error" in captured.err
+    assert "- failed_stage: oracle ファイル評価" in captured.err
+    assert "- exception: RuntimeError: primary evaluation failure" in captured.err
+    assert "- report_exception: OSError: secondary report failure" in captured.err
+
+
 def test_eval_oracles_report_aggregates_issues_by_severity(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

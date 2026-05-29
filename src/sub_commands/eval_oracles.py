@@ -4,6 +4,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 import json
 from inspect import signature
 from pathlib import Path
+import sys
 
 from commons.codex import (
     FRONTIER_HIGH_REASONING_EFFORT,
@@ -261,22 +262,45 @@ def cmoc_eval_oracles_impl(
             evaluations,
         )
     except Exception as error:
-        report_path = _write_error_report(
-            repo_root,
-            mode,
-            full,
-            branch_name,
-            cmoc_branch,
-            base_commit,
-            commit_hash,
-            deleted_oracles,
-            len(all_oracle_files) if all_oracle_files_known else None,
-            oracle_files,
-            evaluations,
-            failed_stage,
-            error,
-        )
-        print(str(report_path))
+        try:
+            report_path = _write_error_report(
+                repo_root,
+                mode,
+                full,
+                branch_name,
+                cmoc_branch,
+                base_commit,
+                commit_hash,
+                deleted_oracles,
+                len(all_oracle_files) if all_oracle_files_known else None,
+                oracle_files,
+                evaluations,
+                failed_stage,
+                error,
+            )
+        except Exception as report_error:
+            error.add_note(
+                "review oracles error report generation also failed: "
+                f"{type(report_error).__name__}: {report_error}"
+            )
+            _print_error_report_fallback(
+                repo_root,
+                mode,
+                full,
+                branch_name,
+                cmoc_branch,
+                base_commit,
+                commit_hash,
+                deleted_oracles,
+                len(all_oracle_files) if all_oracle_files_known else None,
+                oracle_files,
+                evaluations,
+                failed_stage,
+                error,
+                report_error,
+            )
+        else:
+            print(str(report_path))
         raise
     print(str(report_path))
     timer.report()
@@ -834,6 +858,45 @@ def _write_error_report(
         lines.append("No referenced files.")
     report_path.write_text("\n".join(lines), encoding="utf-8")
     return report_path
+
+
+def _print_error_report_fallback(
+    repo_root: Path,
+    mode: str | None,
+    full_requested: bool,
+    branch_name: str | None,
+    cmoc_branch: bool | None,
+    base_commit: str | None,
+    commit_hash: str | None,
+    deleted_oracles: bool | None,
+    oracle_count_total: int | None,
+    oracle_files: list[Path],
+    evaluations: list[dict[str, object]],
+    failed_stage: str,
+    error: Exception,
+    report_error: Exception,
+) -> None:
+    """error report 保存失敗時に一次失敗情報だけは stderr へ残す。"""
+    lines = [
+        f"{_REPORT_COMMAND} error report generation failed.",
+        "Fallback diagnostic:",
+        f"- result: error",
+        f"- repo_root: {repo_root.resolve()}",
+        f"- mode: {mode or 'unknown'}",
+        f"- full_requested: {str(full_requested).lower()}",
+        f"- branch: {_yaml_nullable(branch_name)}",
+        f"- is_cmoc_branch: {_yaml_bool_nullable(cmoc_branch)}",
+        f"- base_commit: {_yaml_nullable(base_commit)}",
+        f"- head_commit: {_yaml_nullable(commit_hash)}",
+        f"- deleted_oracles_detected: {_yaml_bool_nullable(deleted_oracles)}",
+        f"- oracle_count_total: {_yaml_int_nullable(oracle_count_total)}",
+        f"- oracle_count_requested: {len(oracle_files)}",
+        f"- oracle_count_evaluated: {len(evaluations)}",
+        f"- failed_stage: {failed_stage}",
+        f"- exception: {type(error).__name__}: {error}",
+        f"- report_exception: {type(report_error).__name__}: {report_error}",
+    ]
+    print("\n".join(lines), file=sys.stderr)
 
 
 def _validate_referenced_paths(value: object, repo_root: Path) -> set[Path]:
