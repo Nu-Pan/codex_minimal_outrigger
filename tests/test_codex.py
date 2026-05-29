@@ -1768,6 +1768,59 @@ def test_run_codex_exec_retries_missing_last_message_without_validator(
     ] == [True, True]
 
 
+def test_run_codex_exec_reports_unreadable_last_message(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """last message の I/O failure は path と原因付きの CmocError にする。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'plain text result' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    original_read_text = Path.read_text
+
+    def fail_last_message_read(path: Path, *args: object, **kwargs: object) -> str:
+        if "output_last_message" in path.parts:
+            raise OSError("permission denied")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_last_message_read)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "prompt", read_only=True)
+
+    assert "codex exec がリトライ後も有効な text を返しませんでした。" in (
+        error.value.message
+    )
+    assert "Last message:" in error.value.detail
+    assert "output_last_message" in error.value.detail
+    assert "Last validation error: output-last-message could not be read:" in (
+        error.value.detail
+    )
+    assert "permission denied" in error.value.detail
+
+
 def test_run_codex_exec_reports_text_semantic_validation_failure(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -2616,6 +2669,64 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
         '  - "resume"\n  - "session-1"' in content
         for content in log_contents
     )
+
+
+def test_run_codex_exec_reports_unreadable_quota_poll_last_message(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """quota poll の last message 読み取り失敗も path と原因を出す。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "PROMPT=\"$(cat)\"",
+                "if [[ \"$PROMPT\" == *'Codex CLI の疎通確認担当'* ]]; then",
+                "  echo 'ok' > \"$LAST\"",
+                "  exit 0",
+                "fi",
+                "echo '{\"session_id\":\"session-1\"}'",
+                "echo '{\"type\":\"error\","
+                "\"message\":\"out of credits\"}'",
+                "echo 'quota exhausted' >&2",
+                "exit 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.codex.time.sleep", lambda seconds: None)
+    original_read_text = Path.read_text
+
+    def fail_last_message_read(path: Path, *args: object, **kwargs: object) -> str:
+        if "output_last_message" in path.parts:
+            raise OSError("stale file handle")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_last_message_read)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(repo, "original prompt", read_only=True)
+
+    assert "quota 復旧確認に失敗しました。" in error.value.message
+    assert "Last message:" in error.value.detail
+    assert "output_last_message" in error.value.detail
+    assert "Reason: output-last-message could not be read:" in error.value.detail
+    assert "stale file handle" in error.value.detail
 
 
 def test_run_codex_exec_retries_schema_validation_failure(

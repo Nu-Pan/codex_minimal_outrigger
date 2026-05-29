@@ -972,10 +972,16 @@ def _read_last_message(path: Path) -> str:
     # Codex CLI の成果物は stdout ではなく last message ファイルとする。
     if not path.exists():
         raise ValueError(f"output-last-message was not created: {path}")
-    return path.read_text(
-        encoding=_CODEX_TEXT_ENCODING,
-        errors=_CODEX_TEXT_ERRORS,
-    )
+    try:
+        return path.read_text(
+            encoding=_CODEX_TEXT_ENCODING,
+            errors=_CODEX_TEXT_ERRORS,
+        )
+    except OSError as error:
+        raise ValueError(
+            f"output-last-message could not be read: {path}; "
+            f"reason: {error}"
+        ) from error
 
 
 def _raise_quota_poll_failure(
@@ -992,6 +998,7 @@ def _raise_quota_poll_failure(
         "\n".join(
             [
                 f"Log: {run.log_path}",
+                f"Last message: {run.last_message_path}",
                 f"Reason: {reason}",
                 "STDOUT:",
                 run.result.stdout,
@@ -1320,10 +1327,13 @@ def _read_optional_text(path: Path) -> str:
     """存在するテキストファイルだけをログ本文へ取り込む。"""
     if not path.exists():
         return ""
-    return path.read_text(
-        encoding=_CODEX_TEXT_ENCODING,
-        errors=_CODEX_TEXT_ERRORS,
-    )
+    try:
+        return path.read_text(
+            encoding=_CODEX_TEXT_ENCODING,
+            errors=_CODEX_TEXT_ERRORS,
+        )
+    except OSError as error:
+        return f"[unreadable: {path}; reason: {error}]"
 
 
 def _validate_json_schema(value: object, schema: dict[str, object]) -> None:
