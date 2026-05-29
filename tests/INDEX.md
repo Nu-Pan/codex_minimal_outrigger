@@ -131,24 +131,24 @@
 ## Summary
 
 - `tests/test_subcommands.py` は、サブコマンド群の決定論的な制御ロジックを広く検証する統合テスト集です。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の状態遷移、Git ブランチ・worktree・state ファイル・レポート生成を扱います。
-- プロンプト生成、Structured Output schema、エラーレポート、禁止パス検出、補助関数の振る舞いも含めて回帰を防ぎます。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の状態遷移と、Git ブランチ・worktree・state ファイル・レポート生成を扱います。
+- プロンプト本文、Structured Output schema、エラーハンドリング、禁止領域チェック、関連する補助関数の回帰も確認します。
 
 ## Read this when
 
-- `cmoc` の各サブコマンド実装を変更し、状態遷移や cleanup 条件を確認したいとき。
-- `apply` / `session` / `eval_oracles` の branch・worktree・session state・report 出力を修正したいとき。
-- プロンプト本文、JSON schema、エラーハンドリング、禁止領域チェックのテスト期待値を確認したいとき。
+- `init`、`session`、`apply`、`eval_oracles` の実装を変更して、状態遷移や cleanup 条件を確認したいとき。
+- Git ブランチ、worktree、session state、report 出力、エラーレポートの期待値を確認したいとき。
+- プロンプト生成、Structured Output schema、禁止パス検出、補助関数の振る舞いを含む回帰を確認したいとき。
 
 ## Do not read this when
 
-- 個別コマンドの正本仕様やルーティング方針だけを確認したいときは、`oracles` 配下の該当 INDEX を直接読むべきです。
-- サブコマンド実装ではなく、一般的な開発規則や `INDEX.md` 生成ルールだけを確認したいとき。
-- このファイルに載っていない別機能や別テストの挙動を確認したいとき。
+- 個別コマンドの正本仕様や `oracles` 配下のルーティング方針だけを確認したいとき。
+- 一般的な開発規則、`INDEX.md` 生成ルール、`commons.repo` など別機能の共通仕様を確認したいとき。
+- `test_codex.py`、`test_indexing.py`、`test_repo.py` など他のテスト群の挙動だけを追いたいとき。
 
 ## hash
 
-- 8ed78fab061bc24814c1ed4180be659e02c844206074437c3c9c06cca56fdc16
+- 3247b3297bc5144f816003c0c836fbe13ec38518acb238398b0ffde082e53802
 
 # `test_timestamps.py`
 
