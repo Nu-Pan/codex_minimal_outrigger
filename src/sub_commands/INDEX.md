@@ -38,12 +38,12 @@
 ## Do not read this when
 
 - `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち 1 つだけの詳細仕様を確認したいときは、この目次ではなく該当モジュールを直接読むべきです。
-- `cmoc apply` ではなく `cmoc session` 側の仕様を確認したいときは、このディレクトリを読む必要はありません。
+- `cmoc apply` ではなく `cmoc session` 側の開始・統合・破棄仕様を確認したいときは、このディレクトリを読む必要はありません。
 - このディレクトリではなく、`__init__.py` だけでパッケージ宣言を確認すれば足りるときは、ここを読む必要はありません。
 
 ## hash
 
-- 8b2e876f9913d43df87d78e72ed6a66b52641cfcd69ba3190c35ff20494a1cc6
+- cba266b9f501269aed36dc737b3c3f8f0d94e8bef3beb58afd10123198188287
 
 # `eval_oracles.py`
 

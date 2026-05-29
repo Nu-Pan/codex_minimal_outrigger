@@ -132,27 +132,27 @@
 ## Summary
 
 - `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
-- `run_command` のコンソール/JSONL ログ、例外時レポート、終了コード、`repo_root` 解決失敗時の挙動を扱います。
-- `init`、`session fork` / `session join` / `session abandon`、`apply fork` / `apply join` / `apply abandon`、`review oracles` の状態遷移とリカバリを回帰確認します。
-- `apply` と `eval oracles` の prompt、Structured Output schema、payload 検証、差分整理、conflict 解決、`INDEX.md` 連携も含みます。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、ログ出力、終了コード、エラー報告、cleanup をまとめて扱います。
+- `eval-oracles` と `apply` の prompt、Structured Output schema、payload 検証、レポート生成、差分整理、conflict 解決、`INDEX.md` 連携も確認します。
+- `main.py` のコマンド登録や `bin/cmoc` ランチャー、`cmoc --help`、互換 alias の挙動もこのテスト群で確認します。
 
 ## Read this when
 
-- cmoc の主要サブコマンド入口や `main.py` からの委譲関係を確認したいとき。
-- `run_command` のログ出力、終了コード、例外レポート、`repo_root` 解決失敗時の扱いを追いたいとき。
-- `init`、`session`、`apply`、`review oracles` 系の状態遷移、CLI 登録、ヘルプ表示を広く回帰確認したいとき。
-- prompt 生成、Structured Output schema、payload validation、conflict marker 判定、`bin/cmoc` ランチャーの挙動を確認したいとき。
+- `main.py` と各サブコマンドの委譲関係、CLI 登録、`--help` の表示を確認したいとき。
+- `run_command` のコンソール/JSONL ログ、終了コード、例外レポート、`repo_root` 解決失敗時の挙動を追いたいとき。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、cleanup、`force_resolve`、破棄処理を回帰確認したいとき。
+- prompt 生成、Structured Output schema、payload validation、conflict marker 判定、レポート生成の変更影響を確認したいとき。
 
 ## Do not read this when
 
 - 個別の `src/sub_commands/*` 実装だけを追いたいとき。
-- `commons.repo` や `commons.indexing` など共通処理の詳細だけを確認したいとき。
+- `commons.repo`、`commons.indexing`、`commons.codex` など共通処理の詳細だけを確認したいとき。
 - `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_timestamps.py` など別のテスト群だけを見たいとき。
 - `oracles` 配下の正本仕様や `INDEX.md` の生成ルールそのものを確認したいとき。
 
 ## hash
 
-- 6655352257e8cd08bfab329d549e8f2835dd8b81cb91375bda1086fe4bf88cf5
+- 2a7c52fa5608661770abdeced234d4e602c5c7b57002fb7f05056b8fafd2f506
 
 # `test_timestamps.py`
 

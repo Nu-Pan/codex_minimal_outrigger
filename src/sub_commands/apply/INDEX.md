@@ -80,16 +80,14 @@
 
 - `cmoc apply join` の実装・修正・レビュー・テストで、処理順や責務境界を確認したいとき。
 - 完了済みの apply branch を session branch に取り込む前提条件や、`apply.state` の検証条件を確認したいとき。
-- 想定外の差分の検出方法と、`--force-resolve` による revert 分岐を追いたいとき。
-- `git merge --no-ff` の後に `apply.state` を `ready` に戻す処理や、apply branch / worktree の削除条件を確認したいとき。
+- 想定外の差分の検出方法、`--force-resolve` による revert 分岐、`INDEX.md` conflict の自動解消、cleanup 条件を追いたいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点の収集だけを確認したいときは、このファイルではなく `fork.py` を読むべきです。
-- `cmoc apply abandon` の破棄処理や cleanup 方針だけを確認したいときは、このファイルではなく `abandon.py` を読むべきです。
-- `cmoc session join` や `cmoc session abandon` など、session 側の開始・終了・統合だけを確認したいときは、このファイルではなく該当モジュールを読むべきです。
-- `cmoc apply join` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/apply_join.md` を直接読むべきです。
+- `cmoc apply fork` や `cmoc apply abandon` の処理を確認したいとき。
+- `cmoc session join` や `cmoc session abandon` など、session 側の開始・終了・統合だけを確認したいとき。
+- `cmoc apply join` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/apply_join.md` を読むべきです。
 
 ## hash
 
-- 86a816ef54dd6c6c170face1f591b99484d7a35eb45c15007646b67cf1062370
+- 761f1c7b525d555f6b0e479f607df591933aa67476a140046b4d43f1ffc7f007

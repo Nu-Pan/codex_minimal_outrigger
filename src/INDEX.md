@@ -53,22 +53,22 @@
 
 ## Summary
 
-- `src/sub_commands` は cmoc のサブコマンド実装を集約する入口で、`__init__.py`、`init.py`、`eval_oracles.py`、`apply/`、`session/` をまとめます。
-- `__init__.py` はパッケージ宣言のみ、`init.py` は `cmoc init`、`eval_oracles.py` は `cmoc review oracles` の本体です。
-- `apply/` と `session/` はそれぞれ `cmoc apply` 系と `cmoc session` 系の実装ディレクトリで、個別コマンド詳細は配下の INDEX へ分岐します。
+- `src/sub_commands` は cmoc の個別サブコマンド実装の入口で、`__init__.py`、`init.py`、`eval_oracles.py`、`apply/`、`session/` を束ねるディレクトリです。
+- `init.py` は `cmoc init`、`eval_oracles.py` は `cmoc review oracles`、`apply/` は `cmoc apply` 系、`session/` は `cmoc session` 系の実装へ案内します。
+- この目次は、個別モジュールや配下の `INDEX.md` に素早く進むための入口です。
 
 ## Read this when
 
-- `src/sub_commands` 配下のどのモジュールがどの CLI を担当するかを先に整理したいとき。
-- `cmoc init` や `cmoc review oracles` から `apply/` や `session/` 系へどこを辿ればよいか確認したいとき。
-- このディレクトリをサブコマンド実装の入口として、全体の役割分担だけ把握したいとき。
+- `src/sub_commands` 配下の実装モジュールの役割分担を確認したいとき。
+- `cmoc init`、`cmoc review oracles`、`cmoc apply`、`cmoc session` のどの実装へ進むべきかを整理したいとき。
+- 新しいサブコマンドの追加や、既存のサブコマンド実装の配置を見直したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの処理順、状態遷移、エラー処理を確認したいときは、この目次ではなく各モジュールや配下の INDEX を読むべきです。
-- `cmoc apply` や `cmoc session` の詳細仕様だけを見たいときは、このディレクトリではなくそれぞれの配下の INDEX を読むべきです。
-- `src/sub_commands/__init__.py` のパッケージ宣言だけを確認すれば足りるときは、ここを読む必要はありません。
+- 個別の `cmoc init`、`cmoc review oracles`、`cmoc apply`、`cmoc session` の詳細仕様だけを確認したいとき。
+- `src/sub_commands` の役割ではなく、`branch_model` や `error_handling` などの共通仕様を確認したいとき。
+- パッケージ宣言だけで足りて、実装モジュールの入口を確認する必要がないとき。
 
 ## hash
 
-- de88c5fe81e4d6a86b997e1b7cc5d937ee11ea92049bd566f4a5e04e4cecbb63
+- bda296722d787bdbc615868736e17f61ec5515c7a39d7ee83fb5ff325ae85ad2
