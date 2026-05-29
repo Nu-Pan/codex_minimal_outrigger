@@ -16,6 +16,8 @@ from commons.repo import (
     clear_apply_process_id,
     current_branch,
     filter_oracle_file_paths,
+    git_name_only_paths,
+    git_name_status_entries,
     is_apply_branch,
     is_implementation_path,
     is_session_branch,
@@ -329,6 +331,7 @@ def _changed_path_entries_between(
         [
             "diff",
             "--name-status",
+            "-z",
             "-M",
             "-C",
             "--find-copies-harder",
@@ -337,15 +340,10 @@ def _changed_path_entries_between(
         ],
     )
     entries: list[_ChangedPathEntry] = []
-    for line in result.stdout.splitlines():
-        parts = line.split("\t")
-        if not parts:
-            continue
-        status = parts[0]
-        if status.startswith(("R", "C")) and len(parts) >= 3:
-            entries.append(_ChangedPathEntry([parts[1], parts[2]]))
-        elif len(parts) >= 2:
-            entries.append(_ChangedPathEntry([parts[1]]))
+    for _status, paths in git_name_status_entries(result.stdout):
+        if paths:
+            # rename/copy は oracle の共通規則に合わせて変更後 path を対象にする。
+            entries.append(_ChangedPathEntry([paths[-1]]))
     return entries
 
 
@@ -545,8 +543,8 @@ def _paths_existing_at_commit(
 
 def _unmerged_paths(repo_root: Path) -> list[str]:
     """unmerged path を git から取得する。"""
-    result = run_git(repo_root, ["diff", "--name-only", "--diff-filter=U"])
-    return [line for line in result.stdout.splitlines() if line]
+    result = run_git(repo_root, ["diff", "--name-only", "-z", "--diff-filter=U"])
+    return git_name_only_paths(result.stdout)
 
 
 def _resolve_index_conflicts(
