@@ -120,11 +120,11 @@
 
 - `src/commons/repo.py` の実装ロジックそのものを確認したいとき。
 - `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など、別のテスト群だけを見たいとき。
-- `oracles` 正本仕様や `INDEX.md` の生成ルール全体だけを確認したいとき。
+- `oracles` 正本仕様や `INDEX.md` 生成ルール全体だけを確認したいとき。
 
 ## hash
 
-- a89a2d96bdcddc5244410d27bb2c21814686c9654f3d8f46f960a24cc08599ae
+- 9b724c01105b71b967e783c5a20ae95f276893715404186f02ac8567b184a716
 
 # `test_subcommands.py`
 

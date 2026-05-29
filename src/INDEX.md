@@ -2,25 +2,25 @@
 
 ## Summary
 
-- cmoc 全体で共有する実行基盤をまとめたディレクトリです。
-- Codex CLI 呼び出し、共通エラー整形、repo root / branch / session state 操作、サブコマンドログ、経過時間計測、タイムスタンプ生成、INDEX.md メンテナンスを扱います。
-- 個別サブコマンドではなく、複数機能から再利用される共通部品の入口です。
+- `src/commons` にある cmoc 共通ユーティリティ群の入口です。
+- Codex CLI 呼び出し、サブコマンド実行制御、リポジトリ状態管理、共通エラー整形を扱うモジュールへの案内をまとめます。
+- サブコマンドログ、タイミング計測、タイムスタンプ生成、`INDEX.md` 生成・維持の共通処理をたどるための目次です。
 
 ## Read this when
 
-- Codex CLI 呼び出し、Structured Output 検証、quota 待機や再試行の共通処理を確認したいとき。
-- repo root 探索、branch 判定、session/apply state、git 操作補助を確認したいとき。
-- 共通エラー表示、サブコマンドログ、経過時間計測、タイムスタンプ、INDEX.md メンテナンスの仕組みを追いたいとき。
+- cmoc の共通処理をまとめて把握したいとき
+- `codex.py`、`command_runner.py`、`repo.py`、`errors.py` などの役割分担を確認したいとき
+- サブコマンドログ、経過時間計測、タイムスタンプ生成、`INDEX.md` メンテナンスの入口を探したいとき
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや引数定義だけを確認したいとき。
-- `src/commons` の特定モジュールだけを直接読みたいとき。
-- `src` 配下の別機能や `tests` の実装だけを追いたいとき。
+- 個別サブコマンドの業務ロジックや引数定義だけを確認したいとき
+- `src/commons` 以外の機能、例えば `oracles` 配下の仕様やテストの詳細だけを確認したいとき
+- `INDEX.md` の自動生成ロジックや更新判定そのものを確認したいとき
 
 ## hash
 
-- e8aa67400c36cdc8bc6bbf9be836e12988ac047585b1e6e5c9412631d635b123
+- 753e51bbbb5bab03b4c6737abbf2aafc80c079102896b96366bbaa4c891005a7
 
 # `main.py`
 
