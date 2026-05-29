@@ -130,27 +130,26 @@
 
 ## Summary
 
-- `git` リポジトリと cmoc 作業ディレクトリの共通処理をまとめたモジュールです。
-- repo root 探索、branch 判定、session id 抽出、apply worktree パス復元、session state の保存・読込・検証を扱います。
-- .cmoc` の ignore 保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを含みます。
-- session 状態に応じた path 生成や、固定スキーマの検証補助もこのファイルでまとめています。
+- `git` リポジトリと `cmoc` の共通基盤処理をまとめたモジュールです。
+- repo root の探索、branch 判定、session id 抽出、apply worktree パス復元、session state の保存・読込・検証を扱います。
+- `.cmoc` の ignore 保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックも含みます。
 
 ## Read this when
 
-- git リポジトリルート探索、現在ブランチ、`cmoc/session/...` と `cmoc/apply/...` の branch 判定を確認したいとき。
-- session state JSON の保存・読込・固定スキーマ検証、active session の列挙を確認したいとき。
-- .cmoc` を追跡対象外に保つ保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを追いたいとき。
-- 作業ディレクトリの復元パス、`git` の補助処理、`session_state_root` のような共通基盤を確認したいとき。
+- git リポジトリルート探索、現在ブランチ、`cmoc/session/...` と `cmoc/apply/...` の判定を確認したいとき。
+- session state JSON の保存・読込・固定スキーマ検証、`active_session_ids_for_home_branch` を確認したいとき。
+- `.cmoc` を git 追跡対象外に保つ保証、未コミット差分の検査、`cmoc init` 向けの差分分離と commit ロジックを追いたいとき。
+- apply worktree の復元パスや、`session_state_root` などの共通基盤を確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの引数や実行手順だけを確認したいとき。
-- `src/commons/errors.py` や `src/commons/indexing.py` など、別の共通モジュールだけを追いたいとき。
-- `.cmoc` の追跡対象外保証や git 操作の細部ではなく、CLI 仕様やワークフロー仕様だけを確認したいとき。
+- `src/commons/errors.py` や `src/commons/indexing.py` など、別の共通モジュールの仕様だけを追いたいとき。
+- `.cmoc` の追跡対象外保証や git 操作の細部ではなく、CLI 全体のワークフロー仕様だけを確認したいとき。
 
 ## hash
 
-- 17810f9e21fdd782f0105250192972680335cd8056f5e8781caba36371eeaef2
+- e50cf3c8d8d79d9aff8d4db697bbb9d3f5875eb5c5d686d70022b5de8bf3012d
 
 # `subcommand_log.py`
 

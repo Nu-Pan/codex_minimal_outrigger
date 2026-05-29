@@ -105,26 +105,26 @@
 
 ## Summary
 
-- `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
-- .cmoc の ignore 保証、オラクル/実装ファイルの列挙、差分抽出、削除検出を広く扱います。
-- session state の読み書きと schema 検証、`active_session_ids_for_home_branch` の異常系も確認します。
+- `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
+- .cmoc の ignore 保証、oracle / implementation ファイルの列挙、変更抽出、削除検出、`commit_if_changed` の挙動を扱います。
+- session state の保存・読込・schema 検証と、`active_session_ids_for_home_branch` の異常系も確認します。
 
 ## Read this when
 
-- `src/commons/repo.py` の振る舞い変更がどのテストに当たるか確認したいとき。
-- .cmoc の ignore 保証、`find_repo_root`、`is_cmoc_branch` を見直したいとき。
-- `changed_*`、`has_deleted_*`、`list_*_files` の除外条件や rename 判定を確認したいとき。
-- session state の保存・読込・検証や `_init_repo` / `_git` の役割を確認したいとき。
+- `find_repo_root`、`is_cmoc_branch`、`session_state_path` など、repo 共通処理の振る舞いを確認したいとき。
+- .cmoc の ignore 保証、oracle / implementation ファイル列挙、変更検出、削除検出の仕様を追いたいとき。
+- session state の読み書き、schema 検証、`active_session_ids_for_home_branch` の異常系を確認したいとき。
+- `commit_if_changed` や `assert_no_uncommitted_changes` の前提条件とエラー条件を確認したいとき。
 
 ## Do not read this when
 
-- `src/commons/repo.py` の実装ロジックそのものを追いたいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など別のテスト群だけを見たいとき。
-- 他の `INDEX.md` や `oracles` 正本仕様のルーティングだけを確認したいとき。
+- `src/commons/repo.py` の実装ロジックそのものを確認したいとき。
+- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など、別のテスト群だけを見たいとき。
+- `oracles` 正本仕様や `INDEX.md` の生成ルール全体だけを確認したいとき。
 
 ## hash
 
-- e987621bc5cddced79a16af3a30166f25179fd0d060688b9a2118027082ec668
+- a89a2d96bdcddc5244410d27bb2c21814686c9654f3d8f46f960a24cc08599ae
 
 # `test_subcommands.py`
 
