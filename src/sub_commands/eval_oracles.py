@@ -808,8 +808,8 @@ def _write_error_report(
         "",
         "## Evaluated oracle files",
         "",
-        "| No. | Oracle file | Issues |",
-        "|---:|---|---:|",
+        "| No. | Oracle file | Evaluation status | Issues |",
+        "|---:|---|---|---:|",
     ]
     issue_count_by_target = _issue_count_by_target(evaluations)
     evaluated_files = _evaluated_oracle_files(evaluations)
@@ -817,23 +817,23 @@ def _write_error_report(
         target = str(oracle_file)
         lines.append(
             f"| {index} | `{_display_path(repo_root, str(oracle_file))}` | "
-            f"{issue_count_by_target.get(target, 0)} |"
+            f"evaluated | {issue_count_by_target.get(target, 0)} |"
         )
-    if not evaluated_files:
-        lines.append("| - | No completed evaluations. | - |")
     not_evaluated_files = _not_evaluated_oracle_files(
         repo_root,
         oracle_files,
         evaluations,
     )
-    lines.extend(["", "Not evaluated oracle files:", ""])
-    if not_evaluated_files:
-        for index, oracle_file in enumerate(not_evaluated_files, start=1):
-            lines.append(
-                f"{index}. `{_display_path(repo_root, str(oracle_file))}`"
-            )
-    else:
-        lines.append("No requested oracle files remained unevaluated.")
+    for index, oracle_file in enumerate(
+        not_evaluated_files,
+        start=len(evaluated_files) + 1,
+    ):
+        lines.append(
+            f"| {index} | `{_display_path(repo_root, str(oracle_file))}` | "
+            "not_evaluated | - |"
+        )
+    if not evaluated_files and not not_evaluated_files:
+        lines.append("| - | No requested oracle files. | - | - |")
     lines.extend([""])
     for severity, heading in [
         ("fatal", "## Fatal issues"),

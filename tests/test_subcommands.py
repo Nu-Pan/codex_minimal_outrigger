@@ -1142,6 +1142,25 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert "## Inconclusive issues" in report
     assert "## Warnings" in report
     assert "## Referenced files" in report
+    expected_sections = [
+        "# cmoc review oracles report",
+        "## Summary",
+        "## Verdict",
+        "## Evaluated oracle files",
+        "## Fatal issues",
+        "## Inconclusive issues",
+        "## Warnings",
+        "## Referenced files",
+    ]
+    assert [report.index(section) for section in expected_sections] == sorted(
+        report.index(section) for section in expected_sections
+    )
+    evaluated_section = report[
+        report.index("## Evaluated oracle files") : report.index(
+            "## Fatal issues"
+        )
+    ]
+    assert "Not evaluated oracle files:" not in evaluated_section
 
 
 def test_eval_oracles_writes_error_report_when_preparation_fails(
@@ -1178,15 +1197,14 @@ def test_eval_oracles_writes_error_report_when_preparation_fails(
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
     assert "- Failed stage: `maintain INDEX.md files`" in report
-    assert "| - | No completed evaluations. | - |" in report
-    assert "1. `oracles/spec.md`" in report
+    assert "| 1 | `oracles/spec.md` | not_evaluated | - |" in report
 
 
-def test_eval_oracles_error_report_separates_unevaluated_files(
+def test_eval_oracles_error_report_marks_unevaluated_files_in_table(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """途中失敗時、未評価 file を issue 0 の評価済み行として表示しない。"""
+    """途中失敗時、未評価 file は評価済み行ではなく状態付き行にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1222,10 +1240,13 @@ def test_eval_oracles_error_report_separates_unevaluated_files(
     assert "oracle_count_total: 2" in report
     assert "oracle_count_evaluated: 1" in report
     assert "## Specification-only basis" not in report
-    assert "| 1 | `oracles/a.md` | 0 |" in report
-    assert "| 2 | `oracles/b.md` | 0 |" not in report
-    assert "Not evaluated oracle files:" in report
-    assert "1. `oracles/b.md`" in report
+    assert "| 1 | `oracles/a.md` | evaluated | 0 |" in report
+    assert "| 2 | `oracles/b.md` | not_evaluated | - |" in report
+    assert "| 2 | `oracles/b.md` | evaluated | 0 |" not in report
+    assert "Not evaluated oracle files:" not in report
+    assert report.index("## Evaluated oracle files") < report.index(
+        "## Fatal issues"
+    )
 
 
 def test_eval_oracles_writes_error_report_when_report_generation_fails(
