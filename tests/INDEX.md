@@ -81,16 +81,16 @@
 ## Summary
 
 - `tests/test_indexing.py` は `commons.indexing.maintain_indexes()` による `INDEX.md` メンテナンスの回帰テスト群です。
-- `.gitignore` / `.git/info/exclude`、`build` / `tmp`、symlink、バイナリ、UTF-8 境界、空ディレクトリ、`memo` の扱いを検証します。
-- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の連鎖更新、自動コミット範囲も扱います。
-- テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` を含みます。
+- `.gitignore` やローカル exclude、symlink、バイナリ、空ディレクトリ、特殊文字パス、UTF-8 境界、`memo` の扱いを広く検証します。
+- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` のハッシュ連鎖、自動コミット範囲も確認します。
+- テスト用 git repo 初期化の `_init_repo` と git 実行補助の `_git`、ロック制御の補助関数も含みます。
 
 ## Read this when
 
-- `commons.indexing.maintain_indexes()` の除外条件・更新条件・自動コミット対象を確認したいとき。
-- symlink、バイナリ、特殊文字入り path、UTF-8 境界、空ディレクトリ、`memo` の扱いを追いたいとき。
-- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の hash 連鎖、lock / staged 差分の挙動を確認したいとき。
-- テスト用 git repo の初期化や `_init_repo` / `_git` の補助を見たいとき。
+- `commons.indexing.maintain_indexes()` の除外条件・更新条件・自動コミット範囲を確認したいとき。
+- `.gitignore`、`.git/info/exclude`、`build`、`tmp`、`memo`、symlink、バイナリ、UTF-8 境界の扱いを追いたいとき。
+- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の連鎖更新を確認したいとき。
+- テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` の役割を見たいとき.
 
 ## Do not read this when
 
@@ -101,7 +101,7 @@
 
 ## hash
 
-- ec3e35df8d95cd37ed7326f4fd5096b8f48b6b88aadada2110901fe1944b0b3c
+- 6290acb4bfd7431516aed0979b924183b0c8e1072e6873214c213d17ad496baf
 
 # `test_repo.py`
 
