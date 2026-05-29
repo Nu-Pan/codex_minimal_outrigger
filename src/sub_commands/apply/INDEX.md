@@ -48,25 +48,25 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session state 検証から apply branch / worktree 作成、調査・修正ループ、レポート生成までを担うモジュールです。
-- oracle と実装の不整合を調べるための Structured Output スキーマ、prompt 組み立て、要修正点の整理、`INDEX.md` の保守をまとめています。
-- 途中失敗時の `apply.state` 更新、編集禁止パスの検査、apply report / error report の検証と出力も扱います。
+- `cmoc apply fork` の本体実装で、session state の前提確認から apply branch と worktree の作成、調査・修正ループ、レポート生成までを担当します。
+- oracle と実装の差分を調べるための Structured Output スキーマ、Codex CLI への prompt 生成、要修正点の整理、`INDEX.md` の保守をまとめています。
+- 失敗時の `apply.state` 更新、編集禁止パスの検査、apply report と error report の検証・出力もここに含まれます。
 
 ## Read this when
 
-- `cmoc apply fork` の処理全体を実装・修正・レビュー・テストしたいとき。
-- session state の前提条件や、apply branch / worktree の作成とロック制御を確認したいとき。
-- 不整合調査・修正ループ、Structured Output 検証、`INDEX.md` 保守、レポート生成の流れを追いたいとき。
+- cmoc apply fork の実装・修正・レビュー・テストで、処理全体の流れを追いたいとき。
+- session state の前提条件、apply branch / worktree の作成、ロック制御、調査・修正ループを確認したいとき。
+- 不整合調査の Structured Output 検証、要修正点の整理、`INDEX.md` 保守、レポート出力の経路を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の利用手順、引数、終了条件だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
-- `cmoc apply join` や `cmoc apply abandon`、`cmoc session` 系の実装を確認したいときは、このファイルではなく該当モジュールを読むべきです。
-- `INDEX.md` の生成・更新ルールや `branch_model`、`error_handling`、`codex_call` などの共通仕様だけを確認したいときは、別の仕様文書を読むべきです。
+- cmoc apply fork の利用手順、引数、終了条件だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を読むべきです。
+- cmoc apply join や cmoc apply abandon、cmoc session 系の処理だけを確認したいときは、このファイルではなく該当モジュールを読むべきです。
+- `INDEX.md` の生成・更新ルールや、`branch_model`・`error_handling`・`codex_call` などの共通仕様だけを確認したいときは、別の仕様文書を読むべきです。
 
 ## hash
 
-- ebd8f4f13290b2eec895cc5bd38bc27f12bec943128c3a965ca63d0877e0b274
+- dc1d0484ffeb812009fffe5497b6051a55e2fd5ef7fe59b9b8410e670937501f
 
 # `join.py`
 

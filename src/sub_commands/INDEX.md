@@ -31,19 +31,19 @@
 
 ## Read this when
 
-- `cmoc apply` 系サブコマンドの実装・修正・レビュー・テストを始めるとき。
-- apply branch や worktree の生成、merge、破棄の役割分担を整理したいとき。
-- この配下の各モジュールへの参照先を確認して、必要な実装へ素早く移動したいとき。
+- `cmoc apply` 系サブコマンドの実装・修正・レビュー・テストを始めるときに、配下の役割分担を把握したい場合に読む。
+- apply branch や worktree の生成、merge、破棄の役割分担を整理して、どのモジュールへ進むべきか確認したいときに読む。
+- この配下の各モジュールへの参照先を確認して、必要な実装へ素早く移動したいときに読む。
 
 ## Do not read this when
 
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち 1 つだけの詳細仕様を確認したいとき。
-- `cmoc apply` ではなく `cmoc session` 側の仕様を確認したいとき。
-- このディレクトリではなく、`__init__.py` だけでパッケージ宣言を確認すれば足りるとき。
+- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち 1 つだけの詳細仕様を確認したいときは、この目次ではなく該当モジュールを直接読むべきです。
+- `cmoc apply` ではなく `cmoc session` 側の仕様を確認したいときは、このディレクトリを読む必要はありません。
+- このディレクトリではなく、`__init__.py` だけでパッケージ宣言を確認すれば足りるときは、ここを読む必要はありません。
 
 ## hash
 
-- 997f46d024098e9e2f9e5912d50f18ff176708f56f90f8063c602bff2f291bb3
+- a4cfbee517ccacfbde044065573ad5868c0c3132d6c7247e68f7b6cb1742abad
 
 # `eval_oracles.py`
 
