@@ -80,26 +80,27 @@
 
 ## Summary
 
-- `commons.indexing` の `INDEX.md` 生成・更新処理を検証する pytest 集です。
-- gitignore、除外ディレクトリ、symlink、バイナリ、非 UTF-8 path、特殊文字、空ディレクトリ、既存 INDEX の再利用と再生成を網羅します。
-- 目次生成の Structured Output 検証、並列化、ロック、自動コミット、既存差分の扱いも確認します。
+- `commons.indexing` の `INDEX.md` メンテナンス処理を検証する pytest 集です。
+- `gitignore`、除外 root、symlink、バイナリ、非 UTF-8 path、空ディレクトリ、特殊文字、既存 INDEX の再利用と再生成を広く確認します。
+- Structured Output の schema 検証、並列化、ロック、自動コミット、既存差分の扱いも確認します。
 
 ## Read this when
 
 - `commons.indexing` の対象選別ルールや `INDEX.md` 更新ロジックを変更するとき。
 - `INDEX.md` の自動コミット、差分ステージング、ロック制御、並列実行を修正するとき。
-- gitignore、symlink、非 UTF-8 path、バイナリ判定、特殊ファイルの扱いを確認したいとき。
-- Structured Output の schema 検証や再生成条件を変えるとき。
+- `gitignore`、symlink、非 UTF-8 path、バイナリ判定、特殊ファイルの扱いを確認したいとき。
+- `is_maintained_index_path` の配置判定や Structured Output の schema 検証、再生成条件を変えるとき。
 
 ## Do not read this when
 
+- `INDEX.md` の配置ルールや目次フォーマットの概要だけを確認したいとき。
+- `commons.indexing.py` の実装ロジックそのものを追いたいとき。
+- `tests/test_codex.py` や `tests/test_repo.py` など、別のテスト群を確認したいとき。
 - `cmoc` のサブコマンド仕様や利用手順だけを確認したいとき。
-- `INDEX.md` の記述内容そのものを人手で書き換えるだけで、メンテナンス処理を触らないとき。
-- `commons.indexing` 以外の CLI 実装や別機能のテストを探しているとき。
 
 ## hash
 
-- acb4220d9c04b79edbb31ac5f8d3d8b9a284a87bfd63c5f58300ad166be9f7f3
+- e509618572894fd60899d02cb540a2c1a9867ab5f587a5c164b0a3f8d2bfe3c6
 
 # `test_repo.py`
 
@@ -129,29 +130,25 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
-- `run_command` のログ出力、終了コード、例外時レポート、`repo_root` 解決失敗時の扱いを確認します。
-- `init`、`session`、`apply`、`review oracles`、`eval_oracles` の各コマンド登録とヘルプ表示を回帰確認します。
-- conflict marker の判定、補助関数の配置順、`bin/cmoc` ランチャーの挙動も含みます。
+- `tests/test_subcommands.py` は、サブコマンド群の決定論的な制御ロジックを広く検証する統合テスト集です。
+- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval_oracles` の状態遷移、Git ブランチ・worktree・state ファイル・レポート生成を扱います。
+- プロンプト生成、Structured Output schema、エラーレポート、禁止パス検出、補助関数の振る舞いも含めて回帰を防ぎます。
 
 ## Read this when
 
-- cmoc の主要サブコマンド入口と `main.py` から各実装への委譲関係を確認したいとき。
-- `run_command`、`StepTimer`、`start_step`、`format_error_report` のログ出力や終了集計を追いたいとき。
-- `init`、`session`、`apply`、`review oracles`、`eval_oracles` の登録・ヘルプ表示・例外処理を広く回帰確認したいとき。
-- conflict marker 判定や `bin/cmoc` ランチャーの挙動を確認したいとき。
-- テスト内の補助関数の並び順や、共通のテスト前提を確認したいとき。
+- `cmoc` の各サブコマンド実装を変更し、状態遷移や cleanup 条件を確認したいとき。
+- `apply` / `session` / `eval_oracles` の branch・worktree・session state・report 出力を修正したいとき。
+- プロンプト本文、JSON schema、エラーハンドリング、禁止領域チェックのテスト期待値を確認したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/init.py` など、個別サブコマンド実装の詳細だけを確認したいとき。
-- `commons.repo` や `commons.indexing` など、サブコマンド共通処理の別領域を確認したいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別のテスト群だけを追いたいとき。
-- `oracles` 配下の正本仕様や `INDEX.md` の生成ルールそのものを確認したいとき。
+- 個別コマンドの正本仕様やルーティング方針だけを確認したいときは、`oracles` 配下の該当 INDEX を直接読むべきです。
+- サブコマンド実装ではなく、一般的な開発規則や `INDEX.md` 生成ルールだけを確認したいとき。
+- このファイルに載っていない別機能や別テストの挙動を確認したいとき。
 
 ## hash
 
-- 467aaba954a0e7c1c5a5a22ba7bb08b61df23f89fd540f142d504ad6e9802c13
+- 8ed78fab061bc24814c1ed4180be659e02c844206074437c3c9c06cca56fdc16
 
 # `test_timestamps.py`
 

@@ -197,7 +197,7 @@
 
 ## hash
 
-- de086cae0dcdbdf2a3d963f9ad024636cc98eeb37a53fe2066254e6c08526710
+- ab8bd063ae4fbf85513eda422fb7580af424c0d1c5600e00228e1ceb5dc98597
 
 # `test.sh`
 
@@ -227,23 +227,24 @@
 
 ## Summary
 
-- pytest による cmoc の回帰テスト群をまとめたディレクトリです。
-- `conftest.py` は `src` を import 可能にする共通設定です。
-- `test_codex.py` は Codex CLI ラッパー、`test_indexing.py` は `INDEX.md` 生成、`test_repo.py` は git 共通処理を検証します。
-- `test_subcommands.py` は主要サブコマンドと CLI 入口、`test_timestamps.py` は時刻・経過時間、`test_file_naming.py` は構成上の命名規則を確認します。
+- `tests` 配下の pytest テスト群の入口で、cmoc の共通設定と各機能の回帰テストをまとめるディレクトリです。
+- `conftest.py`、`test_codex.py`、`test_indexing.py`、`test_repo.py`、`test_subcommands.py`、`test_file_naming.py`、`test_timestamps.py` を案内します。
+- CLI 呼び出し、インデックス整備、git 共通処理、サブコマンド遷移、時刻処理まで、実装変更の影響範囲を横断的に確認するための目次です。
 
 ## Read this when
 
-- pytest の共通設定や個別テスト群の役割を把握したいとき。
-- Codex CLI 呼び出し、`INDEX.md` メンテナンス、repo/session/apply 状態、サブコマンド制御のどのテストを触るべきか判断したいとき。
-- タイムスタンプや命名規則の回帰テストがどこにあるか確認したいとき。
+- pytest の共通設定や `src` の import 経路を確認したいとき。
+- Codex 呼び出し、Structured Output、`INDEX.md` 事前メンテナンスのテストを確認したいとき。
+- git リポジトリ共通処理や session/apply state のテストを確認したいとき。
+- サブコマンドの状態遷移、禁止パス検出、レポート生成の回帰テストを確認したいとき。
 
 ## Do not read this when
 
-- cmoc の実装や正本仕様そのものを確認したいときは、`src` や `oracles` を読むべきです。
-- テストの共通設定や個別テストの役割ではなく、CLI の使い方や運用手順だけを知りたいときはこのディレクトリではありません。
-- `README.md`、`AGENTS.md`、`memo` の運用可否だけを確認したいとき。
+- `src` 側の実装ロジックだけを確認したいとき。
+- `oracles` 配下の正本仕様やルーティング方針だけを確認したいとき。
+- `README.md`、`AGENTS.md`、`memo` の運用ルールだけを確認したいとき。
+- 個別のサブコマンド仕様や CLI 全体の使い方だけを確認したいとき。
 
 ## hash
 
-- c8b363ea380b52983367e11f07b6b5f4527393cc984395e4e9f24866e9bd84a3
+- 94508f6007cb895574d41ab47009bb5233868812064ed2d40ee0123e287666a3

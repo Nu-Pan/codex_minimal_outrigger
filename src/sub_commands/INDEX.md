@@ -26,8 +26,8 @@
 ## Summary
 
 - `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装入口で、`__init__.py`、`fork.py`、`join.py`、`abandon.py` に役割が分かれています。
-- `fork.py` は調査・修正ループとレポート生成、`join.py` は merge と cleanup、`abandon.py` は未 join の apply run の破棄を担当します。
-- このディレクトリは apply の開始・統合・破棄の流れをたどるための入口です。
+- `fork.py` は apply run の開始、調査・修正ループ、レポート生成、状態更新を担当します。
+- `join.py` は完了済み apply branch の merge と conflict 処理を担当し、`abandon.py` は未 join の apply run の破棄を担当します。
 
 ## Read this when
 
@@ -43,7 +43,7 @@
 
 ## hash
 
-- fb5b3333ad7ac11e1161e9b7784840e6bc4771d2800bc48b7bb6a1336055c044
+- 59e47c3376b98b2e80e34984bbeeaff271820e032da165e5ea3325333d9dec40
 
 # `eval_oracles.py`
 

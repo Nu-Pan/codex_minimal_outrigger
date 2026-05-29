@@ -112,7 +112,7 @@
 ## Read this when
 
 - `INDEX.md` の自動生成・再生成・更新・自動コミットの実装を確認したいとき。
-- ディレクトリ列挙、gitignore 判定、memo 除外、バイナリ判定、symlink 除外の対象選別を追いたいとき。
+- ディレクトリ列挙、gitignore 判定、`memo` 除外、バイナリ判定、symlink 除外の対象選別を追いたいとき。
 - 既存 `INDEX.md` の再利用条件、内容ハッシュによる更新判定、Structured Output から Markdown への変換を確認したいとき。
 - INDEX メンテナンス用の lock による直列化や、安全な一時ファイル置換の実装を確認したいとき。
 
@@ -124,7 +124,7 @@
 
 ## hash
 
-- c3072526872a23e9d68271b2d951d3672b682e9a4c89c534e946503f03febdf6
+- 49e76370930b6ff1ac4406fc0df4a219bff8673ed78e58179e81fe6ee5c430cd
 
 # `repo.py`
 
