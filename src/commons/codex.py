@@ -129,7 +129,7 @@ def run_codex_exec(
     for attempt in range(1, attempts + 1):
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec 試行 ({attempt}/{attempts})"
-        print(f"{step} prompt: {_head80(prompt)}")
+        print(f"{step} prompt: {_console_log_safe_head80(prompt)}")
         _preflight_workspace_write_oracle_guard(repo_root, command)
         _maintain_indexes_before_codex(
             repo_root,
@@ -196,7 +196,7 @@ def run_codex_exec(
         except ValueError as error:
             last_validation_error = str(error)
             continue
-        print(f"{step} output: {_head80(output)}")
+        print(f"{step} output: {_console_log_safe_head80(output)}")
         last_output = output
 
         if not validates_structured_output:
@@ -309,7 +309,7 @@ def _wait_for_quota_and_resume(
     while True:
         poll_prompt = _quota_poll_prompt(repo_root)
         print("quota poll: 最小限の codex exec 疎通確認を実行します")
-        print(f"quota poll prompt: {_head80(poll_prompt)}")
+        print(f"quota poll prompt: {_console_log_safe_head80(poll_prompt)}")
         poll_command = _build_codex_command(
             read_only=True,
             model=_POLL_MODEL,
@@ -352,7 +352,7 @@ def _wait_for_quota_and_resume(
                 poll_output = _read_last_message(poll_run.last_message_path)
             except ValueError as error:
                 _raise_quota_poll_failure(poll_run, str(error))
-            print(f"quota poll output: {_head80(poll_output)}")
+            print(f"quota poll output: {_console_log_safe_head80(poll_output)}")
             if poll_output.strip() != "ok":
                 _raise_quota_poll_failure(
                     poll_run,
@@ -523,7 +523,7 @@ def _run_codex_command(
     run_command = _command_with_last_message(command, last_message_path)
     print(
         "codex exec 呼び出し: "
-        f"{_head80(prompt)} -> {log_path}"
+        f"{_console_log_safe_head80(prompt)} -> {log_path}"
     )
     oracle_guard = _start_oracle_guard(
         repo_root,
@@ -954,6 +954,11 @@ def _console_log_safe_text(value: str) -> str:
     return "".join(parts)
 
 
+def _console_log_safe_head80(value: str) -> str:
+    """元文字列を切り詰めてから console/log 表示用に安全化する。"""
+    return _console_log_safe_text(_head80(value))
+
+
 def _read_last_message(path: Path) -> str:
     """`--output-last-message` の成果物を読み取る。"""
     # Codex CLI の成果物は stdout ではなく last message ファイルとする。
@@ -1338,6 +1343,6 @@ def _validate_output_schema(schema: dict[str, object]) -> None:
 
 
 def _head80(value: str) -> str:
-    """元文字列の先頭 80 文字を stdout 表示向けに返す。"""
+    """元文字列の先頭 80 文字を返す。"""
     # oracle の切り詰め対象は、表示用変換前の prompt/output そのものである。
-    return value[:80].replace("\n", "\\n")
+    return value[:80]

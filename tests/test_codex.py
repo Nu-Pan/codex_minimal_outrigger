@@ -1436,12 +1436,12 @@ def test_run_codex_exec_rejects_invalid_output_schema_before_codex_call(
     assert not (repo / ".cmoc" / "logs" / "codex_exec").exists()
 
 
-def test_run_codex_exec_prints_output_head80_before_escaping_newlines(
+def test_run_codex_exec_prints_progress_head80_before_console_escaping(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """回収出力の進捗は元文字列を 80 文字で切ってから改行を可視化する。"""
+    """進捗表示は元文字列を 80 文字で切ってから制御文字を可視化する。"""
     repo = tmp_path / "repo"
     repo.mkdir()
     fake_bin = tmp_path / "bin"
@@ -1472,10 +1472,49 @@ def test_run_codex_exec_prints_output_head80_before_escaping_newlines(
     run_codex_exec(repo, prompt, read_only=True)
 
     captured = capsys.readouterr().out
-    assert f"prompt: {'p' * 79}\\n" in captured
-    assert f"output: {'a' * 79}\\n" in captured
+    assert f"prompt: {'p' * 79}%0A" in captured
+    assert f"output: {'a' * 79}%0A" in captured
     assert "q" not in captured
     assert "b" not in captured
+
+
+def test_run_codex_exec_escapes_prompt_preview_control_chars(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """prompt preview は制御文字や % でコンソールの表示単位を壊さない。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "echo 'ok' > \"$LAST\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    run_codex_exec(repo, "a\rb\tc\x1b[31m%d", read_only=True)
+
+    captured = capsys.readouterr().out
+    assert "codex exec 試行 (1/3) prompt: a%0Db%09c%1B[31m%25d" in captured
+    assert "codex exec 呼び出し: a%0Db%09c%1B[31m%25d -> " in captured
+    assert "a\rb\tc\x1b[31m%d" not in captured
 
 
 def test_run_codex_exec_retries_json_semantic_validation_failure(
