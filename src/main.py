@@ -10,6 +10,7 @@ from commons.errors import format_error_report
 from sub_commands.apply.abandon import cmoc_apply_abandon_impl
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.join import cmoc_apply_join_impl
+from sub_commands.eval_oracles import _MAX_REPEAT_IMPROVE_ISSUES_LIST
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.session.abandon import cmoc_session_abandon_impl
@@ -73,6 +74,7 @@ def eval_oracles_command(
         3,
         "--repeat-improve-issues-list",
         min=0,
+        max=_MAX_REPEAT_IMPROVE_ISSUES_LIST,
     ),
 ) -> None:
     """Review oracle files."""

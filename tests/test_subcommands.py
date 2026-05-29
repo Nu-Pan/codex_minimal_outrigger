@@ -1587,6 +1587,19 @@ def test_review_oracles_improves_combined_issue_list(
     assert "Raw warning" not in report
 
 
+def test_eval_oracles_rejects_too_many_issue_list_improvements(
+    tmp_path: Path,
+) -> None:
+    """問題点リスト改善の反復回数は oracle の最大 3 回を超えられない。"""
+    repo = _init_repo(tmp_path)
+
+    with pytest.raises(
+        ValueError,
+        match="--repeat-improve-issues-list must be between 0 and 3",
+    ):
+        cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=4)
+
+
 def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
     tmp_path: Path,
 ) -> None:
@@ -6449,6 +6462,33 @@ def test_cmoc_apply_fork_help_exposes_oracle_repeat_options() -> None:
     assert "--repeat-investigate-and-fix" in result.stdout
     assert "--repeat-improove-fixing-list" in result.stdout
     assert "--full" in result.stdout
+
+
+def test_cmoc_review_oracles_rejects_too_many_issue_list_improvements() -> None:
+    """CLI 入口でも問題点リスト改善の最大 3 回制限を検証する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "main",
+            "review",
+            "oracles",
+            "--repeat-improve-issues-list",
+            "4",
+        ],
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert "ERROR" in result.stdout
+    assert "4 is not in the range 0<=x<=3" in result.stdout
 
 
 def test_cmoc_session_and_apply_workflow_commands_are_registered() -> None:

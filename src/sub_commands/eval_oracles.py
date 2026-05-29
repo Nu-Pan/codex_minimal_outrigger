@@ -37,6 +37,7 @@ _ISSUE_ID_PREFIXES = {
 _REPORT_COMMAND = "cmoc review oracles"
 _REPORT_DIR_NAME = "review_oracles"
 _DEFAULT_REPEAT_IMPROVE_ISSUES_LIST = 3
+_MAX_REPEAT_IMPROVE_ISSUES_LIST = 3
 _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -162,8 +163,7 @@ def cmoc_eval_oracles_impl(
             )
         )
         return
-    if repeat_improve_issues_list < 0:
-        raise ValueError("--repeat-improve-issues-list must be >= 0.")
+    _validate_repeat_improve_issues_list(repeat_improve_issues_list)
 
     timer = StepTimer("review oracles")
     mode = None
@@ -303,6 +303,15 @@ def cmoc_eval_oracles_impl(
         raise
     print(str(report_path))
     timer.report()
+
+
+def _validate_repeat_improve_issues_list(value: int) -> None:
+    """問題点リスト改善の反復回数が oracle の上限内か検証する。"""
+    if value < 0 or value > _MAX_REPEAT_IMPROVE_ISSUES_LIST:
+        raise ValueError(
+            "--repeat-improve-issues-list must be between 0 and "
+            f"{_MAX_REPEAT_IMPROVE_ISSUES_LIST}."
+        )
 
 
 def _maintain_indexes_preserving_oracle_snapshot(repo_root: Path) -> bool:
