@@ -329,6 +329,8 @@ def cmoc_apply_impl(
         failed_stage = "要修正点の調査と適用"
         start_step(timer, 5, 6, "要修正点の調査と適用")
         completed = False
+        dirty_oracle_paths: set[Path] | None = None
+        dirty_implementation_paths: set[Path] | None = None
         for loop_index in range(1, repeat_investigate_and_fix + 1):
             loop_step_path = (
                 (5, 6),
@@ -348,7 +350,26 @@ def cmoc_apply_impl(
                 step_path=loop_step_path,
                 repeat_improove_fixing_list=repeat_improove_fixing_list,
                 full=full,
+                dirty_oracle_paths=dirty_oracle_paths,
+                dirty_implementation_paths=dirty_implementation_paths,
             )
+            next_dirty_oracle_paths = _dirty_oracle_paths_from_discrepancies(
+                apply_worktree,
+                discrepancies,
+            )
+            next_dirty_implementation_paths = (
+                _dirty_implementation_paths_from_discrepancies(
+                    apply_worktree,
+                    discrepancies,
+                )
+            )
+            found_dirty_evidences = bool(
+                next_dirty_oracle_paths or next_dirty_implementation_paths
+            )
+            dirty_oracle_paths = (
+                next_dirty_oracle_paths if found_dirty_evidences else None
+            )
+            dirty_implementation_paths = next_dirty_implementation_paths
             discrepancy_counts.append(len(discrepancies))
             print(
                 "実装ループ "
@@ -364,7 +385,10 @@ def cmoc_apply_impl(
                 discrepancies,
                 timer=timer,
                 step_path=(*loop_step_path, (5, 5)),
+                dirty_implementation_paths=dirty_implementation_paths,
             )
+            if not found_dirty_evidences and not dirty_implementation_paths:
+                dirty_implementation_paths = None
 
         # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定してから
         # apply run の完了状態を記録し、その後 report を生成する。
@@ -657,6 +681,8 @@ def _investigate_discrepancies(
     step_path: StepIndexPath,
     repeat_improove_fixing_list: int,
     full: bool,
+    dirty_oracle_paths: set[Path] | None = None,
+    dirty_implementation_paths: set[Path] | None = None,
 ) -> list[dict[str, object]]:
     """oracle ファイル・実装ファイルごとに不整合調査を実行する。"""
     # ループごとに部分・全体適用モードと調査対象を再評価する。
@@ -674,12 +700,14 @@ def _investigate_discrepancies(
         base_commit,
         oracle_snapshot_commit,
         partial,
+        dirty_paths=dirty_oracle_paths,
     )
     implementation_targets = _target_implementation_files(
         repo_root,
         base_commit,
         oracle_snapshot_commit,
         partial,
+        dirty_paths=dirty_implementation_paths,
     )
 
     jobs = [
@@ -757,11 +785,21 @@ def _target_oracle_files(
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
+    *,
+    dirty_paths: set[Path] | None = None,
 ) -> list[_InvestigationTarget]:
     """適用モードに応じた oracle 調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
     all_files = _oracle_files_at_commit(repo_root, oracle_snapshot_commit)
     snapshot_paths = set(all_files)
+    if dirty_paths is not None:
+        return [
+            _InvestigationTarget(
+                path,
+                deleted_at_snapshot=path not in snapshot_paths,
+            )
+            for path in sorted(dirty_paths)
+        ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
     changed = set(
@@ -785,6 +823,8 @@ def _target_implementation_files(
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
+    *,
+    dirty_paths: set[Path] | None = None,
 ) -> list[_InvestigationTarget]:
     """適用モードに応じた実装調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
@@ -793,6 +833,14 @@ def _target_implementation_files(
         oracle_snapshot_commit,
     )
     snapshot_paths = set(all_files)
+    if dirty_paths is not None:
+        return [
+            _InvestigationTarget(
+                path,
+                deleted_at_snapshot=path not in snapshot_paths,
+            )
+            for path in sorted(dirty_paths)
+        ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
     changed = set(
@@ -1045,12 +1093,89 @@ def _fixing_points_with_head_commit_hash(
     return fixing_points
 
 
+def _dirty_oracle_paths_from_discrepancies(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> set[Path]:
+    """最終要修正点リストの根拠から次回調査する oracle path を返す。"""
+    return {
+        repo_root / path
+        for path in filter_oracle_file_paths(
+            repo_root,
+            _evidence_relative_paths(repo_root, discrepancies),
+        )
+    }
+
+
+def _dirty_implementation_paths_from_discrepancies(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> set[Path]:
+    """最終要修正点リストの根拠から次回調査する実装 path を返す。"""
+    return {
+        repo_root / path
+        for path in _filter_implementation_file_paths(
+            repo_root,
+            _evidence_relative_paths(repo_root, discrepancies),
+        )
+    }
+
+
+def _evidence_relative_paths(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> list[str]:
+    """要修正点 evidence の path を repo 相対 path に正規化する。"""
+    paths: set[str] = set()
+    for discrepancy in discrepancies:
+        evidences = discrepancy.get("evidences")
+        if not isinstance(evidences, list):
+            continue
+        for evidence in evidences:
+            if not isinstance(evidence, dict):
+                continue
+            value = evidence.get("path")
+            if not isinstance(value, str) or not value:
+                continue
+            relative_path = _repo_relative_path(repo_root, value)
+            if relative_path is not None:
+                paths.add(relative_path)
+    return sorted(paths)
+
+
+def _repo_relative_path(repo_root: Path, value: str) -> str | None:
+    """絶対・相対どちらの evidence path も repo 相対 path に変換する。"""
+    path = Path(value)
+    try:
+        if path.is_absolute():
+            return path.resolve().relative_to(repo_root.resolve()).as_posix()
+        return path.as_posix()
+    except ValueError:
+        return None
+
+
+def _changed_implementation_files_since(
+    repo_root: Path,
+    base_commit: str,
+    commit_hash: str,
+) -> set[Path]:
+    """指定 commit 範囲で変更された実装 path を絶対 path 集合で返す。"""
+    return set(
+        _changed_implementation_files_at_commit(
+            repo_root,
+            base_commit,
+            commit_hash,
+        )
+    )
+
+
 def _apply_discrepancies(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
     *,
     timer: StepTimer,
     step_path: StepIndexPath,
+    dirty_implementation_paths: set[Path] | None = None,
 ) -> None:
     """Codex CLI に不整合追従作業を依頼する。"""
     # 不整合 1 件ごとに修正、禁止領域検査、commit までを完結させる。
@@ -1062,6 +1187,7 @@ def _apply_discrepancies(
             "要修正点適用",
         )
         print(f"要修正点適用 ({index}/{len(discrepancies)})")
+        before_head = head_commit(repo_root)
         run_codex_exec(
             repo_root,
             _apply_prompt(repo_root, discrepancy),
@@ -1072,6 +1198,15 @@ def _apply_discrepancies(
         )
         _assert_forbidden_paths_clean(repo_root)
         _commit_all_changes(repo_root)
+        after_head = head_commit(repo_root)
+        if dirty_implementation_paths is not None and after_head != before_head:
+            dirty_implementation_paths.update(
+                _changed_implementation_files_since(
+                    repo_root,
+                    before_head,
+                    after_head,
+                )
+            )
 
 
 def _commit_all_changes(repo_root: Path) -> None:
