@@ -109,6 +109,7 @@ def run_codex_exec(
         model=model,
         reasoning_effort=reasoning_effort,
     )
+    _preflight_workspace_write_oracle_guard(repo_root, command)
     schema_path = _write_output_schema(repo_root, output_schema)
     if schema_path is not None:
         command.extend(["--output-schema", str(schema_path)])
@@ -126,6 +127,7 @@ def run_codex_exec(
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
         step = f"codex exec 試行 ({attempt}/{attempts})"
         print(f"{step} prompt: {_head80(prompt)}")
+        _preflight_workspace_write_oracle_guard(repo_root, command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
@@ -311,6 +313,7 @@ def _wait_for_quota_and_resume(
             reasoning_effort=_POLL_REASONING_EFFORT,
         )
         poll_command.append("-")
+        _preflight_workspace_write_oracle_guard(repo_root, poll_command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
@@ -353,6 +356,7 @@ def _wait_for_quota_and_resume(
                     "quota poll の output-last-message が ok ではありませんでした。",
                 )
             print("quota が復旧したため、codex exec を resume します")
+            _preflight_workspace_write_oracle_guard(repo_root, command)
             _maintain_indexes_before_codex(
                 repo_root,
                 skip_index_maintenance,
@@ -427,6 +431,7 @@ def _retry_after_capacity_if_needed(
         )
         time.sleep(delay_seconds)
         delay_seconds *= 2
+        _preflight_workspace_write_oracle_guard(repo_root, command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
@@ -562,15 +567,51 @@ def _start_oracle_guard(
     allowed_uncommitted_oracle_paths: Iterable[Path | str] | None,
 ) -> _OracleGuardSnapshot:
     """workspace-write 実行前 HEAD を記録する。"""
+    if not _workspace_write_oracle_guard_applies(repo_root, command):
+        return _OracleGuardSnapshot(enabled=False, head_commit=None)
+    head, head_reflog_entry_count = _verify_workspace_write_oracle_guard_head(
+        repo_root
+    )
+    return _OracleGuardSnapshot(
+        enabled=True,
+        head_commit=head,
+        head_reflog_entry_count=head_reflog_entry_count,
+        allowed_uncommitted_paths=_active_allowed_oracle_conflict_paths(
+            repo_root,
+            allowed_uncommitted_oracle_paths,
+        ),
+    )
+
+
+def _preflight_workspace_write_oracle_guard(
+    repo_root: Path,
+    command: list[str],
+) -> None:
+    """workspace-write の副作用前に HEAD/reflog 検査だけを済ませる。"""
+    if not _workspace_write_oracle_guard_applies(repo_root, command):
+        return
+    _verify_workspace_write_oracle_guard_head(repo_root)
+
+
+def _workspace_write_oracle_guard_applies(
+    repo_root: Path,
+    command: list[str],
+) -> bool:
+    """workspace-write guard の対象になる Codex コマンドか判定する。"""
     # Git repo 外や read-only 実行では oracle 変更検査の対象外にする。
     if "--sandbox" not in command or not (repo_root / ".git").exists():
-        return _OracleGuardSnapshot(enabled=False, head_commit=None)
+        return False
     sandbox_index = command.index("--sandbox") + 1
-    if (
-        sandbox_index >= len(command)
-        or command[sandbox_index] != "workspace-write"
-    ):
-        return _OracleGuardSnapshot(enabled=False, head_commit=None)
+    return (
+        sandbox_index < len(command)
+        and command[sandbox_index] == "workspace-write"
+    )
+
+
+def _verify_workspace_write_oracle_guard_head(
+    repo_root: Path,
+) -> tuple[str, int]:
+    """workspace-write guard の開始 HEAD と reflog が読めることを検証する。"""
     result = run_git(
         repo_root,
         ["rev-parse", "--verify", "HEAD"],
@@ -595,15 +636,7 @@ def _start_oracle_guard(
                 "HEAD 移動の履歴を検査できない状態では、oracles ファイル保護を保証できません。",
             ],
         )
-    return _OracleGuardSnapshot(
-        enabled=True,
-        head_commit=head,
-        head_reflog_entry_count=head_reflog_entry_count,
-        allowed_uncommitted_paths=_active_allowed_oracle_conflict_paths(
-            repo_root,
-            allowed_uncommitted_oracle_paths,
-        ),
-    )
+    return (head, head_reflog_entry_count)
 
 
 def _assert_workspace_write_oracles_unchanged(

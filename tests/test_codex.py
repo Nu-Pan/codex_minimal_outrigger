@@ -432,6 +432,107 @@ def test_run_codex_exec_rejects_workspace_write_without_head(
     assert not marker.exists()
 
 
+def test_run_codex_exec_rejects_workspace_write_without_head_before_preflight_side_effects(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """HEAD が存在しない workspace-write は INDEX 保守や schema 準備前に失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "codex-invoked"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"touch {marker}",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    maintain_calls: list[Path] = []
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """呼ばれてはいけない INDEX.md メンテナンスを記録する。"""
+        maintain_calls.append(repo_root)
+        (repo_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+        return True
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            expect_json=True,
+            output_schema=_BOOLEAN_SCHEMA,
+        )
+
+    assert "開始 HEAD を検証できませんでした" in error.value.message
+    assert maintain_calls == []
+    assert not (repo / "INDEX.md").exists()
+    assert not (repo / ".cmoc").exists()
+    assert not marker.exists()
+
+
+def test_run_codex_exec_rejects_workspace_write_without_reflog_before_preflight_side_effects(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """HEAD reflog を検査できない workspace-write は副作用前に失敗する。"""
+    repo = _init_git_repo(tmp_path)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "codex-invoked"
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                f"touch {marker}",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    maintain_calls: list[Path] = []
+
+    def fake_maintain(repo_root: Path) -> bool:
+        """呼ばれてはいけない INDEX.md メンテナンスを記録する。"""
+        maintain_calls.append(repo_root)
+        (repo_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+        return True
+
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
+    monkeypatch.setattr("commons.codex._head_reflog_entry_count", lambda _: None)
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            expect_json=True,
+            output_schema=_BOOLEAN_SCHEMA,
+        )
+
+    assert "HEAD reflog を検証できませんでした" in error.value.message
+    assert maintain_calls == []
+    assert not (repo / "INDEX.md").exists()
+    assert not (repo / ".cmoc").exists()
+    assert not marker.exists()
+
+
 def test_run_codex_exec_allows_active_oracle_conflict_resolution(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
