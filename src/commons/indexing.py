@@ -247,8 +247,9 @@ def _write_index_if_needed(
 
 
 def _read_existing_index_content(index_path: Path) -> str | None:
-    """既存 INDEX.md の通常ファイル内容を読み、symlink は再利用しない。"""
-    # INDEX.md symlink はリンク先を読まず、後段で通常ファイルへ置き換える。
+    """既存 INDEX.md の通常ファイル内容を読み、再利用不可なら None を返す。"""
+    # INDEX.md symlink や読み取り不能な内容は再利用せず、後段で通常ファイルへ
+    # 置き換える。
     if index_path.is_symlink():
         return None
     if not index_path.exists():
@@ -265,7 +266,7 @@ def _read_existing_index_content(index_path: Path) -> str | None:
     try:
         return index_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return ""
+        return None
 
 
 def _replace_index_file(index_path: Path, content: str) -> None:

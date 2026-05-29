@@ -227,6 +227,38 @@ def test_maintain_indexes_creates_empty_index_for_empty_directory(
     assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
 
 
+def test_maintain_indexes_replaces_non_utf8_empty_directory_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """空の配置対象ディレクトリでも非 UTF-8 INDEX.md は置き換える。"""
+    repo = _init_repo(tmp_path)
+    empty = repo / "empty"
+    empty.mkdir()
+    (empty / "INDEX.md").write_bytes(b"# broken\n\xff\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "broken empty directory index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """root INDEX の empty entry 向け Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+
+    assert changed is True
+    assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
+    index_mode = _git(repo, "ls-files", "-s", "empty/INDEX.md").stdout.split()
+    assert index_mode[0] == "100644"
+
+
 def test_maintain_indexes_skips_excluded_index_roots(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
