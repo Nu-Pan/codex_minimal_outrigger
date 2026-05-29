@@ -27,27 +27,27 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec` を中心に、Codex CLI 呼び出し時のログ生成、通知、Structured Output 検証、再試行、quota 復旧、workspace-write 保護を検証するテスト群です。
-- `subcommand_log`、`_extract_session_id`、`_resume_command`、`_write_output_schema` など、Codex 実行に付随する補助関数の境界条件もまとめて確認します。
-- Fake Codex CLI と一時 git リポジトリを使い、oracle 変更、commit range、reflog、特殊 path、worktree / submodule まで含む挙動を押さえます。
+- Codex CLI 呼び出しラッパー `commons.codex` の回帰テストをまとめたファイル。
+- Structured Output の schema 準備、JSON/テキスト検証、再試行、quota 復旧 resume、ログ出力、INDEX.md 保守の順序を検証する。
+- workspace-write 時の oracle 変更検知や HEAD 検査、allowlist/conflict 例外、セッション ID 抽出などの境界条件も含む。
 
 ## Read this when
 
-- `commons.codex.run_codex_exec` の入出力、Structured Output 検証、再試行条件、エラー詳細を変更するとき。
-- quota 枯渇時の待機と resume、`_extract_session_id`、`_resume_command`、`subcommand_log` の回帰を確認したいとき。
-- workspace-write の oracle 変更検知、`INDEX.md` 保守、特殊 path、linked worktree、submodule の扱いを確認したいとき。
-- Codex CLI 呼び出し前後の前処理・後処理・再実行・通知仕様をまとめて追いたいとき。
+- `run_codex_exec` の呼び出し条件や戻り値、例外、再試行の挙動を変えるとき。
+- `output_schema`、`text_validator`、`json_validator`、`reasoning_effort` の検証ロジックを修正するとき。
+- quota 復旧の resume 処理、`INDEX.md` メンテナンス、subcommand log、console 通知の出力仕様を確認したいとき。
+- oracle ファイルの変更検知や conflict 例外、HEAD/reflog チェックの仕様を確認したいとき。
 
 ## Do not read this when
 
-- `commons.repo` の git 共通処理やリポジトリ初期化だけを確認したいとき。
-- `commons.timestamps` や `commons.timing` など、Codex 実行と無関係な共通関数を調べたいとき。
-- `src/sub_commands` 側の個別サブコマンド実装だけを追いたいとき。
-- `INDEX.md` の生成ルールや配置規約だけを確認したいとき。
+- Codex CLI 全体の利用手順や `cmoc` のコマンド仕様だけを確認したいときは、`oracles/app_specs` を読むべきです。
+- `commons.codex` ではなく、他の共通処理やサブコマンド本体の実装を追いたいとき。
+- このファイル単体の個別テストケースではなく、`tests` ディレクトリ全体の役割だけを把握したいとき。
+- git や logging の一般仕様だけを確認したいときは、このファイルではなく該当モジュールや別のテストを参照すべきです。
 
 ## hash
 
-- b4aab13faf36d9aa9cfb049eb7e796cb84c1d3898b7b001772234c2c97d4ed01
+- 6a5f790f80b9feb004850b28aea8cebe626eb81cd740bc14198d723cbefed006
 
 # `test_file_naming.py`
 
