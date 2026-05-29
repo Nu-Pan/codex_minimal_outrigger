@@ -669,17 +669,17 @@ def _write_report(
     lines = [
         "---",
         "schema_version: 1",
-        f"command: {_REPORT_COMMAND}",
-        f"generated_at: {generated_at}",
-        f"repo_root: {repo_root.resolve()}",
-        f"oracle_root: {(repo_root / 'oracles').resolve()}",
-        f"mode: {mode}",
+        f"command: {_yaml_string(_REPORT_COMMAND)}",
+        f"generated_at: {_yaml_string(generated_at)}",
+        f"repo_root: {_yaml_string(str(repo_root.resolve()))}",
+        f"oracle_root: {_yaml_string(str((repo_root / 'oracles').resolve()))}",
+        f"mode: {_yaml_string(mode)}",
         f"full_requested: {str(full_requested).lower()}",
-        f"branch: {branch_name}",
+        f"branch: {_yaml_string(branch_name)}",
         f"is_cmoc_branch: {str(cmoc_branch).lower()}",
         f"base_commit: {_yaml_nullable(base_commit)}",
-        f"head_commit: {commit_hash}",
-        f"commit: {commit_hash}",
+        f"head_commit: {_yaml_string(commit_hash)}",
+        f"commit: {_yaml_string(commit_hash)}",
         f"deleted_oracles_detected: {str(deleted_oracles).lower()}",
         f"oracle_count_total: {oracle_count_total}",
         f"oracle_count_evaluated: {len(oracle_files)}",
@@ -687,7 +687,7 @@ def _write_report(
         f"fatal_issue_count: {issue_counts['fatal']}",
         f"warning_issue_count: {issue_counts['warning']}",
         f"inconclusive_issue_count: {issue_counts['inconclusive']}",
-        f"result: {result}",
+        f"result: {_yaml_string(result)}",
         "---",
         "",
         f"# {_REPORT_COMMAND} report",
@@ -771,11 +771,11 @@ def _write_error_report(
     lines = [
         "---",
         "schema_version: 1",
-        f"command: {_REPORT_COMMAND}",
-        f"generated_at: {generated_at}",
-        f"repo_root: {repo_root.resolve()}",
-        f"oracle_root: {(repo_root / 'oracles').resolve()}",
-        f"mode: {mode or 'unknown'}",
+        f"command: {_yaml_string(_REPORT_COMMAND)}",
+        f"generated_at: {_yaml_string(generated_at)}",
+        f"repo_root: {_yaml_string(str(repo_root.resolve()))}",
+        f"oracle_root: {_yaml_string(str((repo_root / 'oracles').resolve()))}",
+        f"mode: {_yaml_string(mode or 'unknown')}",
         f"full_requested: {str(full_requested).lower()}",
         f"branch: {_yaml_nullable(branch_name)}",
         f"is_cmoc_branch: {_yaml_bool_nullable(cmoc_branch)}",
@@ -789,7 +789,7 @@ def _write_error_report(
         f"fatal_issue_count: {issue_counts['fatal']}",
         f"warning_issue_count: {issue_counts['warning']}",
         f"inconclusive_issue_count: {issue_counts['inconclusive']}",
-        f"result: {result}",
+        f"result: {_yaml_string(result)}",
         "---",
         "",
         f"# {_REPORT_COMMAND} report",
@@ -1264,7 +1264,12 @@ def _yaml_nullable(value: str | None) -> str:
     """YAML frontmatter 用に nullable scalar を返す。"""
     if value is None:
         return "null"
-    return value
+    return _yaml_string(value)
+
+
+def _yaml_string(value: str) -> str:
+    """YAML frontmatter 用に double quoted scalar を返す。"""
+    return json.dumps(value, ensure_ascii=False)
 
 
 def _yaml_bool_nullable(value: bool | None) -> str:

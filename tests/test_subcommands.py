@@ -1000,8 +1000,8 @@ def test_eval_oracles_writes_report_with_fake_codex(
     )
     assert codex_kwargs[0]["skip_index_maintenance"] is True
     assert "json_validator" in codex_kwargs[0]
-    assert "mode: full" in report
-    assert "result: ok" in report
+    assert 'mode: "full"' in report
+    assert 'result: "ok"' in report
     assert "## Fatal issues" in report
     assert "No issues." in report
     assert "## Specification-only basis" not in report
@@ -1060,7 +1060,7 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
     ).read_text(encoding="utf-8")
     assert maintain_exclusions == [["oracles"]]
     assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
-    assert f"head_commit: {review_start_head}" in report
+    assert f'head_commit: "{review_start_head}"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 1" in report
     assert "oracles/generated.md" not in report
@@ -1151,7 +1151,7 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
+    assert 'result: "error"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
     assert "- Failed stage: `oracle ファイル評価`" in report
@@ -1215,8 +1215,8 @@ def test_eval_oracles_writes_error_report_when_preparation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
-    assert "mode: full" in report
+    assert 'result: "error"' in report
+    assert 'mode: "full"' in report
     assert "branch:" in report
     assert "head_commit: null" not in report
     assert "deleted_oracles_detected: false" in report
@@ -1316,7 +1316,7 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
+    assert 'result: "error"' in report
     assert "oracle_count_evaluated: 1" in report
     assert "- Failed stage: `write report`" in report
     assert "- Exception type: `OSError`" in report
@@ -1462,11 +1462,11 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     ).read_text(encoding="utf-8")
     for field in [
         "schema_version: 1",
-        "command: cmoc review oracles",
+        'command: "cmoc review oracles"',
         "generated_at:",
-        f"repo_root: {repo.resolve()}",
-        f"oracle_root: {oracle_root.resolve()}",
-        "mode: full",
+        f'repo_root: "{repo.resolve()}"',
+        f'oracle_root: "{oracle_root.resolve()}"',
+        'mode: "full"',
         "full_requested: true",
         "branch:",
         "is_cmoc_branch: false",
@@ -1478,7 +1478,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
         "fatal_issue_count: 2",
         "warning_issue_count: 2",
         "inconclusive_issue_count: 1",
-        "result: fatal",
+        'result: "fatal"',
     ]:
         assert field in report
 
@@ -1521,6 +1521,83 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     assert "| 2 | `oracles/INDEX.md` |" in report
     assert "| 3 | `oracles/b.md` |" in report
     assert report.count("| 2 | `oracles/INDEX.md` |") == 1
+
+
+def test_eval_oracles_report_frontmatter_quotes_string_scalars(
+    tmp_path: Path,
+) -> None:
+    """frontmatter の文字列値は YAML 特殊文字を含んでも quote する。"""
+    repo = tmp_path / "repo # root: value"
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir(parents=True)
+    oracle_file = oracle_root / "spec.md"
+    oracle_file.write_text("spec\n", encoding="utf-8")
+    branch_name = "feature: #topic\nquoted \"branch\""
+    commit_hash = "abc123: #hash\nnext"
+
+    report_path = eval_oracles_module._write_report(
+        repo,
+        "full",
+        True,
+        branch_name,
+        False,
+        None,
+        commit_hash,
+        False,
+        1,
+        [oracle_file],
+        [],
+    )
+
+    frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
+    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
+    oracle_root_value = eval_oracles_module._yaml_string(
+        str(oracle_root.resolve())
+    )
+    branch_value = eval_oracles_module._yaml_string(branch_name)
+    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    assert f"repo_root: {repo_root_value}" in frontmatter
+    assert f"oracle_root: {oracle_root_value}" in frontmatter
+    assert f"branch: {branch_value}" in frontmatter
+    assert f"head_commit: {commit_value}" in frontmatter
+    assert f"commit: {commit_value}" in frontmatter
+
+
+def test_eval_oracles_error_report_frontmatter_quotes_string_scalars(
+    tmp_path: Path,
+) -> None:
+    """error report の frontmatter も文字列値を安全な scalar にする。"""
+    repo = tmp_path / "repo # root: value"
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir(parents=True)
+    branch_name = "feature: #topic\nquoted \"branch\""
+    commit_hash = "abc123: #hash\nnext"
+
+    report_path = eval_oracles_module._write_error_report(
+        repo,
+        "partial: #mode",
+        False,
+        branch_name,
+        None,
+        None,
+        commit_hash,
+        None,
+        None,
+        [],
+        [],
+        "stage: #failure",
+        RuntimeError("boom"),
+    )
+
+    frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
+    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
+    mode_value = eval_oracles_module._yaml_string("partial: #mode")
+    branch_value = eval_oracles_module._yaml_string(branch_name)
+    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    assert f"repo_root: {repo_root_value}" in frontmatter
+    assert f"mode: {mode_value}" in frontmatter
+    assert f"branch: {branch_value}" in frontmatter
+    assert f"head_commit: {commit_value}" in frontmatter
 
 
 def test_review_oracles_improves_combined_issue_list(
@@ -2078,7 +2155,7 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
     assert len(evaluated_prompts) == 1
     assert str(changed_oracle) in evaluated_prompts[0]
     assert str(unchanged_oracle) not in evaluated_prompts[0]
-    assert "mode: partial" in report
+    assert 'mode: "partial"' in report
     assert "deleted_oracles_detected: true" in report
     assert "oracle_count: 1" in report
 
@@ -2122,7 +2199,7 @@ def test_eval_oracles_full_mode_does_not_depend_on_session_state(
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
-    assert "mode: full" in report
+    assert 'mode: "full"' in report
     assert "full_requested: true" in report
     assert "is_cmoc_branch: true" in report
     assert "base_commit: null" in report
@@ -2181,7 +2258,7 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
     assert sorted(evaluated_targets) == [changed_oracle, unchanged_oracle]
-    assert "mode: full" in report
+    assert 'mode: "full"' in report
     assert "full_requested: false" in report
     assert "is_cmoc_branch: true" in report
     assert "base_commit: null" in report
