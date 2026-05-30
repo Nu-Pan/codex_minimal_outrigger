@@ -154,13 +154,13 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、cmoc のサブコマンド群に関する決定論的な制御ロジックの回帰テストをまとめた入口です。
-- init、session、apply、review oracles、main、CLI エントリポイント、ヘルプ登録、エラー整形、共通 runner を広く検証します。
-- 状態遷移、レポート保存、prompt / validation ヘルパー、`bin/cmoc` を含む周辺制御まで押さえるため、サブコマンド全体の挙動を俯瞰するときの目次です。
+- `tests/test_subcommands.py` は cmoc のサブコマンド群と CLI 入口の決定論的な制御ロジックをまとめた回帰テストです。
+- init、session、apply、review oracles、main、ヘルプ登録、エラー整形、共通 runner、`bin/cmoc` の挙動まで広く検証します。
+- 状態遷移、レポート保存、prompt / validation ヘルパー、Fake Codex CLI を使う評価系テストの意図もここに集約されています。
 
 ## Read this when
 
-- `tests/test_subcommands.py` がどのサブコマンド群と CLI 入口を守っているか確認したいとき。
+- `tests/test_subcommands.py` がどのサブコマンドと CLI 入口を守っているか確認したいとき。
 - `run_command`、`cmoc_init_impl`、`cmoc_session_*`、`cmoc_apply_*`、`cmoc_eval_oracles_impl` の回帰観点を整理したいとき。
 - CLI のヘルプ登録、エラー整形、レポート生成、状態遷移、`bin/cmoc` の挙動をテスト観点から追いたいとき。
 - prompt 生成や validation ヘルパー、Fake Codex CLI を使う評価系テストの意図を確認したいとき。
@@ -174,7 +174,7 @@
 
 ## hash
 
-- 613e129440735aaaa4e700fb212d7184e24d9bc48632100779a338d803f3b8a8
+- f030a6e43a71abfb1f1f290a23235cc28d192d5813975ace9bb63034aac054a9
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`

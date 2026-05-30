@@ -25,27 +25,25 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は cmoc apply 系サブコマンドの実装がまとまったパッケージです。
-- 直下には `__init__.py` と `abandon.py` / `fork.py` / `join.py` があり、apply の開始、調査・修正、統合、破棄を分担します。
-- この `INDEX.md` は、apply パッケージ全体の役割と各モジュールへの入口を整理するための目次です。
+- `src/sub_commands/apply` 配下の cmoc apply 系サブコマンド実装をまとめるパッケージの入口です。
+- 直下の `__init__.py`、`abandon.py`、`fork.py`、`join.py` を手がかりに、apply の開始・調査/修正・統合・破棄の役割分担を案内します。
+- この目次は、apply パッケージ全体の責務と各モジュールへの入口を素早く振り分けるためのものです。
 
 ## Read this when
 
-- `src/sub_commands/apply` 全体の役割と各モジュールの担当範囲を把握したいとき。
-- `apply fork` / `apply join` / `apply abandon` のどれを読むべきか判断したいとき。
-- apply パッケージの構成や、まずどの実装ファイルを見るべきかを素早く振り分けたいとき。
-- `src/sub_commands/apply` が Python パッケージとして成立しているかを確認したいとき。
+- src/sub_commands/apply 全体の役割と、どのモジュールに進むべきかを整理したいとき。
+- cmoc apply fork / join / abandon のうち、読むべき実装ファイルを判断したいとき。
+- src/sub_commands/apply が Python パッケージとして成立しているか、入口だけ確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` / `cmoc apply join` / `cmoc apply abandon` の個別仕様、状態遷移、例外条件だけを確認したいときは、それぞれのモジュールを直接読むべきです。
-- `cmoc` 全体の使い方や `session` 側の仕様だけを確認したいときは、このパッケージ目次ではなく該当する文書を読むべきです。
-- `oracles` 側の仕様断片や `INDEX.md` の生成ルールだけを確認したいときは、このファイルではなく正本仕様や共通の indexing 仕様を読むべきです。
-- `__init__.py` のようなパッケージ宣言だけを見れば足りるときは、この目次を読む必要はありません。
+- cmoc apply fork / join / abandon の個別仕様、状態遷移、例外条件だけを確認したいとき。
+- cmoc apply ではなく session 側の開始・統合・破棄を確認したいとき。
+- INDEX.md の生成ルールや oracles 全体のルーティング方針だけを確認したいとき。
 
 ## hash
 
-- e9b968a4517b4cc0ae61a4be00f756e1368e8441c4fd40809a93d75be517817b
+- df70bdad918cf3514d145f81350a64d9b612330e677bf24126de790d3d8a0da7
 <!-- cmoc-index-kind: directory -->
 
 # `eval_oracles.py`
