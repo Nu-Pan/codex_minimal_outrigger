@@ -3889,11 +3889,10 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     assert not apply_worktree.exists()
 
 
-def test_apply_abandon_accepts_stale_running_state_without_process_id(
+def test_apply_abandon_rejects_running_state_without_process_id(
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """古い running state に process id が無い場合も stale として cleanup する。"""
+    """running state に process id が無い場合は cleanup せず停止する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
@@ -3906,14 +3905,15 @@ def test_apply_abandon_accepts_stale_running_state_without_process_id(
     state["apply"]["state"] = "running"
     write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
 
-    cmoc_apply_abandon_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(repo)
 
-    output = capsys.readouterr().out
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert "running apply process id was not recorded" in output
-    assert state["apply"]["state"] == "ready"
-    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
-    assert not apply_worktree.exists()
+    assert "process id が記録されていません" in error_info.value.message
+    assert "apply.state: running" in error_info.value.detail
+    assert state["apply"]["state"] == "running"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
 
 
 def test_apply_abandon_rejects_unknown_state_without_cleanup(

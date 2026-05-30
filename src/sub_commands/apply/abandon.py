@@ -198,10 +198,14 @@ def _stop_running_apply(abandon_state: _AbandonState) -> list[str]:
         return []
     process_id = abandon_state.process_id
     if process_id is None:
-        return [
-            "running apply process id was not recorded; "
-            "treating the run as stale"
-        ]
+        raise CmocError(
+            "running apply process id が記録されていません。",
+            [
+                ".cmoc/runtime/apply 配下の pid ファイルを確認してください。",
+                "実行中の apply process を特定できないため、手動で状態を確認してから再実行してください。",
+            ],
+            "apply.state: running",
+        )
     if process_id == os.getpid():
         raise CmocError(
             "停止対象の apply process が現在の abandon process と一致します。",
