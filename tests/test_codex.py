@@ -89,7 +89,7 @@ def test_run_codex_exec_retries_json_and_writes_full_log(
     )
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     log_contents = [path.read_text(encoding="utf-8") for path in log_files]
     assert output.strip() == '{"ok": true}'
@@ -151,7 +151,7 @@ def test_run_codex_exec_full_log_uses_fence_longer_than_payload(
 
     output = run_codex_exec(repo, prompt, read_only=True)
 
-    log_path = next((repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log"))
+    log_path = next((repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md"))
     log_content = log_path.read_text(encoding="utf-8")
     assert output == "last before\n```\nlast after\n"
     assert "### Prompt\n\n````text\nprompt before\n```\nprompt after\n````" in log_content
@@ -197,7 +197,7 @@ def test_run_codex_exec_uses_utf8_for_process_text_and_logs_japanese(
     output = run_codex_exec(repo, prompt, read_only=True)
 
     log_path = next(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     log_content = log_path.read_text(encoding="utf-8")
     assert output == "最後の応答"
@@ -225,7 +225,7 @@ def test_run_codex_exec_logs_launch_failure_as_cmoc_error(
         run_codex_exec(repo, "prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert "codex exec を起動できませんでした" in error.value.message
     assert len(log_files) == 1
@@ -265,7 +265,7 @@ def test_run_codex_exec_removes_reserved_log_when_guard_fails_after_prepare(
         run_codex_exec(repo, "prompt", read_only=True)
 
     call_dir = repo / ".cmoc" / "logs" / "codex_exec" / "call"
-    assert list(call_dir.glob("*.log")) == []
+    assert list(call_dir.glob("*.md")) == []
 
 
 def test_prepare_codex_exec_paths_reserves_call_log_atomically(
@@ -290,10 +290,10 @@ def test_prepare_codex_exec_paths_reserves_call_log_atomically(
     first = _prepare_codex_exec_paths(repo)
     second = _prepare_codex_exec_paths(repo)
 
-    assert first["call"].name == "2026-05-04_03-02_01_000000001.log"
-    assert second["call"].name == "2026-05-04_03-02_01_000000002.log"
-    assert first["last_message"].name == "2026-05-04_03-02_01_000000001.log"
-    assert second["last_message"].name == "2026-05-04_03-02_01_000000002.log"
+    assert first["call"].name == "2026-05-04_03-02_01_000000001.md"
+    assert second["call"].name == "2026-05-04_03-02_01_000000002.md"
+    assert first["last_message"].name == "2026-05-04_03-02_01_000000001.json"
+    assert second["last_message"].name == "2026-05-04_03-02_01_000000002.json"
     assert first["call"].exists()
     assert second["call"].exists()
 
@@ -1447,7 +1447,7 @@ def test_run_codex_exec_passes_output_schema_file(
         path.read_text(encoding="utf-8")
         for path in (
             repo / ".cmoc" / "logs" / "codex_exec" / "call"
-        ).glob("*.log")
+        ).glob("*.md")
     ]
     schema_body = json.dumps(
         _BOOLEAN_SCHEMA,
@@ -1463,7 +1463,7 @@ def test_run_codex_exec_passes_output_schema_file(
     assert last_message_path.parent == (
         repo / ".cmoc" / "logs" / "codex_exec" / "output_last_message"
     )
-    assert last_message_path.suffix == ".log"
+    assert last_message_path.suffix == ".json"
     assert "--model" in args
     assert "-c" in args
     assert args[-1] == "-"
@@ -1673,7 +1673,7 @@ def test_run_codex_exec_retries_json_semantic_validation_failure(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
         )
     ]
     assert output.strip() == '{"ok": true}'
@@ -1855,7 +1855,7 @@ def test_run_codex_exec_retries_text_semantic_validation_failure(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
         )
     ]
     assert output.strip() == "complete report"
@@ -1970,7 +1970,7 @@ def test_run_codex_exec_retries_missing_last_message_without_validator(
     output = run_codex_exec(repo, "prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert output.strip() == "plain text result"
     assert state.read_text(encoding="utf-8").strip() == "2"
@@ -2025,7 +2025,7 @@ def test_run_codex_exec_retries_missing_last_message_after_nonzero_exit(
     output = run_codex_exec(repo, "prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert output.strip() == "plain text result"
     assert state.read_text(encoding="utf-8").strip() == "2"
@@ -2384,7 +2384,7 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     output = run_codex_exec(repo, "prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert output.strip() == "done"
     assert state.read_text(encoding="utf-8").strip() == "2"
@@ -2443,7 +2443,7 @@ def test_run_codex_exec_fails_after_capacity_retry_limit(
         run_codex_exec(repo, "prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert "codex exec が capacity リトライ後も失敗しました。" in (
         error.value.message
@@ -2531,7 +2531,7 @@ def test_run_codex_exec_waits_and_resumes_after_quota_exhaustion(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
         )
     ]
     assert output.strip() == "resumed"
@@ -2777,7 +2777,7 @@ def test_run_codex_exec_waits_again_when_resume_is_still_quota_exhausted(
     output = run_codex_exec(repo, "original prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert output.strip() == "resumed"
     assert resume_attempts.read_text(encoding="utf-8").strip() == "2"
@@ -2884,7 +2884,7 @@ def test_run_codex_exec_does_not_treat_plain_limit_error_as_quota(
         run_codex_exec(repo, "original prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert "codex exec が失敗しました。" in error.value.message
     assert "validation limit exceeded" in error.value.detail
@@ -2977,7 +2977,7 @@ def test_run_codex_exec_ignores_stdout_quota_code_without_message(
         run_codex_exec(repo, "original prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert "codex exec が失敗しました。" in error.value.message
     assert "quota exhausted" in error.value.detail
@@ -3030,7 +3030,7 @@ def test_run_codex_exec_fails_when_quota_poll_returns_unexpected_error(
         run_codex_exec(repo, "original prompt", read_only=True)
 
     log_files = sorted(
-        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert "codex exec が失敗しました。" in error.value.message
     assert "network failure during poll" in error.value.detail
@@ -3085,7 +3085,7 @@ def test_run_codex_exec_requires_ok_last_message_for_quota_poll(
     log_contents = [
         path.read_text(encoding="utf-8")
         for path in sorted(
-            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.log")
+            (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
         )
     ]
     assert "quota 復旧確認に失敗しました。" in error.value.message

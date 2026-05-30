@@ -1408,8 +1408,8 @@ def _prepare_codex_exec_paths(repo_root: Path) -> dict[str, Path]:
     last_message_dir.mkdir(parents=True, exist_ok=True)
     while True:
         timestamp = make_timestamp()
-        call_path = call_dir / f"{timestamp}.log"
-        last_message_path = last_message_dir / f"{timestamp}.log"
+        call_path = call_dir / f"{timestamp}.md"
+        last_message_path = last_message_dir / f"{timestamp}.json"
         try:
             with call_path.open("x", encoding="utf-8"):
                 pass
