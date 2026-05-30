@@ -27,28 +27,30 @@
 
 ## Summary
 
-- `commons.codex` の `run_codex_exec` と周辺ヘルパーの回帰テストをまとめたファイルです。
-- Structured Output の schema 準備、JSON / text 検証、semantic validation による retry、quota 復旧後の `resume` を検証します。
-- `output_schema` のキャッシュ、呼び出しログ、コンソール出力、`INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を押さえます。
+- `tests/test_codex.py` は、Codex CLI 呼び出しラッパー `run_codex_exec` の挙動を、正常系から異常系まで広く検証するテスト群です。
+- Structured Output のスキーマ検証、JSON / テキストの意味的 validation、quota や capacity の再試行、`resume` を含む復旧フロー、ログ出力を重点的に確認します。
+- あわせて、workspace-write 時の oracle 変更ガード、`subcommand_log` 連携、session id 抽出、`skip_index_maintenance` の使用範囲も検証します。
 
 ## Read this when
 
-- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を確認したいとき。
-- Structured Output の schema 準備、JSON / text 検証、semantic validation、`output_schema` キャッシュを確認したいとき。
-- Codex CLI の呼び出しログ、コンソール通知、`last_message`、`subcommand_log` の整合性を確認したいとき。
-- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を確認したいとき。
-- `_extract_session_id`、`_resume_command`、`_active_allowed_oracle_conflict_paths` など周辺ヘルパーの仕様を確認したいとき。
+- `run_codex_exec` の起動前チェック、失敗時診断、再試行、再開処理を変更するとき。
+- Structured Output の `output_schema`、JSON/テキストの意味的検証、validator の扱いを変えるとき。
+- quota や capacity の検知、待機、`resume` への切り替え条件を調整するとき。
+- workspace-write 時の oracle 保護、未コミット差分の検出、`skip_index_maintenance` の前提を変えるとき。
+- call log、subcommand log、コンソール通知の出力形式や内容を変えるとき。
+- `_extract_session_id` や `_resume_command` の resume まわりのロジックを変えるとき。
 
 ## Do not read this when
 
-- `commons.codex` の実装本体を直接追いたいとき。
-- `tests/test_repo.py` や `tests/test_indexing.py` など、別の回帰テストだけを見たいとき。
-- `INDEX.md` の生成ルールや `oracles` 全体の正本仕様だけを確認したいとき。
-- `session` や `apply` など、Codex 呼び出し以外のサブコマンド仕様を探しているとき。
+- `commons.codex` の実装仕様そのものだけを確認したいとき。
+- `subcommand_log` や `commons.indexing` の単体仕様だけを確認したいとき。
+- `oracles` 配下の個別仕様やファイル生成ルールだけを確認したいとき。
+- このテスト群ではなく、特定の実装ファイルや別のテストだけを見れば足りるとき。
 
 ## hash
 
-- bb13c41685a86d7c30c00d9da0db1a975c3444135ad959649967df26692c71a1
+- 5c177f32272e25df3ac2f00e175cf157ed70d19402d5416527dcc012f399168e
+<!-- cmoc-index-kind: file -->
 
 # `test_file_naming.py`
 
@@ -173,7 +175,8 @@
 
 ## hash
 
-- f457e1942c7d5f93d94298a361d28fc821c36daf5507980d030b3ec8832d31f0
+- c64c37a82805f34bda522198a89b3838f76f1fb2a8684cedaabe1dc8f58921ab
+<!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
 
