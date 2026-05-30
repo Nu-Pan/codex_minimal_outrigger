@@ -19,6 +19,9 @@ SESSION_STATE_KEYS = {
     "session_start_commit",
     "last_joined_apply_oracle_snapshot_commit",
 }
+OPTIONAL_SESSION_STATE_KEYS = {
+    "last_joined_apply_result",
+}
 APPLY_STATE_KEYS = {"state", "apply_branch", "oracle_snapshot_commit"}
 
 
@@ -506,15 +509,21 @@ def _session_state_payload(
         "apply",
         path,
     )
+    session_payload = {
+        "state": session.get("state"),
+        "session_home_branch": session.get("session_home_branch"),
+        "session_start_commit": session.get("session_start_commit"),
+        "last_joined_apply_oracle_snapshot_commit": session.get(
+            "last_joined_apply_oracle_snapshot_commit"
+        ),
+    }
+    if "last_joined_apply_result" in session:
+        session_payload["last_joined_apply_result"] = session.get(
+            "last_joined_apply_result"
+        )
+
     return {
-        "session": {
-            "state": session.get("state"),
-            "session_home_branch": session.get("session_home_branch"),
-            "session_start_commit": session.get("session_start_commit"),
-            "last_joined_apply_oracle_snapshot_commit": session.get(
-                "last_joined_apply_oracle_snapshot_commit"
-            ),
-        },
+        "session": session_payload,
         "apply": {
             "state": apply.get("state"),
             "apply_branch": apply.get("apply_branch"),
@@ -605,6 +614,7 @@ def _validate_session_state_schema(
         SESSION_STATE_KEYS,
         "session",
         path,
+        optional_keys=OPTIONAL_SESSION_STATE_KEYS,
     )
     _validate_exact_keys(
         apply,
@@ -638,6 +648,13 @@ def _validate_session_state_schema(
         "session.last_joined_apply_oracle_snapshot_commit",
         path,
     )
+    if "last_joined_apply_result" in session:
+        _validate_optional_string(
+            session,
+            "last_joined_apply_result",
+            "session.last_joined_apply_result",
+            path,
+        )
     apply_state = _validate_required_string(apply, "state", "apply.state", path)
     _validate_state_value(apply_state, APPLY_STATES, "apply.state", path)
     _validate_optional_string(apply, "apply_branch", "apply.apply_branch", path)
@@ -675,13 +692,16 @@ def _validate_exact_keys(
     expected_keys: set[str],
     label: str,
     path: Path,
+    *,
+    optional_keys: set[str] | None = None,
 ) -> None:
     """読み込んだ永続 state の key 集合が固定スキーマと一致することを検証する。"""
     actual_keys = set(section)
-    if actual_keys == expected_keys:
+    allowed_keys = expected_keys | (optional_keys or set())
+    if expected_keys <= actual_keys <= allowed_keys:
         return
     missing = expected_keys - actual_keys
-    extra = actual_keys - expected_keys
+    extra = actual_keys - allowed_keys
     detail_parts: list[str] = [str(path)]
     if missing:
         detail_parts.append(f"missing {label} fields: {', '.join(sorted(missing))}")

@@ -1314,10 +1314,10 @@ def test_read_apply_process_id_rejects_non_utf8_pid_file(
     assert str(path) in error.value.detail
 
 
-def test_write_session_state_persists_only_oracle_schema(
+def test_write_session_state_persists_durable_session_result(
     tmp_path: Path,
 ) -> None:
-    """session state は oracle 定義の固定 field だけ永続化する。"""
+    """join 結果は永続化し、runtime-only field は落とす。"""
     repo = _init_repo(tmp_path)
     session_id = "2026-05-10_22-21_10_000000123"
 
@@ -1330,6 +1330,7 @@ def test_write_session_state_persists_only_oracle_schema(
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
                 "last_joined_apply_oracle_snapshot_commit": "prev789",
+                "last_joined_apply_result": "収束",
                 "runtime_note": "not durable",
             },
             "apply": {
@@ -1353,6 +1354,7 @@ def test_write_session_state_persists_only_oracle_schema(
             "session_home_branch": "main",
             "session_start_commit": "abc123",
             "last_joined_apply_oracle_snapshot_commit": "prev789",
+            "last_joined_apply_result": "収束",
         },
         "apply": {
             "state": "completed",
@@ -1363,6 +1365,9 @@ def test_write_session_state_persists_only_oracle_schema(
             "oracle_snapshot_commit": "def456",
         },
     }
+    assert read_session_state(repo, session_id)["session"][
+        "last_joined_apply_result"
+    ] == "収束"
 
 
 def test_initial_session_state_records_session_home_branch() -> None:

@@ -141,6 +141,7 @@ def cmoc_apply_join_impl(
             state,
             join_state.session_branch,
         ),
+        cleanup_evidence.apply_result,
     )
     warnings = _cleanup_apply_artifacts(
         cmoc_root,
@@ -183,11 +184,11 @@ class _CleanupEvidence:
         self,
         *,
         report_saved: bool,
-        result_saved: bool,
+        apply_result: str | None,
         warnings: list[str],
     ) -> None:
         self.report_saved = report_saved
-        self.result_saved = result_saved
+        self.apply_result = apply_result
         self.warnings = warnings
 
 
@@ -633,6 +634,7 @@ def _mark_apply_ready(
     state: dict[str, object],
     oracle_snapshot_commit: str,
     session_home_branch: str,
+    apply_result: str | None,
 ) -> None:
     """最後に join した snapshot を記録し、apply セクションを ready に戻す。"""
     session = state.get("session")
@@ -647,6 +649,10 @@ def _mark_apply_ready(
         )
     session["session_home_branch"] = session_home_branch
     session["last_joined_apply_oracle_snapshot_commit"] = oracle_snapshot_commit
+    if apply_result is not None and apply_result.strip() != "":
+        session["last_joined_apply_result"] = apply_result
+    else:
+        session.pop("last_joined_apply_result", None)
     state["apply"] = {
         "state": "ready",
         "apply_branch": None,
@@ -670,7 +676,7 @@ def _snapshot_cleanup_evidence(
         )
         return _CleanupEvidence(
             report_saved=False,
-            result_saved=False,
+            apply_result=None,
             warnings=warnings,
         )
 
@@ -683,7 +689,7 @@ def _snapshot_cleanup_evidence(
         )
     return _CleanupEvidence(
         report_saved=True,
-        result_saved=result_saved,
+        apply_result=result if result_saved else None,
         warnings=warnings,
     )
 
@@ -808,7 +814,13 @@ def _cleanup_preconditions_hold(
     session = saved_state.get("session")
     if not isinstance(session, dict):
         return False
-    if not cleanup_evidence.report_saved or not cleanup_evidence.result_saved:
+    if not cleanup_evidence.report_saved:
+        return False
+    result = session.get("last_joined_apply_result")
+    if not isinstance(result, str) or result.strip() == "":
+        warnings.append(
+            "apply cleanup skipped: apply result was not saved in session state"
+        )
         return False
     ancestor = run_git(
         repo_root,
