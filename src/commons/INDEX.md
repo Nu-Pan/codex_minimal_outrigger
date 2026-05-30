@@ -128,16 +128,17 @@
 ## Summary
 
 - Git リポジトリ root の探索と cwd 固定、現在ブランチと HEAD commit の取得をまとめた共通モジュールです。
-- `cmoc/session/*` と `cmoc/apply/*` の branch 判定、session id の抽出、apply worktree path と所有元 repo root の復元を扱います。
-- .cmoc` の ignore 保証、session/apply state JSON と apply process id の保存・読込・検証、active session の整合性確認を含みます。
+- `cmoc/session/*` と `cmoc/apply/*` の branch 判定、session id の復元、apply worktree path と所有元 repo root の復元を扱います。
+- `.cmoc` の ignore 保証、session/apply state JSON と apply process id の保存・読込・検証、active session の整合性確認を含みます。
 - `git status` / `git diff` / `git check-ignore` / pathspec を使った未コミット差分、削除検出、oracle / implementation ファイル列挙、内部 commit 後の index 復元をまとめます。
 
 ## Read this when
 
 - repo root を見つけて `cmoc` の実行基準ディレクトリを揃えたいとき。
-- `session` / `apply` の branch ルール、session id の復元、worktree の場所特定を確認したいとき。
+- `session` / `apply` の branch ルール、session id の復元、apply worktree の場所特定を確認したいとき。
 - `.cmoc` の ignore 保証、session state / apply process id の永続化と検証を実装・修正したいとき。
 - `oracles` / 実装ファイルの列挙、変更抽出、削除検出、未コミット差分や pathspec commit の扱いを確認したいとき。
+- 現在の branch 名や HEAD commit を取得する共通処理を確認したいとき。
 
 ## Do not read this when
 
@@ -148,7 +149,8 @@
 
 ## hash
 
-- da9be729c726a22c4914e3e47c57631c32e576a755ec203cad1dd9edabc5a0c3
+- 9ab4336628102fe603da5c5bb295ee06e39fd8af9f5819353b6c13d638ca5b3b
+<!-- cmoc-index-kind: file -->
 
 # `report_files.py`
 

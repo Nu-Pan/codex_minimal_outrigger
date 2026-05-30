@@ -25,25 +25,26 @@
 
 ## Summary
 
-- `src/sub_commands/apply` 配下の cmoc apply 系サブコマンド実装をまとめるパッケージの入口です。
-- 直下の `__init__.py`、`abandon.py`、`fork.py`、`join.py` を手がかりに、apply の開始・調査/修正・統合・破棄の役割分担を案内します。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンド実装のパッケージ入口です。
+- 直下の `__init__.py`、`abandon.py`、`fork.py`、`join.py` に分かれた責務を、開始・調査/修正・統合・破棄の観点で案内します。
 - この目次は、apply パッケージ全体の責務と各モジュールへの入口を素早く振り分けるためのものです。
 
 ## Read this when
 
-- src/sub_commands/apply 全体の役割と、どのモジュールに進むべきかを整理したいとき。
-- cmoc apply fork / join / abandon のうち、読むべき実装ファイルを判断したいとき。
-- src/sub_commands/apply が Python パッケージとして成立しているか、入口だけ確認したいとき。
+- `src/sub_commands/apply` 配下の全体像と、どのモジュールに進むべきかを整理したいとき。
+- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のうち、読むべき実装ファイルを判断したいとき。
+- `src/sub_commands/apply` が Python パッケージとして成立していることと、その入口となるファイル群を把握したいとき。
 
 ## Do not read this when
 
-- cmoc apply fork / join / abandon の個別仕様、状態遷移、例外条件だけを確認したいとき。
-- cmoc apply ではなく session 側の開始・統合・破棄を確認したいとき。
-- INDEX.md の生成ルールや oracles 全体のルーティング方針だけを確認したいとき。
+- `cmoc apply fork/join/abandon` の個別の状態遷移、例外条件、cleanup 条件だけを確認したいとき。
+- `cmoc apply` の仕様断片や利用手順だけを確認したいときは、このディレクトリではなく `oracles/app_specs/sub_commands/` 側を読むべきとき。
+- `src/sub_commands/apply` のパッケージ宣言だけを確認したいときは、`__init__.py` を直接見れば足りるとき。
 
 ## hash
 
-- df70bdad918cf3514d145f81350a64d9b612330e677bf24126de790d3d8a0da7
+- 42999bbda9c2d94098a95e245150b9eb31936ce41af3e602a6dc9c258a26e416
+<!-- cmoc-index-kind: directory -->
 
 # `eval_oracles.py`
 
