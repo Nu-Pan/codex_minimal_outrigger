@@ -154,7 +154,7 @@
 
 - cmoc の公開 CLI とサブコマンド群の決定論的な制御ロジックを横断的に検証する回帰テストです。
 - `init`、`session`、`apply`、`review oracles`、`eval-oracles`、`main`、`bin/cmoc` の起動、状態遷移、エラー処理、出力整合性をまとめて確認します。
-- branch、worktree、session-state、apply-state、Structured Output schema、プロンプト、差分、衝突処理、レポート生成まで広く扱います。
+- branch、worktree、session-state、apply-state、Structured Output schema、プロンプト、差分、衝突処理、レポート生成まで広く扱います.
 
 ## Read this when
 
@@ -164,13 +164,13 @@
 
 ## Do not read this when
 
-- `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを確認したいとき。
-- `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` など共通処理だけを追いたいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_codex.py` など別のテスト群だけで足りるとき。
+- `src/sub_commands/apply/` や `src/sub_commands/session/` など、個別サブコマンド実装の詳細だけを確認したいとき。
+- `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` など、共通処理だけを追いたいとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_codex.py` など、別のテスト群だけで足りるとき。
 
 ## hash
 
-- ffd90cf72d9b0f338309d7607b915258bbf46b27ab28a02a29fe1e58bbdd34e2
+- c402d7c3ebd2062d6b80783963a297baa44c7ee6c25bebbe2bc58ad64418b762
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
