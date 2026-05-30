@@ -1365,11 +1365,11 @@ def test_write_session_state_persists_only_oracle_schema(
     }
 
 
-def test_initial_session_state_uses_null_session_home_branch() -> None:
-    """session fork 直後の home branch は apply join まで null にする。"""
+def test_initial_session_state_records_session_home_branch() -> None:
+    """session fork 直後の home branch を state に保存する。"""
     state = initial_session_state("main", "abc123")
 
-    assert state["session"]["session_home_branch"] is None
+    assert state["session"]["session_home_branch"] == "main"
     assert state["session"]["session_start_commit"] == "abc123"
     assert "last_joined_apply_result" not in state["session"]
 
@@ -1716,7 +1716,7 @@ def test_active_session_scan_fails_on_active_state_without_branch(
 def test_active_session_scan_matches_null_home_branch_by_origin(
     tmp_path: Path,
 ) -> None:
-    """初期値 null の active session も分岐元 branch の重複として扱う。"""
+    """古い null state は分岐元 branch が一意なら重複として扱う。"""
     repo = _init_repo(tmp_path)
     session_id = "2026-05-10_22-21_10_000000123"
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
@@ -1741,6 +1741,38 @@ def test_active_session_scan_matches_null_home_branch_by_origin(
     )
 
     assert active_session_ids_for_home_branch(repo, home_branch) == [session_id]
+
+
+def test_active_session_scan_does_not_guess_null_home_branch_from_same_commit(
+    tmp_path: Path,
+) -> None:
+    """古い null state は同一 commit の複数 branch を同一 home と推定しない。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    start_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "branch", "feature", start_commit)
+    _git(repo, "branch", f"cmoc/session/{session_id}")
+    write_session_state(
+        repo,
+        session_id,
+        {
+            "session": {
+                "state": "active",
+                "session_home_branch": None,
+                "session_start_commit": start_commit,
+                "last_joined_apply_oracle_snapshot_commit": None,
+            },
+            "apply": {
+                "state": "ready",
+                "apply_branch": None,
+                "oracle_snapshot_commit": None,
+            },
+        },
+    )
+
+    assert active_session_ids_for_home_branch(repo, home_branch) == []
+    assert active_session_ids_for_home_branch(repo, "feature") == []
 
 
 def _init_repo(tmp_path: Path) -> Path:

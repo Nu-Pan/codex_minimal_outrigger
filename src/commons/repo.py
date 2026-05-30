@@ -318,11 +318,10 @@ def initial_session_state(
     session_start_commit: str,
 ) -> dict[str, object]:
     """`cmoc session fork` 直後の session state を返す。"""
-    _ = session_home_branch
     return {
         "session": {
             "state": "active",
-            "session_home_branch": None,
+            "session_home_branch": session_home_branch,
             "session_start_commit": session_start_commit,
             "last_joined_apply_oracle_snapshot_commit": None,
         },
@@ -869,7 +868,7 @@ def active_session_ids_for_home_branch(
             session.get("state") == "active"
             and (
                 session.get("session_home_branch") == session_home_branch
-                or _active_session_origin_matches_home_branch(
+                or _legacy_active_session_home_branch_matches(
                     repo_root,
                     session_id,
                     session,
@@ -890,25 +889,25 @@ def active_session_ids_for_home_branch(
     return session_ids
 
 
-def _active_session_origin_matches_home_branch(
+def _legacy_active_session_home_branch_matches(
     repo_root: Path,
     session_id: str,
     session: dict[str, object],
     session_home_branch: str,
 ) -> bool:
-    """home branch が null の active session を分岐元 commit から照合する。"""
+    """home branch が null の古い active session を一意復元できる場合だけ照合する。"""
     if session.get("session_home_branch") is not None:
         return False
     start_commit = session.get("session_start_commit")
     if not isinstance(start_commit, str) or not start_commit:
         return False
     session_branch = f"{SESSION_BRANCH_PREFIX}{session_id}"
-    result = run_git(
+    candidates = _session_home_branch_candidates(
         repo_root,
-        ["merge-base", session_home_branch, session_branch],
-        check=False,
+        session_branch,
+        start_commit,
     )
-    return result.returncode == 0 and result.stdout.strip() == start_commit
+    return candidates == [session_home_branch]
 
 
 def _session_branch_names(repo_root: Path) -> list[str]:
