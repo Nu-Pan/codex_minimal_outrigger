@@ -153,27 +153,25 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は cmoc の公開 CLI と各サブコマンドの起動経路、委譲、状態遷移を横断的に検証する回帰テスト集です。
-- `init`、`session`、`apply`、`review oracles`、`eval-oracles`、`main`、`bin/cmoc` の登録や実行経路をまとめて扱います。
-- ヘルプ、補完、エラー処理、終了コード、Structured Output schema、プロンプト、差分検出、衝突解消、レポート生成などの決定論的な制御ロジックを押さえます。
+- `cmoc` のサブコマンド周りを検証するテスト群への入口です。
+- サブコマンドの起動経路、引数処理、分岐結果の回帰確認に関する内容を案内します。
+- 実装変更に合わせて、どのテスト期待値を見直すべきかを判断するための目次です。
 
 ## Read this when
 
-- 公開 CLI のコマンド登録や `main` / `bin/cmoc` の起動経路を確認したいとき。
-- `init`、`session`、`apply`、`review oracles`、`eval-oracles` の状態遷移やエラー報告を横断的に追いたいとき。
-- Structured Output schema、プロンプト文言、差分検出、衝突の自動解消、ヘルプや補完表示の回帰を確認したいとき。
-- `session join`、`session abandon`、`apply join`、`apply abandon`、`apply fork` などの連携挙動をまとめて追いたいとき。
+- サブコマンドの追加・削除・名称変更に伴ってテストの期待値を見直したいとき。
+- CLI のルーティング、引数解釈、エラー表示の回帰テストを更新したいとき。
+- `tests/test_subcommands.py` に書かれているサブコマンド関連の検証対象を素早く把握したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
-- `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/errors.py` など共通処理だけを確認したいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_codex.py` など、別の回帰テスト群で足りるとき。
-- `main.py` や `bin/cmoc` の単体仕様だけを見たいとき。
+- `cmoc` の個別サブコマンド実装そのものを確認したいとき。
+- `src/sub_commands` 配下の設計や共通処理だけを追いたいとき。
+- サブコマンド以外の CLI 仕様や別カテゴリのテストを見たいとき。
 
 ## hash
 
-- a8f2741456e2108412dca54cbb5f1a586e44832929b09be33dc644bbbbf166d3
+- 3c15539becb7c93c123d745a51d5f31b07a534305df58dad84c0d3c56b6fa211
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
