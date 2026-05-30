@@ -352,10 +352,13 @@ def _changed_path_entries_between(
         ],
     )
     entries: list[_ChangedPathEntry] = []
-    for _status, paths in git_name_status_entries(result.stdout):
+    for status, paths in git_name_status_entries(result.stdout):
         if paths:
-            # rename/copy は oracle の共通規則に合わせて変更後 path を対象にする。
-            entries.append(_ChangedPathEntry([paths[-1]]))
+            if status.startswith("R"):
+                entries.append(_ChangedPathEntry(paths))
+            else:
+                # copy は source を変更しないため、変更後 path を対象にする。
+                entries.append(_ChangedPathEntry([paths[-1]]))
     return entries
 
 

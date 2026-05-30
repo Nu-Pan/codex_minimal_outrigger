@@ -3849,30 +3849,33 @@ def test_apply_join_stops_on_non_index_conflict(
     assert apply_worktree.exists()
 
 
-def test_apply_join_uses_rename_destination_for_unexpected_diff_check(
+def test_apply_join_stops_on_apply_branch_rename_from_oracle_to_implementation(
     tmp_path: Path,
 ) -> None:
-    """apply branch 側の rename は変更後 path を想定外差分検査に使う。"""
+    """apply branch 側の oracle source rename は想定外差分として停止する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
-    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
     _git(apply_worktree, "mv", "oracles/spec.md", "feature.txt")
     _git(apply_worktree, "commit", "-m", "rename oracle to implementation")
 
-    cmoc_apply_join_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
 
     state = json.loads(
         (
             repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
-    assert (repo / "feature.txt").read_text(encoding="utf-8") == "spec\n"
-    assert not (repo / "oracles" / "spec.md").exists()
-    assert state["apply"]["state"] == "ready"
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: oracles/spec.md" in error_info.value.detail
+    assert not (repo / "feature.txt").exists()
+    assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == "spec\n"
+    assert state["apply"]["state"] == "completed"
 
 
 def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
@@ -3907,6 +3910,39 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
     assert not (repo / "ignored.txt").exists()
     assert state["apply"]["state"] == "ready"
     assert f"- {apply_branch}: ignored.txt" in output
+
+
+def test_apply_join_force_resolves_apply_branch_rename_from_oracle(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """強制モードは oracle source rename の source/destination を戻す。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "other.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "other.txt")
+    _git(apply_worktree, "commit", "-m", "implement other feature")
+    _git(apply_worktree, "mv", "oracles/spec.md", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "rename oracle to implementation")
+
+    cmoc_apply_join_impl(repo, force_resolve=True)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "other.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert not (repo / "feature.txt").exists()
+    assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == "spec\n"
+    assert state["apply"]["state"] == "ready"
+    assert f"- {apply_branch}: oracles/spec.md" in output
 
 
 def test_apply_join_force_resolves_with_missing_apply_worktree(
