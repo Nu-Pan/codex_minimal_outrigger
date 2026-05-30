@@ -6395,6 +6395,33 @@ def test_session_join_recovers_null_session_home_branch(
     assert state_after["session"]["session_home_branch"] == home_branch
 
 
+def test_session_join_dirty_worktree_does_not_record_recovered_home_branch(
+    tmp_path: Path,
+) -> None:
+    """dirty な session branch では復元 home branch を永続化しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    _checkout_session_branch(repo)
+    state_path = repo / ".cmoc" / "sessions" / (
+        "2026-05-10_22-21_10_000000123.json"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["session"]["session_home_branch"] = None
+    write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
+    state_before = json.loads(state_path.read_text(encoding="utf-8"))
+    (repo / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    state_after = json.loads(state_path.read_text(encoding="utf-8"))
+    assert "未コミットの変更" in error.value.message
+    assert state_after == state_before
+    assert state_after["session"]["session_home_branch"] is None
+
+
 def test_session_join_ensures_cmoc_ignored_before_switch(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -7035,6 +7062,38 @@ def test_session_abandon_recovers_null_session_home_branch(
     assert state_after["session"]["state"] == "abandoned"
     assert state_after["session"]["session_home_branch"] == home_branch
     assert "cmoc/session/2026-05-10_22-21_10_000000123" not in branches
+
+
+def test_session_abandon_dirty_worktree_does_not_record_recovered_home_branch(
+    tmp_path: Path,
+) -> None:
+    """dirty な session branch では復元 home branch を永続化しない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc")
+    _checkout_session_branch(repo)
+    state_path = repo / ".cmoc" / "sessions" / (
+        "2026-05-10_22-21_10_000000123.json"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["session"]["session_home_branch"] = None
+    write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
+    state_before = json.loads(state_path.read_text(encoding="utf-8"))
+    (repo / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state_after = json.loads(state_path.read_text(encoding="utf-8"))
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert "未コミットの変更" in error.value.message
+    assert _git(repo, "branch", "--show-current").stdout.strip() == (
+        "cmoc/session/2026-05-10_22-21_10_000000123"
+    )
+    assert state_after == state_before
+    assert state_after["session"]["session_home_branch"] is None
+    assert "cmoc/session/2026-05-10_22-21_10_000000123" in branches
 
 
 def test_session_abandon_ensures_cmoc_ignored_before_cleanup(

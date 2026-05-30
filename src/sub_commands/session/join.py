@@ -50,16 +50,16 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
             state,
             session_branch,
         )
-        _record_session_home_branch(state_root, session_id, state, home_branch)
+        _assert_local_branch_exists(repo_root, home_branch)
         assert_no_uncommitted_changes_outside_cmoc(repo_root)
 
         start_step(timer, 2, 5, "ensure .cmoc is ignored")
         manual_resolution_required = True
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
+        _record_session_home_branch(state_root, session_id, state, home_branch)
 
         start_step(timer, 3, 5, "switch to session home branch")
-        _assert_local_branch_exists(repo_root, home_branch)
         run_git(repo_root, ["switch", home_branch])
 
         start_step(timer, 4, 5, "merge session branch")
