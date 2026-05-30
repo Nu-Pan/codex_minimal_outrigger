@@ -7436,6 +7436,38 @@ def test_session_join_ignores_markers_outside_conflict_paths(
     )
 
 
+def test_session_join_rejects_remaining_diff3_base_marker(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """diff3/zdiff3 の base marker が残る場合も merge commit しない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """base marker だけが残る不完全な conflict 解消を模擬する。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text(
+            "resolved\n"
+            "||||||| base\n"
+            "base text still present\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "conflict marker" in error.value.message
+    assert "conflict.txt" in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
 def test_session_join_rejects_codex_change_in_forbidden_path(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

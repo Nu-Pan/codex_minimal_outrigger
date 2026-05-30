@@ -384,6 +384,7 @@ def _files_with_conflict_markers(
         ).splitlines():
             if (
                 line.startswith("<<<<<<<")
+                or line.startswith("|||||||")
                 or line == "======="
                 or line.startswith(">>>>>>>")
             ):
