@@ -7548,6 +7548,37 @@ def test_bin_cmoc_reports_missing_venv_to_stdout(tmp_path: Path) -> None:
     assert "仮想環境 Python の実行可能性チェック" not in result.stdout
 
 
+def test_bin_cmoc_suppresses_missing_venv_error_for_completion_probe(
+    tmp_path: Path,
+) -> None:
+    """補完プローブでは launcher 独自の venv 欠落エラーを混ぜない。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    launcher = tmp_path / "repo" / "bin" / "cmoc"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(
+        (repo_root / "bin" / "cmoc").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+
+    result = subprocess.run(
+        [str(launcher)],
+        check=False,
+        env={
+            "_CMOC_COMPLETE": "complete_bash",
+            "COMP_WORDS": "cmoc ",
+            "COMP_CWORD": "1",
+        },
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert result.stderr == ""
+
+
 def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     """conflict 対象 oracle file は marker 解消に限って編集できる。"""
     repo = Path("/repo")
