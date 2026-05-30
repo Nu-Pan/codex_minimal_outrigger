@@ -955,6 +955,7 @@ def _target_oracle_files(
                 deleted_at_snapshot=path not in snapshot_paths,
             )
             for path in sorted(dirty_paths)
+            if path in snapshot_paths or path.exists()
         ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
@@ -966,11 +967,9 @@ def _target_oracle_files(
         )
     )
     return [
-        _InvestigationTarget(
-            path,
-            deleted_at_snapshot=path not in snapshot_paths,
-        )
+        _InvestigationTarget(path)
         for path in sorted(changed)
+        if path in snapshot_paths
     ]
 
 
@@ -996,6 +995,7 @@ def _target_implementation_files(
                 deleted_at_snapshot=path not in snapshot_paths,
             )
             for path in sorted(dirty_paths)
+            if path in snapshot_paths or path.exists()
         ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
@@ -1007,11 +1007,9 @@ def _target_implementation_files(
         )
     )
     return [
-        _InvestigationTarget(
-            path,
-            deleted_at_snapshot=path not in snapshot_paths,
-        )
+        _InvestigationTarget(path)
         for path in sorted(changed)
+        if path in snapshot_paths
     ]
 
 
@@ -1102,7 +1100,7 @@ def _changed_files_between_commits(
 ) -> list[str]:
     """指定 commit 範囲で変更された path を返す。
 
-    削除差分は変更後 path が存在しないため、削除前 path を返す。
+    削除差分は対象外にし、rename/copy は変更後 path だけを返す。
     """
     result = run_git(
         repo_root,
@@ -1120,7 +1118,7 @@ def _changed_files_between_commits(
     paths: set[str] = set()
     for status, status_paths in git_name_status_entries(result.stdout):
         status_kind = status[:1]
-        if status_kind not in {"A", "C", "D", "M", "R", "T"}:
+        if status_kind not in {"A", "C", "M", "R", "T"}:
             continue
         if status_kind in {"C", "R"}:
             if len(status_paths) >= 2:

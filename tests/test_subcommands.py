@@ -5801,10 +5801,10 @@ def test_apply_partial_targets_exclude_tracked_root_gitignored_files(
     assert implementation_targets == ["kept.py"]
 
 
-def test_apply_partial_targets_include_deleted_and_reverted_paths(
+def test_apply_partial_targets_exclude_deleted_and_keep_reverted_paths(
     tmp_path: Path,
 ) -> None:
-    """部分 apply は削除済みと存在する履歴変更 path を対象にする。"""
+    """部分 apply は削除済みを除外し、存在する履歴変更 path は対象にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -5852,14 +5852,56 @@ def test_apply_partial_targets_include_deleted_and_reverted_paths(
         )
     }
 
-    assert oracle_targets == {
-        "oracles/obsolete.md": True,
-        "oracles/spec.md": False,
-    }
-    assert implementation_targets == {
-        "app.py": False,
-        "obsolete.py": True,
-    }
+    assert oracle_targets == {"oracles/spec.md": False}
+    assert implementation_targets == {"app.py": False}
+
+
+def test_apply_dirty_targets_exclude_paths_missing_at_snapshot(
+    tmp_path: Path,
+) -> None:
+    """dirty path 経由でも snapshot に存在しない削除済み path は対象外にする。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base targets")
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    (oracle_root / "created.md").write_text("created\n", encoding="utf-8")
+    (repo / "created.py").write_text("created\n", encoding="utf-8")
+
+    oracle_targets = [
+        target.path.relative_to(repo).as_posix()
+        for target in apply_module._target_oracle_files(
+            repo,
+            snapshot_commit,
+            snapshot_commit,
+            partial=True,
+            dirty_paths={
+                oracle_root / "created.md",
+                oracle_root / "deleted.md",
+                oracle_root / "spec.md",
+            },
+        )
+    ]
+    implementation_targets = [
+        target.path.relative_to(repo).as_posix()
+        for target in apply_module._target_implementation_files(
+            repo,
+            snapshot_commit,
+            snapshot_commit,
+            partial=True,
+            dirty_paths={
+                repo / "app.py",
+                repo / "created.py",
+                repo / "deleted.py",
+            },
+        )
+    ]
+
+    assert oracle_targets == ["oracles/created.md", "oracles/spec.md"]
+    assert implementation_targets == ["app.py", "created.py"]
 
 
 def test_apply_partial_targets_use_renamed_new_paths(
