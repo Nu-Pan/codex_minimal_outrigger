@@ -22,7 +22,7 @@
 
 ## hash
 
-- 239fc59fad6ba7b3050c70a704ddcbdedb57dac2ad601081fce98e770e7a8344
+- 3c754f5ffd2734b8a09a4fb8056953cb5fb75f9a81e1bbaf38e9e2f90cb3a9a1
 <!-- cmoc-index-kind: directory -->
 
 # `main.py`

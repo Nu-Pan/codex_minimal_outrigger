@@ -77,27 +77,27 @@
 
 ## Summary
 
-- `src/commons/errors.py` は、cmoc 全体で使う共通例外 `CmocError` と、stdout 向けのエラーレポート整形関数 `format_error_report` をまとめるモジュールです。
+- `src/commons/errors.py` は、cmoc 全体で使う共通例外 `CmocError` と stdout 向けのエラーレポート整形関数 `format_error_report()` をまとめるモジュールです。
 - `CmocError` は利用者向けメッセージ、複数の次アクション、詳細、終了コードを保持し、次アクションは最低 2 件を必須にします。
-- `format_error_report` は `ERROR` / `Summary` / `Next actions` / `Detail` / `Call stack` 形式で例外を整形し、`CmocError` と通常例外を分けて扱います。
+- `format_error_report()` は `ERROR` / `Summary` / `Next actions` / `Detail` / `Call stack` 形式で例外を整形し、`CmocError` と通常例外を分けて扱います。
 
 ## Read this when
 
-- cmoc の共通エラーハンドリングや、例外から stdout 向けレポートへ変換する処理を実装・修正したいとき。
-- 復旧手順を複数提示する `CmocError` をサブコマンドや共通処理から投げたいとき。
-- `message`、`actions`、`detail`、`exit_code` の意味や制約を確認したいとき。
-- 通常の Python 例外が cmoc の共通エラーレポートでどう表示されるか確認したいとき。
+- cmoc 全体で使う共通例外 `CmocError` と、その利用条件を確認したいとき。
+- stdout 向けのエラーレポート整形 `format_error_report()` の出力形式を確認・修正したいとき。
+- `message`、`actions`、`detail`、`exit_code` の意味や制約、特に `actions` が 2 件以上必要な点を確認したいとき。
+- 通常例外や `subprocess.CalledProcessError` をどう診断情報付きで表示するか確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジック、引数解析、git 操作、`codex exec` 呼び出しを確認したいときは、このモジュールではなく該当するサブコマンドや共通処理を読むべきです。
-- ログ保存、リトライ、Structured Output、サンドボックス指定など、`format_error_report` とは別の共通機能だけを確認したいときは、このファイルの範囲外です。
-- タイムスタンプ生成、経過時間表示、サブコマンドログなど、他の共通ユーティリティを調べたいときは `src/commons/errors.py` ではありません。
-- テスト実装の詳細や Fake Codex CLI の使い方だけを確認したいときは、このモジュールを読む必要はありません。
+- 個別サブコマンドの業務ロジック、引数解析、git 操作、`codex exec` 呼び出しを確認したいとき。
+- `format_error_report()` 以外の共通処理、たとえば `repo.py`・`codex.py`・`indexing.py`・`timing.py`・`timestamps.py` を確認したいとき。
+- テストコードや CLI エントリーポイントの実装を追いたいとき。
 
 ## hash
 
-- a72dbd1205ce53b398ceacaaf86e966b9aba8f03be9634806f0d94a73e4717ea
+- 4e9b2d98720b30ea3d87e385d451e3fa2a63918c22757b629c57c87093b50048
+<!-- cmoc-index-kind: file -->
 
 # `indexing.py`
 
