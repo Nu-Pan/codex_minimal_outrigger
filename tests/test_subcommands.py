@@ -5036,7 +5036,8 @@ def test_apply_marks_error_when_worktree_creation_fails(
         _repo_root: Path,
         _session_id: str,
         _oracle_snapshot_commit: str,
-    ) -> tuple[str, str, Path]:
+        _initial_plan: apply_module._ApplyWorktreePlan,
+    ) -> apply_module._ApplyWorktreePlan:
         """worktree 作成失敗を模擬する。"""
         raise RuntimeError("fake worktree creation failure")
 
@@ -5087,6 +5088,58 @@ def test_apply_marks_error_when_worktree_creation_fails(
     )
     assert f"apply_worktree_path: \"{planned_apply_worktree}\"" in report_text
     assert f"apply_worktree_path: \"{repo}\"" not in report_text
+
+
+def test_create_apply_worktree_failure_reports_last_attempted_plan(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """worktree 作成リトライ失敗は最後に実試行した候補を例外に載せる。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session_id = "session"
+    oracle_snapshot_commit = "abc123"
+    initial_plan = apply_module._ApplyWorktreePlan(
+        "run0",
+        f"cmoc/apply/{session_id}/run0",
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run0",
+    )
+    timestamps = iter(f"run{index}" for index in range(1, 10))
+    attempted_branches: list[str] = []
+
+    def fake_make_timestamp() -> str:
+        return next(timestamps)
+
+    def fake_run_git(
+        _repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        if args[:1] == ["branch"]:
+            attempted_branches.append(args[1])
+        return subprocess.CompletedProcess(args, 1, "", "fake collision")
+
+    monkeypatch.setattr(apply_module, "make_timestamp", fake_make_timestamp)
+    monkeypatch.setattr(apply_module, "run_git", fake_run_git)
+    monkeypatch.setattr(apply_module, "sleep", lambda _seconds: None)
+
+    with pytest.raises(apply_module._ApplyWorktreeCreationError) as error:
+        apply_module._create_apply_worktree(
+            repo,
+            session_id,
+            oracle_snapshot_commit,
+            initial_plan,
+        )
+
+    assert attempted_branches[0] == initial_plan.apply_branch
+    assert attempted_branches[-1] == f"cmoc/apply/{session_id}/run9"
+    assert error.value.last_plan.apply_run_id == "run9"
+    assert error.value.last_plan.apply_branch == attempted_branches[-1]
+    assert error.value.last_plan.apply_worktree == (
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run9"
+    )
 
 
 def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(

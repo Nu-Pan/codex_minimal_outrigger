@@ -65,6 +65,23 @@ class _InvestigationTarget:
 
 
 @dataclass(frozen=True)
+class _ApplyWorktreePlan:
+    """1 回の apply worktree 作成試行で使う識別子一式。"""
+
+    apply_run_id: str
+    apply_branch: str
+    apply_worktree: Path
+
+
+class _ApplyWorktreeCreationError(RuntimeError):
+    """apply worktree 作成失敗時に、最後に実試行した候補を保持する。"""
+
+    def __init__(self, message: str, last_plan: _ApplyWorktreePlan) -> None:
+        super().__init__(message)
+        self.last_plan = last_plan
+
+
+@dataclass(frozen=True)
 class _InvestigationJob:
     """file 起点調査として並列実行する Codex CLI 呼び出し単位。"""
 
@@ -280,10 +297,9 @@ def cmoc_apply_impl(
     oracle_snapshot_commit = ""
 
     failed_stage = "create apply worktree"
-    apply_run_id, apply_branch, apply_worktree = _plan_apply_worktree(
-        state_root,
-        session_id,
-    )
+    apply_run_id = ""
+    apply_branch = ""
+    apply_worktree = state_root / ".cmoc" / "worktrees" / "apply" / session_id
     discrepancy_counts: list[int] = []
     apply_completed_recorded = False
     apply_start_needs_error_record = False
@@ -302,14 +318,20 @@ def cmoc_apply_impl(
             failed_stage = "create apply worktree"
             start_step(timer, 3, 6, "create apply worktree")
             apply_start_needs_error_record = True
+            apply_plan = _plan_apply_worktree(state_root, session_id)
+            apply_run_id = apply_plan.apply_run_id
+            apply_branch = apply_plan.apply_branch
+            apply_worktree = apply_plan.apply_worktree
             try:
-                apply_run_id, apply_branch, apply_worktree = (
-                    _create_apply_worktree(
-                        state_root,
-                        session_id,
-                        oracle_snapshot_commit,
-                    )
+                apply_plan = _create_apply_worktree(
+                    state_root,
+                    session_id,
+                    oracle_snapshot_commit,
+                    apply_plan,
                 )
+                apply_run_id = apply_plan.apply_run_id
+                apply_branch = apply_plan.apply_branch
+                apply_worktree = apply_plan.apply_worktree
                 _mark_apply_running(
                     state_root,
                     session_id,
@@ -317,6 +339,13 @@ def cmoc_apply_impl(
                     apply_branch,
                     oracle_snapshot_commit,
                 )
+            except _ApplyWorktreeCreationError as error:
+                apply_run_id = error.last_plan.apply_run_id
+                apply_branch = error.last_plan.apply_branch
+                apply_worktree = error.last_plan.apply_worktree
+                _mark_apply_error(state_root, session_id, state)
+                apply_error_recorded = True
+                raise
             except Exception:
                 _mark_apply_error(state_root, session_id, state)
                 apply_error_recorded = True
@@ -553,18 +582,25 @@ def _create_apply_worktree(
     repo_root: Path,
     session_id: str,
     oracle_snapshot_commit: str,
-) -> tuple[str, str, Path]:
+    initial_plan: _ApplyWorktreePlan,
+) -> _ApplyWorktreePlan:
     """snapshot から apply branch と専用 worktree を作成する。"""
     # timestamp 衝突に備えて短い sleep を挟みながら最大 10 回リトライする。
+    last_plan = initial_plan
     for attempt in range(1, 11):
-        apply_run_id, apply_branch, apply_worktree = _plan_apply_worktree(
-            repo_root,
-            session_id,
+        plan = (
+            initial_plan
+            if attempt == 1
+            else _plan_apply_worktree(repo_root, session_id)
         )
-        print(f"create apply worktree attempt ({attempt}/10) {apply_branch}")
+        last_plan = plan
+        print(
+            "create apply worktree attempt "
+            f"({attempt}/10) {plan.apply_branch}"
+        )
         branch_result = run_git(
             repo_root,
-            ["branch", apply_branch, oracle_snapshot_commit],
+            ["branch", plan.apply_branch, oracle_snapshot_commit],
             check=False,
         )
         if branch_result.returncode != 0:
@@ -572,14 +608,17 @@ def _create_apply_worktree(
             continue
         worktree_result = run_git(
             repo_root,
-            ["worktree", "add", str(apply_worktree), apply_branch],
+            ["worktree", "add", str(plan.apply_worktree), plan.apply_branch],
             check=False,
         )
         if worktree_result.returncode == 0:
-            return apply_run_id, apply_branch, apply_worktree
-        run_git(repo_root, ["branch", "-D", apply_branch], check=False)
+            return plan
+        run_git(repo_root, ["branch", "-D", plan.apply_branch], check=False)
         sleep(0.001)
-    raise RuntimeError("リトライ後も一意な apply worktree を作成できませんでした。")
+    raise _ApplyWorktreeCreationError(
+        "リトライ後も一意な apply worktree を作成できませんでした。",
+        last_plan,
+    )
 
 
 @contextmanager
@@ -602,7 +641,7 @@ def _locked_apply_start(
 def _plan_apply_worktree(
     repo_root: Path,
     session_id: str,
-) -> tuple[str, str, Path]:
+) -> _ApplyWorktreePlan:
     """次に作成を試みる apply run id、branch、worktree path を組み立てる。"""
     apply_run_id = make_timestamp()
     apply_branch = f"{APPLY_BRANCH_PREFIX}{session_id}/{apply_run_id}"
@@ -614,7 +653,7 @@ def _plan_apply_worktree(
         / session_id
         / apply_run_id
     )
-    return apply_run_id, apply_branch, apply_worktree
+    return _ApplyWorktreePlan(apply_run_id, apply_branch, apply_worktree)
 
 
 def _mark_apply_running(
