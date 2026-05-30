@@ -366,7 +366,7 @@ def _is_oracle_path(path: str) -> bool:
 
 def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
     """apply branch 側で cmoc が積み得る想定内 path か判定する。"""
-    if _is_oracle_path(path):
+    if _is_apply_branch_forbidden_path(path):
         return False
     return (
         is_apply_implementation_path(repo_root, path)
@@ -375,6 +375,20 @@ def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
             path,
             excluded_index_roots=[repo_root / "oracles"],
         )
+    )
+
+
+def _is_apply_branch_forbidden_path(path: str) -> bool:
+    """apply branch 側の正規成果物として扱わない path か判定する。"""
+    return (
+        _is_oracle_path(path)
+        or path == "README.md"
+        or path == "AGENTS.md"
+        or path == ".cmoc"
+        or path.startswith(".cmoc/")
+        or path == ".agents"
+        or path.startswith(".agents/")
+        or _is_memo_path(path)
     )
 
 

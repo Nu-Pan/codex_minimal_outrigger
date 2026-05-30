@@ -3256,14 +3256,16 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
         ("README.md", "joined readme\n"),
         ("AGENTS.md", "joined agents\n"),
         (".agents/note.txt", "joined agents note\n"),
+        (".cmoc/state.json", "{}\n"),
+        ("memo/note.md", "joined memo note\n"),
     ],
 )
-def test_apply_join_accepts_apply_branch_implementation_diff_on_guarded_paths(
+def test_apply_join_stops_on_apply_branch_forbidden_diff(
     tmp_path: Path,
     relative_path: str,
     content: str,
 ) -> None:
-    """apply join の差分分類は編集禁止ガードと実装ファイル性を分離する。"""
+    """apply fork/Codex CLI の禁止 path は apply branch 成果物にしない。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
@@ -3271,17 +3273,25 @@ def test_apply_join_accepts_apply_branch_implementation_diff_on_guarded_paths(
         repo,
         oracle_snapshot,
     )
+    repo_target = repo / relative_path
+    before_exists = repo_target.exists()
+    before_content = repo_target.read_text(encoding="utf-8") if before_exists else None
     target = apply_worktree / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
-    _git(apply_worktree, "add", relative_path)
+    _git(apply_worktree, "add", "-f", relative_path)
     _git(apply_worktree, "commit", "-m", "edit forbidden path")
 
-    cmoc_apply_join_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
 
-    assert (repo / relative_path).read_text(encoding="utf-8") == content
-    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
-    assert not apply_worktree.exists()
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: {relative_path}" in error_info.value.detail
+    assert repo_target.exists() is before_exists
+    if before_content is not None:
+        assert repo_target.read_text(encoding="utf-8") == before_content
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
 
 
 def test_apply_join_reports_unexpected_diff_with_control_chars(
@@ -3473,7 +3483,7 @@ def test_apply_join_force_resolve_keeps_expected_apply_index_diff(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """強制モードは apply branch 側の想定内 INDEX.md 差分を維持する。"""
+    """強制モードは想定内差分だけを維持し、禁止 path は戻す。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
@@ -3499,9 +3509,9 @@ def test_apply_join_force_resolve_keeps_expected_apply_index_diff(
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
     assert (repo / "INDEX.md").read_text(encoding="utf-8") == "index\n"
-    assert (repo / "memo" / "note.md").read_text(encoding="utf-8") == "note\n"
+    assert not (repo / "memo" / "note.md").exists()
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: memo/note.md" not in output
+    assert f"- {apply_branch}: memo/note.md" in output
 
 
 def test_apply_join_auto_resolves_index_conflict(
