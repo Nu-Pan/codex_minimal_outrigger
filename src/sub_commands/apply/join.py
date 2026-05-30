@@ -130,7 +130,12 @@ def cmoc_apply_join_impl(
 
     start_step(timer, 5, 5, "record ready apply state")
     cleanup_evidence = _snapshot_cleanup_evidence(cmoc_root, join_state)
-    _mark_apply_ready(cmoc_root, session_id, state)
+    _mark_apply_ready(
+        cmoc_root,
+        session_id,
+        state,
+        join_state.oracle_snapshot_commit,
+    )
     warnings = _cleanup_apply_artifacts(
         cmoc_root,
         join_state,
@@ -608,17 +613,20 @@ def _mark_apply_ready(
     repo_root: Path,
     session_id: str,
     state: dict[str, object],
+    oracle_snapshot_commit: str,
 ) -> None:
-    """apply セクションを ready に戻し、固定 field を null 初期化する。"""
+    """最後に join した snapshot を記録し、apply セクションを ready に戻す。"""
+    session = state.get("session")
     apply = state.get("apply")
-    if not isinstance(apply, dict):
+    if not isinstance(session, dict) or not isinstance(apply, dict):
         raise CmocError(
             "session state ファイルの形式が不正です。",
             [
-                "state JSON の apply セクションを確認して復旧してください。",
+                "state JSON の session/apply セクションを確認して復旧してください。",
                 "復旧できない場合は、対象 apply run を破棄して新しい session でやり直してください。",
             ],
         )
+    session["last_joined_apply_oracle_snapshot_commit"] = oracle_snapshot_commit
     state["apply"] = {
         "state": "ready",
         "apply_branch": None,

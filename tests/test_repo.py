@@ -1222,6 +1222,7 @@ def test_read_session_start_commit_uses_session_state(
                 "state": "active",
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "ready",
@@ -1283,6 +1284,7 @@ def test_write_session_state_persists_only_oracle_schema(
                 "state": "active",
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
+                "last_joined_apply_oracle_snapshot_commit": "prev789",
                 "runtime_note": "not durable",
             },
             "apply": {
@@ -1305,6 +1307,7 @@ def test_write_session_state_persists_only_oracle_schema(
             "state": "active",
             "session_home_branch": "main",
             "session_start_commit": "abc123",
+            "last_joined_apply_oracle_snapshot_commit": "prev789",
         },
         "apply": {
             "state": "completed",
@@ -1332,6 +1335,7 @@ def test_read_session_state_rejects_unknown_state_values(
                     "state": "paused",
                     "session_home_branch": "main",
                     "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
                 },
                 "apply": {
                     "state": "ready",
@@ -1383,6 +1387,7 @@ def test_read_session_state_rejects_ready_apply_with_run_fields(
                     "state": "active",
                     "session_home_branch": "main",
                     "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
                 },
                 "apply": {
                     "state": "ready",
@@ -1419,6 +1424,7 @@ def test_read_session_state_rejects_apply_schema_mismatch(
                     "state": "active",
                     "session_home_branch": "main",
                     "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
                 },
                 "apply": {
                     "state": "ready",
@@ -1438,6 +1444,46 @@ def test_read_session_state_rejects_apply_schema_mismatch(
     assert "unknown apply fields: process_id" in error.value.detail
 
 
+def test_read_session_state_rejects_non_string_last_joined_snapshot(
+    tmp_path: Path,
+) -> None:
+    """最後に join した oracle snapshot は null または文字列に限る。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": "main",
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": 123,
+                },
+                "apply": {
+                    "state": "ready",
+                    "apply_branch": None,
+                    "oracle_snapshot_commit": None,
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error:
+        read_session_state(repo, session_id)
+
+    assert (
+        "session.last_joined_apply_oracle_snapshot_commit"
+        in error.value.actions[0]
+    )
+    assert (
+        "session.last_joined_apply_oracle_snapshot_commit: 123"
+        in error.value.detail
+    )
+
+
 def test_write_session_state_rejects_completed_apply_without_run_fields(
     tmp_path: Path,
 ) -> None:
@@ -1453,6 +1499,7 @@ def test_write_session_state_rejects_completed_apply_without_run_fields(
                     "state": "active",
                     "session_home_branch": "main",
                     "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
                 },
                 "apply": {
                     "state": "completed",
@@ -1480,6 +1527,7 @@ def test_write_session_state_allows_error_before_apply_run_fields_exist(
                 "state": "active",
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "error",
@@ -1562,6 +1610,7 @@ def test_active_session_scan_fails_on_active_state_without_branch(
                 "state": "active",
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "ready",

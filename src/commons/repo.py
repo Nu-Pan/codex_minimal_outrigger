@@ -14,6 +14,13 @@ SESSION_BRANCH_PREFIX = "cmoc/session/"
 APPLY_BRANCH_PREFIX = "cmoc/apply/"
 SESSION_STATES = {"active", "joined", "abandoned", "error"}
 APPLY_STATES = {"ready", "running", "completed", "error"}
+SESSION_STATE_KEYS = {
+    "state",
+    "session_home_branch",
+    "session_start_commit",
+    "last_joined_apply_oracle_snapshot_commit",
+}
+APPLY_STATE_KEYS = {"state", "apply_branch", "oracle_snapshot_commit"}
 
 
 def enter_repo_root(start: Path | None = None) -> Path:
@@ -224,6 +231,7 @@ def initial_session_state(
             "state": "active",
             "session_home_branch": session_home_branch,
             "session_start_commit": session_start_commit,
+            "last_joined_apply_oracle_snapshot_commit": None,
         },
         "apply": {
             "state": "ready",
@@ -268,13 +276,13 @@ def _session_state_payload(
         )
     _validate_required_keys(
         session,
-        {"state", "session_home_branch", "session_start_commit"},
+        SESSION_STATE_KEYS,
         "session",
         path,
     )
     _validate_required_keys(
         apply,
-        {"state", "apply_branch", "oracle_snapshot_commit"},
+        APPLY_STATE_KEYS,
         "apply",
         path,
     )
@@ -283,6 +291,9 @@ def _session_state_payload(
             "state": session.get("state"),
             "session_home_branch": session.get("session_home_branch"),
             "session_start_commit": session.get("session_start_commit"),
+            "last_joined_apply_oracle_snapshot_commit": session.get(
+                "last_joined_apply_oracle_snapshot_commit"
+            ),
         },
         "apply": {
             "state": apply.get("state"),
@@ -371,13 +382,13 @@ def _validate_session_state_schema(
         )
     _validate_exact_keys(
         session,
-        {"state", "session_home_branch", "session_start_commit"},
+        SESSION_STATE_KEYS,
         "session",
         path,
     )
     _validate_exact_keys(
         apply,
-        {"state", "apply_branch", "oracle_snapshot_commit"},
+        APPLY_STATE_KEYS,
         "apply",
         path,
     )
@@ -399,6 +410,12 @@ def _validate_session_state_schema(
         session,
         "session_start_commit",
         "session.session_start_commit",
+        path,
+    )
+    _validate_optional_string(
+        session,
+        "last_joined_apply_oracle_snapshot_commit",
+        "session.last_joined_apply_oracle_snapshot_commit",
         path,
     )
     apply_state = _validate_required_string(apply, "state", "apply.state", path)

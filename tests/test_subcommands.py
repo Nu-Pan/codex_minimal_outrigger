@@ -550,6 +550,7 @@ def test_session_fork_creates_session_branch_and_records_state(
     assert state["session"]["state"] == "active"
     assert state["session"]["session_home_branch"] == home_branch
     assert state["session"]["session_start_commit"] == base_commit
+    assert state["session"]["last_joined_apply_oracle_snapshot_commit"] is None
     assert state["apply"] == {
         "state": "ready",
         "apply_branch": None,
@@ -684,6 +685,7 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
                 "state": "active",
                 "session_home_branch": home_branch,
                 "session_start_commit": start_commit,
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "ready",
@@ -787,6 +789,7 @@ def test_session_fork_from_linked_worktree_rejects_common_active_session(
                 "state": "active",
                 "session_home_branch": "feature",
                 "session_start_commit": start_commit,
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "ready",
@@ -2802,6 +2805,9 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
         "oracle_snapshot_commit": None,
         "state": "ready",
     }
+    assert state["session"]["last_joined_apply_oracle_snapshot_commit"] == (
+        oracle_snapshot
+    )
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
         "cmoc/session/2026-05-10_22-21_10_000000123"
     )
@@ -2849,6 +2855,7 @@ def test_apply_join_cleans_worktree_created_from_linked_worktree(
     state_path = repo / ".cmoc" / "sessions" / f"{session_id}.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     apply_branch = state["apply"]["apply_branch"]
+    oracle_snapshot = state["apply"]["oracle_snapshot_commit"]
     apply_run_id = apply_branch.rsplit("/", 1)[1]
     apply_worktree = (
         repo / ".cmoc" / "worktrees" / "apply" / session_id / apply_run_id
@@ -2875,6 +2882,9 @@ def test_apply_join_cleans_worktree_created_from_linked_worktree(
         "oracle_snapshot_commit": None,
         "state": "ready",
     }
+    assert state["session"]["last_joined_apply_oracle_snapshot_commit"] == (
+        oracle_snapshot
+    )
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
 
@@ -7516,6 +7526,7 @@ def _checkout_session_branch(repo: Path) -> None:
                 "state": "active",
                 "session_home_branch": home_branch,
                 "session_start_commit": base_commit,
+                "last_joined_apply_oracle_snapshot_commit": None,
             },
             "apply": {
                 "state": "ready",
