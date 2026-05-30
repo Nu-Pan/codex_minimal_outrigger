@@ -614,11 +614,41 @@ def _create_apply_worktree(
         )
         if worktree_result.returncode == 0:
             return plan
-        run_git(repo_root, ["branch", "-D", plan.apply_branch], check=False)
+        cleanup_result = run_git(
+            repo_root,
+            ["branch", "-D", plan.apply_branch],
+            check=False,
+        )
+        if cleanup_result.returncode != 0:
+            raise _ApplyWorktreeCreationError(
+                "\n".join(
+                    [
+                        "apply worktree 作成失敗後の branch cleanup に失敗しました。",
+                        f"apply_branch: {plan.apply_branch}",
+                        f"apply_worktree: {plan.apply_worktree}",
+                        "worktree add failure:",
+                        _format_git_failure(worktree_result),
+                        "branch cleanup failure:",
+                        _format_git_failure(cleanup_result),
+                    ]
+                ),
+                plan,
+            )
         sleep(0.001)
     raise _ApplyWorktreeCreationError(
         "リトライ後も一意な apply worktree を作成できませんでした。",
         last_plan,
+    )
+
+
+def _format_git_failure(result: object) -> str:
+    """git 失敗時の診断情報をユーザー向け detail に載せる。"""
+    return "\n".join(
+        [
+            f"returncode: {getattr(result, 'returncode', '')}",
+            f"stdout: {getattr(result, 'stdout', '').strip()}",
+            f"stderr: {getattr(result, 'stderr', '').strip()}",
+        ]
     )
 
 

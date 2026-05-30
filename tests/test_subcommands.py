@@ -5300,6 +5300,78 @@ def test_create_apply_worktree_failure_reports_last_attempted_plan(
     )
 
 
+def test_create_apply_worktree_reports_branch_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """worktree 作成後始末の branch 削除失敗は診断付きで即時失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session_id = "session"
+    oracle_snapshot_commit = "abc123"
+    initial_plan = apply_module._ApplyWorktreePlan(
+        "run0",
+        f"cmoc/apply/{session_id}/run0",
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run0",
+    )
+    git_calls: list[list[str]] = []
+
+    def fake_run_git(
+        _repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        git_calls.append(args)
+        if args[:1] == ["branch"] and args[1] != "-D":
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ["worktree", "add"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                "worktree stdout",
+                "worktree failed",
+            )
+        if args[:2] == ["branch", "-D"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                "cleanup stdout",
+                "cleanup failed",
+            )
+        raise AssertionError(f"unexpected git args: {args}")
+
+    monkeypatch.setattr(apply_module, "run_git", fake_run_git)
+    monkeypatch.setattr(apply_module, "sleep", lambda _seconds: None)
+
+    with pytest.raises(apply_module._ApplyWorktreeCreationError) as error:
+        apply_module._create_apply_worktree(
+            repo,
+            session_id,
+            oracle_snapshot_commit,
+            initial_plan,
+        )
+
+    assert git_calls == [
+        ["branch", initial_plan.apply_branch, oracle_snapshot_commit],
+        [
+            "worktree",
+            "add",
+            str(initial_plan.apply_worktree),
+            initial_plan.apply_branch,
+        ],
+        ["branch", "-D", initial_plan.apply_branch],
+    ]
+    assert error.value.last_plan == initial_plan
+    message = str(error.value)
+    assert "branch cleanup に失敗しました" in message
+    assert f"apply_branch: {initial_plan.apply_branch}" in message
+    assert f"apply_worktree: {initial_plan.apply_worktree}" in message
+    assert "worktree failed" in message
+    assert "cleanup failed" in message
+
+
 def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
