@@ -51,51 +51,52 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch から専用の apply branch と worktree を作成し、調査・修正ループを回してレポートまで生成します。
-- 事前条件の検証、スコープ判定、対象ファイルの列挙、要修正点の Structured Output 検証と整理、Codex CLI 呼び出し、コミット処理までをまとめています。
-- apply 実行中の禁止パス検査、INDEX.md メンテナンス、成功時レポートと失敗時 error report の生成・保存もこのモジュールの責務です。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch から専用の apply branch と worktree を作成し、調査・修正ループとレポート保存まで担う。
+- 開始前の state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の遷移と worktree 作成のリトライ処理をまとめている。
+- 不整合調査の対象選定、Structured Output による要修正点の収集・整理、実装修正の適用と commit、変更要約付きの report 生成もこのモジュールの責務である。
 
 ## Read this when
 
-- `cmoc apply fork` の開始から終了までの処理順と、どの段階で state を更新するかを追いたいとき。
-- session/apply state の検証、apply branch / worktree の作成、調査対象ファイルの選定、要修正点の改善・適用ループを確認したいとき。
-- Structured Output のスキーマ検証、変更要約、レポート生成、例外時の復旧処理を実装・修正・レビューしたいとき。
+- `cmoc apply fork` の開始から終了までの処理順を追いたいとき。
+- session/apply state の検証、専用 apply branch / worktree の作成、scope に応じた調査対象選定を確認したいとき。
+- Structured Output による要修正点の収集・整理、実装修正の適用、commit、レポート生成を実装・修正・レビュー・テストしたいとき。
+- 編集禁止領域の検査や、`apply.state` の `running` / `completed` / `error` への更新条件を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon` だけを確認したいときは、このファイルではなく各実装モジュールを読むべきです。
-- `cmoc apply fork` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
-- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいときは、上位の `INDEX.md` を読むべきです。
-- INDEX.md の生成ルールだけを確認したいときは、`oracles/.../indexing.md` 側を読むべきです。
+- `cmoc apply join` や `cmoc apply abandon` の実装・テストだけを確認したいとき。
+- `cmoc apply fork` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきとき。
+- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいとき。
+- `INDEX.md` の生成ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきとき。
 
 ## hash
 
-- 361d081c50b58718f5b27b5d0a9f6c1cf92ae1b3a834d03653cedfa1b26d5df5
+- e758898d83e6e3786ff1c14dc4ccb4975d5dee190ef8a7a0f9b2ecd693ea8c41
 <!-- cmoc-index-kind: file -->
 
 # `join.py`
 
 ## Summary
 
-- `src/sub_commands/apply/join.py` は `cmoc apply join` の本体実装で、完了済み apply branch を session branch へ取り込む処理を担います。
+- `src/sub_commands/apply/join.py` は `cmoc apply join` の本体実装で、完了済みの apply branch を session branch に取り込む処理を担当します。
 - session/apply state の検証、現在 branch の確認、未コミット差分の確認、想定外差分の検出と必要に応じた強制修復をまとめています。
-- merge 後の `apply.state` の `ready` への更新、`INDEX.md` conflict の自動解消、report/result の保存状況を踏まえた apply branch / worktree の cleanup まで扱います。
+- merge 後の `apply.state` を `ready` に戻す処理、`INDEX.md` conflict の自動解消、report/result の保存状況を踏まえた apply branch / worktree の cleanup まで扱います。
 
 ## Read this when
 
-- `cmoc apply join` の実装・修正・レビュー・テストで、処理順や責務境界を確認したいとき。
-- apply branch を session branch に merge する前提条件や、`--force-resolve` による想定外差分の扱いを追いたいとき。
-- `INDEX.md` conflict の自動解消条件、merge 後の state 更新、使用済み apply branch / worktree の削除条件を確認したいとき。
-- apply cleanup の warning 条件や、report/result が保存されていない場合の挙動を把握したいとき。
+- `cmoc apply join` の実装・修正・レビュー・テストで、処理順や責務の境界を確認したいとき。
+- apply branch を session branch に取り込む前提条件や、`--force-resolve` による想定外差分の扱いを追いたいとき。
+- `INDEX.md` の conflict を自動解消する条件、merge 後の `apply.state` の更新、不要になった apply branch / worktree の削除条件を確認したいとき。
+- report/result の保存状況に応じた cleanup の warning 条件を把握したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` や `cmoc apply abandon` の処理だけを確認したいときは、このファイルではなく各実装モジュールを読むべきです。
-- サブコマンド仕様の断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_join.md` を直接読むべきです。
+- `cmoc apply fork` の調査・修正ループや要修正点の作成だけを確認したいときは、このファイルではなく `fork.py` を読むべきです。
+- `cmoc apply abandon` の破棄手順や running 中の停止処理だけを確認したいときは、このファイルではなく `abandon.py` を読むべきです。
+- `cmoc apply join` の仕様断片や利用手順だけを確認したいときは、実装ではなく `oracles/app_specs/sub_commands/apply_join.md` を直接読むべきです。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいときは、このファイルを読む必要はありません。
-- 既に join の実装内容を把握していて、ソースを直接追えば足りるときは、この目次を経由する必要はありません。
 
 ## hash
 
-- cdb61d8ff1435f1fca7a3b5b7a75ea551aa6840874a695a19fd54d54e65ff374
+- 93ac66a7275a335383bda33ba91acc827de8547d23332a232fd4d32433e8dd34
 <!-- cmoc-index-kind: file -->
