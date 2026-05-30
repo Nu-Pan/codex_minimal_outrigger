@@ -156,19 +156,19 @@
 ## Read this when
 
 - `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用をまとめて追いたいとき。
-- `review oracles` / `eval-oracles` の評価フロー、payload 検証、問題点リスト改善、レポート出力を確認したいとき。
+- `review oracles` / `eval-oracles` の評価フロー、payload 検証、改善処理、レポート出力を確認したいとき。
 - `run_command`、`main`、`format_error_report`、CLI 登録、prompt 文言、schema、validation helper の変更を確認したいとき。
 
 ## Do not read this when
 
 - `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装を追いたいとき。
 - `src/commons/codex.py` や `src/commons/repo.py` など共通処理だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など個別機能だけを見れば足りるとき。
+- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など、他の個別テストだけで足りるとき。
 - `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 39f612eaf5efa865383b2bcbe17606cad179e3c6c222b34a5b4f832ddd53af22
+- 0fba1f80aa249fbd1c32a6924bf9d80413e34f9ef8d73c936bada2dbbde63378
 
 # `test_timestamps.py`
 

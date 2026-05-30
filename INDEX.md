@@ -185,7 +185,7 @@
 
 ## Read this when
 
-- `src` 全体の役割と、主要な入口ファイル・パッケージの配置を把握したいとき。
+- `src` 全体の役割と主要な入口ファイル・パッケージの配置を把握したいとき。
 - cmoc CLI の起動点と、`session` / `apply` / `review` / `init` の大枠を俯瞰したいとき。
 - 共通処理とサブコマンド実装のどちらを読むべきかを判断したいとき。
 
@@ -197,7 +197,7 @@
 
 ## hash
 
-- 90813d1e10d299c10673fe13c53e3272d2606ded3d245b4b751c186b742f9a27
+- 1f7a185c3b4b4453e685328030627f6b6a7182690481d14f45db201fb20508b3
 
 # `test.sh`
 
@@ -227,22 +227,27 @@
 
 ## Summary
 
-- `tests` 配下の回帰テスト全体への入口です。
-- pytest の共通設定と、`codex` 呼び出し、ファイル命名、`INDEX.md` 保守、git リポジトリ共通処理、レポート出力、サブコマンド制御、タイムスタンプ仕様をまとめて案内します。
-- 個別のテストファイルに進む前の目次として使います。
+- `conftest.py` は pytest 実行時に `<cmoc-root>/src` を import path 先頭へ追加する共通設定です。
+- `test_codex.py` は `commons.codex` の `run_codex_exec` と Structured Output、retry、quota 復旧、`INDEX.md` 保守を検証します。
+- `test_file_naming.py` は `routing.md` / `ROUTING.md` の残存有無と、`INDEX.md` へのルーティング一本化を検証します。
+- `test_indexing.py` は `commons.indexing` の `INDEX.md` 生成、再利用、除外条件、ロック、自動コミットを検証します。
+- `test_repo.py` は repo root 判定、`.cmoc` ignore 保証、ファイル列挙、変更検知、session state を検証します。
+- `test_report_files.py` は `write_timestamped_report` の衝突回避と保存挙動を検証します。
+- `test_subcommands.py` は `init`、`session`、`apply`、`review`、`eval` の状態遷移と共通ランナーを横断検証します。
+- `test_timestamps.py` は `make_timestamp` と `format_duration` の仕様を検証します。
 
 ## Read this when
 
-- `tests` 配下にどんな回帰テストがあるかをざっと把握したいとき。
-- pytest の共通設定、`INDEX.md` メンテナンス、git/repo ヘルパー、レポート保存、サブコマンド制御、タイムスタンプ仕様のテスト入口を探したいとき。
-- 新しいテストを追加する前に、既存テストの役割分担を確認したいとき。
+- pytest の共通設定と個別テストの担当範囲を確認したいとき。
+- `commons.codex`、`commons.repo`、`commons.indexing`、`commons.report_files`、サブコマンド制御の回帰テストを探したいとき。
+- どのテストファイルを先に読むべきかを素早く判断したいとき。
 
 ## Do not read this when
 
-- 個別の実装コードや本体ロジックを追いたいとき。
-- `oracles` の正本仕様や、`README.md`・`AGENTS.md` などの別ルーティング文書だけを確認したいとき。
-- `tests` 全体ではなく、特定のテストファイルだけを直接読みたいとき。
+- 個別テストのアサーションや実装差分だけを確認したいときは、該当の `test_*.py` を直接読むべきです。
+- `oracles` の正本仕様や `src` の実装そのものだけを確認したいときは、このディレクトリではなく対応する `INDEX.md` を辿るべきです。
+- テスト以外の開発ルールやリポジトリ全体の案内だけを確認したいときは、別の入口文書を参照すべきです。
 
 ## hash
 
-- e3f9f7c4520a5271406925f646fc0b27cf60c7f3f8929ae484eaa55dce6f7d1f
+- 1ad6bbf24181b8d3450026d780e58372bc953617ea696b9ef54947939d22250a
