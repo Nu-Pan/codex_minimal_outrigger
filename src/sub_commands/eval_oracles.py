@@ -1,6 +1,7 @@
 """`cmoc review oracles` の本体処理。"""
 
 from concurrent.futures import Future, ThreadPoolExecutor
+from inspect import Parameter, signature
 import json
 from pathlib import Path
 import sys
@@ -314,7 +315,23 @@ def _validate_repeat_improve_issues_list(value: int) -> None:
 
 def _maintain_indexes_preserving_oracle_snapshot(repo_root: Path) -> bool:
     """review 対象の oracle file set を固定して INDEX.md をメンテナンスする。"""
+    if _maintain_indexes_accepts_excluded_roots():
+        return maintain_indexes(
+            repo_root,
+            excluded_index_roots=[repo_root / "oracles"],
+        )
     return maintain_indexes(repo_root)
+
+
+def _maintain_indexes_accepts_excluded_roots() -> bool:
+    """テスト用 monkeypatch も考慮して除外 root 引数の有無を判定する。"""
+    parameters = signature(maintain_indexes).parameters.values()
+    for parameter in parameters:
+        if parameter.name == "excluded_index_roots":
+            return True
+        if parameter.kind == Parameter.VAR_KEYWORD:
+            return True
+    return False
 
 
 def _evaluate_oracle_file(

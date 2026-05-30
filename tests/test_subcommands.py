@@ -1075,11 +1075,15 @@ def test_eval_oracles_writes_report_with_fake_codex(
     oracle_root.mkdir()
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
-    maintain_calls: list[Path] = []
+    maintain_calls: list[tuple[Path, list[Path]]] = []
 
-    def fake_maintain_indexes(repo_root: Path) -> bool:
+    def fake_maintain_indexes(
+        repo_root: Path,
+        *,
+        excluded_index_roots: list[Path],
+    ) -> bool:
         """review oracles 冒頭の INDEX.md メンテナンスを記録する。"""
-        maintain_calls.append(repo_root)
+        maintain_calls.append((repo_root, excluded_index_roots))
         return False
 
     monkeypatch.setattr(
@@ -1104,7 +1108,7 @@ def test_eval_oracles_writes_report_with_fake_codex(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert maintain_calls == [repo]
+    assert maintain_calls == [(repo, [repo / "oracles"])]
     assert codex_kwargs[0]["expect_json"] is True
     assert codex_kwargs[0]["output_schema"] == (
         eval_oracles_module._EVALUATION_OUTPUT_SCHEMA
@@ -1182,6 +1186,53 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 1" in report
     assert "oracles/generated.md" not in report
+
+
+def test_eval_oracles_index_maintenance_does_not_touch_oracles_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """review 前の INDEX.md メンテナンスは oracles 配下を更新しない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle_file = oracle_root / "spec.md"
+    oracle_file.write_text("spec\n", encoding="utf-8")
+    stale_index = "stale oracle routing\n"
+    (oracle_root / "INDEX.md").write_text(stale_index, encoding="utf-8")
+    _git(repo, "add", "oracles")
+    _git(repo, "commit", "-m", "add stale oracle index")
+
+    def fake_index_codex(*args: object, **kwargs: object) -> str:
+        """repo root INDEX 生成だけを決定論的に返す。"""
+        return json.dumps(
+            {
+                "summary": ["テスト用 entry です。"],
+                "read_this_when": ["テストで読むとき。"],
+                "do_not_read_this_when": ["テストで読まないとき。"],
+            },
+            ensure_ascii=False,
+        )
+
+    def fake_review_codex(*args: object, **kwargs: object) -> str:
+        """oracle 評価では問題なしを返す。"""
+        return json.dumps({"issues": []}, ensure_ascii=False)
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_index_codex)
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_review_codex)
+
+    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+
+    assert (oracle_root / "INDEX.md").read_text(encoding="utf-8") == stale_index
+    changed_files = _git(
+        repo,
+        "diff-tree",
+        "--no-commit-id",
+        "--name-only",
+        "-r",
+        "HEAD",
+    ).stdout.splitlines()
+    assert "oracles/INDEX.md" not in changed_files
 
 
 def test_eval_oracles_runs_file_evaluations_in_parallel(
