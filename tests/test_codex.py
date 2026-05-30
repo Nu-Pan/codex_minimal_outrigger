@@ -484,6 +484,121 @@ def test_run_codex_exec_escapes_control_chars_in_console_notification(
     assert notification_lines[3] == "- returncode: 0"
 
 
+def test_workspace_write_oracle_guard_runs_when_call_log_write_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """workspace-write 後の call log 書き込み失敗でも oracle guard を実行する。"""
+    repo = _init_git_repo(tmp_path)
+    guard_calls: list[Path] = []
+    original_run = subprocess.run
+
+    def fake_run(
+        command: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        if command[0] != "codex":
+            return original_run(command, **kwargs)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="stdout",
+            stderr="stderr",
+        )
+
+    def fail_log(*_: object, **__: object) -> None:
+        raise OSError("call log write failed")
+
+    def fail_guard(repo_root: Path, _: object) -> None:
+        guard_calls.append(repo_root)
+        raise CmocError(
+            "oracle guard failed",
+            [
+                "oracles ファイルの変更を確認してください。",
+                "修正後に cmoc を再実行してください。",
+            ],
+        )
+
+    monkeypatch.setattr("commons.codex.subprocess.run", fake_run)
+    monkeypatch.setattr("commons.codex._append_codex_log", fail_log)
+    monkeypatch.setattr(
+        "commons.codex._assert_workspace_write_oracles_unchanged",
+        fail_guard,
+    )
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert error.value.message == "oracle guard failed"
+    assert guard_calls == [repo]
+
+
+def test_workspace_write_oracle_guard_runs_when_notification_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """workspace-write 後の通知失敗でも oracle guard を実行する。"""
+    repo = _init_git_repo(tmp_path)
+    guard_calls: list[Path] = []
+    original_run = subprocess.run
+
+    def fake_run(
+        command: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        if command[0] != "codex":
+            return original_run(command, **kwargs)
+        last_message_path = Path(
+            command[command.index("--output-last-message") + 1]
+        )
+        last_message_path.write_text("ok\n", encoding="utf-8")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="stdout",
+            stderr="stderr",
+        )
+
+    def fail_notification(**_: object) -> None:
+        raise OSError("notification failed")
+
+    def fail_guard(repo_root: Path, _: object) -> None:
+        guard_calls.append(repo_root)
+        raise CmocError(
+            "oracle guard failed",
+            [
+                "oracles ファイルの変更を確認してください。",
+                "修正後に cmoc を再実行してください。",
+            ],
+        )
+
+    monkeypatch.setattr("commons.codex.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "commons.codex._print_codex_notification",
+        fail_notification,
+    )
+    monkeypatch.setattr(
+        "commons.codex._assert_workspace_write_oracles_unchanged",
+        fail_guard,
+    )
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert error.value.message == "oracle guard failed"
+    assert guard_calls == [repo]
+
+
 def test_run_codex_exec_rejects_uncommitted_oracle_change_after_workspace_write(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

@@ -641,30 +641,32 @@ def _run_codex_command(
                 returncode=result.returncode,
             )
             raise _codex_launch_failure_error(log_path, result, error) from error
-        _append_codex_log(
-            log_path,
-            run_command,
-            prompt,
-            attempt,
-            result,
-            schema_path,
-            last_message_path,
-        )
-        log_written = True
-        _print_codex_notification(
-            purpose=purpose,
-            repo_root=repo_root,
-            log_path=log_path,
-            elapsed_seconds=perf_counter() - started,
-            returncode=result.returncode,
-        )
-        _assert_workspace_write_oracles_unchanged(repo_root, oracle_guard)
-        return _CodexCommandRun(
-            result=result,
-            log_path=log_path,
-            last_message_path=last_message_path,
-            command=run_command,
-        )
+        try:
+            _append_codex_log(
+                log_path,
+                run_command,
+                prompt,
+                attempt,
+                result,
+                schema_path,
+                last_message_path,
+            )
+            log_written = True
+            _print_codex_notification(
+                purpose=purpose,
+                repo_root=repo_root,
+                log_path=log_path,
+                elapsed_seconds=perf_counter() - started,
+                returncode=result.returncode,
+            )
+            return _CodexCommandRun(
+                result=result,
+                log_path=log_path,
+                last_message_path=last_message_path,
+                command=run_command,
+            )
+        finally:
+            _assert_workspace_write_oracles_unchanged(repo_root, oracle_guard)
     finally:
         if not log_written:
             log_path.unlink(missing_ok=True)
