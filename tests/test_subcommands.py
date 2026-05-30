@@ -6,6 +6,8 @@ import json
 import re
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,9 @@ import sub_commands.session.join as session_join_module
 import commons.repo as repo_module
 from commons.codex import COST_PERFORMANCE_MODEL
 from commons.codex import COST_PERFORMANCE_REASONING_EFFORT
+from commons.codex import FRONTIER_HIGH_REASONING_EFFORT
+from commons.codex import FRONTIER_MODEL
+from commons.codex import FRONTIER_REASONING_EFFORT
 from commons.codex import COMMIT_MESSAGE_MODEL
 from commons.codex import COMMIT_MESSAGE_REASONING_EFFORT
 from commons.command_runner import run_command
@@ -126,6 +131,7 @@ def test_run_command_tees_subcommand_output_and_summary(
     assert "(1/1) first step" in captured.out
     assert "sample (1/1) first step" not in captured.out
     assert "# Command completion report" in captured.out
+    assert f"subcommand log: {log_files[0]}" in captured.out
     assert captured.out.index("# Command completion report") < captured.out.index(
         "sample step timings:"
     )
@@ -141,7 +147,9 @@ def test_run_command_tees_subcommand_output_and_summary(
         for event in log_events
     )
     assert any(
-        event["event"] == "subcommand_end" and event["returncode"] == 2
+        event["event"] == "subcommand_end"
+        and event["returncode"] == 2
+        and event["subcommand_log"] == str(log_files[0])
         for event in log_events
     )
     assert "/.cmoc/logs/" in (repo / ".git" / "info" / "exclude").read_text(
@@ -173,9 +181,10 @@ def test_start_step_logs_hierarchical_step_index(
     run_command(handler)
 
     captured = capsys.readouterr()
-    log_content = next(
+    log_file = next(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
-    ).read_text(encoding="utf-8")
+    )
+    log_content = log_file.read_text(encoding="utf-8")
     log_events = [json.loads(line) for line in log_content.splitlines()]
     assert "(5/6, 2/3, 1/4) nested step" in captured.out
     assert any(
@@ -205,15 +214,17 @@ def test_run_command_logs_summary_on_exception(
         run_command(handler)
 
     captured = capsys.readouterr()
-    log_content = next(
+    log_file = next(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
-    ).read_text(encoding="utf-8")
+    )
+    log_content = log_file.read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
     assert captured.err == ""
     assert "ERROR" in captured.out
     assert "RuntimeError" in captured.out
     assert "boom" in captured.out
     assert "# Command completion report" in captured.out
+    assert f"subcommand log: {log_file}" in captured.out
     assert "subcommand return code: 1" in captured.out
     log_events = [json.loads(line) for line in log_content.splitlines()]
     assert any(
@@ -221,7 +232,9 @@ def test_run_command_logs_summary_on_exception(
         for event in log_events
     )
     assert any(
-        event["event"] == "subcommand_end" and event["returncode"] == 1
+        event["event"] == "subcommand_end"
+        and event["returncode"] == 1
+        and event["subcommand_log"] == str(log_file)
         for event in log_events
     )
 
@@ -335,6 +348,7 @@ def test_run_command_reports_repo_root_resolution_error(
     assert f"開始パス: {tmp_path.resolve()}" in captured.out
     assert "Call stack:" in captured.out
     assert "# Command completion report" in captured.out
+    assert "subcommand log: unavailable" in captured.out
     assert "subcommand total elapsed:" in captured.out
     assert "subcommand quota wait elapsed:" in captured.out
     assert "subcommand return code: 1" in captured.out
@@ -523,6 +537,7 @@ def test_session_fork_creates_session_branch_and_records_state(
     """`cmoc session fork` は session branch 作成と state 記録を行う。"""
     repo = _init_repo(tmp_path)
     cmoc_init_impl(repo)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     cmoc_session_fork_impl(repo)
@@ -533,7 +548,7 @@ def test_session_fork_creates_session_branch_and_records_state(
     state = json.loads(record_path.read_text(encoding="utf-8"))
     assert branch_name.startswith("cmoc/session/")
     assert state["session"]["state"] == "active"
-    assert state["session"]["session_home_branch"] in {"main", "master"}
+    assert state["session"]["session_home_branch"] == home_branch
     assert state["session"]["session_start_commit"] == base_commit
     assert state["apply"] == {
         "state": "ready",
@@ -622,7 +637,7 @@ def test_session_fork_rejects_cmoc_managed_branch_before_creating_state(
 ) -> None:
     """cmoc 管理 branch 上では session branch を二重作成しない。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc/session/existing")
+    _git(repo, "checkout", "-b", "cmoc/session/2026-05-10_22-21_10_000000123")
 
     with pytest.raises(CmocError) as error:
         cmoc_session_fork_impl(repo)
@@ -659,9 +674,11 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
+    session_id = "2026-05-10_22-21_10_000000123"
+    _git(repo, "branch", f"cmoc/session/{session_id}")
     write_session_state(
         repo,
-        "existing",
+        session_id,
         {
             "session": {
                 "state": "active",
@@ -680,10 +697,10 @@ def test_session_fork_rejects_existing_active_session_for_home_branch(
         cmoc_session_fork_impl(repo)
 
     assert "active session" in error.value.message
-    assert error.value.detail == "existing"
+    assert error.value.detail == session_id
     assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
     assert _session_state_paths(repo) == [
-        repo / ".cmoc" / "sessions" / "existing.json",
+        repo / ".cmoc" / "sessions" / f"{session_id}.json",
     ]
 
 
@@ -760,9 +777,11 @@ def test_session_fork_from_linked_worktree_rejects_common_active_session(
     linked = tmp_path / "linked"
     _git(repo, "worktree", "add", "-b", "feature", str(linked), "HEAD")
     start_commit = _git(linked, "rev-parse", "HEAD").stdout.strip()
+    session_id = "2026-05-10_22-21_10_000000123"
+    _git(linked, "branch", f"cmoc/session/{session_id}")
     write_session_state(
         repo,
-        "existing",
+        session_id,
         {
             "session": {
                 "state": "active",
@@ -781,10 +800,10 @@ def test_session_fork_from_linked_worktree_rejects_common_active_session(
         cmoc_session_fork_impl(linked)
 
     assert "active session" in error.value.message
-    assert error.value.detail == "existing"
+    assert error.value.detail == session_id
     assert _git(linked, "branch", "--show-current").stdout.strip() == "feature"
     assert _session_state_paths(repo) == [
-        repo / ".cmoc" / "sessions" / "existing.json",
+        repo / ".cmoc" / "sessions" / f"{session_id}.json",
     ]
 
 
@@ -810,6 +829,27 @@ def test_session_fork_rejects_malformed_session_state_before_branch_creation(
     assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
     assert "cmoc/session/" not in branches
     assert _session_state_paths(repo) == [broken_path]
+
+
+def test_session_fork_rejects_orphan_session_branch_before_creation(
+    tmp_path: Path,
+) -> None:
+    """対応 state がない session branch が残る場合は新規 session を作らない。"""
+    repo = _init_repo(tmp_path)
+    cmoc_init_impl(repo)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    orphan_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
+    _git(repo, "branch", orphan_branch)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(repo)
+
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert "session state がない session branch" in error.value.message
+    assert orphan_branch in error.value.detail
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert branches.count("cmoc/session/") == 1
+    assert _session_state_paths(repo) == []
 
 
 def test_session_fork_rolls_back_branch_when_state_write_fails(
@@ -855,7 +895,7 @@ def test_session_fork_keeps_state_when_rollback_branch_delete_fails(
     repo = _init_repo(tmp_path)
     cmoc_init_impl(repo)
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     session_branch = f"cmoc/session/{session_id}"
     original_run_git = session_fork_module.run_git
 
@@ -967,10 +1007,21 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert codex_kwargs[0]["output_schema"] == (
         eval_oracles_module._EVALUATION_OUTPUT_SCHEMA
     )
+    issue_schema = eval_oracles_module._EVALUATION_OUTPUT_SCHEMA["properties"][
+        "issues"
+    ]["items"]
+    basis_schema = issue_schema["properties"]["specification_only_basis"]
+    assert basis_schema == {
+        "type": "string",
+        "description": (
+            "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
+            "基づくことの説明。"
+        ),
+    }
     assert codex_kwargs[0]["skip_index_maintenance"] is True
     assert "json_validator" in codex_kwargs[0]
-    assert "mode: full" in report
-    assert "result: ok" in report
+    assert 'mode: "full"' in report
+    assert 'result: "ok"' in report
     assert "## Fatal issues" in report
     assert "No issues." in report
     assert "## Specification-only basis" not in report
@@ -1029,10 +1080,67 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
     ).read_text(encoding="utf-8")
     assert maintain_exclusions == [["oracles"]]
     assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
-    assert f"head_commit: {review_start_head}" in report
+    assert f'head_commit: "{review_start_head}"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 1" in report
     assert "oracles/generated.md" not in report
+
+
+def test_eval_oracles_runs_file_evaluations_in_parallel(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ファイルごとの oracle 評価は並列実行し、report 順は対象順を保つ。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    for name in ["a.md", "b.md", "c.md"]:
+        (oracle_root / name).write_text(f"{name}\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    barrier = threading.Barrier(3, timeout=2.0)
+    lock = threading.Lock()
+    active_calls = 0
+    max_active_calls = 0
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """全評価呼び出しが同時に開始されることを観測する。"""
+        nonlocal active_calls, max_active_calls
+        with lock:
+            active_calls += 1
+            max_active_calls = max(max_active_calls, active_calls)
+            purposes.append(str(kwargs["purpose"]))
+        barrier.wait()
+        time.sleep(0.05)
+        with lock:
+            active_calls -= 1
+        return json.dumps({"issues": []}, ensure_ascii=False)
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+
+    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+
+    report = next(
+        (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
+    ).read_text(encoding="utf-8")
+    assert max_active_calls > 1
+    assert sorted(purposes) == [
+        "oracle 評価 oracles/a.md",
+        "oracle 評価 oracles/b.md",
+        "oracle 評価 oracles/c.md",
+    ]
+    assert report.index("| 1 | `oracles/a.md` | 0 |") < report.index(
+        "| 2 | `oracles/b.md` | 0 |"
+    )
+    assert report.index("| 2 | `oracles/b.md` | 0 |") < report.index(
+        "| 3 | `oracles/c.md` | 0 |"
+    )
 
 
 def test_eval_oracles_writes_error_report_when_evaluation_fails(
@@ -1063,7 +1171,7 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
+    assert 'result: "error"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
     assert "- Failed stage: `oracle ファイル評価`" in report
@@ -1080,6 +1188,25 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert "## Inconclusive issues" in report
     assert "## Warnings" in report
     assert "## Referenced files" in report
+    expected_sections = [
+        "# cmoc review oracles report",
+        "## Summary",
+        "## Verdict",
+        "## Evaluated oracle files",
+        "## Fatal issues",
+        "## Inconclusive issues",
+        "## Warnings",
+        "## Referenced files",
+    ]
+    assert [report.index(section) for section in expected_sections] == sorted(
+        report.index(section) for section in expected_sections
+    )
+    evaluated_section = report[
+        report.index("## Evaluated oracle files") : report.index(
+            "## Fatal issues"
+        )
+    ]
+    assert "Not evaluated oracle files:" not in evaluated_section
 
 
 def test_eval_oracles_writes_error_report_when_preparation_fails(
@@ -1108,23 +1235,22 @@ def test_eval_oracles_writes_error_report_when_preparation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
-    assert "mode: full" in report
+    assert 'result: "error"' in report
+    assert 'mode: "full"' in report
     assert "branch:" in report
     assert "head_commit: null" not in report
     assert "deleted_oracles_detected: false" in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
     assert "- Failed stage: `maintain INDEX.md files`" in report
-    assert "| - | No completed evaluations. | - |" in report
-    assert "1. `oracles/spec.md`" in report
+    assert "| 1 | `oracles/spec.md` | not_evaluated | - |" in report
 
 
-def test_eval_oracles_error_report_separates_unevaluated_files(
+def test_eval_oracles_error_report_marks_unevaluated_files_in_table(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """途中失敗時、未評価 file を issue 0 の評価済み行として表示しない。"""
+    """途中失敗時、未評価 file は評価済み行ではなく状態付き行にする。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1138,13 +1264,11 @@ def test_eval_oracles_error_report_separates_unevaluated_files(
         "maintain_indexes",
         lambda repo_root: False,
     )
-    calls = 0
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """1 件目だけ成功し、2 件目の評価で失敗する。"""
-        nonlocal calls
-        calls += 1
-        if calls == 2:
+        """a.md だけ成功し、b.md の評価で失敗する。"""
+        purpose = str(kwargs["purpose"])
+        if "oracles/b.md" in purpose:
             raise RuntimeError("fake second evaluation failure")
         return json.dumps(
             {"issues": []},
@@ -1162,10 +1286,13 @@ def test_eval_oracles_error_report_separates_unevaluated_files(
     assert "oracle_count_total: 2" in report
     assert "oracle_count_evaluated: 1" in report
     assert "## Specification-only basis" not in report
-    assert "| 1 | `oracles/a.md` | 0 |" in report
-    assert "| 2 | `oracles/b.md` | 0 |" not in report
-    assert "Not evaluated oracle files:" in report
-    assert "1. `oracles/b.md`" in report
+    assert "| 1 | `oracles/a.md` | evaluated | 0 |" in report
+    assert "| 2 | `oracles/b.md` | not_evaluated | - |" in report
+    assert "| 2 | `oracles/b.md` | evaluated | 0 |" not in report
+    assert "Not evaluated oracle files:" not in report
+    assert report.index("## Evaluated oracle files") < report.index(
+        "## Fatal issues"
+    )
 
 
 def test_eval_oracles_writes_error_report_when_report_generation_fails(
@@ -1209,7 +1336,7 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
     report = reports[0].read_text(encoding="utf-8")
-    assert "result: error" in report
+    assert 'result: "error"' in report
     assert "oracle_count_evaluated: 1" in report
     assert "- Failed stage: `write report`" in report
     assert "- Exception type: `OSError`" in report
@@ -1217,6 +1344,53 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     assert "成功評価ではありません" in report
     assert "今回評価した範囲では問題点が検出されませんでした" not in report
     assert "## Specification-only basis" not in report
+
+
+def test_eval_oracles_preserves_original_error_when_error_report_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """error report 保存の二次失敗で一次失敗情報を失わない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """oracle 評価中の一次失敗を模擬する。"""
+        raise RuntimeError("primary evaluation failure")
+
+    def fake_write_error_report(*args: object, **kwargs: object) -> Path:
+        """error report 書き込み自体の二次失敗を模擬する。"""
+        raise OSError("secondary report failure")
+
+    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(
+        eval_oracles_module,
+        "_write_error_report",
+        fake_write_error_report,
+    )
+
+    with pytest.raises(RuntimeError, match="primary evaluation failure") as exc_info:
+        cmoc_eval_oracles_impl(repo, full=True)
+
+    assert [
+        "review oracles error report generation also failed: "
+        "OSError: secondary report failure"
+    ] == exc_info.value.__notes__
+    captured = capsys.readouterr()
+    assert "cmoc review oracles error report generation failed." in captured.err
+    assert "- result: error" in captured.err
+    assert "- failed_stage: oracle ファイル評価" in captured.err
+    assert "- exception: RuntimeError: primary evaluation failure" in captured.err
+    assert "- report_exception: OSError: secondary report failure" in captured.err
 
 
 def test_eval_oracles_report_aggregates_issues_by_severity(
@@ -1308,11 +1482,11 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     ).read_text(encoding="utf-8")
     for field in [
         "schema_version: 1",
-        "command: cmoc review oracles",
+        'command: "cmoc review oracles"',
         "generated_at:",
-        f"repo_root: {repo.resolve()}",
-        f"oracle_root: {oracle_root.resolve()}",
-        "mode: full",
+        f'repo_root: "{repo.resolve()}"',
+        f'oracle_root: "{oracle_root.resolve()}"',
+        'mode: "full"',
         "full_requested: true",
         "branch:",
         "is_cmoc_branch: false",
@@ -1324,7 +1498,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
         "fatal_issue_count: 2",
         "warning_issue_count: 2",
         "inconclusive_issue_count: 1",
-        "result: fatal",
+        'result: "fatal"',
     ]:
         assert field in report
 
@@ -1367,6 +1541,83 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     assert "| 2 | `oracles/INDEX.md` |" in report
     assert "| 3 | `oracles/b.md` |" in report
     assert report.count("| 2 | `oracles/INDEX.md` |") == 1
+
+
+def test_eval_oracles_report_frontmatter_quotes_string_scalars(
+    tmp_path: Path,
+) -> None:
+    """frontmatter の文字列値は YAML 特殊文字を含んでも quote する。"""
+    repo = tmp_path / "repo # root: value"
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir(parents=True)
+    oracle_file = oracle_root / "spec.md"
+    oracle_file.write_text("spec\n", encoding="utf-8")
+    branch_name = "feature: #topic\nquoted \"branch\""
+    commit_hash = "abc123: #hash\nnext"
+
+    report_path = eval_oracles_module._write_report(
+        repo,
+        "full",
+        True,
+        branch_name,
+        False,
+        None,
+        commit_hash,
+        False,
+        1,
+        [oracle_file],
+        [],
+    )
+
+    frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
+    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
+    oracle_root_value = eval_oracles_module._yaml_string(
+        str(oracle_root.resolve())
+    )
+    branch_value = eval_oracles_module._yaml_string(branch_name)
+    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    assert f"repo_root: {repo_root_value}" in frontmatter
+    assert f"oracle_root: {oracle_root_value}" in frontmatter
+    assert f"branch: {branch_value}" in frontmatter
+    assert f"head_commit: {commit_value}" in frontmatter
+    assert f"commit: {commit_value}" in frontmatter
+
+
+def test_eval_oracles_error_report_frontmatter_quotes_string_scalars(
+    tmp_path: Path,
+) -> None:
+    """error report の frontmatter も文字列値を安全な scalar にする。"""
+    repo = tmp_path / "repo # root: value"
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir(parents=True)
+    branch_name = "feature: #topic\nquoted \"branch\""
+    commit_hash = "abc123: #hash\nnext"
+
+    report_path = eval_oracles_module._write_error_report(
+        repo,
+        "partial: #mode",
+        False,
+        branch_name,
+        None,
+        None,
+        commit_hash,
+        None,
+        None,
+        [],
+        [],
+        "stage: #failure",
+        RuntimeError("boom"),
+    )
+
+    frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
+    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
+    mode_value = eval_oracles_module._yaml_string("partial: #mode")
+    branch_value = eval_oracles_module._yaml_string(branch_name)
+    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    assert f"repo_root: {repo_root_value}" in frontmatter
+    assert f"mode: {mode_value}" in frontmatter
+    assert f"branch: {branch_value}" in frontmatter
+    assert f"head_commit: {commit_value}" in frontmatter
 
 
 def test_review_oracles_improves_combined_issue_list(
@@ -1421,8 +1672,29 @@ def test_review_oracles_improves_combined_issue_list(
     assert [
         kwargs["skip_index_maintenance"] for kwargs in codex_kwargs
     ] == [True, True, True]
+    improve_kwargs = [
+        kwargs for kwargs in codex_kwargs if "問題点リスト改善" in kwargs["purpose"]
+    ]
+    assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in improve_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == FRONTIER_HIGH_REASONING_EFFORT
+        for kwargs in improve_kwargs
+    )
     assert "Improved warning" in report
     assert "Raw warning" not in report
+
+
+def test_eval_oracles_rejects_too_many_issue_list_improvements(
+    tmp_path: Path,
+) -> None:
+    """問題点リスト改善の反復回数は oracle の最大 3 回を超えられない。"""
+    repo = _init_repo(tmp_path)
+
+    with pytest.raises(
+        ValueError,
+        match="--repeat-improve-issues-list must be between 0 and 3",
+    ):
+        cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=4)
 
 
 def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
@@ -1473,6 +1745,85 @@ def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
         )
 
 
+def test_review_oracles_redistribution_uses_only_final_issue_provenance(
+    tmp_path: Path,
+) -> None:
+    """改善後 report の根拠情報は最終 issue list だけから再計算する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle_index = oracle_root / "INDEX.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    oracle_index.write_text("index\n", encoding="utf-8")
+    basis = "元評価は oracles 配下の仕様断片と INDEX だけを参照しました。"
+    evaluations = [
+        {
+            "target_oracle_path": str(oracle.resolve()),
+            "referenced_paths": [
+                str(oracle.resolve()),
+                str(oracle_index.resolve()),
+            ],
+            "specification_only_basis": basis,
+            "issues": [],
+        }
+    ]
+    improved_issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    improved_issue["referenced_paths"] = []
+    improved_issue["specification_only_basis"] = ""
+
+    redistributed = eval_oracles_module._redistribute_improved_issues(
+        evaluations,
+        [improved_issue],
+    )
+
+    issue = redistributed[0]["issues"][0]
+    assert issue["referenced_paths"] == []
+    assert issue["specification_only_basis"] == ""
+    assert redistributed[0]["referenced_paths"] == []
+    assert redistributed[0]["specification_only_basis"] == ""
+
+
+def test_review_oracles_redistribution_clears_deleted_issue_provenance(
+    tmp_path: Path,
+) -> None:
+    """改善で issue が消えた評価には改善前の根拠情報を残さない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle_index = oracle_root / "INDEX.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    oracle_index.write_text("index\n", encoding="utf-8")
+    evaluations = [
+        {
+            "target_oracle_path": str(oracle.resolve()),
+            "referenced_paths": [
+                str(oracle.resolve()),
+                str(oracle_index.resolve()),
+            ],
+            "specification_only_basis": (
+                "元評価は oracles 配下の仕様断片と INDEX だけを参照しました。"
+            ),
+            "issues": [_eval_oracle_issue("warning", "warning", oracle, 1, 1)],
+        }
+    ]
+
+    redistributed = eval_oracles_module._redistribute_improved_issues(
+        evaluations,
+        [],
+    )
+
+    assert redistributed == [
+        {
+            "target_oracle_path": str(oracle.resolve()),
+            "referenced_paths": [],
+            "specification_only_basis": "",
+            "issues": [],
+        }
+    ]
+
+
 def test_eval_oracles_result_precedence() -> None:
     """result は評価対象数と severity 件数から機械的に決まる。"""
     assert eval_oracles_module._evaluation_result(
@@ -1500,7 +1851,7 @@ def test_eval_oracles_result_precedence() -> None:
 def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
     tmp_path: Path,
 ) -> None:
-    """評価 payload は issue 単位の実在 oracle / INDEX file 参照を受理する。"""
+    """評価 payload は referenced_paths の実在 oracle / INDEX file 参照を受理する。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1525,6 +1876,72 @@ def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
         repo,
         oracle,
     )
+
+
+def test_eval_oracles_payload_rejects_index_as_issue_oracle_path(
+    tmp_path: Path,
+) -> None:
+    """issues[].oracle_path は INDEX.md ではなく oracle file に帰属させる。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle_index = oracle_root / "INDEX.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    oracle_index.write_text("index\n", encoding="utf-8")
+    issue = _eval_oracle_issue(
+        "fatal",
+        "fatal",
+        oracle_index,
+        1,
+        1,
+        [oracle, oracle_index],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="issues\\[0\\]\\.oracle_path must be an oracle file",
+    ):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "issues": [issue],
+            },
+            repo,
+            oracle,
+        )
+
+
+def test_eval_oracles_payload_rejects_other_oracle_as_issue_oracle_path(
+    tmp_path: Path,
+) -> None:
+    """1 file 評価の issue は現在評価中の oracle file だけに帰属させる。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    other_oracle = oracle_root / "other.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    other_oracle.write_text("other\n", encoding="utf-8")
+    issue = _eval_oracle_issue(
+        "fatal",
+        "fatal",
+        other_oracle,
+        1,
+        1,
+        [oracle, other_oracle],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="issues\\[0\\]\\.oracle_path must match an evaluated oracle file",
+    ):
+        eval_oracles_module._validate_evaluation_payload(
+            {
+                "issues": [issue],
+            },
+            repo,
+            oracle,
+        )
 
 
 def test_eval_oracles_payload_rejects_legacy_top_level_metadata(
@@ -1575,6 +1992,44 @@ def test_eval_oracles_payload_rejects_legacy_issue_metadata(
             repo,
             oracle,
         )
+
+
+def test_eval_oracles_payload_accepts_empty_referenced_paths(
+    tmp_path: Path,
+) -> None:
+    """issues[].referenced_paths は oracle schema に合わせて空配列を受理する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    issue["referenced_paths"] = []
+
+    eval_oracles_module._validate_evaluation_payload(
+        {"issues": [issue]},
+        repo,
+        oracle,
+    )
+
+
+def test_eval_oracles_payload_accepts_empty_specification_only_basis(
+    tmp_path: Path,
+) -> None:
+    """issues[].specification_only_basis は空文字を受理する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
+    issue["specification_only_basis"] = ""
+
+    eval_oracles_module._validate_evaluation_payload(
+        {"issues": [issue]},
+        repo,
+        oracle,
+    )
 
 
 def test_eval_oracles_payload_rejects_missing_referenced_path(
@@ -1674,7 +2129,7 @@ def test_eval_oracles_payload_rejects_ignored_oracle_path(
 def test_eval_oracles_payload_rejects_missing_issue_oracle_path(
     tmp_path: Path,
 ) -> None:
-    """issues[].oracle_path も実在する oracle / INDEX file として検査する。"""
+    """issues[].oracle_path も実在する oracle file として検査する。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1750,16 +2205,16 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
     assert len(evaluated_prompts) == 1
     assert str(changed_oracle) in evaluated_prompts[0]
     assert str(unchanged_oracle) not in evaluated_prompts[0]
-    assert "mode: partial" in report
+    assert 'mode: "partial"' in report
     assert "deleted_oracles_detected: true" in report
     assert "oracle_count: 1" in report
 
 
-def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
+def test_eval_oracles_full_mode_does_not_depend_on_session_state(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """session branch 上では full mode でも削除済み oracle 有無を metadata に出す。"""
+    """session branch 上の full mode は session state を前提にしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1771,6 +2226,8 @@ def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
     _git(repo, "commit", "-m", "add oracles")
     _checkout_session_branch(repo)
     deleted_oracle.unlink()
+    session_state = next((repo / ".cmoc" / "sessions").glob("*.json"))
+    session_state.write_text("{broken\n", encoding="utf-8")
 
     monkeypatch.setattr(
         eval_oracles_module,
@@ -1792,10 +2249,11 @@ def test_eval_oracles_full_mode_reports_deleted_oracles_on_session_branch(
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
-    assert "mode: full" in report
+    assert 'mode: "full"' in report
     assert "full_requested: true" in report
     assert "is_cmoc_branch: true" in report
-    assert "deleted_oracles_detected: true" in report
+    assert "base_commit: null" in report
+    assert "deleted_oracles_detected: false" in report
     assert "| 1 | `oracles/existing.md` | 0 |" in report
 
 
@@ -1817,7 +2275,7 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
         repo,
         "checkout",
         "-b",
-        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123",
+        "cmoc/apply/2026-05-10_22-21_10_000000123/2026-05-10_22-22_10_000000123",
     )
     changed_oracle.write_text("after\n", encoding="utf-8")
 
@@ -1849,13 +2307,16 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
-    assert evaluated_targets == [changed_oracle, unchanged_oracle]
-    assert "mode: full" in report
+    assert sorted(evaluated_targets) == [changed_oracle, unchanged_oracle]
+    assert 'mode: "full"' in report
     assert "full_requested: false" in report
     assert "is_cmoc_branch: true" in report
     assert "base_commit: null" in report
     assert "deleted_oracles_detected: false" in report
     assert "oracle_count: 2" in report
+    assert report.index("| 1 | `oracles/changed.md` | 0 |") < report.index(
+        "| 2 | `oracles/unchanged.md` | 0 |"
+    )
 
 
 def test_eval_oracles_body_uses_importable_module_name() -> None:
@@ -1977,14 +2438,14 @@ def test_apply_returns_complete_when_no_discrepancies(
     )
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert exit_code == 0
     assert len(reports) == 1
     assert state["apply"]["state"] == "completed"
     assert state["apply"]["apply_branch"].startswith(
-        "cmoc/apply/2026-05-10_22-21_10_123/"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
     assert state["apply"]["oracle_snapshot_commit"] == _git(
         repo,
@@ -1997,7 +2458,7 @@ def test_apply_returns_complete_when_no_discrepancies(
         / ".cmoc"
         / "worktrees"
         / "apply"
-        / "2026-05-10_22-21_10_123"
+        / "2026-05-10_22-21_10_000000123"
         / apply_run_id
     )
     assert apply_worktree.is_dir()
@@ -2007,18 +2468,18 @@ def test_apply_returns_complete_when_no_discrepancies(
         "oracle_snapshot_commit",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
     report_text = reports[0].read_text(encoding="utf-8")
     assert report_text.startswith("---\n")
-    assert "cmoc_session_id: \"2026-05-10_22-21_10_123\"" in report_text
+    assert "cmoc_session_id: \"2026-05-10_22-21_10_000000123\"" in report_text
     assert "cmoc_apply_run_id: " in report_text
     assert (
-        "cmoc_session_branch: \"cmoc/session/2026-05-10_22-21_10_123\""
+        "cmoc_session_branch: \"cmoc/session/2026-05-10_22-21_10_000000123\""
         in report_text
     )
     assert (
-        "cmoc_apply_branch: \"cmoc/apply/2026-05-10_22-21_10_123/"
+        "cmoc_apply_branch: \"cmoc/apply/2026-05-10_22-21_10_000000123/"
         in report_text
     )
     assert "apply_worktree_path: " in report_text
@@ -2053,11 +2514,15 @@ def test_apply_returns_complete_when_no_discrepancies(
         for purpose in investigation_purposes
     )
     assert all(
-        kwargs["model"] == COST_PERFORMANCE_MODEL
+        kwargs["model"] == FRONTIER_MODEL
         for kwargs in investigation_kwargs
     )
     assert all(
-        kwargs["reasoning_effort"] == COST_PERFORMANCE_REASONING_EFFORT
+        kwargs["reasoning_effort"] == FRONTIER_REASONING_EFFORT
+        for kwargs in investigation_kwargs
+    )
+    assert all(
+        kwargs["skip_index_maintenance"] is True
         for kwargs in investigation_kwargs
     )
     report_kwargs = [
@@ -2070,6 +2535,67 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert (
         "今回の自動適用処理以前の作業も含めてください"
         not in "\n".join(codex_prompts)
+    )
+
+
+def test_apply_investigates_file_origin_targets_in_parallel(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """apply fork の file 起点調査は事前列挙対象を N+M 並列で実行する。"""
+    repo = _init_repo(tmp_path)
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "targets")
+    oracle_snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+    codex_kwargs: list[dict[str, object]] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査呼び出しが重なっているかを記録する。"""
+        nonlocal active
+        nonlocal max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+            codex_kwargs.append(kwargs)
+        try:
+            time.sleep(0.05)
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    discrepancies = apply_module._investigate_discrepancies(
+        repo,
+        base_commit,
+        oracle_snapshot_commit,
+        timer=StepTimer("test"),
+        step_path=((1, 1),),
+        repeat_improove_fixing_list=0,
+        full=False,
+    )
+
+    purposes = [str(kwargs.get("purpose", "")) for kwargs in codex_kwargs]
+    assert discrepancies == []
+    assert len(codex_kwargs) >= 2
+    assert max_active >= 2
+    assert any(purpose.startswith("oracle 調査 ") for purpose in purposes)
+    assert any(purpose.startswith("実装調査 ") for purpose in purposes)
+    assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in codex_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == FRONTIER_REASONING_EFFORT
+        for kwargs in codex_kwargs
     )
 
 
@@ -2125,7 +2651,7 @@ def test_apply_commits_index_changes_when_no_discrepancies(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     apply_run_id = state["apply"]["apply_branch"].rsplit("/", 1)[1]
@@ -2134,7 +2660,7 @@ def test_apply_commits_index_changes_when_no_discrepancies(
         / ".cmoc"
         / "worktrees"
         / "apply"
-        / "2026-05-10_22-21_10_123"
+        / "2026-05-10_22-21_10_000000123"
         / apply_run_id
     )
     report_kwargs = [
@@ -2191,19 +2717,21 @@ def test_apply_report_records_session_head_at_finish_when_session_advances(
         lambda repo_root: False,
     )
     advanced_session = False
+    advance_lock = threading.Lock()
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査中に session branch を進め、調査自体は収束させる。"""
         nonlocal advanced_session
         if kwargs.get("expect_json") is True:
-            if not advanced_session:
-                (repo / "session-progress.txt").write_text(
-                    "session advanced\n",
-                    encoding="utf-8",
-                )
-                _git(repo, "add", "session-progress.txt")
-                _git(repo, "commit", "-m", "advance session during apply")
-                advanced_session = True
+            with advance_lock:
+                if not advanced_session:
+                    (repo / "session-progress.txt").write_text(
+                        "session advanced\n",
+                        encoding="utf-8",
+                    )
+                    _git(repo, "add", "session-progress.txt")
+                    _git(repo, "commit", "-m", "advance session during apply")
+                    advanced_session = True
             return '{"git_head_commit_hash": null, "fixing_points": []}'
         if kwargs.get("purpose") == "apply 変更要約":
             return _change_summary_json()
@@ -2215,7 +2743,7 @@ def test_apply_report_records_session_head_at_finish_when_session_advances(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     reports = list(
@@ -2265,7 +2793,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
@@ -2275,7 +2803,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
@@ -2360,7 +2888,7 @@ def test_apply_join_keeps_artifacts_when_report_result_is_missing(
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     expected_apply_branch = (
-        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/2026-05-10_22-22_10_000000123"
     )
     apply_branch, apply_worktree, report_path = _create_completed_apply_run(
         repo,
@@ -2386,7 +2914,7 @@ def test_apply_join_keeps_artifacts_when_report_result_is_missing(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
@@ -2451,7 +2979,7 @@ def test_apply_join_keeps_branch_when_worktree_remove_fails(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
@@ -2482,7 +3010,7 @@ def test_apply_join_ignores_worktree_local_log_cmoc(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
@@ -2516,7 +3044,7 @@ def test_apply_join_stops_on_unexpected_diff_in_normal_mode(
     assert f"{apply_branch}: oracles/spec.md" in error_info.value.detail
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert state["apply"]["state"] == "completed"
@@ -2529,26 +3057,89 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
 ) -> None:
     """apply branch 側の非実装ファイル変更は想定外差分として停止する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    _git(apply_worktree, "add", "-f", "ignored.txt")
     _git(apply_worktree, "commit", "-m", "edit non implementation file")
 
     with pytest.raises(CmocError) as error_info:
         cmoc_apply_join_impl(repo)
 
     assert "想定外の差分" in error_info.value.message
-    assert f"{apply_branch}: memo/note.md" in error_info.value.detail
-    assert not (repo / "memo" / "note.md").exists()
+    assert f"{apply_branch}: ignored.txt" in error_info.value.detail
+    assert not (repo / "ignored.txt").exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
     assert apply_worktree.exists()
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "content"),
+    [
+        ("README.md", "joined readme\n"),
+        ("AGENTS.md", "joined agents\n"),
+        (".agents/note.txt", "joined agents note\n"),
+    ],
+)
+def test_apply_join_accepts_apply_branch_implementation_diff_on_guarded_paths(
+    tmp_path: Path,
+    relative_path: str,
+    content: str,
+) -> None:
+    """apply join の差分分類は編集禁止ガードと実装ファイル性を分離する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    target = apply_worktree / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    _git(apply_worktree, "add", relative_path)
+    _git(apply_worktree, "commit", "-m", "edit forbidden path")
+
+    cmoc_apply_join_impl(repo)
+
+    assert (repo / relative_path).read_text(encoding="utf-8") == content
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+
+
+def test_apply_join_reports_unexpected_diff_with_control_chars(
+    tmp_path: Path,
+) -> None:
+    """apply join の想定外差分検査は改行・tab を含む path を壊さない。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation files")
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    relative_path = "ignored\nline\tname.md"
+    (apply_worktree / relative_path).write_text("note\n", encoding="utf-8")
+    _git(apply_worktree, "add", "-f", relative_path)
+    _git(apply_worktree, "commit", "-m", "edit odd ignored path")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: {relative_path}" in error_info.value.detail
+    assert "\tignored" not in error_info.value.detail
+    assert '"ignored\\nline\\tname.md"' not in error_info.value.detail
 
 
 def test_apply_join_accepts_apply_branch_index_diff(
@@ -2569,6 +3160,30 @@ def test_apply_join_accepts_apply_branch_index_diff(
     cmoc_apply_join_impl(repo)
 
     assert (repo / "INDEX.md").read_text(encoding="utf-8") == "index\n"
+
+
+def test_apply_join_stops_on_apply_branch_memo_index_diff(
+    tmp_path: Path,
+) -> None:
+    """apply branch 側の root memo/INDEX.md は想定外差分として停止する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    memo_root = apply_worktree / "memo"
+    memo_root.mkdir()
+    (memo_root / "INDEX.md").write_text("index\n", encoding="utf-8")
+    _git(apply_worktree, "add", "memo/INDEX.md")
+    _git(apply_worktree, "commit", "-m", "maintain memo index")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: memo/INDEX.md" in error_info.value.detail
 
 
 def test_apply_join_stops_on_apply_branch_oracles_index_diff(
@@ -2618,7 +3233,7 @@ def test_apply_join_accepts_session_branch_oracles_index_diff(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
@@ -2650,7 +3265,7 @@ def test_apply_join_accepts_session_branch_memo_diff(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "memo" / "note.md").read_text(encoding="utf-8") == "note\n"
@@ -2709,14 +3324,14 @@ def test_apply_join_force_resolve_keeps_expected_apply_index_diff(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
     assert (repo / "INDEX.md").read_text(encoding="utf-8") == "index\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert (repo / "memo" / "note.md").read_text(encoding="utf-8") == "note\n"
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: memo/note.md" not in output
 
 
 def test_apply_join_auto_resolves_index_conflict(
@@ -2743,7 +3358,7 @@ def test_apply_join_auto_resolves_index_conflict(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert not (repo / "INDEX.md").exists()
@@ -2751,6 +3366,120 @@ def test_apply_join_auto_resolves_index_conflict(
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert "auto-resolved INDEX.md conflicts:" in output
     assert "- INDEX.md" in output
+
+
+def test_apply_join_unmerged_paths_are_nul_safe(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """unmerged path 取得は改行・tab を含む path を token のまま返す。"""
+    repo = _init_repo(tmp_path)
+    calls: list[list[str]] = []
+
+    def fake_run_git(
+        _repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        del check, text, input_text, env
+        calls.append(args)
+        return subprocess.CompletedProcess(
+            ["git", *args],
+            0,
+            "dir/a\nb/INDEX.md\0feature\tfile.txt\0",
+            "",
+        )
+
+    monkeypatch.setattr(apply_join_module, "run_git", fake_run_git)
+
+    assert apply_join_module._unmerged_paths(repo) == [
+        "dir/a\nb/INDEX.md",
+        "feature\tfile.txt",
+    ]
+    assert calls == [["diff", "--name-only", "-z", "--diff-filter=U"]]
+
+
+def test_apply_join_resolves_index_conflict_before_reporting_other_conflict(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """混在 conflict では INDEX.md だけ自動解決し、他 path は報告する。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    (apply_worktree / "INDEX.md").write_text("apply index\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt", "INDEX.md")
+    _git(apply_worktree, "commit", "-m", "implement feature with index")
+    original_run_git = apply_join_module.run_git
+    removed_index = False
+
+    def fail_merge_with_mixed_conflicts(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal removed_index
+        if args == ["merge", "--no-ff", apply_branch]:
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                1,
+                "",
+                "\n".join(
+                    [
+                        "CONFLICT (content): Merge conflict in INDEX.md",
+                        "CONFLICT (content): Merge conflict in feature.txt",
+                    ]
+                ),
+            )
+        if args == ["rm", "--ignore-unmatch", "--", "INDEX.md"]:
+            removed_index = True
+            return subprocess.CompletedProcess(["git", *args], 0, "", "")
+        if args == ["commit", "--no-edit"]:
+            pytest.fail("non INDEX.md conflict が残る場合は merge commit しない")
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
+
+    def mixed_unmerged_paths(_repo: Path) -> list[str]:
+        if removed_index:
+            return ["feature.txt"]
+        return ["INDEX.md", "feature.txt"]
+
+    monkeypatch.setattr(apply_join_module, "run_git", fail_merge_with_mixed_conflicts)
+    monkeypatch.setattr(apply_join_module, "_unmerged_paths", mixed_unmerged_paths)
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert removed_index
+    assert "feature.txt" in error_info.value.detail
+    assert "INDEX.md" not in error_info.value.detail
+    assert state["apply"]["state"] == "completed"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
 
 
 def test_apply_join_stops_on_non_index_conflict(
@@ -2807,7 +3536,7 @@ def test_apply_join_stops_on_non_index_conflict(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert "conflict" in error_info.value.message
@@ -2817,29 +3546,30 @@ def test_apply_join_stops_on_non_index_conflict(
     assert apply_worktree.exists()
 
 
-def test_apply_join_stops_on_apply_branch_rename_from_oracles(
+def test_apply_join_uses_rename_destination_for_unexpected_diff_check(
     tmp_path: Path,
 ) -> None:
-    """apply branch 側の oracle から実装側への rename は停止対象にする。"""
+    """apply branch 側の rename は変更後 path を想定外差分検査に使う。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
-    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
     _git(apply_worktree, "mv", "oracles/spec.md", "feature.txt")
     _git(apply_worktree, "commit", "-m", "rename oracle to implementation")
 
-    with pytest.raises(CmocError) as error_info:
-        cmoc_apply_join_impl(repo)
+    cmoc_apply_join_impl(repo)
 
-    assert "想定外の差分" in error_info.value.message
-    assert f"{apply_branch}: oracles/spec.md" in error_info.value.detail
-    assert not (repo / "feature.txt").exists()
-    assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == "spec\n"
-    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
-    assert apply_worktree.exists()
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "spec\n"
+    assert not (repo / "oracles" / "spec.md").exists()
+    assert state["apply"]["state"] == "ready"
 
 
 def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
@@ -2848,31 +3578,32 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
 ) -> None:
     """強制モードは apply branch 側の非実装ファイル変更を revert して merge する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
+    _git(apply_worktree, "add", "-f", "ignored.txt", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected ignored file")
 
     cmoc_apply_join_impl(repo, force_resolve=True)
 
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert not (repo / "ignored.txt").exists()
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: ignored.txt" in output
 
 
 def test_apply_join_force_resolves_with_missing_apply_worktree(
@@ -2881,18 +3612,19 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
 ) -> None:
     """強制モードは apply worktree 欠落時も一時 worktree で revert する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
+    _git(apply_worktree, "add", "-f", "ignored.txt", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected ignored file")
     _git(repo, "worktree", "remove", "--force", str(apply_worktree))
 
     cmoc_apply_join_impl(repo, force_resolve=True)
@@ -2900,27 +3632,27 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert not (repo / "ignored.txt").exists()
     assert state["apply"]["state"] == "ready"
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
     assert list((repo / ".cmoc" / "worktrees" / "tmp").glob("*")) == []
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: ignored.txt" in output
 
 
-def test_apply_join_force_resolves_apply_branch_copy_from_oracles(
+def test_apply_join_accepts_apply_branch_copy_to_expected_path(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """強制モードは oracle 由来 copy entry 全体を snapshot へ戻す。"""
+    """apply branch 側の copy は変更後 path を想定外差分検査に使う。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
-    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
@@ -2933,13 +3665,13 @@ def test_apply_join_force_resolves_apply_branch_copy_from_oracles(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
-    assert not (repo / "feature.txt").exists()
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "spec\n"
     assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == "spec\n"
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: oracles/spec.md" in output
+    assert "force-resolved unexpected diffs:" not in output
 
 
 def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
@@ -2963,7 +3695,7 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     output = capsys.readouterr().out
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert state["apply"] == {
@@ -2972,7 +3704,7 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
         "state": "ready",
     }
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
@@ -3000,7 +3732,7 @@ def test_apply_abandon_accepts_apply_branch_worktree(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert state["apply"]["state"] == "ready"
@@ -3047,12 +3779,73 @@ def test_apply_abandon_ignores_worktree_local_log_cmoc(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert state["apply"]["state"] == "ready"
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
+
+
+def test_apply_abandon_rejects_dirty_session_branch_worktree(
+    tmp_path: Path,
+) -> None:
+    """apply branch からの実行でも session branch worktree の差分で停止する。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    _git(repo, "switch", home_branch)
+    session_worktree = tmp_path / "session-worktree"
+    _git(repo, "worktree", "add", str(session_worktree), session_branch)
+    (session_worktree / "session-dirty.txt").write_text(
+        "dirty\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(apply_worktree)
+
+    assert "未コミットの変更" in error_info.value.message
+    assert "session-dirty.txt" in error_info.value.detail
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
+def test_apply_abandon_does_not_check_unrelated_canonical_worktree(
+    tmp_path: Path,
+) -> None:
+    """session branch が別 worktree にある場合、canonical root の差分は見ない。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    _git(repo, "switch", home_branch)
+    session_worktree = tmp_path / "session-worktree"
+    _git(repo, "worktree", "add", str(session_worktree), session_branch)
+    (repo / "home-dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+    cmoc_apply_abandon_impl(apply_worktree)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert state["apply"]["state"] == "ready"
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+    assert (repo / "home-dirty.txt").exists()
 
 
 def test_apply_abandon_rejects_ready_state_without_cleanup(
@@ -3067,7 +3860,7 @@ def test_apply_abandon_rejects_ready_state_without_cleanup(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert "破棄対象の apply run" in error_info.value.message
@@ -3085,7 +3878,7 @@ def test_apply_abandon_accepts_error_state(
         repo,
         oracle_snapshot,
     )
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "error"
     state_path.write_text(json.dumps(state), encoding="utf-8")
@@ -3112,11 +3905,11 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     process = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(60)"],
     )
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
-    write_session_state(repo, "2026-05-10_22-21_10_123", state)
-    write_apply_process_id(repo, "2026-05-10_22-21_10_123", process.pid)
+    write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
+    write_apply_process_id(repo, "2026-05-10_22-21_10_000000123", process.pid)
 
     try:
         cmoc_apply_abandon_impl(repo)
@@ -3128,17 +3921,16 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     assert state["apply"]["state"] == "ready"
     assert "process_id" not in state["apply"]
     assert not (
-        repo / ".cmoc" / "runtime" / "apply" / "2026-05-10_22-21_10_123.pid"
+        repo / ".cmoc" / "runtime" / "apply" / "2026-05-10_22-21_10_000000123.pid"
     ).exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
 
 
-def test_apply_abandon_accepts_stale_running_state_without_process_id(
+def test_apply_abandon_rejects_running_state_without_process_id(
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """古い running state に process id が無い場合も stale として cleanup する。"""
+    """running state に process id が無い場合は cleanup せず停止する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
@@ -3146,19 +3938,20 @@ def test_apply_abandon_accepts_stale_running_state_without_process_id(
         repo,
         oracle_snapshot,
     )
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
-    write_session_state(repo, "2026-05-10_22-21_10_123", state)
+    write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
 
-    cmoc_apply_abandon_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(repo)
 
-    output = capsys.readouterr().out
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert "running apply process id was not recorded" in output
-    assert state["apply"]["state"] == "ready"
-    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
-    assert not apply_worktree.exists()
+    assert "process id が記録されていません" in error_info.value.message
+    assert "apply.state: running" in error_info.value.detail
+    assert state["apply"]["state"] == "running"
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
 
 
 def test_apply_abandon_rejects_unknown_state_without_cleanup(
@@ -3172,7 +3965,7 @@ def test_apply_abandon_rejects_unknown_state_without_cleanup(
         repo,
         oracle_snapshot,
     )
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "paused"
     state_path.write_text(json.dumps(state), encoding="utf-8")
@@ -3234,6 +4027,71 @@ def test_apply_uses_investigate_repeat_option_for_loop_limit(
     assert "まだ要修正点が残っている可能性" in report_text
 
 
+def test_apply_reinvestigates_files_changed_by_previous_fix(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex 修正で増えた実装差分は次の partial 調査対象に戻す。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore cmoc state")
+    _checkout_session_branch(repo)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "oracle")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+    apply_ran = False
+    implementation_investigation_purposes: list[str] = []
+
+    def first_discrepancy() -> str:
+        payload = json.loads(_discrepancy_json("create app"))
+        payload["fixing_points"][0]["evidences"][0]["path"] = str(
+            repo / "oracles" / "spec.md"
+        )
+        return json.dumps(payload)
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """初回だけ要修正点を返し、修正後の実装調査対象を記録する。"""
+        nonlocal apply_ran
+        purpose = str(kwargs.get("purpose"))
+        if purpose.startswith("oracle 調査"):
+            if apply_ran:
+                return '{"git_head_commit_hash": null, "fixing_points": []}'
+            return first_discrepancy()
+        if purpose.startswith("実装調査"):
+            implementation_investigation_purposes.append(purpose)
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        if purpose.startswith("要修正点適用"):
+            apply_ran = True
+            (Path(args[0]) / "app.py").write_text("fixed\n", encoding="utf-8")
+            return ""
+        if purpose == "commit message 生成":
+            return "Apply fix"
+        if purpose == "apply 変更要約":
+            return _change_summary_json()
+        return ""
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    assert cmoc_apply_impl(
+        repo,
+        repeat_investigate_and_fix=2,
+        repeat_improove_fixing_list=0,
+    ) == 0
+
+    assert any(
+        purpose.endswith("app.py")
+        for purpose in implementation_investigation_purposes
+    )
+
+
 def test_apply_improoves_fixing_list_until_same_result_or_limit(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -3254,6 +4112,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
         lambda repo_root: False,
     )
     organize_prompts: list[str] = []
+    organize_kwargs: list[dict[str, object]] = []
     apply_prompts: list[str] = []
     organize_results = [
         _discrepancy_json("first improvement"),
@@ -3268,6 +4127,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
             return _discrepancy_json("initial")
         if purpose == "要修正点整理":
             organize_prompts.append(str(args[1]))
+            organize_kwargs.append(kwargs)
             return organize_results.pop(0)
         if purpose.startswith("要修正点適用"):
             apply_prompts.append(str(args[1]))
@@ -3287,6 +4147,11 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     output = capsys.readouterr().out
     assert exit_code == 2
     assert len(organize_prompts) == 3
+    assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in organize_kwargs)
+    assert all(
+        kwargs["reasoning_effort"] == FRONTIER_HIGH_REASONING_EFFORT
+        for kwargs in organize_kwargs
+    )
     assert "(5/6, 1/1, 4/5, 3/3) 要修正点リスト改善" in output
     assert "(5/6, 1/1, 5/5, 1/1) 要修正点適用" in output
     assert "要修正点リスト改善ループ (3/3) 要修正点: 1" in output
@@ -3497,7 +4362,7 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
     assert commit_subjects[:2] == ["Apply fix 2", "Apply fix 1"]
     assert _git(repo, "status", "--porcelain").stdout == ""
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
 
 
@@ -3508,7 +4373,7 @@ def test_organize_prompt_includes_fixing_list_quality_requirements(
     prompt = _organize_prompt(
         tmp_path,
         json.loads(_discrepancy_json("fix"))["fixing_points"],
-        "cmoc/session/2026-05-10_22-21_10_123",
+        "cmoc/session/2026-05-10_22-21_10_000000123",
         "1111111111111111111111111111111111111111",
         "2222222222222222222222222222222222222222",
     )
@@ -3516,7 +4381,7 @@ def test_organize_prompt_includes_fixing_list_quality_requirements(
     assert "内容の品質に明確な問題がない" in prompt
     assert "重複する要修正点は 1 件にマージ" in prompt
     assert "矛盾する修正方針は矛盾しない内容に調整" in prompt
-    assert "git ブランチ `cmoc/session/2026-05-10_22-21_10_123`" in prompt
+    assert "git ブランチ `cmoc/session/2026-05-10_22-21_10_000000123`" in prompt
     assert (
         "`1111111111111111111111111111111111111111"
         "..2222222222222222222222222222222222222222`"
@@ -3550,6 +4415,7 @@ def test_apply_prompt_treats_discrepancy_as_optional_hint(
     assert "目的を達成した保証は不要" in prompt
     assert f"`{tmp_path / 'README.md'}` は編集禁止です。" in prompt
     assert f"`{tmp_path / 'AGENTS.md'}` は編集禁止です。" in prompt
+    assert f"`{tmp_path / '.cmoc'}` は編集禁止です。" in prompt
 
 
 def test_apply_prompt_orders_completion_before_details() -> None:
@@ -3665,7 +4531,7 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """report 失敗時も完了済み apply run を error へ戻さない。"""
+    """report 失敗時は apply run を completed にせず error として残す。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -3717,13 +4583,13 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     report_dir = repo / ".cmoc" / "reports" / "apply" / "fork"
-    assert state["apply"]["state"] == "completed"
+    assert state["apply"]["state"] == "error"
     assert state["apply"]["apply_branch"].startswith(
-        "cmoc/apply/2026-05-10_22-21_10_123/"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
     reports = list(report_dir.glob("*.md"))
     assert len(reports) == 1
@@ -3758,6 +4624,65 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
     assert "Codex CLI による意味論的カテゴリ別要約には失敗しました。" in report_text
 
 
+def test_apply_marks_error_when_final_output_fails(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """report 作成後の最終出力失敗も completed にせず error として残す。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "oracle")
+
+    class FailingReportTimer(apply_module.StepTimer):
+        """最終 timer report だけ失敗させるテスト用 timer。"""
+
+        def report(self) -> None:
+            raise RuntimeError("fake final output failure")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+    monkeypatch.setattr(apply_module, "StepTimer", FailingReportTimer)
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """調査は収束させ、必要なら変更要約を返す。"""
+        if kwargs.get("purpose") == "apply 変更要約":
+            return _change_summary_json()
+        if kwargs.get("expect_json") is True:
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        return "No changes"
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    with pytest.raises(RuntimeError, match="fake final output failure"):
+        cmoc_apply_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    reports = list(
+        (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
+    )
+    report_texts = [report.read_text(encoding="utf-8") for report in reports]
+
+    assert state["apply"]["state"] == "error"
+    assert state["apply"]["apply_branch"].startswith(
+        "cmoc/apply/2026-05-10_22-21_10_000000123/"
+    )
+    assert any('result: "エラー"' in text for text in report_texts)
+    assert any(
+        "- Failed stage: `write final output`" in text for text in report_texts
+    )
+
+
 def test_apply_fallback_change_summary_preserves_special_path_tokens(
     tmp_path: Path,
 ) -> None:
@@ -3778,6 +4703,144 @@ def test_apply_fallback_change_summary_preserves_special_path_tokens(
     )
 
     assert summary[0]["changed_paths"] == [" changed\nfile.py "]
+
+
+def test_apply_fallback_change_summary_includes_uncommitted_paths(
+    tmp_path: Path,
+) -> None:
+    """fallback report は staged/working tree/untracked の変更も列挙する。"""
+    repo = _init_repo(tmp_path)
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+
+    (repo / "working.py").write_text("working\n", encoding="utf-8")
+    _git(repo, "add", "working.py")
+    _git(repo, "commit", "-m", "add working")
+    (repo / "staged.py").write_text("staged\n", encoding="utf-8")
+    _git(repo, "add", "staged.py")
+    (repo / "working.py").write_text("working changed\n", encoding="utf-8")
+    (repo / "untracked.py").write_text("untracked\n", encoding="utf-8")
+
+    summary = apply_module._fallback_change_summary_from_git(
+        repo,
+        branch_name,
+        snapshot_commit,
+        RuntimeError("summary failed"),
+    )
+
+    assert summary[0]["category"] == "変更ファイル一覧"
+    assert summary[0]["changed_paths"] == [
+        "staged.py",
+        "untracked.py",
+        "working.py",
+    ]
+
+
+def test_apply_fallback_change_summary_includes_deleted_paths(
+    tmp_path: Path,
+) -> None:
+    """fallback report は commit 済み/staged/working tree の削除も列挙する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "committed_delete.py").write_text("committed\n", encoding="utf-8")
+    (repo / "staged_delete.py").write_text("staged\n", encoding="utf-8")
+    (repo / "working_delete.py").write_text("working\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "add delete targets")
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+
+    (repo / "committed_delete.py").unlink()
+    _git(repo, "add", "committed_delete.py")
+    _git(repo, "commit", "-m", "delete committed")
+    (repo / "staged_delete.py").unlink()
+    _git(repo, "add", "staged_delete.py")
+    (repo / "working_delete.py").unlink()
+
+    summary = apply_module._fallback_change_summary_from_git(
+        repo,
+        branch_name,
+        snapshot_commit,
+        RuntimeError("summary failed"),
+    )
+
+    assert summary[0]["category"] == "変更ファイル一覧"
+    assert summary[0]["changed_paths"] == [
+        "committed_delete.py",
+        "staged_delete.py",
+        "working_delete.py",
+    ]
+
+
+def test_apply_change_summary_treats_uncommitted_paths_as_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """変更要約は commit 間差分が空でも未コミット差分があれば Codex に依頼する。"""
+    repo = _init_repo(tmp_path)
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "working.py").write_text("working\n", encoding="utf-8")
+
+    prompts: list[str] = []
+
+    def fake_codex(repo_root: Path, prompt: str, **kwargs: object) -> str:
+        prompts.append(prompt)
+        return _change_summary_json()
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    summary = apply_module._generate_change_summary(
+        repo,
+        branch_name,
+        snapshot_commit,
+    )
+
+    assert prompts
+    assert "working tree / staging area" in prompts[0]
+    assert summary[0]["category"] == "実装修正"
+
+
+def test_apply_change_summary_treats_deleted_paths_as_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """変更要約は削除のみの差分でも Codex に依頼する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "deleted.py").write_text("deleted\n", encoding="utf-8")
+    _git(repo, "add", "deleted.py")
+    _git(repo, "commit", "-m", "add deleted target")
+    snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "deleted.py").unlink()
+    _git(repo, "add", "deleted.py")
+
+    prompts: list[str] = []
+
+    def fake_codex(repo_root: Path, prompt: str, **kwargs: object) -> str:
+        prompts.append(prompt)
+        return json.dumps(
+            {
+                "changes": [
+                    {
+                        "category": "削除",
+                        "summary": "不要なファイルを削除しました。",
+                        "changed_paths": ["deleted.py"],
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    summary = apply_module._generate_change_summary(
+        repo,
+        branch_name,
+        snapshot_commit,
+    )
+
+    assert prompts
+    assert '["deleted.py"]' in prompts[0]
+    assert summary[0]["changed_paths"] == ["deleted.py"]
 
 
 def test_apply_writes_error_report_when_midway_stage_fails(
@@ -3808,7 +4871,7 @@ def test_apply_writes_error_report_when_midway_stage_fails(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     reports = list(
@@ -3818,7 +4881,7 @@ def test_apply_writes_error_report_when_midway_stage_fails(
 
     assert state["apply"]["state"] == "error"
     assert state["apply"]["apply_branch"].startswith(
-        "cmoc/apply/2026-05-10_22-21_10_123/"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
     assert len(reports) == 1
     assert str(reports[0]) in captured.out
@@ -3826,7 +4889,7 @@ def test_apply_writes_error_report_when_midway_stage_fails(
     assert "result: \"エラー\"" in report_text
     assert "cmoc_apply_run_id: " in report_text
     assert (
-        "cmoc_apply_branch: \"cmoc/apply/2026-05-10_22-21_10_123/"
+        "cmoc_apply_branch: \"cmoc/apply/2026-05-10_22-21_10_000000123/"
         in report_text
     )
     assert "apply_worktree_path: " in report_text
@@ -3938,7 +5001,7 @@ def test_apply_rejects_tracked_cmoc_before_worktree_creation(
     """apply fork は state 読み取り前に `.cmoc` 非追跡を保証する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
-    state_path = ".cmoc/sessions/2026-05-10_22-21_10_123.json"
+    state_path = ".cmoc/sessions/2026-05-10_22-21_10_000000123.json"
     _git(repo, "add", "-f", state_path)
     _git(repo, "commit", "-m", "track session state")
 
@@ -3960,8 +5023,8 @@ def test_apply_ensures_cmoc_ignore_before_session_state_read(
 ) -> None:
     """ignore 保証が済む前に `.cmoc/sessions` の壊れた state を読まない。"""
     repo = _init_repo(tmp_path)
-    _git(repo, "checkout", "-b", "cmoc/session/2026-05-10_22-21_10_123")
-    broken_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    _git(repo, "checkout", "-b", "cmoc/session/2026-05-10_22-21_10_000000123")
+    broken_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     broken_path.parent.mkdir(parents=True)
     broken_path.write_text("{not json", encoding="utf-8")
 
@@ -3988,7 +5051,7 @@ def test_apply_rejects_negative_repeat_before_worktree_creation(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -4038,14 +5101,14 @@ def test_apply_marks_error_when_running_state_write_fails(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     apply_branch = state["apply"]["apply_branch"]
     assert "fake running write failure" in str(error.value)
     assert state["apply"]["state"] == "error"
     assert isinstance(apply_branch, str)
-    assert apply_branch.startswith("cmoc/apply/2026-05-10_22-21_10_123/")
+    assert apply_branch.startswith("cmoc/apply/2026-05-10_22-21_10_000000123/")
     assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
     assert calls == 2
 
@@ -4060,9 +5123,11 @@ def test_apply_revalidates_ready_state_under_start_lock(
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     state_path = repo / ".cmoc" / "sessions" / f"{session_id}.json"
-    running_branch = f"cmoc/apply/{session_id}/already-running"
+    running_branch = (
+        f"cmoc/apply/{session_id}/2026-05-10_22-22_10_000000123"
+    )
     snapshot_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
     real_read_session_state = apply_module.read_session_state
     read_calls = 0
@@ -4129,7 +5194,8 @@ def test_apply_marks_error_when_worktree_creation_fails(
         _repo_root: Path,
         _session_id: str,
         _oracle_snapshot_commit: str,
-    ) -> tuple[str, str, Path]:
+        _initial_plan: apply_module._ApplyWorktreePlan,
+    ) -> apply_module._ApplyWorktreePlan:
         """worktree 作成失敗を模擬する。"""
         raise RuntimeError("fake worktree creation failure")
 
@@ -4144,7 +5210,7 @@ def test_apply_marks_error_when_worktree_creation_fails(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -4175,11 +5241,135 @@ def test_apply_marks_error_when_worktree_creation_fails(
         / ".cmoc"
         / "worktrees"
         / "apply"
-        / "2026-05-10_22-21_10_123"
+        / "2026-05-10_22-21_10_000000123"
         / apply_run_id
     )
     assert f"apply_worktree_path: \"{planned_apply_worktree}\"" in report_text
     assert f"apply_worktree_path: \"{repo}\"" not in report_text
+
+
+def test_create_apply_worktree_failure_reports_last_attempted_plan(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """worktree 作成リトライ失敗は最後に実試行した候補を例外に載せる。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session_id = "session"
+    oracle_snapshot_commit = "abc123"
+    initial_plan = apply_module._ApplyWorktreePlan(
+        "run0",
+        f"cmoc/apply/{session_id}/run0",
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run0",
+    )
+    timestamps = iter(f"run{index}" for index in range(1, 10))
+    attempted_branches: list[str] = []
+
+    def fake_make_timestamp() -> str:
+        return next(timestamps)
+
+    def fake_run_git(
+        _repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        if args[:1] == ["branch"]:
+            attempted_branches.append(args[1])
+        return subprocess.CompletedProcess(args, 1, "", "fake collision")
+
+    monkeypatch.setattr(apply_module, "make_timestamp", fake_make_timestamp)
+    monkeypatch.setattr(apply_module, "run_git", fake_run_git)
+    monkeypatch.setattr(apply_module, "sleep", lambda _seconds: None)
+
+    with pytest.raises(apply_module._ApplyWorktreeCreationError) as error:
+        apply_module._create_apply_worktree(
+            repo,
+            session_id,
+            oracle_snapshot_commit,
+            initial_plan,
+        )
+
+    assert attempted_branches[0] == initial_plan.apply_branch
+    assert attempted_branches[-1] == f"cmoc/apply/{session_id}/run9"
+    assert error.value.last_plan.apply_run_id == "run9"
+    assert error.value.last_plan.apply_branch == attempted_branches[-1]
+    assert error.value.last_plan.apply_worktree == (
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run9"
+    )
+
+
+def test_create_apply_worktree_reports_branch_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """worktree 作成後始末の branch 削除失敗は診断付きで即時失敗する。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session_id = "session"
+    oracle_snapshot_commit = "abc123"
+    initial_plan = apply_module._ApplyWorktreePlan(
+        "run0",
+        f"cmoc/apply/{session_id}/run0",
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / "run0",
+    )
+    git_calls: list[list[str]] = []
+
+    def fake_run_git(
+        _repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        git_calls.append(args)
+        if args[:1] == ["branch"] and args[1] != "-D":
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ["worktree", "add"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                "worktree stdout",
+                "worktree failed",
+            )
+        if args[:2] == ["branch", "-D"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                "cleanup stdout",
+                "cleanup failed",
+            )
+        raise AssertionError(f"unexpected git args: {args}")
+
+    monkeypatch.setattr(apply_module, "run_git", fake_run_git)
+    monkeypatch.setattr(apply_module, "sleep", lambda _seconds: None)
+
+    with pytest.raises(apply_module._ApplyWorktreeCreationError) as error:
+        apply_module._create_apply_worktree(
+            repo,
+            session_id,
+            oracle_snapshot_commit,
+            initial_plan,
+        )
+
+    assert git_calls == [
+        ["branch", initial_plan.apply_branch, oracle_snapshot_commit],
+        [
+            "worktree",
+            "add",
+            str(initial_plan.apply_worktree),
+            initial_plan.apply_branch,
+        ],
+        ["branch", "-D", initial_plan.apply_branch],
+    ]
+    assert error.value.last_plan == initial_plan
+    message = str(error.value)
+    assert "branch cleanup に失敗しました" in message
+    assert f"apply_branch: {initial_plan.apply_branch}" in message
+    assert f"apply_worktree: {initial_plan.apply_worktree}" in message
+    assert "worktree failed" in message
+    assert "cleanup failed" in message
 
 
 def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(
@@ -4211,7 +5401,7 @@ def test_apply_commits_untracked_oracle_changes_after_cmoc_guarantee(
                 "収束",
                 "## 不整合件数の推移",
                 "1 回目: 0 件",
-                "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
+                "## ブランチ cmoc/session/2026-05-10_22-21_10_000000123 上の全変更内容",
                 "カテゴリ: oracle 整備",
             ]
         )
@@ -4257,7 +5447,7 @@ def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
                 "収束",
                 "## 不整合件数の推移",
                 "1 回目: 0 件",
-                "## ブランチ cmoc/session/2026-05-10_22-21_10_123 上の全変更内容",
+                "## ブランチ cmoc/session/2026-05-10_22-21_10_000000123 上の全変更内容",
                 "カテゴリ: oracle 整備",
             ]
         )
@@ -4301,14 +5491,19 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
     assert _git(repo, "status", "--porcelain").stdout
 
 
-def test_apply_implementation_files_at_commit_excludes_root_memo(
+def test_apply_implementation_files_at_commit_matches_implementation_files(
     tmp_path: Path,
 ) -> None:
-    """apply の実装調査対象は read-only 禁止領域の root memo を含めない。"""
+    """apply の実装調査対象は通常の実装ファイル列挙に合わせる。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     memo_root = repo / "memo"
     memo_root.mkdir()
     (memo_root / "note.md").write_text("memo\n", encoding="utf-8")
+    (repo / "AGENTS.md").write_text("agents\n", encoding="utf-8")
+    agents_root = repo / ".agents"
+    agents_root.mkdir()
+    (agents_root / "skill.md").write_text("skill\n", encoding="utf-8")
     nested_memo = repo / "docs" / "memo"
     nested_memo.mkdir(parents=True)
     (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
@@ -4325,8 +5520,15 @@ def test_apply_implementation_files_at_commit_excludes_root_memo(
         )
     ]
 
-    assert "memo/note.md" not in relative_paths
-    assert relative_paths == ["README.md", "app.py", "docs/memo/note.md"]
+    assert relative_paths == [
+        ".agents/skill.md",
+        ".gitignore",
+        "AGENTS.md",
+        "README.md",
+        "app.py",
+        "docs/memo/note.md",
+        "memo/note.md",
+    ]
 
 
 def test_apply_files_at_commit_exclude_tracked_root_gitignored_files(
@@ -4600,15 +5802,20 @@ def test_commit_all_changes_rejects_memo_changes(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
-@pytest.mark.parametrize("forbidden_file", ["README.md", "AGENTS.md"])
-def test_commit_all_changes_rejects_root_readme_and_agents_changes(
+@pytest.mark.parametrize(
+    "forbidden_file",
+    ["README.md", "AGENTS.md", ".cmoc/state.json"],
+)
+def test_commit_all_changes_rejects_root_forbidden_changes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     forbidden_file: str,
 ) -> None:
-    """root README/AGENTS は workspace-write の編集禁止 path として検出する。"""
+    """root の workspace-write 編集禁止 path 変更は commit 前に検出する。"""
     repo = _init_repo(tmp_path)
-    (repo / forbidden_file).write_text("tampered\n", encoding="utf-8")
+    target = repo / forbidden_file
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("tampered\n", encoding="utf-8")
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
     monkeypatch.setattr(
         "sub_commands.apply.fork.maintain_indexes",
@@ -4619,7 +5826,10 @@ def test_commit_all_changes_rejects_root_readme_and_agents_changes(
         _commit_all_changes(repo)
 
     assert "編集禁止パス" in error.value.message
-    assert forbidden_file in error.value.detail
+    if forbidden_file.startswith(".cmoc/"):
+        assert ".cmoc/" in error.value.detail
+    else:
+        assert forbidden_file in error.value.detail
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
@@ -4713,40 +5923,37 @@ def test_session_join_merges_current_session_branch_and_deletes_it(
     ).stdout.splitlines()
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert _git(repo, "branch", "--show-current").stdout.strip() == target_branch
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "feature\n"
     assert state["session"]["state"] == "joined"
-    assert "cmoc/session/2026-05-10_22-21_10_123" not in branches
+    assert "cmoc/session/2026-05-10_22-21_10_000000123" not in branches
 
 
 def test_session_join_ensures_cmoc_ignored_before_switch(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """tracked `.cmoc` state を補修し、発生差分を検出して switch 前に止める。"""
+    """tracked `.cmoc` state を補修 commit してから home branch へ merge する。"""
     repo = _init_repo(tmp_path)
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     _checkout_session_branch(repo)
-    state_path = ".cmoc/sessions/2026-05-10_22-21_10_123.json"
+    state_path = ".cmoc/sessions/2026-05-10_22-21_10_000000123.json"
     _git(repo, "add", "-f", state_path)
     _git(repo, "commit", "-m", "track session state")
 
-    with pytest.raises(CmocError) as error:
-        cmoc_session_join_impl(repo)
+    cmoc_session_join_impl(repo)
 
-    status = _git(repo, "status", "--porcelain").stdout
-    assert "未コミットの変更" in error.value.message
-    assert ".gitignore" in error.value.detail
-    assert state_path in error.value.detail
-    assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
-    )
+    captured = capsys.readouterr()
+    state = json.loads((repo / state_path).read_text(encoding="utf-8"))
+    assert captured.err == ""
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert state["session"]["state"] == "joined"
     assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
     assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
-    assert ".gitignore" in status
-    assert state_path in status
+    assert _git(repo, "status", "--porcelain").stdout == ""
     assert home_branch in _git(repo, "branch", "--format=%(refname:short)").stdout
 
 
@@ -4793,11 +6000,11 @@ def test_session_join_precondition_failure_does_not_print_manual_resolution(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     _checkout_session_branch(repo)
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
     state["apply"]["apply_branch"] = (
-        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/2026-05-10_22-22_10_000000123"
     )
     state["apply"]["oracle_snapshot_commit"] = _git(
         repo,
@@ -4828,7 +6035,7 @@ def test_session_join_switch_failure_prints_manual_resolution(
     session_branch = _git(repo, "branch", "--show-current").stdout.strip()
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     home_branch = state["session"]["session_home_branch"]
@@ -4936,7 +6143,7 @@ def test_session_join_stops_non_conflict_merge_failure_without_codex(
     captured = capsys.readouterr()
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -4963,7 +6170,7 @@ def test_session_join_rejects_codex_change_outside_conflict_paths(
         """conflict を解消しつつ、対象外ファイルを誤って変更する。"""
         del prompt, kwargs
         (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
-        (repo_root / "README.md").write_text("tampered\n", encoding="utf-8")
+        (repo_root / ".gitignore").write_text("tampered\n", encoding="utf-8")
 
     monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
 
@@ -4972,11 +6179,11 @@ def test_session_join_rejects_codex_change_outside_conflict_paths(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert "conflict 対象外" in error.value.message
-    assert "README.md" in error.value.detail
+    assert ".gitignore" in error.value.detail
     assert state["session"]["state"] == "active"
     assert (repo / ".git" / "MERGE_HEAD").exists()
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
@@ -5010,6 +6217,35 @@ def test_session_join_rejects_codex_rewrite_of_auto_merged_file(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
+def test_session_join_rejects_codex_rewrite_of_auto_merged_special_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """改行や tab を含む非 conflict path の内容変更も検出する。"""
+    auto_path = "dir/auto\nname\tfile.txt"
+    repo = _repo_with_session_join_conflict(tmp_path, auto_path=auto_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """特殊 path の自動 merge 済みファイルを書き換える。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / auto_path).write_text("tampered\n", encoding="utf-8")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "conflict 対象外" in error.value.message
+    assert auto_path in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
 def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -5039,7 +6275,7 @@ def test_session_join_allows_oracle_conflict_path_in_codex_guard(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert captured_allowed_paths == ["oracles/spec.md"]
@@ -5047,6 +6283,33 @@ def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     assert (repo / "oracles" / "spec.md").read_text(encoding="utf-8") == (
         "resolved oracle\n"
     )
+
+
+@pytest.mark.parametrize("forbidden_path", ["README.md", "AGENTS.md"])
+def test_session_join_rejects_forbidden_root_file_conflict(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    forbidden_path: str,
+) -> None:
+    """README/AGENTS の conflict は Codex に渡さず手動解消にする。"""
+    repo = _repo_with_session_join_forbidden_conflict(tmp_path, forbidden_path)
+    codex_calls: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> None:
+        """Codex 呼び出しが誤って発生したことを記録する。"""
+        del args, kwargs
+        codex_calls.append("called")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "禁止領域で conflict" in error.value.message
+    assert forbidden_path in error.value.detail
+    assert codex_calls == []
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
 def test_session_join_ignores_markers_outside_conflict_paths(
@@ -5081,7 +6344,7 @@ def test_session_join_ignores_markers_outside_conflict_paths(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert state["session"]["state"] == "joined"
@@ -5122,6 +6385,125 @@ def test_session_join_rejects_codex_change_in_forbidden_path(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
+def test_session_join_rejects_codex_created_merge_commit(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が git add/commit まで進めた場合は cmoc の commit に進まない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """prompt 違反として merge commit を作成する。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        _git(repo_root, "add", "conflict.txt")
+        _git(repo_root, "commit", "--no-edit")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "merge state" in error.value.message
+    assert "head:" in error.value.detail
+    assert "merge_head:" in error.value.detail
+    assert state["session"]["state"] == "active"
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip().startswith(
+        "Merge branch"
+    )
+
+
+def test_session_join_rejects_codex_staged_conflict_resolution(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が git add だけ実行した場合も cmoc の add/commit に進まない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """prompt 違反として conflict 対象を stage する。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        _git(repo_root, "add", "conflict.txt")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "merge state" in error.value.message
+    assert "unmerged_index: changed" in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
+def test_session_join_rejects_codex_aborted_merge(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が merge state を中止した場合は後続の add/commit に進まない。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """prompt 違反として merge を abort する。"""
+        del prompt, kwargs
+        _git(repo_root, "merge", "--abort")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "merge state" in error.value.message
+    assert "merge_head:" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
+def test_session_join_rejects_codex_switched_branch_after_abort(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex が branch を移動した場合は現在 branch の変化を明示検出する。"""
+    repo = _repo_with_session_join_conflict(tmp_path)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """prompt 違反として merge を abort して session branch へ戻る。"""
+        del prompt, kwargs
+        _git(repo_root, "merge", "--abort")
+        _git(repo_root, "switch", session_branch)
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "merge state" in error.value.message
+    assert "branch:" in error.value.detail
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+
+
 def test_session_abandon_marks_state_and_force_deletes_branch(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -5147,16 +6529,16 @@ def test_session_abandon_marks_state_and_force_deletes_branch(
     ).stdout.splitlines()
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
     assert state["session"]["state"] == "abandoned"
     assert state["session"].get("joined_at") is None
-    assert "cmoc/session/2026-05-10_22-21_10_123" not in branches
+    assert "cmoc/session/2026-05-10_22-21_10_000000123" not in branches
     assert (repo / "feature.txt").exists() is False
     assert (
-        "abandoned session branch: cmoc/session/2026-05-10_22-21_10_123"
+        "abandoned session branch: cmoc/session/2026-05-10_22-21_10_000000123"
         in captured.out
     )
 
@@ -5164,27 +6546,25 @@ def test_session_abandon_marks_state_and_force_deletes_branch(
 def test_session_abandon_ensures_cmoc_ignored_before_cleanup(
     tmp_path: Path,
 ) -> None:
-    """tracked `.cmoc` state を補修し、発生差分を検出して cleanup 前に止める。"""
+    """tracked `.cmoc` state を補修し、home branch 側も ignore 保証する。"""
     repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     _checkout_session_branch(repo)
-    state_path = ".cmoc/sessions/2026-05-10_22-21_10_123.json"
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    state_path = ".cmoc/sessions/2026-05-10_22-21_10_000000123.json"
     _git(repo, "add", "-f", state_path)
     _git(repo, "commit", "-m", "track session state")
 
-    with pytest.raises(CmocError) as error:
-        cmoc_session_abandon_impl(repo)
+    cmoc_session_abandon_impl(repo)
 
-    status = _git(repo, "status", "--porcelain").stdout
-    assert "未コミットの変更" in error.value.message
-    assert ".gitignore" in error.value.detail
-    assert state_path in error.value.detail
-    assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
-    )
+    state = json.loads((repo / state_path).read_text(encoding="utf-8"))
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert state["session"]["state"] == "abandoned"
+    assert session_branch not in branches
     assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
     assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
-    assert ".gitignore" in status
-    assert state_path in status
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_session_abandon_rejects_apply_run_before_cleanup(
@@ -5196,11 +6576,11 @@ def test_session_abandon_rejects_apply_run_before_cleanup(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     _checkout_session_branch(repo)
-    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
     state["apply"]["apply_branch"] = (
-        "cmoc/apply/2026-05-10_22-21_10_123/2026-05-10_22-22_10_123"
+        "cmoc/apply/2026-05-10_22-21_10_000000123/2026-05-10_22-22_10_000000123"
     )
     state["apply"]["oracle_snapshot_commit"] = _git(
         repo,
@@ -5220,10 +6600,10 @@ def test_session_abandon_rejects_apply_run_before_cleanup(
     ).stdout.splitlines()
     assert "apply run" in error.value.message
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
     assert state_after["session"]["state"] == "active"
-    assert "cmoc/session/2026-05-10_22-21_10_123" in branches
+    assert "cmoc/session/2026-05-10_22-21_10_000000123" in branches
 
 
 def test_session_abandon_rejects_uncommitted_changes_before_switch(
@@ -5242,12 +6622,12 @@ def test_session_abandon_rejects_uncommitted_changes_before_switch(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     assert "未コミットの変更" in error.value.message
     assert _git(repo, "branch", "--show-current").stdout.strip() == (
-        "cmoc/session/2026-05-10_22-21_10_123"
+        "cmoc/session/2026-05-10_22-21_10_000000123"
     )
     assert state["session"]["state"] == "active"
 
@@ -5262,7 +6642,7 @@ def test_session_abandon_reports_home_switch_cleanup_failure(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
-    session_branch = "cmoc/session/2026-05-10_22-21_10_123"
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
     _checkout_session_branch(repo)
     original_run_git = session_abandon_module.run_git
 
@@ -5298,7 +6678,7 @@ def test_session_abandon_reports_home_switch_cleanup_failure(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -5312,6 +6692,128 @@ def test_session_abandon_reports_home_switch_cleanup_failure(
     assert session_branch in branches
 
 
+def test_session_abandon_rolls_back_cmoc_repair_commit_on_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """`.cmoc` 補修後の失敗では、session branch HEAD も元へ戻す。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
+    _checkout_session_branch(repo)
+    original_session_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = session_abandon_module.run_git
+
+    def fail_home_switch_after_repair(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        """`.cmoc` 補修 commit の直後に home branch switch 失敗を模擬する。"""
+        if args == ["switch", home_branch]:
+            raise subprocess.CalledProcessError(
+                1,
+                ["git", *args],
+                stderr="fake home switch failure",
+            )
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
+
+    monkeypatch.setattr(
+        session_abandon_module,
+        "run_git",
+        fail_home_switch_after_repair,
+    )
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert error.value.message == "session abandon のクリーンアップに失敗しました。"
+    assert "rollback failure" not in error.value.detail
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == original_session_head
+    assert (repo / ".gitignore").exists() is False
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert state["session"]["state"] == "active"
+
+
+def test_session_abandon_rolls_back_home_repair_commit_on_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """home branch 側の `.cmoc` 補修 commit も cleanup 失敗時に戻す。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    original_home_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
+    _checkout_session_branch(repo)
+    original_session_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = session_abandon_module.run_git
+
+    def fail_branch_delete_after_home_repair(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        """home branch の `.cmoc` 補修 commit 後に branch 削除失敗を模擬する。"""
+        if args == ["branch", "-D", session_branch]:
+            raise subprocess.CalledProcessError(
+                1,
+                ["git", *args],
+                stderr="fake branch delete failure",
+            )
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
+
+    monkeypatch.setattr(
+        session_abandon_module,
+        "run_git",
+        fail_branch_delete_after_home_repair,
+    )
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_abandon_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert error.value.message == "session abandon のクリーンアップに失敗しました。"
+    assert "rollback failure" not in error.value.detail
+    assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == original_session_head
+    assert _git(repo, "rev-parse", home_branch).stdout.strip() == original_home_head
+    assert (repo / ".gitignore").exists() is False
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert state["session"]["state"] == "active"
+
+
 def test_session_abandon_reports_rollback_switch_failure(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -5322,7 +6824,7 @@ def test_session_abandon_reports_rollback_switch_failure(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
-    session_branch = "cmoc/session/2026-05-10_22-21_10_123"
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
     _checkout_session_branch(repo)
     original_run_git = session_abandon_module.run_git
 
@@ -5369,7 +6871,7 @@ def test_session_abandon_reports_rollback_switch_failure(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -5394,7 +6896,7 @@ def test_session_abandon_restores_branch_when_state_restore_fails(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore cmoc")
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
-    session_branch = "cmoc/session/2026-05-10_22-21_10_123"
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
     _checkout_session_branch(repo)
     original_run_git = session_abandon_module.run_git
     original_write_session_state = session_abandon_module.write_session_state
@@ -5450,7 +6952,7 @@ def test_session_abandon_restores_branch_when_state_restore_fails(
 
     state = json.loads(
         (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_123.json"
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
@@ -5574,6 +7076,33 @@ def test_cmoc_apply_fork_help_exposes_oracle_repeat_options() -> None:
     assert "--full" in result.stdout
 
 
+def test_cmoc_review_oracles_rejects_too_many_issue_list_improvements() -> None:
+    """CLI 入口でも問題点リスト改善の最大 3 回制限を検証する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "main",
+            "review",
+            "oracles",
+            "--repeat-improve-issues-list",
+            "4",
+        ],
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert "ERROR" in result.stdout
+    assert "4 is not in the range 0<=x<=3" in result.stdout
+
+
 def test_cmoc_session_and_apply_workflow_commands_are_registered() -> None:
     """公開 CLI は session/apply の階層コマンドを登録する。"""
     repo_root = Path(__file__).resolve().parents[1]
@@ -5640,7 +7169,7 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
 
 
 def test_main_reports_no_args_error_with_non_empty_detail() -> None:
-    """引数なし起動も詳細説明を含む共通エラーレポートにする。"""
+    """引数なし起動も help と混ざらない共通エラーレポートにする。"""
     repo_root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [sys.executable, "-m", "main"],
@@ -5660,6 +7189,44 @@ def test_main_reports_no_args_error_with_non_empty_detail() -> None:
     assert "- 利用可能なコマンドを確認するには `cmoc --help` を実行してください。" in result.stdout
     assert "Detail:\ncmoc がサブコマンドなしで起動されました。" in result.stdout
     assert "Call stack:" in result.stdout
+    assert "Traceback (most recent call last):" in result.stdout
+    assert "raise _missing_command_error(\"cmoc\")" in result.stdout
+    assert "Traceback is not available for this exception." not in result.stdout
+    assert "Usage: cmoc [OPTIONS] COMMAND [ARGS]..." not in result.stdout
+
+
+@pytest.mark.parametrize("command_group", ["session", "apply", "review"])
+def test_main_reports_command_group_without_subcommand_as_single_error_report(
+    command_group: str,
+) -> None:
+    """command group だけの起動も help と混ぜず共通エラーレポートにする。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "main", command_group],
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode == 2
+    assert result.stderr == ""
+    assert result.stdout.count("ERROR") == 1
+    assert "Summary:\nコマンドが指定されていません。" in result.stdout
+    assert (
+        f"- 利用可能なコマンドを確認するには `cmoc {command_group} --help` を実行してください。"
+        in result.stdout
+    )
+    assert (
+        f"Detail:\ncmoc {command_group} がサブコマンドなしで起動されました。"
+        in result.stdout
+    )
+    assert "Call stack:" in result.stdout
+    assert "Traceback (most recent call last):" in result.stdout
+    assert "Traceback is not available for this exception." not in result.stdout
+    assert f"Usage: cmoc {command_group}" not in result.stdout
 
 
 def test_format_error_report_fills_empty_generic_detail() -> None:
@@ -5795,7 +7362,11 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
 
     prompt = _conflict_prompt(repo, ["app.py", "oracles/spec.md"])
 
+    assert "あなたは merge conflict 解消担当です。" in prompt
+    assert "cmoc session join" not in prompt
     assert "`/repo/oracles` は編集禁止です。" not in prompt
+    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
     assert "['/repo/app.py', '/repo/oracles/spec.md']" in prompt
     assert "['app.py" not in prompt
     assert "conflict marker 解消に限って編集できます" in prompt
@@ -5932,7 +7503,7 @@ def _init_repo(tmp_path: Path) -> Path:
 
 def _checkout_session_branch(repo: Path) -> None:
     """テスト用 cmoc session branch に移動し、state を作る。"""
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     branch_name = f"cmoc/session/{session_id}"
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -5957,7 +7528,10 @@ def _checkout_session_branch(repo: Path) -> None:
     exclude.write_text(f"{exclude.read_text(encoding='utf-8')}\n.cmoc/\n")
 
 
-def _repo_with_session_join_conflict(tmp_path: Path) -> Path:
+def _repo_with_session_join_conflict(
+    tmp_path: Path,
+    auto_path: str = "auto.txt",
+) -> Path:
     """session join で conflict と自動 merge path が発生する repo を作る。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -5968,8 +7542,10 @@ def _repo_with_session_join_conflict(tmp_path: Path) -> Path:
     _checkout_session_branch(repo)
     session_branch = _git(repo, "branch", "--show-current").stdout.strip()
     (repo / "conflict.txt").write_text("session\n", encoding="utf-8")
-    (repo / "auto.txt").write_text("session auto\n", encoding="utf-8")
-    _git(repo, "add", "conflict.txt", "auto.txt")
+    auto_file = repo / auto_path
+    auto_file.parent.mkdir(parents=True, exist_ok=True)
+    auto_file.write_text("session auto\n", encoding="utf-8")
+    _git(repo, "add", "conflict.txt", auto_path)
     _git(repo, "commit", "-m", "session change")
     _git(repo, "switch", home_branch)
     (repo / "conflict.txt").write_text("home\n", encoding="utf-8")
@@ -6002,6 +7578,31 @@ def _repo_with_session_join_oracle_conflict(tmp_path: Path) -> Path:
     return repo
 
 
+def _repo_with_session_join_forbidden_conflict(
+    tmp_path: Path,
+    relative_path: str,
+) -> Path:
+    """session join で root の編集禁止 file conflict が発生する repo を作る。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / relative_path
+    target.write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", relative_path)
+    _git(repo, "commit", "-m", "prepare forbidden session")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    target.write_text("session\n", encoding="utf-8")
+    _git(repo, "add", relative_path)
+    _git(repo, "commit", "-m", "session change")
+    _git(repo, "switch", home_branch)
+    target.write_text("home\n", encoding="utf-8")
+    _git(repo, "add", relative_path)
+    _git(repo, "commit", "-m", "home change")
+    _git(repo, "switch", session_branch)
+    return repo
+
+
 def _add_oracle_snapshot(repo: Path) -> str:
     """テスト用 oracle snapshot commit を作る。"""
     oracle_root = repo / "oracles"
@@ -6019,15 +7620,15 @@ def _create_completed_apply_run(
     report_text: str | None = None,
 ) -> tuple[str, Path, Path]:
     """completed apply run の branch/worktree/state を作る。"""
-    session_id = "2026-05-10_22-21_10_123"
-    apply_branch = f"cmoc/apply/{session_id}/2026-05-10_22-22_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
+    apply_branch = f"cmoc/apply/{session_id}/2026-05-10_22-22_10_000000123"
     apply_worktree = (
         repo
         / ".cmoc"
         / "worktrees"
         / "apply"
         / session_id
-        / "2026-05-10_22-22_10_123"
+        / "2026-05-10_22-22_10_000000123"
     )
     report_path = repo / ".cmoc" / "reports" / "apply" / "fork" / "report.md"
     report_path.parent.mkdir(parents=True)

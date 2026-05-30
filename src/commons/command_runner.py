@@ -54,6 +54,7 @@ def run_command(handler: Callable[[Path], int | None]) -> None:
             finally:
                 _print_completion_report(
                     started=started,
+                    log_path=log_context.path,
                     quota_wait_seconds=log_context.quota_wait_seconds,
                     exit_code=exit_code,
                 )
@@ -64,6 +65,7 @@ def run_command(handler: Callable[[Path], int | None]) -> None:
         exit_code = getattr(error, "exit_code", 1)
         _print_completion_report(
             started=started,
+            log_path=None,
             quota_wait_seconds=0.0,
             exit_code=exit_code,
         )
@@ -76,6 +78,7 @@ def run_command(handler: Callable[[Path], int | None]) -> None:
 def _print_completion_report(
     *,
     started: float,
+    log_path: Path | None,
     quota_wait_seconds: float,
     exit_code: int,
 ) -> None:
@@ -85,12 +88,17 @@ def _print_completion_report(
     log_event(
         "subcommand_end",
         {
+            "subcommand_log": str(log_path) if log_path is not None else None,
             "quota_wait_seconds": quota_wait_seconds,
             "returncode": exit_code,
             "total_elapsed_seconds": total_elapsed_seconds,
         },
     )
     print("# Command completion report")
+    if log_path is None:
+        print("subcommand log: unavailable")
+    else:
+        print(f"subcommand log: {log_path}")
     report_current_timer()
     print(
         "subcommand total elapsed: "

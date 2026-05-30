@@ -25,50 +25,49 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドのパッケージ入口です。
-- この配下には `abandon.py`、`fork.py`、`join.py` と、パッケージ宣言だけを担う `__init__.py` があります。
-- 個別の実行フローや状態遷移は各モジュール側で扱います。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装パッケージです。
+- `__init__.py` はパッケージ宣言のみを担い、`fork.py`、`join.py`、`abandon.py` に各コマンド本体があります。
+- apply の開始、マージ、破棄の入口をまとめてたどるための目次です。
 
 ## Read this when
 
-- `src/sub_commands/apply` が `cmoc apply` 系サブコマンドのパッケージであることを確認したいとき。
-- `cmoc apply abandon` / `cmoc apply fork` / `cmoc apply join` の実装モジュールの入口をまとめて把握したいとき。
-- このディレクトリ配下の構成と、どのモジュールにどの処理が置かれているかを素早く確認したいとき。
+- `cmoc apply` 系の実装入口と、`fork` / `join` / `abandon` の対応関係を確認したいとき。
+- apply パッケージ全体の役割や、どのモジュールに責務が分かれているかを把握したいとき。
+- apply 配下の実装・修正・レビュー・テストを始める前に、読むべきファイルを整理したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 以外のサブコマンドの仕様や実装を確認したいとき。
-- `oracles` 配下の仕様断片だけを読みたいとき。
-- `apply` の個別モジュールではなく、共通の branch / state / ログ / エラーハンドリング仕様を確認したいとき。
+- 個別の `cmoc apply fork` / `join` / `abandon` の詳細仕様や状態遷移だけを確認したいとき。
+- `oracles/app_specs/sub_commands/` 側の正本仕様だけを確認したいとき。
+- `src/sub_commands/apply/__init__.py` のパッケージ宣言だけを確認したいとき。
 
 ## hash
 
-- a9051b948efe416051329955f92ffe315b21dcd169558c77c90f885f7de7c08b
+- b07f436b08bb6b1cf4a5da301390b8df3fb760db8a02275ff35e9ba4f52d82c2
 
 # `eval_oracles.py`
 
 ## Summary
 
-- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、問題点をまとめた Markdown レポートを生成するモジュールです。
-- 現在ブランチと `--full` に応じて部分評価・全体評価を切り替え、評価対象 oracle の列挙、`INDEX.md` の整備、各ファイルへの評価依頼、改善済み issue list の反復、レポート保存までを一括で扱います。
-- Structured Output の検証、評価結果の再配分、エラー時のレポート生成、レポートの集計・整形もこのファイルにまとまっています。
+- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
+- oracles ファイルの列挙、部分評価/全体評価の分岐、並列評価、問題点リスト改善、Markdown レポート保存をまとめています。
+- 評価前の `INDEX.md` 事前メンテナンス、Structured Output の検証、error report と stderr フォールバックも担っています。
 
 ## Read this when
 
-- `cmoc review oracles` の処理順や、部分評価・全体評価の切り替え条件を確認したいとき。
-- Codex CLI への評価プロンプト生成、Structured Output の検証、問題点リストの改善ロジックを追いたいとき。
-- `INDEX.md` の保守を含む `oracles` のスナップショット評価と、`.cmoc/reports/review_oracles` への出力仕様を修正・レビューしたいとき。
-- エラー時でもレポートを残す実装や、評価結果の集計・整形を確認したいとき。
+- `cmoc review oracles` の実行順、部分評価/全体評価の切り替え、評価対象ファイルの選定を確認したいとき。
+- `referenced_paths` や `specification_only_basis` を含む Structured Output の検証条件、問題点リストの改善ロジックを追いたいとき。
+- レポート生成先、error report の出力、stderr フォールバックまで含めて実装・修正・レビューしたいとき。
 
 ## Do not read this when
 
-- `cmoc review oracles` のユーザー向け仕様、前提条件、出力形式だけを確認したいときは、`oracles/app_specs/sub_commands/review_oracles.md` を読むべきです。
-- `cmoc` のコマンド登録や `--help` 相当の引数定義だけを確認したいときは、`src/main.py` を読むべきです。
-- `apply` や `session` など、`review oracles` 以外のサブコマンド実装を追いたいときは、このファイルではなく該当モジュールを読むべきです。
+- `cmoc review oracles` の CLI 引数やサブコマンド登録だけを確認したいとき。
+- `cmoc` の他サブコマンドや共通処理だけを確認したいとき。
+- `oracles` 配下の個別仕様断片そのものを読みたいとき。
 
 ## hash
 
-- d0f9f0518ad78de50b29da189a9f01bad2f21e9a534684b37918aad4a8767e2e
+- a4b4cedd92e397a119d16e0e938acce3a3c1e85a2d1379d7e85aa24105973cdb
 
 # `init.py`
 
@@ -98,7 +97,7 @@
 ## Summary
 
 - `src/sub_commands/session` は `cmoc session` 系サブコマンドのパッケージ入口で、`__init__.py`、`fork.py`、`join.py`、`abandon.py` に各コマンド本体を持つディレクトリです。
-- `fork.py` は session branch の作成と session state 記録を担当し、`join.py` は session branch の merge と conflict 解消、`abandon.py` は session branch の破棄を担当します。
+- `fork.py` は session branch の作成と session state の記録を担当し、`join.py` は session branch の merge と conflict 解消、`abandon.py` は session branch の破棄を担当します。
 - この配下は session の開始・統合・破棄を扱う実装の入口であり、個別の処理詳細は各モジュールへ分かれています。
 
 ## Read this when
@@ -109,10 +108,10 @@
 
 ## Do not read this when
 
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細仕様を確認したいときは、この目次ではなく該当モジュールを直接読むべきです。
-- `cmoc apply` 系の開始・終了や破棄の仕様だけを確認したいときは、このディレクトリではなく apply 側の仕様を読むべきです。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細仕様、状態遷移、例外条件を確認したいとき。
+- `cmoc apply` 系の開始・統合・破棄の流れだけを確認したいとき。
 - `src/sub_commands/session` のパッケージ宣言だけを確認したいときは `__init__.py` を直接見れば足ります。
 
 ## hash
 
-- 22357c5f275509c4fb6d75f2f1f2b9858c33de4bfe2e3778a3552dbccc978c94
+- 46d18610eaf7078ce833fde501e8f6a852139ac98e1c549e8a3cdfff815e38c1

@@ -1,12 +1,20 @@
 """`cmoc review oracles` の本体処理。"""
 
+from concurrent.futures import Future, ThreadPoolExecutor
 import json
 from inspect import signature
 from pathlib import Path
+import sys
 
-from commons.codex import parse_json_object, run_codex_exec
+from commons.codex import (
+    FRONTIER_HIGH_REASONING_EFFORT,
+    FRONTIER_MODEL,
+    parse_json_object,
+    run_codex_exec,
+)
 from commons.command_runner import run_command
 from commons.indexing import maintain_indexes
+from commons.report_files import write_timestamped_report
 from commons.repo import (
     changed_oracle_files,
     current_branch,
@@ -19,7 +27,6 @@ from commons.repo import (
     read_session_start_commit,
 )
 from commons.timing import StepTimer, start_step
-from commons.timestamps import make_timestamp
 
 _SEVERITY_ORDER = ["fatal", "inconclusive", "warning"]
 _ISSUE_ID_PREFIXES = {
@@ -30,6 +37,7 @@ _ISSUE_ID_PREFIXES = {
 _REPORT_COMMAND = "cmoc review oracles"
 _REPORT_DIR_NAME = "review_oracles"
 _DEFAULT_REPEAT_IMPROVE_ISSUES_LIST = 3
+_MAX_REPEAT_IMPROVE_ISSUES_LIST = 3
 _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -154,8 +162,7 @@ def cmoc_eval_oracles_impl(
             )
         )
         return
-    if repeat_improve_issues_list < 0:
-        raise ValueError("--repeat-improve-issues-list must be >= 0.")
+    _validate_repeat_improve_issues_list(repeat_improve_issues_list)
 
     timer = StepTimer("review oracles")
     mode = None
@@ -183,7 +190,7 @@ def cmoc_eval_oracles_impl(
         session_branch = is_session_branch(branch_name)
         partial = session_branch and not full
         mode = "partial" if partial else "full"
-        if session_branch:
+        if partial:
             base_commit = read_session_start_commit(repo_root, branch_name)
             deleted_oracles = has_deleted_oracle_files(repo_root, base_commit)
         else:
@@ -216,33 +223,17 @@ def cmoc_eval_oracles_impl(
                 f"oracle 評価 ({index}/{len(oracle_files)}) "
                 f"{oracle_file}"
             )
-            payload = parse_json_object(
-                run_codex_exec(
-                    repo_root,
-                    _evaluation_prompt(repo_root, oracle_file),
-                    purpose=(
-                        f"oracle 評価 {oracle_file.relative_to(repo_root)}"
-                    ),
-                    read_only=True,
-                    expect_json=True,
-                    output_schema=_EVALUATION_OUTPUT_SCHEMA,
-                    skip_index_maintenance=True,
-                    json_validator=lambda value, current_oracle=oracle_file: (
-                        _validate_evaluation_payload(
-                            value,
-                            repo_root,
-                            current_oracle,
-                        )
-                    ),
-                )
-            )
-            evaluations.append(
-                _evaluation_payload_to_record(
-                    payload,
-                    repo_root,
-                    oracle_file,
-                )
-            )
+        if oracle_files:
+            with ThreadPoolExecutor(max_workers=len(oracle_files)) as executor:
+                futures = [
+                    executor.submit(
+                        _evaluate_oracle_file,
+                        repo_root,
+                        oracle_file,
+                    )
+                    for oracle_file in oracle_files
+                ]
+                _append_evaluation_records_in_order(futures, evaluations)
 
         failed_stage = "improve issues list"
         start_step(timer, 5, 6, "improve issues list")
@@ -269,25 +260,57 @@ def cmoc_eval_oracles_impl(
             evaluations,
         )
     except Exception as error:
-        report_path = _write_error_report(
-            repo_root,
-            mode,
-            full,
-            branch_name,
-            cmoc_branch,
-            base_commit,
-            commit_hash,
-            deleted_oracles,
-            len(all_oracle_files) if all_oracle_files_known else None,
-            oracle_files,
-            evaluations,
-            failed_stage,
-            error,
-        )
-        print(str(report_path))
+        try:
+            report_path = _write_error_report(
+                repo_root,
+                mode,
+                full,
+                branch_name,
+                cmoc_branch,
+                base_commit,
+                commit_hash,
+                deleted_oracles,
+                len(all_oracle_files) if all_oracle_files_known else None,
+                oracle_files,
+                evaluations,
+                failed_stage,
+                error,
+            )
+        except Exception as report_error:
+            error.add_note(
+                "review oracles error report generation also failed: "
+                f"{type(report_error).__name__}: {report_error}"
+            )
+            _print_error_report_fallback(
+                repo_root,
+                mode,
+                full,
+                branch_name,
+                cmoc_branch,
+                base_commit,
+                commit_hash,
+                deleted_oracles,
+                len(all_oracle_files) if all_oracle_files_known else None,
+                oracle_files,
+                evaluations,
+                failed_stage,
+                error,
+                report_error,
+            )
+        else:
+            print(str(report_path))
         raise
     print(str(report_path))
     timer.report()
+
+
+def _validate_repeat_improve_issues_list(value: int) -> None:
+    """問題点リスト改善の反復回数が oracle の上限内か検証する。"""
+    if value < 0 or value > _MAX_REPEAT_IMPROVE_ISSUES_LIST:
+        raise ValueError(
+            "--repeat-improve-issues-list must be between 0 and "
+            f"{_MAX_REPEAT_IMPROVE_ISSUES_LIST}."
+        )
 
 
 def _maintain_indexes_preserving_oracle_snapshot(repo_root: Path) -> bool:
@@ -295,6 +318,39 @@ def _maintain_indexes_preserving_oracle_snapshot(repo_root: Path) -> bool:
     if _maintain_indexes_accepts_excluded_roots():
         return maintain_indexes(repo_root, excluded_index_roots=["oracles"])
     return maintain_indexes(repo_root)
+
+
+def _evaluate_oracle_file(
+    repo_root: Path,
+    oracle_file: Path,
+) -> dict[str, object]:
+    """1 oracle ファイルの評価を実行し、report 用レコードを返す。"""
+    payload = parse_json_object(
+        run_codex_exec(
+            repo_root,
+            _evaluation_prompt(repo_root, oracle_file),
+            purpose=f"oracle 評価 {oracle_file.relative_to(repo_root)}",
+            read_only=True,
+            expect_json=True,
+            output_schema=_EVALUATION_OUTPUT_SCHEMA,
+            skip_index_maintenance=True,
+            json_validator=lambda value: _validate_evaluation_payload(
+                value,
+                repo_root,
+                oracle_file,
+            ),
+        )
+    )
+    return _evaluation_payload_to_record(payload, repo_root, oracle_file)
+
+
+def _append_evaluation_records_in_order(
+    futures: list[Future[dict[str, object]]],
+    evaluations: list[dict[str, object]],
+) -> None:
+    """並列評価結果を dispatch 時の順序で回収する。"""
+    for future in futures:
+        evaluations.append(future.result())
 
 
 def _maintain_indexes_accepts_excluded_roots() -> bool:
@@ -367,6 +423,8 @@ def _improve_evaluations(
                 expect_json=True,
                 output_schema=_EVALUATION_OUTPUT_SCHEMA,
                 skip_index_maintenance=True,
+                model=FRONTIER_MODEL,
+                reasoning_effort=FRONTIER_HIGH_REASONING_EFFORT,
                 json_validator=lambda value: _validate_issues_payload(
                     value,
                     repo_root,
@@ -488,11 +546,7 @@ def _refresh_evaluation_metadata(
             if issue.get("specification_only_basis")
         ]
     )
-    if not referenced_paths:
-        referenced_paths = _string_list(evaluation.get("referenced_paths", []))
     basis = " / ".join(bases)
-    if not basis:
-        basis = str(evaluation.get("specification_only_basis", ""))
     return {
         "target_oracle_path": str(
             Path(str(evaluation["target_oracle_path"])).resolve()
@@ -506,7 +560,7 @@ def _refresh_evaluation_metadata(
 def _validate_evaluation_payload(
     value: object,
     repo_root: Path,
-    _oracle_file: Path,
+    oracle_file: Path,
 ) -> None:
     """oracle 評価 Structured Output の schema と意味制約を検査する。"""
     # run_codex_exec の schema 検査に加え、Python 側でも後段で扱う型を保証する。
@@ -515,6 +569,10 @@ def _validate_evaluation_payload(
     if set(value) != {"issues"}:
         raise ValueError("Evaluation payload keys do not match schema.")
     _validate_evaluation_issues(value["issues"], repo_root)
+    _validate_issue_oracle_paths_match_targets(
+        value["issues"],
+        {oracle_file.resolve()},
+    )
 
 
 def _validate_issues_payload(
@@ -574,11 +632,8 @@ def _write_report(
     evaluations: list[dict[str, object]],
 ) -> Path:
     """評価結果を `.cmoc/reports/review_oracles` に保存する。"""
-    # 保存先ディレクトリと timestamp 付きレポートパスを用意する。
     report_dir = repo_root / ".cmoc" / "reports" / _REPORT_DIR_NAME
-    report_dir.mkdir(parents=True, exist_ok=True)
-    generated_at = make_timestamp()
-    report_path = report_dir / f"{generated_at}.md"
+    generated_at = "__CMOC_REPORT_GENERATED_AT__"
     issue_counts = _issue_counts(evaluations)
     result = _evaluation_result(len(oracle_files), issue_counts)
 
@@ -586,17 +641,17 @@ def _write_report(
     lines = [
         "---",
         "schema_version: 1",
-        f"command: {_REPORT_COMMAND}",
-        f"generated_at: {generated_at}",
-        f"repo_root: {repo_root.resolve()}",
-        f"oracle_root: {(repo_root / 'oracles').resolve()}",
-        f"mode: {mode}",
+        f"command: {_yaml_string(_REPORT_COMMAND)}",
+        f"generated_at: {_yaml_string(generated_at)}",
+        f"repo_root: {_yaml_string(str(repo_root.resolve()))}",
+        f"oracle_root: {_yaml_string(str((repo_root / 'oracles').resolve()))}",
+        f"mode: {_yaml_string(mode)}",
         f"full_requested: {str(full_requested).lower()}",
-        f"branch: {branch_name}",
+        f"branch: {_yaml_string(branch_name)}",
         f"is_cmoc_branch: {str(cmoc_branch).lower()}",
         f"base_commit: {_yaml_nullable(base_commit)}",
-        f"head_commit: {commit_hash}",
-        f"commit: {commit_hash}",
+        f"head_commit: {_yaml_string(commit_hash)}",
+        f"commit: {_yaml_string(commit_hash)}",
         f"deleted_oracles_detected: {str(deleted_oracles).lower()}",
         f"oracle_count_total: {oracle_count_total}",
         f"oracle_count_evaluated: {len(oracle_files)}",
@@ -604,7 +659,7 @@ def _write_report(
         f"fatal_issue_count: {issue_counts['fatal']}",
         f"warning_issue_count: {issue_counts['warning']}",
         f"inconclusive_issue_count: {issue_counts['inconclusive']}",
-        f"result: {result}",
+        f"result: {_yaml_string(result)}",
         "---",
         "",
         f"# {_REPORT_COMMAND} report",
@@ -659,8 +714,11 @@ def _write_report(
         lines.extend(referenced_path_rows)
     else:
         lines.append("No referenced files.")
-    report_path.write_text("\n".join(lines), encoding="utf-8")
-    return report_path
+    report = "\n".join(lines)
+    return write_timestamped_report(
+        report_dir,
+        lambda timestamp: report.replace(generated_at, timestamp),
+    )
 
 
 def _write_error_report(
@@ -680,19 +738,17 @@ def _write_error_report(
 ) -> Path:
     """評価処理失敗時の `result: error` レポートを best effort で保存する。"""
     report_dir = repo_root / ".cmoc" / "reports" / _REPORT_DIR_NAME
-    report_dir.mkdir(parents=True, exist_ok=True)
-    generated_at = make_timestamp()
-    report_path = report_dir / f"{generated_at}.md"
+    generated_at = "__CMOC_REPORT_GENERATED_AT__"
     issue_counts = _issue_counts(evaluations)
     result = "error"
     lines = [
         "---",
         "schema_version: 1",
-        f"command: {_REPORT_COMMAND}",
-        f"generated_at: {generated_at}",
-        f"repo_root: {repo_root.resolve()}",
-        f"oracle_root: {(repo_root / 'oracles').resolve()}",
-        f"mode: {mode or 'unknown'}",
+        f"command: {_yaml_string(_REPORT_COMMAND)}",
+        f"generated_at: {_yaml_string(generated_at)}",
+        f"repo_root: {_yaml_string(str(repo_root.resolve()))}",
+        f"oracle_root: {_yaml_string(str((repo_root / 'oracles').resolve()))}",
+        f"mode: {_yaml_string(mode or 'unknown')}",
         f"full_requested: {str(full_requested).lower()}",
         f"branch: {_yaml_nullable(branch_name)}",
         f"is_cmoc_branch: {_yaml_bool_nullable(cmoc_branch)}",
@@ -706,7 +762,7 @@ def _write_error_report(
         f"fatal_issue_count: {issue_counts['fatal']}",
         f"warning_issue_count: {issue_counts['warning']}",
         f"inconclusive_issue_count: {issue_counts['inconclusive']}",
-        f"result: {result}",
+        f"result: {_yaml_string(result)}",
         "---",
         "",
         f"# {_REPORT_COMMAND} report",
@@ -734,8 +790,8 @@ def _write_error_report(
         "",
         "## Evaluated oracle files",
         "",
-        "| No. | Oracle file | Issues |",
-        "|---:|---|---:|",
+        "| No. | Oracle file | Evaluation status | Issues |",
+        "|---:|---|---|---:|",
     ]
     issue_count_by_target = _issue_count_by_target(evaluations)
     evaluated_files = _evaluated_oracle_files(evaluations)
@@ -743,23 +799,23 @@ def _write_error_report(
         target = str(oracle_file)
         lines.append(
             f"| {index} | `{_display_path(repo_root, str(oracle_file))}` | "
-            f"{issue_count_by_target.get(target, 0)} |"
+            f"evaluated | {issue_count_by_target.get(target, 0)} |"
         )
-    if not evaluated_files:
-        lines.append("| - | No completed evaluations. | - |")
     not_evaluated_files = _not_evaluated_oracle_files(
         repo_root,
         oracle_files,
         evaluations,
     )
-    lines.extend(["", "Not evaluated oracle files:", ""])
-    if not_evaluated_files:
-        for index, oracle_file in enumerate(not_evaluated_files, start=1):
-            lines.append(
-                f"{index}. `{_display_path(repo_root, str(oracle_file))}`"
-            )
-    else:
-        lines.append("No requested oracle files remained unevaluated.")
+    for index, oracle_file in enumerate(
+        not_evaluated_files,
+        start=len(evaluated_files) + 1,
+    ):
+        lines.append(
+            f"| {index} | `{_display_path(repo_root, str(oracle_file))}` | "
+            "not_evaluated | - |"
+        )
+    if not evaluated_files and not not_evaluated_files:
+        lines.append("| - | No requested oracle files. | - | - |")
     lines.extend([""])
     for severity, heading in [
         ("fatal", "## Fatal issues"),
@@ -785,8 +841,50 @@ def _write_error_report(
         lines.extend(referenced_path_rows)
     else:
         lines.append("No referenced files.")
-    report_path.write_text("\n".join(lines), encoding="utf-8")
-    return report_path
+    report = "\n".join(lines)
+    return write_timestamped_report(
+        report_dir,
+        lambda timestamp: report.replace(generated_at, timestamp),
+    )
+
+
+def _print_error_report_fallback(
+    repo_root: Path,
+    mode: str | None,
+    full_requested: bool,
+    branch_name: str | None,
+    cmoc_branch: bool | None,
+    base_commit: str | None,
+    commit_hash: str | None,
+    deleted_oracles: bool | None,
+    oracle_count_total: int | None,
+    oracle_files: list[Path],
+    evaluations: list[dict[str, object]],
+    failed_stage: str,
+    error: Exception,
+    report_error: Exception,
+) -> None:
+    """error report 保存失敗時に一次失敗情報だけは stderr へ残す。"""
+    lines = [
+        f"{_REPORT_COMMAND} error report generation failed.",
+        "Fallback diagnostic:",
+        f"- result: error",
+        f"- repo_root: {repo_root.resolve()}",
+        f"- mode: {mode or 'unknown'}",
+        f"- full_requested: {str(full_requested).lower()}",
+        f"- branch: {_yaml_nullable(branch_name)}",
+        f"- is_cmoc_branch: {_yaml_bool_nullable(cmoc_branch)}",
+        f"- base_commit: {_yaml_nullable(base_commit)}",
+        f"- head_commit: {_yaml_nullable(commit_hash)}",
+        f"- deleted_oracles_detected: {_yaml_bool_nullable(deleted_oracles)}",
+        f"- oracle_count_total: {_yaml_int_nullable(oracle_count_total)}",
+        f"- oracle_count_requested: {len(oracle_files)}",
+        f"- oracle_count_evaluated: {len(evaluations)}",
+        f"- failed_stage: {failed_stage}",
+        f"- exception: {type(error).__name__}: {error}",
+        f"- report_exception: {type(report_error).__name__}: {report_error}",
+    ]
+    print("\n".join(lines), file=sys.stderr)
 
 
 def _validate_referenced_paths(value: object, repo_root: Path) -> set[Path]:
@@ -796,7 +894,7 @@ def _validate_referenced_paths(value: object, repo_root: Path) -> set[Path]:
     paths = set()
     for index, item in enumerate(value):
         paths.add(
-            _require_absolute_oracle_path(
+            _require_absolute_oracle_reference_path(
                 item,
                 repo_root,
                 f"referenced_paths[{index}]",
@@ -847,9 +945,14 @@ def _validate_evaluation_issues(
             "problem",
             "reason",
             "suggested_oracle_change",
-            "specification_only_basis",
         ]:
             _require_issue_string(item, key, index)
+        _require_issue_string(
+            item,
+            "specification_only_basis",
+            index,
+            allow_empty=True,
+        )
 
 
 def _require_absolute_oracle_path(
@@ -857,7 +960,44 @@ def _require_absolute_oracle_path(
     repo_root: Path,
     label: str,
 ) -> Path:
-    """JSON 値を参照可能な oracle / INDEX ファイル path として検査する。"""
+    """JSON 値を issue の根拠となる oracle file path として検査する。"""
+    resolved_path = _require_absolute_existing_oracles_file(
+        value,
+        repo_root,
+        label,
+    )
+    oracle_files = {path.resolve() for path in list_oracle_files(repo_root)}
+    if resolved_path not in oracle_files:
+        raise ValueError(f"{label} must be an oracle file.")
+    return resolved_path
+
+
+def _require_absolute_oracle_reference_path(
+    value: object,
+    repo_root: Path,
+    label: str,
+) -> Path:
+    """JSON 値を参照可能な oracle / INDEX file path として検査する。"""
+    resolved_path = _require_absolute_existing_oracles_file(
+        value,
+        repo_root,
+        label,
+    )
+    if resolved_path.name == "INDEX.md":
+        return resolved_path
+
+    oracle_files = {path.resolve() for path in list_oracle_files(repo_root)}
+    if resolved_path not in oracle_files:
+        raise ValueError(f"{label} must be an oracle file or INDEX.md.")
+    return resolved_path
+
+
+def _require_absolute_existing_oracles_file(
+    value: object,
+    repo_root: Path,
+    label: str,
+) -> Path:
+    """JSON 値を oracles 配下の実在する絶対 file path として検査する。"""
     if not isinstance(value, str):
         raise ValueError(f"{label} must be a string.")
     path = Path(value)
@@ -873,12 +1013,6 @@ def _require_absolute_oracle_path(
         raise ValueError(f"{label} must exist.")
     if not resolved_path.is_file():
         raise ValueError(f"{label} must be a file.")
-    if resolved_path.name == "INDEX.md":
-        return resolved_path
-
-    oracle_files = {path.resolve() for path in list_oracle_files(repo_root)}
-    if resolved_path not in oracle_files:
-        raise ValueError(f"{label} must be an oracle file or INDEX.md.")
     return resolved_path
 
 
@@ -886,10 +1020,14 @@ def _require_issue_string(
     item: dict[object, object],
     key: str,
     index: int,
+    *,
+    allow_empty: bool = False,
 ) -> None:
     """issue item の string 項目を検査する。"""
     if not isinstance(item[key], str):
         raise ValueError(f"issues[{index}].{key} must be a string.")
+    if not allow_empty and not item[key].strip():
+        raise ValueError(f"issues[{index}].{key} must not be empty.")
 
 
 def _validate_issue_lines(item: dict[object, object], index: int) -> None:
@@ -1109,7 +1247,12 @@ def _yaml_nullable(value: str | None) -> str:
     """YAML frontmatter 用に nullable scalar を返す。"""
     if value is None:
         return "null"
-    return value
+    return _yaml_string(value)
+
+
+def _yaml_string(value: str) -> str:
+    """YAML frontmatter 用に double quoted scalar を返す。"""
+    return json.dumps(value, ensure_ascii=False)
 
 
 def _yaml_bool_nullable(value: bool | None) -> str:

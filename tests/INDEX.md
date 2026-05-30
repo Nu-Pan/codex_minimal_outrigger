@@ -27,30 +27,26 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex.run_codex_exec()` とその周辺補助処理を検証するテスト群の入口です。
-- Structured Output の schema ファイル生成、JSON / text の再試行、schema 検証失敗や意味的検証失敗を扱います。
-- Codex CLI 呼び出しログ、`subcommand_log` 通知、`INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の `oracles` 保護を確認します。
-- quota 枯渇時の待機と `resume` 再実行、`session_id` 抽出、`_resume_command`、`_prepare_codex_exec_paths` も扱います。
-- 末尾には、テスト用 git repo 初期化の補助関数と、ログ用の補助関数があります。
+- `commons.codex` の `run_codex_exec` と周辺ヘルパーの回帰テストをまとめたファイルです。
+- Structured Output 用 schema の準備、JSON / text 検証、semantic validation による retry、quota 復旧後の `resume` を検証します。
+- `output_schema` のキャッシュ、call log / last message の扱い、console 出力、workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を押さえます。
 
 ## Read this when
 
-- `commons.codex.run_codex_exec()` の引数組み立て、`read_only` / `workspace-write`、`--json`、`--output-schema`、`reasoning_effort` の扱いを確認したいとき。
-- Structured Output の parse 失敗、JSON Schema 不一致、意味的検証失敗に対するリトライやエラー表示を追いたいとき。
-- Codex CLI 呼び出しログ、`subcommand_log` 通知、出力プレビュー、quota 枯渇時の待機と `resume` 再実行の流れを確認したいとき。
-- `INDEX.md` 事前メンテナンス、`skip_index_maintenance`、workspace-write 時の `oracles` 保護、`session_id` 抽出や `_resume_command` を追いたいとき。
-- `_prepare_codex_exec_paths` のログ予約、JSON Schema の文字列長・`enum` 検証、テスト用 git リポジトリ初期化の補助関数を確認したいとき。
+- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を変更・確認したいとき。
+- Structured Output の schema 検証、JSON / text 検証、`output_schema` のキャッシュや再利用を確認したいとき。
+- Codex CLI の呼び出しログ、コンソール通知、workspace-write 時の `INDEX.md` 保守や oracle 変更検知を確認したいとき。
+- quota 復旧、capacity の指数バックオフ、`_extract_session_id`、`_resume_command` などの周辺ヘルパーを確認したいとき。
 
 ## Do not read this when
 
-- `src/commons/codex.py` の実装ロジックそのものを追いたいとき。
-- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など、別のテスト群だけを確認したいとき。
-- `commons.indexing.maintain_indexes()` や `INDEX.md` の生成ルールそのものを確認したいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- `commons.codex` の実装本体ではなく、別の共通モジュールや別サブコマンドの仕様だけを確認したいとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_report_files.py` など、codex 以外の回帰テストだけを追いたいとき。
+- `INDEX.md` の生成ルールや `oracles` 全体の正本仕様そのものを確認したいとき。
 
 ## hash
 
-- 372e4c01e6476e01960371cc11faf7dedf812965d8420a4ab28fed713a780dbd
+- a37d24f86e298b18514cd92ce3cbf47b17d19fe475e88f00b754138d980fea17
 
 # `test_file_naming.py`
 
@@ -80,107 +76,123 @@
 
 ## Summary
 
-- `tests/test_indexing.py` は `commons.indexing.maintain_indexes()` による `INDEX.md` メンテナンスの回帰テスト群の入口です。
-- `.gitignore`、`.git/info/exclude`、空ディレクトリ、`build` / `tmp`、symlink、バイナリ、UTF-8 境界、`memo` の扱いを確認します。
-- 既存 `INDEX.md` の再利用・再生成、Structured Output のリトライ、親子 `INDEX.md` の連鎖更新、自動コミット範囲を確認します。
-- テスト用 git リポジトリ初期化の `_init_repo` と git 実行補助の `_git` を含みます。
+- `tests/test_indexing.py` は `INDEX.md` メンテナンス処理の回帰テスト集です。
+- 目次エントリの生成・再利用・再生成条件・ハッシュ更新を検証します。
+- gitignore、symlink、binary、非 UTF-8 path、並列処理、排他 lock、自動 commit までを広く押さえます。
 
 ## Read this when
 
-- `commons.indexing.maintain_indexes()` の除外条件や更新条件を確認したいとき。
-- 既存 `INDEX.md` の再利用・再生成・再生成リトライの挙動を追いたいとき。
-- symlink、バイナリ、UTF-8 境界、空ディレクトリ、`memo` の扱いを確認したいとき。
-- 自動コミット範囲やテスト用 git リポジトリ初期化の `_init_repo` / `_git` の役割を見たいとき。
+- `commons.indexing` の `maintain_indexes` や `is_maintained_index_path` の期待動作を確認したいとき。
+- `INDEX.md` の生成・再利用・再生成条件や、特殊な path の扱いを調べたいとき。
+- INDEX メンテナンスの並列実行、排他制御、自動 commit の回帰を追加・修正したいとき。
 
 ## Do not read this when
 
-- `src/commons/indexing.py` の実装ロジックそのものを追いたいとき。
-- `INDEX.md` の全体仕様や生成ルールを確認したいとき。
-- `tests/test_repo.py` や `tests/test_subcommands.py` など別のテスト群だけを見たいとき。
-- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいとき。
+- `cmoc` の他サブコマンドの引数や実行フローだけを確認したいとき。
+- `session` や `apply` など、INDEX 以外の機能の仕様を探しているとき。
+- 開発ルールや `oracles` 全体のルーティング方針だけを見たいとき。
 
 ## hash
 
-- 841f4a092a17535683043227da6f43a1b98cccf49114c02921f550af2c86afc7
+- 88242db22c36acf60467b819439d38cac87250c0ee8922ed07128cd188bacc6d
 
 # `test_repo.py`
 
 ## Summary
 
-- `tests/test_repo.py` は `commons.repo` の git リポジトリ共通処理を検証するテスト群の入口です。
-- `.cmoc` の ignore 保証、tracked な `.cmoc` の untrack、`changed_paths`、`is_cmoc_branch`、`find_repo_root` を扱います。
-- `list_oracle_files` / `list_implementation_files`、`changed_oracle_files` / `changed_implementation_files`、`has_deleted_oracle_files` / `has_deleted_implementation_files` を通じて、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の除外条件を確認します。
-- `commit_if_changed` と `assert_no_uncommitted_changes` の前提条件、ならびに session state の読み書き、`active_session_ids_for_home_branch`、`read_session_start_commit`、`session_state_root` を確認します。
-- 末尾に、テスト用 git リポジトリを初期化する `_init_repo` と、git コマンド実行補助の `_git` があります。
+- `src/commons/repo.py` の git まわり共通処理を検証するテスト群です。
+- repo root 検出、`.cmoc` ignore 保証、oracle / implementation ファイル列挙、変更・削除・rename 判定、`commit_if_changed` を広く扱います。
+- session state と apply process id の読み書き、スキーマ検証、active session 判定の異常系も含みます。
 
 ## Read this when
 
-- `tests/test_repo.py` が `commons.repo` のどの機能を検証しているか確認したいとき。
-- `.cmoc` の ignore や tracked な `.cmoc` の untrack、`is_cmoc_branch`、`find_repo_root` を見直したいとき。
-- `oracles` / 実装ファイルの列挙、変更・削除検出、`INDEX.md`、`.gitignore`、`.git/info/exclude`、`memo` の扱いを確認したいとき。
-- session state の読み書き、`active_session_ids_for_home_branch`、`read_session_start_commit`、`session_state_root` の前提条件を把握したいとき。
-- テスト用 git リポジトリの初期化や `_init_repo` / `_git` の役割を確認したいとき。
+- git リポジトリ共通処理のテスト範囲を把握したいとき。
+- .gitignore、`oracles`、`memo`、`INDEX.md` の列挙・除外ルールを確認したいとき。
+- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を見たいとき。
+- 削除検出、変更抽出、`commit_if_changed` の境界条件を確認したいとき。
 
 ## Do not read this when
 
 - `src/commons/repo.py` の実装ロジックそのものを追いたいとき。
-- `INDEX.md` の生成・更新ルールだけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_subcommands.py` など別のテスト群だけを見たいとき。
-- `README.md`、`AGENTS.md`、`memo` の運用や編集可否だけを確認したいとき。
+- `src/commons/repo.py` の個別関数仕様だけを確認したいとき。
+- `oracles` や session state の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 8bbc9dd6747b152b0e40c3e43816450965b22b5b40d930b4f428f200f06f0858
+- 4953da24d14c812f87138af987efa58fd2975eb47448427ac32419a2bb92a5cd
+
+# `test_report_files.py`
+
+## Summary
+
+- `src/commons/report_files.py` の `write_timestamped_report` が、同名ファイルを上書きせず別名で保存することを検証するテストです。
+- タイムスタンプ衝突時の再試行と、既存レポートの内容が保持されることを確認します。
+- `make_timestamp` を差し替えて衝突条件を再現し、保存処理の境界を押さえます。
+
+## Read this when
+
+- `write_timestamped_report` の排他的作成や再試行の仕様を変更するとき。
+- レポート保存時の上書き防止や、タイムスタンプ衝突時の回帰を確認したいとき。
+- `tests/test_report_files.py` が何を守っているかを把握したいとき。
+
+## Do not read this when
+
+- レポート本文の構成や評価結果の意味づけを確認したいとき。
+- タイムスタンプ生成そのものの仕様を確認したいとき。
+- `INDEX.md` の生成ルールや、他の共通ヘルパーの仕様だけを確認したいとき。
+
+## hash
+
+- 5d46cca82b67cc3fea042c2120193bf0b83020a0f788966ea5aad42d0aa9d587
 
 # `test_subcommands.py`
 
 ## Summary
 
-- cmoc の主要サブコマンドと CLI 入口の決定論的な制御ロジックを検証するテスト群の目次です。
-- `run_command` のログ出力、終了コード、例外時レポート、`repo_root` 解決失敗時の扱いを確認します。
-- `init`、`session`、`apply`、`review oracles` の各コマンド登録とヘルプ表示を回帰確認します。
-- conflict marker の判定、補助関数の並び順、`bin/cmoc` ランチャーの挙動も含みます。
+- `tests/test_subcommands.py` は `cmoc` のサブコマンド群と共通 CLI 入口の決定論的な制御ロジックを横断的に検証するテスト集です。
+- `init`、`session`、`apply`、`review oracles`、`eval-oracles`、`main`、`bin/cmoc` まで含めて、起動・状態遷移・レポート・エラー処理の整合性を押さえます。
+- branch、worktree、session/apply state、Structured Output schema、prompt 文言、ファイル差分や衝突処理など、実行制御まわりの回帰を広く扱います。
 
 ## Read this when
 
-- cmoc の主要サブコマンド入口や `main.py` から各実装への委譲関係を確認したいとき。
-- `run_command`、`StepTimer`、`start_step`、`format_error_report` の出力や終了集計を追いたいとき。
-- `init`、`session`、`apply`、`review oracles` 系の状態遷移、例外処理、CLI 登録、ヘルプ表示を広く回帰確認したいとき。
-- conflict marker 判定や `bin/cmoc` ランチャーの振る舞いを確認したいとき。
+- `cmoc init`、`session`、`apply`、`review oracles`、`eval-oracles` の制御フローを横断して確認したいとき。
+- `run_command`、`main`、`format_error_report`、CLI 登録、`bin/cmoc` の変更がこのテスト群に影響するか判断したいとき。
+- branch、worktree、session/apply state、レポート出力、Structured Output schema、validation helper、prompt 文言、差分・衝突処理の回帰を確認したいとき。
+- `cmoc` の起動、状態遷移、エラー整形、出力整合性をまとめて把握したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/*` の個別実装だけを追いたいとき。
-- `commons.repo` や `commons.indexing` など共通処理の詳細だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_indexing.py`、`tests/test_repo.py` など別のテスト群だけを見たいとき。
-- `oracles` 配下の正本仕様や `INDEX.md` の生成ルールそのものを確認したいとき。
+- `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
+- `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` など共通処理だけを確認したいとき。
+- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など別のテスト群だけで足りるとき。
+- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
 
 ## hash
 
-- e459bf6559139fe7cef2dc54e953811486bdfe1c88ca34b4689b7a69feac0ec1
+- effdb0198c9e5bb768c2d7a8c1426770f11987ce4ab61ab408f1de0e1dfaaaef
 
 # `test_timestamps.py`
 
 ## Summary
 
-- `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群の目次です。
-- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式にゼロ埋めされることを検証します。
-- `format_duration` の固定幅表示、小数 1 桁の切り捨て、そして同一ファイル内の補助関数が caller first, callee last で並ぶことを確認します。
+- `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群の入口です。
+- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式に整形されることを検証します。
+- `format_duration` の固定幅表示、0.1 秒単位の切り捨て、そして同一ファイル内の補助関数が caller first, callee last で並ぶことを確認します。
 
 ## Read this when
 
-- タイムスタンプ生成の書式、ミリ秒表現、aware datetime のローカルタイムゾーン変換を確認したいとき。
-- サブコマンドなどで使う経過時間表示の書式や丸め方を確認したいとき。
-- `commons.timestamps` や `commons.timing` の変更がこのテスト群に影響するか判断したいとき。
-- テスト内の関数配置順や `inspect.getsourcelines()` を使った順序検証の意図を確認したいとき。
+- `commons.timestamps.make_timestamp` の出力形式や、aware / naive `datetime` の扱いを確認したいとき。
+- `commons.timing.format_duration` の固定幅表示や 0.1 秒単位の切り捨てを確認したいとき。
+- タイムスタンプ生成や経過時間表示の変更がこのテスト群に影響するか判断したいとき。
+- 同一ファイル内の補助関数の並び順を `inspect.getsourcelines()` で検証している意図を確認したいとき。
 
 ## Do not read this when
 
-- タイムスタンプや経過時間表示と関係のない CLI サブコマンド仕様だけを調べたいとき。
-- 日時のパースや UTC 固定など、`make_timestamp` 以外の日時処理を探しているとき。
-- Codex CLI 呼び出し、ログ保存、`INDEX.md` 自動生成など別の共通仕様を調べたいとき。
-- 別のテスト群や `tests` 全体の配置規則を確認したいとき。
+- `commons.timestamps.make_timestamp` や `commons.timing.format_duration` 以外の CLI サブコマンド仕様を確認したいとき。
+- 日時のパース、UTC 固定、その他の日時ユーティリティを探しているとき。
+- `INDEX.md` の自動生成や内容ハッシュの管理方法だけを調べたいとき。
+- コンソール出力、Codex CLI 呼び出し、エラー処理など別の共通実行制御を確認したいとき。
 
 ## hash
 
-- 86539d333fc59e712b7d1da968c1e89542375bc49ee7fef7e0ce81b4dc030a01
+- 11dd52f0ae222154a626c7567449aff80b4ca53d28ed40f54116c98cd70908ed

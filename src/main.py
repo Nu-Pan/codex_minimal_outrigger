@@ -1,5 +1,7 @@
 """cmoc CLI エントリーポイント。"""
 
+import sys
+
 import click
 import typer
 
@@ -8,6 +10,7 @@ from commons.errors import format_error_report
 from sub_commands.apply.abandon import cmoc_apply_abandon_impl
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.join import cmoc_apply_join_impl
+from sub_commands.eval_oracles import _MAX_REPEAT_IMPROVE_ISSUES_LIST
 from sub_commands.eval_oracles import cmoc_eval_oracles_impl
 from sub_commands.init import cmoc_init_impl
 from sub_commands.session.abandon import cmoc_session_abandon_impl
@@ -15,18 +18,18 @@ from sub_commands.session.fork import cmoc_session_fork_impl
 from sub_commands.session.join import cmoc_session_join_impl
 
 
-app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=True)
+app: typer.Typer = typer.Typer(name="cmoc", no_args_is_help=False)
 session_app: typer.Typer = typer.Typer(
     name="session",
-    no_args_is_help=True,
+    no_args_is_help=False,
 )
 apply_app: typer.Typer = typer.Typer(
     name="apply",
-    no_args_is_help=True,
+    no_args_is_help=False,
 )
 review_app: typer.Typer = typer.Typer(
     name="review",
-    no_args_is_help=True,
+    no_args_is_help=False,
 )
 
 app.add_typer(session_app, name="session")
@@ -71,6 +74,7 @@ def eval_oracles_command(
         3,
         "--repeat-improve-issues-list",
         min=0,
+        max=_MAX_REPEAT_IMPROVE_ISSUES_LIST,
     ),
 ) -> None:
     """Review oracle files."""
@@ -124,6 +128,7 @@ def main() -> None:
     """Typer の parse error も共通エラーレポートへ変換して起動する。"""
     # standalone_mode=False で Click/Typer の例外を cmoc 側で整形する。
     try:
+        _raise_missing_command_error_if_needed(sys.argv[1:])
         result = app(prog_name="cmoc", standalone_mode=False)
         if isinstance(result, int):
             raise SystemExit(result)
@@ -131,31 +136,50 @@ def main() -> None:
         raise SystemExit(exit_error.exit_code) from exit_error
     except click.ClickException as error:
         # CLI parse error は Click の exit_code を維持する。
-        report_error: BaseException = error
         exit_code = error.exit_code
-        if isinstance(error, click.exceptions.NoArgsIsHelpError):
-            report_error = CmocError(
-                "コマンドが指定されていません。",
-                [
-                    "利用可能なコマンドを確認するには `cmoc --help` を実行してください。",
-                    "`cmoc init`, `cmoc session fork`, `cmoc review oracles`, "
-                    "`cmoc apply fork`, `cmoc apply join`, "
-                    "`cmoc session join` のいずれかを実行してください。",
-                ],
-                (
-                    "cmoc がサブコマンドなしで起動されました。"
-                    "実行する workflow を cmoc が判断するため、サブコマンドが必要です。"
-                ),
-                exit_code=error.exit_code,
-            )
-            exit_code = report_error.exit_code
-        print(format_error_report(report_error))
+        print(format_error_report(error))
         raise SystemExit(exit_code) from error
     except Exception as error:
         # 想定外エラーも共通形式で表示し、可能なら例外側の exit_code を使う。
         print(format_error_report(error))
         code = getattr(error, "exit_code", 1)
         raise SystemExit(code) from error
+
+
+def _raise_missing_command_error_if_needed(arguments: list[str]) -> None:
+    """help 表示にフォールバックする前に command path の不足をエラーにする。"""
+    if _is_root_missing_command(arguments):
+        raise _missing_command_error("cmoc")
+    if _is_group_missing_command(arguments):
+        raise _missing_command_error(f"cmoc {arguments[0]}")
+
+
+def _is_root_missing_command(arguments: list[str]) -> bool:
+    """root command が指定されていない引数列か判定する。"""
+    return arguments == []
+
+
+def _is_group_missing_command(arguments: list[str]) -> bool:
+    """階層 command group だけが指定された引数列か判定する。"""
+    return len(arguments) == 1 and arguments[0] in {"session", "apply", "review"}
+
+
+def _missing_command_error(command_path: str) -> CmocError:
+    """サブコマンド未指定用の利用者向けエラーを作る。"""
+    return CmocError(
+        "コマンドが指定されていません。",
+        [
+            f"利用可能なコマンドを確認するには `{command_path} --help` を実行してください。",
+            "`cmoc init`, `cmoc session fork`, `cmoc review oracles`, "
+            "`cmoc apply fork`, `cmoc apply join`, "
+            "`cmoc session join` のいずれかを実行してください。",
+        ],
+        (
+            f"{command_path} がサブコマンドなしで起動されました。"
+            "実行する workflow を cmoc が判断するため、サブコマンドが必要です。"
+        ),
+        exit_code=2,
+    )
 
 
 if __name__ == "__main__":

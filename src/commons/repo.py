@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 from .errors import CmocError
+from .timestamps import is_timestamp
 
 SESSION_BRANCH_PREFIX = "cmoc/session/"
 APPLY_BRANCH_PREFIX = "cmoc/apply/"
@@ -64,8 +65,7 @@ def is_session_branch(branch_name: str) -> bool:
     session_id = branch_name.removeprefix(SESSION_BRANCH_PREFIX)
     return (
         branch_name.startswith(SESSION_BRANCH_PREFIX)
-        and bool(session_id)
-        and "/" not in session_id
+        and is_timestamp(session_id)
     )
 
 
@@ -76,7 +76,7 @@ def is_apply_branch(branch_name: str) -> bool:
     return (
         branch_name.startswith(APPLY_BRANCH_PREFIX)
         and len(parts) == 2
-        and all(parts)
+        and all(is_timestamp(part) for part in parts)
     )
 
 
@@ -111,6 +111,24 @@ def apply_worktree_path_from_branch(repo_root: Path, apply_branch: str) -> Path:
     )
 
 
+def worktree_path_for_branch(repo_root: Path, branch_name: str) -> Path | None:
+    """指定 branch が checkout されている worktree path を返す。"""
+    result = run_git(repo_root, ["worktree", "list", "--porcelain"])
+    current_worktree: Path | None = None
+    target_ref = f"refs/heads/{branch_name}"
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            current_worktree = None
+            continue
+        if line.startswith("worktree "):
+            current_worktree = Path(line.removeprefix("worktree "))
+            continue
+        if line == f"branch {target_ref}" and current_worktree is not None:
+            return current_worktree
+    return None
+
+
 def session_state_path(repo_root: Path, session_id: str) -> Path:
     """session state JSON の保存先 path を返す。"""
     return repo_root / ".cmoc" / "sessions" / f"{session_id}.json"
@@ -136,19 +154,19 @@ def write_apply_process_id(
 def read_apply_process_id(repo_root: Path, session_id: str) -> int | None:
     """runtime file から running apply process id を読む。"""
     path = apply_process_id_path(repo_root, session_id)
-    try:
-        raw_value = path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
+    if not path.exists():
         return None
-    except OSError as error:
-        raise CmocError(
+    try:
+        raw_value = _read_utf8_text(
+            path,
             "apply process id ファイルを読めませんでした。",
             [
                 ".cmoc/runtime/apply 配下のファイル権限と状態を確認してください。",
                 "手動で apply process の状態を確認してから再実行してください。",
             ],
-            f"{path}\n{error}",
-        ) from error
+        ).strip()
+    except FileNotFoundError:
+        return None
     try:
         process_id = int(raw_value)
     except ValueError as error:
@@ -292,7 +310,16 @@ def read_session_state(repo_root: Path, session_id: str) -> dict[str, object]:
 def _read_existing_session_state(path: Path) -> dict[str, object]:
     """存在する session state JSON を読み、固定スキーマを検証する。"""
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(
+            _read_utf8_text(
+                path,
+                "session state ファイルを読めませんでした。",
+                [
+                    ".cmoc/sessions 配下のファイル権限と状態を確認してください。",
+                    "破損した session state を復旧または退避してから再実行してください。",
+                ],
+            )
+        )
     except OSError as error:
         raise CmocError(
             "session state ファイルを読めませんでした。",
@@ -565,21 +592,87 @@ def active_session_ids_for_home_branch(
     repo_root: Path,
     session_home_branch: str,
 ) -> list[str]:
-    """指定 home branch に紐づく active session id を列挙する。"""
+    """指定 home branch に紐づく active session id を列挙する。
+
+    active session の一意性は state file と session branch の両方で守る。
+    片方だけが残る状態は新規 session 作成を進めず、手動復旧を促す。
+    """
+    session_branch_names = _session_branch_names(repo_root)
+    session_branch_ids = {
+        branch_name.removeprefix(SESSION_BRANCH_PREFIX)
+        for branch_name in session_branch_names
+    }
     session_root = session_state_root(repo_root) / ".cmoc" / "sessions"
     if not session_root.exists():
+        if session_branch_ids:
+            _raise_session_state_branch_mismatch(
+                "session state がない session branch が存在します。",
+                session_branch_names,
+            )
         return []
 
     session_ids: list[str] = []
+    state_session_ids: set[str] = set()
     for path in sorted(session_root.glob("*.json")):
         payload = _read_existing_session_state(path)
         session = payload["session"]
+        session_id = path.stem
+        state_session_ids.add(session_id)
+        if (
+            session.get("state") == "active"
+            and session_id not in session_branch_ids
+        ):
+            _raise_session_state_branch_mismatch(
+                "active session state に対応する session branch が存在しません。",
+                [f"{SESSION_BRANCH_PREFIX}{session_id}"],
+            )
         if (
             session.get("state") == "active"
             and session.get("session_home_branch") == session_home_branch
         ):
-            session_ids.append(path.stem)
+            session_ids.append(session_id)
+    orphan_branch_ids = sorted(session_branch_ids - state_session_ids)
+    if orphan_branch_ids:
+        _raise_session_state_branch_mismatch(
+            "session state がない session branch が存在します。",
+            [
+                f"{SESSION_BRANCH_PREFIX}{session_id}"
+                for session_id in orphan_branch_ids
+            ],
+        )
     return session_ids
+
+
+def _session_branch_names(repo_root: Path) -> list[str]:
+    """local session branch 名を列挙する。"""
+    result = run_git(
+        repo_root,
+        [
+            "for-each-ref",
+            "--format=%(refname:short)",
+            f"refs/heads/{SESSION_BRANCH_PREFIX}",
+        ],
+    )
+    return sorted(
+        branch_name
+        for branch_name in result.stdout.splitlines()
+        if is_session_branch(branch_name)
+    )
+
+
+def _raise_session_state_branch_mismatch(
+    message: str,
+    detail_items: list[str],
+) -> None:
+    """session state と branch の不整合を fail closed にする。"""
+    raise CmocError(
+        message,
+        [
+            ".cmoc/sessions と refs/heads/cmoc/session を確認してください。",
+            "不整合を復旧または不要な session branch を削除してから再実行してください。",
+        ],
+        "\n".join(detail_items),
+    )
 
 
 def ensure_cmoc_ignored(repo_root: Path) -> bool:
@@ -594,6 +687,24 @@ def ensure_cmoc_ignored(repo_root: Path) -> bool:
     # gitignore と git index の両面から完了条件を検証する。
     _assert_cmoc_ignore_guarantee(repo_root)
     return changed
+
+
+def ensure_cmoc_ignored_and_committed(
+    repo_root: Path,
+    message: str = "Initialize cmoc",
+) -> bool:
+    """`.cmoc` ignore 保証で発生した内部差分を commit まで完了する。"""
+    had_cmoc_rule = gitignore_has_cmoc_rule(repo_root)
+    preexisting_staged_diff = staged_diff_from_head(repo_root)
+    changed = ensure_cmoc_ignored(repo_root)
+    if not changed:
+        return False
+    return commit_cmoc_initialization_changes(
+        repo_root,
+        had_cmoc_rule,
+        preexisting_staged_diff,
+        message,
+    )
 
 
 def assert_cmoc_ignored(repo_root: Path) -> None:
@@ -612,6 +723,21 @@ def assert_no_uncommitted_changes(repo_root: Path) -> None:
     """未コミット差分がある場合は仕様通りエラーにする。"""
     # 未コミット path を利用者に見せるため、bool ではなく一覧を取得する。
     paths = changed_paths(repo_root)
+    _raise_uncommitted_changes(paths)
+
+
+def assert_no_uncommitted_changes_outside_cmoc(repo_root: Path) -> None:
+    """`.cmoc` 管理領域以外に未コミット差分がないことを確認する。"""
+    paths = [
+        path
+        for path in changed_paths(repo_root)
+        if not _is_cmoc_managed_path(path)
+    ]
+    _raise_uncommitted_changes(paths)
+
+
+def _raise_uncommitted_changes(paths: list[str]) -> None:
+    """未コミット path 一覧が空でなければ共通エラーを送出する。"""
     if paths:
         raise CmocError(
             "未コミットの変更があります。",
@@ -647,7 +773,7 @@ def gitignore_has_cmoc_rule(repo_root: Path) -> bool:
     gitignore = repo_root / ".gitignore"
     if not gitignore.exists():
         return False
-    content = gitignore.read_text(encoding="utf-8")
+    content = _read_gitignore_text(gitignore)
     lines = [line.strip() for line in content.splitlines()]
     return "/.cmoc/" in lines
 
@@ -756,14 +882,14 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
                 env=env,
             )
 
-        add_paths = [path for path in paths if not path.startswith(".cmoc")]
+        add_paths = [path for path in paths if not _is_cmoc_managed_path(path)]
         if add_paths:
             run_git(
                 repo_root,
                 ["add", "-f", "--", *_literal_pathspecs(add_paths)],
                 env=env,
             )
-        if any(path == ".cmoc" or path.startswith(".cmoc/") for path in paths):
+        if any(_is_cmoc_managed_path(path) for path in paths):
             _remove_cmoc_from_index(repo_root, env)
 
         changed = run_git(
@@ -825,6 +951,11 @@ def _head_commit_or_none(repo_root: Path) -> str | None:
     if result.returncode == 0:
         return result.stdout.strip()
     return None
+
+
+def _is_cmoc_managed_path(relative_path: str) -> bool:
+    """`.cmoc` 管理領域そのもの、またはその配下なら True を返す。"""
+    return relative_path == ".cmoc" or relative_path.startswith(".cmoc/")
 
 
 def list_oracle_files(repo_root: Path) -> list[Path]:
@@ -898,6 +1029,27 @@ def is_implementation_path(repo_root: Path, relative_path: str) -> bool:
     )
 
 
+def filter_apply_implementation_file_paths(
+    repo_root: Path,
+    relative_paths: list[str],
+) -> list[str]:
+    """root 相対 path から apply の調査対象になる実装ファイルだけを返す。"""
+    candidates = sorted(
+        {
+            path
+            for path in relative_paths
+            if not _is_excluded_implementation_path(path)
+        }
+    )
+    ignored = _root_gitignored_paths(repo_root, candidates)
+    return [path for path in candidates if path not in ignored]
+
+
+def is_apply_implementation_path(repo_root: Path, relative_path: str) -> bool:
+    """root 相対 path が apply の調査対象になる実装ファイルか判定する。"""
+    return is_implementation_path(repo_root, relative_path)
+
+
 def root_gitignored_paths(
     repo_root: Path,
     relative_paths: list[str],
@@ -956,21 +1108,9 @@ def changed_oracle_files(repo_root: Path, base_commit: str) -> list[Path]:
     for output in [uncommitted.stdout, staged.stdout]:
         collected.update(_changed_paths_from_name_status(repo_root, output))
 
-    # untracked oracle ファイルはディレクトリ単位に畳まない形式で収集する。
-    status = run_git(
-        repo_root,
-        [
-            "status",
-            "--porcelain=v1",
-            "-z",
-            "--untracked-files=all",
-            "--",
-            "oracles",
-        ],
-    )
-    for status_code, path in git_status_paths(status.stdout):
-        if status_code == "??":
-            collected.add(repo_root / path)
+    # 未追跡 oracle ファイルは Git の ignore 判定を通さず、oracle
+    # ファイル列挙候補と tracked path の差分として収集する。
+    collected.update(_untracked_oracle_files(repo_root))
 
     # 削除済み、INDEX.md、root .gitignore 対象は評価対象から除外する。
     existing = [
@@ -1038,21 +1178,9 @@ def changed_implementation_files(
             )
         )
 
-    # 未追跡ファイルもディレクトリ単位に畳まず収集する。
-    status = run_git(
-        repo_root,
-        [
-            "status",
-            "--porcelain=v1",
-            "-z",
-            "--untracked-files=all",
-            "--",
-            ".",
-        ],
-    )
-    for status_code, path in git_status_paths(status.stdout):
-        if status_code == "??":
-            collected.add(repo_root / path)
+    # 未追跡実装ファイルは Git の ignore 判定を通さず、仕様上の実装
+    # ファイル列挙候補と tracked path の差分として収集する。
+    collected.update(_untracked_implementation_files(repo_root))
 
     existing = [
         path
@@ -1075,6 +1203,45 @@ def _changed_paths_from_name_status(repo_root: Path, output: str) -> set[Path]:
         repo_root / paths[-1]
         for status, paths in git_name_status_entries(output)
         if status[:1] in {"A", "C", "M", "R", "T"} and paths
+    }
+
+
+def _untracked_oracle_files(repo_root: Path) -> set[Path]:
+    """Git ignore に隠れたものも含め、未追跡 oracle ファイルを返す。"""
+    return _untracked_files_from_candidates(
+        repo_root,
+        list_oracle_files(repo_root),
+        ["oracles"],
+    )
+
+
+def _untracked_implementation_files(repo_root: Path) -> set[Path]:
+    """Git ignore に隠れたものも含め、未追跡実装ファイルを返す。"""
+    return _untracked_files_from_candidates(
+        repo_root,
+        list_implementation_files(repo_root),
+        ["."],
+    )
+
+
+def _untracked_files_from_candidates(
+    repo_root: Path,
+    candidates: list[Path],
+    pathspecs: list[str],
+) -> set[Path]:
+    """仕様上の候補集合から Git 追跡済み path を除いた集合を返す。"""
+    tracked = set(
+        git_name_only_paths(
+            run_git(
+                repo_root,
+                ["ls-files", "-z", "--", *pathspecs],
+            ).stdout
+        )
+    )
+    return {
+        path
+        for path in candidates
+        if path.relative_to(repo_root).as_posix() not in tracked
     }
 
 
@@ -1110,19 +1277,22 @@ def has_deleted_implementation_files(
     commands = [
         [
             "log",
-            "--name-only",
+            "--name-status",
             "-z",
             "-M",
-            "--diff-filter=D",
+            "--diff-filter=DR",
             "--format=",
             f"{base_commit}..HEAD",
         ],
-        ["diff", "--name-only", "-z", "-M", "--diff-filter=D", "HEAD"],
-        ["diff", "--cached", "--name-only", "-z", "-M", "--diff-filter=D"],
+        ["diff", "--name-status", "-z", "-M", "--diff-filter=DR", "HEAD"],
+        ["diff", "--cached", "--name-status", "-z", "-M", "--diff-filter=DR"],
     ]
     for command in commands:
         result = run_git(repo_root, [*command, "--", "."])
-        if _deleted_implementation_file_paths(repo_root, result.stdout):
+        if _deleted_implementation_changes_from_name_status(
+            repo_root,
+            result.stdout,
+        ):
             return True
     return False
 
@@ -1147,18 +1317,33 @@ def _deleted_oracle_changes_from_name_status(
     return deleted
 
 
-def _deleted_implementation_file_paths(
+def _deleted_implementation_changes_from_name_status(
     repo_root: Path,
     output: str,
 ) -> list[str]:
-    """削除 path から実装ファイル列挙対象外のものを除外する。"""
-    # 削除済み path は存在確認できないため、path 規則と gitignore だけで判定する。
-    relatives = [
-        path
-        for path in git_name_only_paths(output)
-        if is_implementation_path(repo_root, path)
-    ]
-    return relatives
+    """`git name-status` から実装ファイル削除相当の変更を取り出す。"""
+    # 実装ファイルから非実装ファイルへの rename は、実装ファイル集合から
+    # 見れば削除である。削除済み path は存在確認できないため、path 規則と
+    # gitignore だけで判定する。
+    deleted: list[str] = []
+    for status, paths in git_name_status_entries(output):
+        if status == "D":
+            deleted.extend(
+                path
+                for path in paths[:1]
+                if is_implementation_path(repo_root, path)
+            )
+            continue
+        if not status.startswith("R") or len(paths) < 2:
+            continue
+        source_is_implementation = is_implementation_path(repo_root, paths[0])
+        destination_is_implementation = is_implementation_path(
+            repo_root,
+            paths[1],
+        )
+        if source_is_implementation and not destination_is_implementation:
+            deleted.append(paths[0])
+    return deleted
 
 
 def _is_implementation_file(repo_root: Path, path: Path) -> bool:
@@ -1177,13 +1362,11 @@ def _is_implementation_file(repo_root: Path, path: Path) -> bool:
 
 def _is_excluded_implementation_path(relative_path: str) -> bool:
     """実装ファイル列挙から機械的に除外する path か判定する。"""
-    # oracles、root memo、.git、INDEX.md は仕様上の除外対象である。
+    # oracles、.git、INDEX.md は仕様上の除外対象である。
     path = Path(relative_path)
     return (
         relative_path == "oracles"
         or relative_path.startswith("oracles/")
-        or relative_path == "memo"
-        or relative_path.startswith("memo/")
         or relative_path == ".git"
         or relative_path.startswith(".git/")
         or path.name == "INDEX.md"
@@ -1478,9 +1661,7 @@ def _ensure_cmoc_ignore_rule(repo_root: Path) -> bool:
     """`.gitignore` に oracle 指定の `/.cmoc/` 行を追加する。"""
     # 既存 `.gitignore` を読み、必要な ignore 行の重複を避ける。
     gitignore = repo_root / ".gitignore"
-    existing = (
-        gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
-    )
+    existing = _read_gitignore_text(gitignore) if gitignore.exists() else ""
     lines = [line.strip() for line in existing.splitlines()]
     if "/.cmoc/" in lines:
         return False
@@ -1493,6 +1674,32 @@ def _ensure_cmoc_ignore_rule(repo_root: Path) -> bool:
     return True
 
 
+def _read_gitignore_text(path: Path) -> str:
+    """root `.gitignore` を UTF-8 text として読む。"""
+    return _read_utf8_text(
+        path,
+        ".gitignore ファイルを読めませんでした。",
+        [
+            ".gitignore のファイル権限と文字コードを確認してください。",
+            ".gitignore を UTF-8 で読める内容に復旧してから再実行してください。",
+        ],
+    )
+
+
+def _read_utf8_text(path: Path, message: str, actions: list[str]) -> str:
+    """repo-local text file を UTF-8 として読み、失敗を CmocError に変換する。"""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise CmocError(message, actions, f"{path}\n{error}") from error
+    except UnicodeDecodeError as error:
+        raise CmocError(
+            message,
+            actions,
+            f"{path}\nUTF-8 decode error: {error}",
+        ) from error
+
+
 def _assert_cmoc_ignore_guarantee(
     repo_root: Path,
     env: dict[str, str] | None = None,
@@ -1501,12 +1708,8 @@ def _assert_cmoc_ignore_guarantee(
     # tracked path と ignore probe の両方で保証状態を確認する。
     tracked = _tracked_cmoc_paths(repo_root, env=env)
     probe = ".cmoc/.__cmoc_ignore_probe__"
-    ignored = run_git(
-        repo_root,
-        ["check-ignore", "-q", "--", probe],
-        check=False,
-    )
-    if tracked or ignored.returncode != 0:
+    ignored = _is_root_gitignored(repo_root, probe)
+    if tracked or not ignored:
         raise CmocError(
             ".cmoc が git 追跡対象外として初期化されていません。",
             [

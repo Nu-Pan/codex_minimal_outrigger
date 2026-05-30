@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -15,7 +16,13 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
 from .errors import CmocError
-from .repo import filter_oracle_file_paths, run_git
+from .repo import (
+    filter_oracle_file_paths,
+    git_name_only_paths,
+    git_name_status_entries,
+    git_status_paths,
+    run_git,
+)
 from .subcommand_log import add_quota_wait
 from .subcommand_log import log_event
 from .timing import format_duration
@@ -23,6 +30,9 @@ from .timestamps import make_timestamp
 
 _DEFAULT_MODEL = "gpt-5.5"
 _DEFAULT_REASONING_EFFORT = "medium"
+FRONTIER_MODEL = _DEFAULT_MODEL
+FRONTIER_REASONING_EFFORT = _DEFAULT_REASONING_EFFORT
+FRONTIER_HIGH_REASONING_EFFORT = "high"
 COST_PERFORMANCE_MODEL = "gpt-5.4-mini"
 COST_PERFORMANCE_REASONING_EFFORT = "medium"
 COMMIT_MESSAGE_MODEL = COST_PERFORMANCE_MODEL
@@ -42,6 +52,9 @@ _QUOTA_MESSAGES = (
 _CAPACITY_RETRY_LIMIT = 8
 _CAPACITY_INITIAL_RETRY_DELAY_SECONDS = 5
 _FORBIDDEN_REASONING_EFFORTS = {"xhigh"}
+_CODEX_TEXT_ENCODING = "utf-8"
+_CODEX_TEXT_ERRORS = "replace"
+_CODEX_LAUNCH_FAILURE_RETURN_CODE = 127
 
 
 @dataclass(frozen=True)
@@ -60,6 +73,7 @@ class _OracleGuardSnapshot:
 
     enabled: bool
     head_commit: str | None
+    head_reflog_entry_count: int | None = None
     allowed_uncommitted_paths: tuple[str, ...] = ()
 
 
@@ -94,15 +108,16 @@ def run_codex_exec(
     )
 
     # 必要なら output schema ファイルを準備する。call log と last message は実行単位で払い出す。
-    command = _build_codex_command(
+    base_command = _build_codex_command(
         read_only=read_only,
         model=model,
         reasoning_effort=reasoning_effort,
     )
+    _preflight_workspace_write_oracle_guard(repo_root, base_command)
     schema_path = _write_output_schema(repo_root, output_schema)
     if schema_path is not None:
-        command.extend(["--output-schema", str(schema_path)])
-    command.append("-")
+        base_command.extend(["--output-schema", str(schema_path)])
+    base_command.append("-")
 
     # last message 欠落も Codex CLI レスポンス要件の失敗として最大 3 回試行する。
     attempts = 3
@@ -113,14 +128,17 @@ def run_codex_exec(
     last_log_path: Path | None = None
     last_message_path: Path | None = None
     for attempt in range(1, attempts + 1):
+        command = [*base_command]
         # 利用者向けには prompt と回収出力の先頭だけを進捗表示する。
-        step = f"codex exec 試行 ({attempt}/{attempts})"
-        print(f"{step} prompt: {_head80(prompt)}")
+        _preflight_workspace_write_oracle_guard(repo_root, command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
             normalized_index_excluded_roots,
         )
+        print("## Codex CLI 実行準備")
+        print(f"- attempt: {attempt}/{attempts}")
+        print(f"- prompt preview: {_console_log_safe_head80(prompt)}")
         run = _run_codex_command(
             repo_root,
             command,
@@ -145,18 +163,17 @@ def run_codex_exec(
         result = run.result
         last_log_path = run.log_path
         last_message_path = run.last_message_path
-        command = run.command
         last_stdout_log = result.stdout
         last_stderr = result.stderr
 
         # stdout JSONL の既知意味エラーは終了コードに依存せず扱う。
         if _stdout_jsonl_indicates_quota_exhaustion(result.stdout):
             session_id = _extract_session_id(result.stdout, result.stderr)
-            command = _resume_command(command, session_id)
+            resume_command = _resume_command(run.command, session_id)
             print("quota が枯渇したため、resume 前に復旧を待機します")
             run = _wait_for_quota_and_resume(
                 repo_root,
-                command,
+                resume_command,
                 prompt,
                 purpose,
                 attempt,
@@ -168,27 +185,30 @@ def run_codex_exec(
             result = run.result
             last_log_path = run.log_path
             last_message_path = run.last_message_path
-            command = run.command
             last_stdout_log = result.stdout
             last_stderr = result.stderr
-
-        # quota 枯渇以外の CLI 失敗は中断する。
-        if result.returncode != 0:
-            _raise_codex_failure(run.log_path, result)
 
         try:
             output = _read_last_message(last_message_path)
         except ValueError as error:
             last_validation_error = str(error)
             continue
-        print(f"{step} output: {_head80(output)}")
+
+        # last-message 欠落は終了コードに依存しないレスポンス要件違反として retry する。
+        # last-message が正常に読めた非 0 終了は quota/capacity 以外の CLI 失敗として扱う。
+        if result.returncode != 0:
+            _raise_codex_failure(run.log_path, result)
+
+        print("## Codex CLI 応答プレビュー")
+        print(f"- attempt: {attempt}/{attempts}")
+        print(f"- output preview: {_console_log_safe_head80(output)}")
         last_output = output
 
         if not validates_structured_output:
             if text_validator is None:
                 return output
             try:
-                text_validator(output)
+                _run_text_validator(text_validator, output)
                 return output
             except ValueError as error:
                 last_validation_error = str(error)
@@ -200,9 +220,9 @@ def run_codex_exec(
             value = json.loads(output)
             _validate_json_schema(value, output_schema)
             if json_validator is not None:
-                json_validator(value)
+                _run_json_validator(json_validator, value)
             if text_validator is not None:
-                text_validator(output)
+                _run_text_validator(text_validator, output)
             return output
         except (json.JSONDecodeError, ValueError) as error:
             last_validation_error = str(error)
@@ -237,6 +257,36 @@ def run_codex_exec(
     )
 
 
+def _run_json_validator(
+    json_validator: Callable[[object], None],
+    value: object,
+) -> None:
+    """JSON 意味検証失敗を retry 可能な ValueError に正規化する。"""
+    try:
+        json_validator(value)
+    except Exception as error:
+        raise _semantic_validation_error(error) from error
+
+
+def _run_text_validator(
+    text_validator: Callable[[str], None],
+    output: str,
+) -> None:
+    """text 意味検証失敗を retry 可能な ValueError に正規化する。"""
+    try:
+        text_validator(output)
+    except Exception as error:
+        raise _semantic_validation_error(error) from error
+
+
+def _semantic_validation_error(error: Exception) -> ValueError:
+    """validator 境界の例外を診断可能な意味検証失敗へ変換する。"""
+    message = str(error)
+    if not message:
+        message = error.__class__.__name__
+    return ValueError(message)
+
+
 def parse_json_object(raw: str) -> dict[str, object]:
     """Codex CLI の JSON 応答を object として読む。"""
     # 呼び出し側が dict として扱えることをここで保証する。
@@ -264,7 +314,49 @@ def _raise_codex_failure(
             "codex exec のログを確認してください。",
             "Codex CLI またはリポジトリ側の原因を修正してから、cmoc を再実行してください。",
         ],
-        f"Log: {log_path}\nSTDERR:\n{result.stderr}",
+        "\n".join(
+            [
+                f"Log: {log_path}",
+                "STDOUT:",
+                result.stdout,
+                "STDERR:",
+                result.stderr,
+            ]
+        ),
+    )
+
+
+def _codex_launch_failure_error(
+    log_path: Path,
+    result: subprocess.CompletedProcess[str],
+    error: OSError,
+) -> CmocError:
+    """Codex CLI 起動例外を利用者向けエラーに正規化する。"""
+    return CmocError(
+        "codex exec を起動できませんでした。",
+        [
+            "codex コマンドが PATH 上に存在し、実行権限があることを確認してください。",
+            "codex exec のログを確認し、環境または権限を修正してから cmoc を再実行してください。",
+        ],
+        "\n".join(
+            [
+                f"Log: {log_path}",
+                f"Command: {' '.join(result.args)}",
+                f"Error class: {error.__class__.__module__}.{error.__class__.__name__}",
+                "STDERR:",
+                result.stderr,
+            ]
+        ),
+    )
+
+
+def _codex_launch_failure_stderr(error: OSError) -> str:
+    """起動失敗を stderr 相当の診断文字列にする。"""
+    return "\n".join(
+        [
+            "codex exec launch failed before the process produced stderr.",
+            f"{error.__class__.__module__}.{error.__class__.__name__}: {error}",
+        ]
     )
 
 
@@ -294,13 +386,14 @@ def _wait_for_quota_and_resume(
     while True:
         poll_prompt = _quota_poll_prompt(repo_root)
         print("quota poll: 最小限の codex exec 疎通確認を実行します")
-        print(f"quota poll prompt: {_head80(poll_prompt)}")
+        print(f"quota poll prompt: {_console_log_safe_head80(poll_prompt)}")
         poll_command = _build_codex_command(
             read_only=True,
             model=_POLL_MODEL,
             reasoning_effort=_POLL_REASONING_EFFORT,
         )
         poll_command.append("-")
+        _preflight_workspace_write_oracle_guard(repo_root, poll_command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
@@ -336,13 +429,14 @@ def _wait_for_quota_and_resume(
                 poll_output = _read_last_message(poll_run.last_message_path)
             except ValueError as error:
                 _raise_quota_poll_failure(poll_run, str(error))
-            print(f"quota poll output: {_head80(poll_output)}")
+            print(f"quota poll output: {_console_log_safe_head80(poll_output)}")
             if poll_output.strip() != "ok":
                 _raise_quota_poll_failure(
                     poll_run,
                     "quota poll の output-last-message が ok ではありませんでした。",
                 )
             print("quota が復旧したため、codex exec を resume します")
+            _preflight_workspace_write_oracle_guard(repo_root, command)
             _maintain_indexes_before_codex(
                 repo_root,
                 skip_index_maintenance,
@@ -417,6 +511,7 @@ def _retry_after_capacity_if_needed(
         )
         time.sleep(delay_seconds)
         delay_seconds *= 2
+        _preflight_workspace_write_oracle_guard(repo_root, command)
         _maintain_indexes_before_codex(
             repo_root,
             skip_index_maintenance,
@@ -503,47 +598,78 @@ def _run_codex_command(
     log_path = paths["call"]
     last_message_path = paths["last_message"]
     run_command = _command_with_last_message(command, last_message_path)
-    print(
-        "codex exec 呼び出し: "
-        f"{_head80(prompt)} -> {log_path}"
-    )
-    oracle_guard = _start_oracle_guard(
-        repo_root,
-        command,
-        allowed_uncommitted_oracle_paths,
-    )
-    started = perf_counter()
-    result = subprocess.run(
-        run_command,
-        cwd=repo_root,
-        input=prompt,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    _append_codex_log(
-        log_path,
-        run_command,
-        prompt,
-        attempt,
-        result,
-        schema_path,
-        last_message_path,
-    )
-    _print_codex_notification(
-        purpose=purpose,
-        repo_root=repo_root,
-        log_path=log_path,
-        elapsed_seconds=perf_counter() - started,
-        returncode=result.returncode,
-    )
-    _assert_workspace_write_oracles_unchanged(repo_root, oracle_guard)
-    return _CodexCommandRun(
-        result=result,
-        log_path=log_path,
-        last_message_path=last_message_path,
-        command=run_command,
-    )
+    log_written = False
+    try:
+        oracle_guard = _start_oracle_guard(
+            repo_root,
+            command,
+            allowed_uncommitted_oracle_paths,
+        )
+        started = perf_counter()
+        try:
+            result = subprocess.run(
+                run_command,
+                cwd=repo_root,
+                input=prompt,
+                text=True,
+                encoding=_CODEX_TEXT_ENCODING,
+                errors=_CODEX_TEXT_ERRORS,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except OSError as error:
+            result = subprocess.CompletedProcess(
+                run_command,
+                _CODEX_LAUNCH_FAILURE_RETURN_CODE,
+                stdout="",
+                stderr=_codex_launch_failure_stderr(error),
+            )
+            _append_codex_log(
+                log_path,
+                run_command,
+                prompt,
+                attempt,
+                result,
+                schema_path,
+                last_message_path,
+                launch_error=error,
+            )
+            log_written = True
+            _print_codex_notification(
+                purpose=purpose,
+                repo_root=repo_root,
+                log_path=log_path,
+                elapsed_seconds=perf_counter() - started,
+                returncode=result.returncode,
+            )
+            raise _codex_launch_failure_error(log_path, result, error) from error
+        _append_codex_log(
+            log_path,
+            run_command,
+            prompt,
+            attempt,
+            result,
+            schema_path,
+            last_message_path,
+        )
+        log_written = True
+        _print_codex_notification(
+            purpose=purpose,
+            repo_root=repo_root,
+            log_path=log_path,
+            elapsed_seconds=perf_counter() - started,
+            returncode=result.returncode,
+        )
+        _assert_workspace_write_oracles_unchanged(repo_root, oracle_guard)
+        return _CodexCommandRun(
+            result=result,
+            log_path=log_path,
+            last_message_path=last_message_path,
+            command=run_command,
+        )
+    finally:
+        if not log_written:
+            log_path.unlink(missing_ok=True)
 
 
 def _start_oracle_guard(
@@ -552,29 +678,76 @@ def _start_oracle_guard(
     allowed_uncommitted_oracle_paths: Iterable[Path | str] | None,
 ) -> _OracleGuardSnapshot:
     """workspace-write 実行前 HEAD を記録する。"""
-    # Git repo 外や read-only 実行では oracle 変更検査の対象外にする。
-    if "--sandbox" not in command or not (repo_root / ".git").exists():
+    if not _workspace_write_oracle_guard_applies(repo_root, command):
         return _OracleGuardSnapshot(enabled=False, head_commit=None)
-    sandbox_index = command.index("--sandbox") + 1
-    if (
-        sandbox_index >= len(command)
-        or command[sandbox_index] != "workspace-write"
-    ):
-        return _OracleGuardSnapshot(enabled=False, head_commit=None)
-    result = run_git(
-        repo_root,
-        ["rev-parse", "--verify", "HEAD"],
-        check=False,
+    head, head_reflog_entry_count = _verify_workspace_write_oracle_guard_head(
+        repo_root
     )
-    head = result.stdout.strip() if result.returncode == 0 else None
     return _OracleGuardSnapshot(
         enabled=True,
         head_commit=head,
+        head_reflog_entry_count=head_reflog_entry_count,
         allowed_uncommitted_paths=_active_allowed_oracle_conflict_paths(
             repo_root,
             allowed_uncommitted_oracle_paths,
         ),
     )
+
+
+def _preflight_workspace_write_oracle_guard(
+    repo_root: Path,
+    command: list[str],
+) -> None:
+    """workspace-write の副作用前に HEAD/reflog 検査だけを済ませる。"""
+    if not _workspace_write_oracle_guard_applies(repo_root, command):
+        return
+    _verify_workspace_write_oracle_guard_head(repo_root)
+
+
+def _workspace_write_oracle_guard_applies(
+    repo_root: Path,
+    command: list[str],
+) -> bool:
+    """workspace-write guard の対象になる Codex コマンドか判定する。"""
+    # Git repo 外や read-only 実行では oracle 変更検査の対象外にする。
+    if "--sandbox" not in command or not (repo_root / ".git").exists():
+        return False
+    sandbox_index = command.index("--sandbox") + 1
+    return (
+        sandbox_index < len(command)
+        and command[sandbox_index] == "workspace-write"
+    )
+
+
+def _verify_workspace_write_oracle_guard_head(
+    repo_root: Path,
+) -> tuple[str, int]:
+    """workspace-write guard の開始 HEAD と reflog が読めることを検証する。"""
+    result = run_git(
+        repo_root,
+        ["rev-parse", "--verify", "HEAD"],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise CmocError(
+            "workspace-write oracle guard の開始 HEAD を検証できませんでした。",
+            [
+                "workspace-write で Codex CLI を実行する前に、HEAD が存在する状態へしてください。",
+                "初期 commit が未作成の場合は、先に必要な初期 commit を作成してください。",
+            ],
+            result.stderr.strip(),
+        )
+    head = result.stdout.strip()
+    head_reflog_entry_count = _head_reflog_entry_count(repo_root)
+    if head_reflog_entry_count is None:
+        raise CmocError(
+            "workspace-write oracle guard の HEAD reflog を検証できませんでした。",
+            [
+                "workspace-write で Codex CLI を実行する前に、HEAD reflog が記録される状態へしてください。",
+                "HEAD 移動の履歴を検査できない状態では、oracles ファイル保護を保証できません。",
+            ],
+        )
+    return (head, head_reflog_entry_count)
 
 
 def _assert_workspace_write_oracles_unchanged(
@@ -590,14 +763,34 @@ def _assert_workspace_write_oracles_unchanged(
         for path in _uncommitted_oracle_file_paths(repo_root)
         if path not in allowed
     ]
-    committed = _committed_oracle_file_paths(repo_root, snapshot.head_commit)
-    if not uncommitted and not committed:
+    range_error, committed = _committed_oracle_file_paths(
+        repo_root,
+        snapshot.head_commit,
+    )
+    reflog_error, reflog_committed = _head_reflog_oracle_file_paths(
+        repo_root,
+        snapshot.head_commit,
+        snapshot.head_reflog_entry_count,
+    )
+    committed = sorted(
+        {
+            *committed,
+            *reflog_committed,
+        }
+    )
+    head_errors = [
+        error for error in [range_error, reflog_error] if error is not None
+    ]
+    if not uncommitted and not committed and not head_errors:
         return
 
     detail_lines: list[str] = []
     if uncommitted:
         detail_lines.append("未コミット差分:")
         detail_lines.extend(uncommitted)
+    if head_errors:
+        detail_lines.append("Codex CLI 実行中の HEAD 検査エラー:")
+        detail_lines.extend(head_errors)
     if committed:
         detail_lines.append("Codex CLI 実行中の commit range 変更:")
         detail_lines.extend(committed)
@@ -623,13 +816,9 @@ def _active_allowed_oracle_conflict_paths(
         return ()
     unmerged = run_git(
         repo_root,
-        ["diff", "--name-only", "--diff-filter=U"],
+        ["diff", "--name-only", "-z", "--diff-filter=U"],
     )
-    active = {
-        line
-        for line in unmerged.stdout.splitlines()
-        if line
-    }
+    active = set(git_name_only_paths(unmerged.stdout))
     return tuple(
         sorted(
             filter_oracle_file_paths(
@@ -649,12 +838,12 @@ def _normalize_repo_relative_paths(
     concrete_root = repo_root.resolve()
     for raw_path in paths:
         path = Path(raw_path)
-        if path.is_absolute():
-            try:
-                path = path.resolve().relative_to(concrete_root)
-            except ValueError:
-                continue
-        normalized.append(path.as_posix())
+        concrete_path = path if path.is_absolute() else concrete_root / path
+        try:
+            relative_path = concrete_path.resolve().relative_to(concrete_root)
+        except ValueError:
+            continue
+        normalized.append(relative_path.as_posix())
     return normalized
 
 
@@ -663,39 +852,63 @@ def _uncommitted_oracle_file_paths(repo_root: Path) -> list[str]:
     relative_paths: list[str] = []
     diff = run_git(
         repo_root,
-        ["diff", "--name-status", "-M", "HEAD", "--", "oracles"],
+        ["diff", "--name-status", "-z", "-M", "HEAD", "--", "oracles"],
     )
-    relative_paths.extend(_paths_from_name_status(diff.stdout))
+    relative_paths.extend(_paths_from_name_status_z(diff.stdout))
     status = run_git(
         repo_root,
-        ["status", "--porcelain", "--untracked-files=all", "--", "oracles"],
+        [
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            "--",
+            "oracles",
+        ],
     )
-    for line in status.stdout.splitlines():
-        if line.startswith("?? "):
-            relative_paths.append(line[3:])
+    relative_paths.extend(
+        path for status_code, path in git_status_paths(status.stdout)
+        if status_code == "??"
+    )
     return filter_oracle_file_paths(repo_root, relative_paths)
 
 
 def _committed_oracle_file_paths(
     repo_root: Path,
     before_head: str | None,
-) -> list[str]:
+) -> tuple[str | None, list[str]]:
     """Codex 実行前後の HEAD range に含まれる oracle ファイルを返す。"""
     if before_head is None:
-        return []
+        return ("Codex CLI 実行前 HEAD が記録されていません。", [])
     after = run_git(
         repo_root,
         ["rev-parse", "--verify", "HEAD"],
         check=False,
     )
-    if after.returncode != 0 or after.stdout.strip() == before_head:
-        return []
+    if after.returncode != 0:
+        return ("Codex CLI 実行後 HEAD を検証できません。", [])
+    after_head = after.stdout.strip()
+    if after_head == before_head:
+        return (None, [])
+    ancestor = run_git(
+        repo_root,
+        ["merge-base", "--is-ancestor", before_head, after_head],
+        check=False,
+    )
+    if ancestor.returncode == 1:
+        return (
+            "Codex CLI 実行後 HEAD が実行前 HEAD の子孫ではありません。",
+            [],
+        )
+    if ancestor.returncode != 0:
+        return ("Codex CLI 実行前後 HEAD の祖先関係を検証できません。", [])
     log = run_git(
         repo_root,
         [
             "log",
             "--format=",
             "--name-status",
+            "-z",
             "-M",
             "--diff-filter=ACDMRT",
             f"{before_head}..HEAD",
@@ -703,25 +916,86 @@ def _committed_oracle_file_paths(
             "oracles",
         ],
     )
-    return filter_oracle_file_paths(
-        repo_root,
-        _paths_from_name_status(log.stdout),
+    return (
+        None,
+        filter_oracle_file_paths(
+            repo_root,
+            _paths_from_name_status_z(log.stdout),
+        ),
     )
 
 
-def _paths_from_name_status(output: str) -> list[str]:
-    """`git diff --name-status` の変更前後 path を取り出す。"""
+def _head_reflog_entry_count(repo_root: Path) -> int | None:
+    """HEAD reflog の現在 entry 数を返す。"""
+    reflog = run_git(
+        repo_root,
+        ["reflog", "--format=%H", "HEAD"],
+        check=False,
+    )
+    if reflog.returncode != 0:
+        return None
+    return len(reflog.stdout.splitlines())
+
+
+def _head_reflog_oracle_file_paths(
+    repo_root: Path,
+    before_head: str | None,
+    baseline_entry_count: int | None,
+) -> tuple[str | None, list[str]]:
+    """Codex 実行中に HEAD reflog へ現れた commit の oracle 変更を返す。"""
+    if before_head is None or baseline_entry_count is None:
+        return ("Codex CLI 実行前 HEAD reflog が記録されていません。", [])
+    reflog = run_git(
+        repo_root,
+        ["reflog", "--format=%H", "HEAD"],
+        check=False,
+    )
+    if reflog.returncode != 0:
+        return ("Codex CLI 実行後 HEAD reflog を検証できません。", [])
+    # `git reflog` は新しい entry から返すため、開始時 entry 数を超える先頭部分が
+    # Codex 実行中に追加された HEAD 移動である。
+    entries = reflog.stdout.splitlines()
+    if len(entries) < baseline_entry_count:
+        return ("Codex CLI 実行中に HEAD reflog が短くなりました。", [])
+    new_commits = entries[: max(0, len(entries) - baseline_entry_count)]
+    paths: list[str] = []
+    for commit in new_commits:
+        if not commit or set(commit) == {"0"}:
+            continue
+        already_reachable = run_git(
+            repo_root,
+            ["merge-base", "--is-ancestor", commit, before_head],
+            check=False,
+        )
+        if already_reachable.returncode == 0:
+            continue
+        log = run_git(
+            repo_root,
+            [
+                "log",
+                "--format=",
+                "--name-status",
+                "-z",
+                "-M",
+                "--diff-filter=ACDMRT",
+                f"{commit}^!",
+                "--",
+                "oracles",
+            ],
+            check=False,
+        )
+        if log.returncode == 0:
+            paths.extend(_paths_from_name_status_z(log.stdout))
+    return (None, filter_oracle_file_paths(repo_root, paths))
+
+
+def _paths_from_name_status_z(output: str) -> list[str]:
+    """`git diff --name-status -z` の変更前後 path を取り出す。"""
     # rename/copy では旧 path と新 path の両方を検査し、oracle から外への移動も
     # oracle ファイル変更として検出できるようにする。
     paths: list[str] = []
-    for line in output.splitlines():
-        parts = line.split("\t")
-        if not parts:
-            continue
-        if parts[0].startswith(("R", "C")) and len(parts) >= 3:
-            paths.extend([parts[1], parts[2]])
-        elif len(parts) >= 2:
-            paths.append(parts[1])
+    for _status, entry_paths in git_name_status_entries(output):
+        paths.extend(entry_paths)
     return paths
 
 
@@ -768,13 +1042,27 @@ def _print_codex_notification(
             "returncode": returncode,
         },
     )
-    print(
-        "codex exec 完了: "
-        f"{purpose} "
-        f"log={log_path} "
-        f"elapsed={format_duration(elapsed_seconds)} "
-        f"returncode={returncode}"
-    )
+    print("## Codex CLI 呼び出し完了")
+    print(f"- purpose: {_console_log_safe_text(purpose)}")
+    print(f"- log path: {_console_log_safe_text(str(log_path))}")
+    print(f"- elapsed: {format_duration(elapsed_seconds)}")
+    print(f"- returncode: {returncode}")
+
+
+def _console_log_safe_text(value: str) -> str:
+    """制御文字で markdown の行構造が壊れない表示文字列へ変換する。"""
+    parts: list[str] = []
+    for char in value:
+        if char == "%" or ord(char) < 0x20 or ord(char) == 0x7F:
+            parts.extend(f"%{byte:02X}" for byte in char.encode("utf-8"))
+        else:
+            parts.append(char)
+    return "".join(parts)
+
+
+def _console_log_safe_head80(value: str) -> str:
+    """元文字列を切り詰めてから console/log 表示用に安全化する。"""
+    return _console_log_safe_text(_head80(value))
 
 
 def _read_last_message(path: Path) -> str:
@@ -782,7 +1070,16 @@ def _read_last_message(path: Path) -> str:
     # Codex CLI の成果物は stdout ではなく last message ファイルとする。
     if not path.exists():
         raise ValueError(f"output-last-message was not created: {path}")
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(
+            encoding=_CODEX_TEXT_ENCODING,
+            errors=_CODEX_TEXT_ERRORS,
+        )
+    except OSError as error:
+        raise ValueError(
+            f"output-last-message could not be read: {path}; "
+            f"reason: {error}"
+        ) from error
 
 
 def _raise_quota_poll_failure(
@@ -799,6 +1096,7 @@ def _raise_quota_poll_failure(
         "\n".join(
             [
                 f"Log: {run.log_path}",
+                f"Last message: {run.last_message_path}",
                 f"Reason: {reason}",
                 "STDOUT:",
                 run.result.stdout,
@@ -875,22 +1173,69 @@ def _codex_error_message(value: object) -> str | None:
 
 
 def _extract_session_id(stdout: str, stderr: str) -> str | None:
-    """JSONL ログから resume 用 id を取り出す。"""
-    # Codex JSONL の構造化 field だけを参照し、本文中のコード断片を誤抽出しない。
-    for line in f"{stdout}\n{stderr}".splitlines():
+    """stdout JSONL の quota 停止 event に対応する resume 用 id を取り出す。"""
+    del stderr
+    first_stdout_session_id: str | None = None
+    latest_session_ids: tuple[str, ...] = ()
+
+    for line in stdout.splitlines():
         try:
             value = json.loads(line)
         except json.JSONDecodeError:
             continue
-        session_id = _session_id_from_json(value)
-        if session_id is not None:
-            return session_id
-    return None
+        session_ids = _session_ids_from_json(value)
+        if session_ids:
+            if first_stdout_session_id is None:
+                first_stdout_session_id = session_ids[0]
+            latest_session_ids = session_ids
+        message = _codex_error_message(value)
+        if message is None or not _is_quota_message(message):
+            continue
+        if session_ids:
+            return _single_resume_session_id(session_ids, "quota event")
+        if latest_session_ids:
+            return _single_resume_session_id(
+                latest_session_ids,
+                "latest stdout session event before quota",
+            )
+        return None
+
+    return first_stdout_session_id
 
 
-def _session_id_from_json(value: object) -> str | None:
-    """ネストした JSON object から resume 用 id らしい文字列を探す。"""
+def _is_quota_message(message: str) -> bool:
+    """quota 枯渇として扱う既知文言か判定する。"""
+    return any(fragment in message for fragment in _QUOTA_MESSAGES)
+
+
+def _single_resume_session_id(
+    session_ids: Iterable[str],
+    source: str,
+) -> str:
+    """候補が一意に決まる場合だけ resume 用 id として返す。"""
+    unique_ids = tuple(dict.fromkeys(session_ids))
+    if len(unique_ids) == 1:
+        return unique_ids[0]
+    raise CmocError(
+        "quota 枯渇後の resume session id を一意に決定できませんでした。",
+        [
+            "codex exec のログを確認してください。",
+            "曖昧な session id で resume せず、状態を確認してから cmoc を再実行してください。",
+        ],
+        "\n".join(
+            [
+                f"Source: {source}",
+                "Candidates:",
+                *unique_ids,
+            ]
+        ),
+    )
+
+
+def _session_ids_from_json(value: object) -> tuple[str, ...]:
+    """ネストした JSON object から resume 用 id らしい文字列を順序付きで集める。"""
     # Codex JSONL のフィールド名変化に備えて再帰的に探す。
+    session_ids: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
             key_text = str(key).lower().replace("-", "_")
@@ -900,16 +1245,13 @@ def _session_id_from_json(value: object) -> str | None:
                 "thread_id",
                 "threadid",
             } and isinstance(child, str):
-                return child
-            found = _session_id_from_json(child)
-            if found is not None:
-                return found
+                session_ids.append(child)
+                continue
+            session_ids.extend(_session_ids_from_json(child))
     if isinstance(value, list):
         for child in value:
-            found = _session_id_from_json(child)
-            if found is not None:
-                return found
-    return None
+            session_ids.extend(_session_ids_from_json(child))
+    return tuple(session_ids)
 
 
 def _resume_command(command: list[str], session_id: str | None) -> list[str]:
@@ -941,21 +1283,38 @@ def _append_codex_log(
     result: subprocess.CompletedProcess[str],
     schema_path: Path | None,
     last_message_path: Path,
+    launch_error: OSError | None = None,
 ) -> None:
     """1 回分の Codex CLI 入出力を Markdown フルログへ書き出す。"""
     output_last_message = _read_optional_text(last_message_path)
-    body = "\n".join(
+    body_parts = [
+        "## Codex Exec Call",
+        "",
+        "### Prompt",
+        "",
+        _markdown_text_block(prompt),
+        "",
+        "### Return Code",
+        "",
+        f"`{result.returncode}`",
+        "",
+    ]
+    if launch_error is not None:
+        body_parts.extend(
+            [
+                "### Launch Error",
+                "",
+                _markdown_text_block(
+                    (
+                        f"{launch_error.__class__.__module__}."
+                        f"{launch_error.__class__.__name__}: {launch_error}"
+                    )
+                ),
+                "",
+            ]
+        )
+    body_parts.extend(
         [
-            "## Codex Exec Call",
-            "",
-            "### Prompt",
-            "",
-            _markdown_text_block(prompt),
-            "",
-            "### Return Code",
-            "",
-            f"`{result.returncode}`",
-            "",
             "### Stdout",
             "",
             _markdown_text_block(result.stdout),
@@ -972,12 +1331,14 @@ def _append_codex_log(
             "",
         ]
     )
+    body = "\n".join(body_parts)
     front_matter = _codex_log_front_matter(
         command=command,
         attempt=attempt,
         returncode=result.returncode,
         schema_path=schema_path,
         last_message_path=last_message_path,
+        launch_error=launch_error,
     )
     log_path.write_text(
         front_matter + body,
@@ -1015,8 +1376,26 @@ def _write_output_schema(
     schema_dir = repo_root / ".cmoc" / "logs" / "codex_exec" / "output_schema"
     schema_dir.mkdir(parents=True, exist_ok=True)
     schema_path = schema_dir / f"{schema_hash}.log"
-    if not schema_path.exists():
-        schema_path.write_text(schema_body, encoding="utf-8")
+    if schema_path.exists() and schema_path.read_text(encoding="utf-8") == schema_body:
+        return schema_path
+
+    # 最終 path へ直接書かず、完成済みの一時ファイルを atomic に公開する。
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=schema_dir,
+            prefix=f".{schema_hash}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(schema_body)
+            temp_path = Path(temp_file.name)
+        temp_path.replace(schema_path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
     return schema_path
 
 
@@ -1054,12 +1433,18 @@ def _codex_log_front_matter(
     returncode: int,
     schema_path: Path | None,
     last_message_path: Path,
+    launch_error: OSError | None = None,
 ) -> str:
     """codex exec 呼び出し情報を YAML Front Matter として組み立てる。"""
     model = _value_after(command, "--model")
     sandbox = _value_after(command, "--sandbox")
     reasoning_effort = _reasoning_effort_from_command(command)
     output_schema = str(schema_path) if schema_path else None
+    launch_error_class = (
+        f"{launch_error.__class__.__module__}.{launch_error.__class__.__name__}"
+        if launch_error is not None
+        else None
+    )
     lines = [
         "---",
         "command:",
@@ -1072,6 +1457,7 @@ def _codex_log_front_matter(
         f"output_last_message: {_yaml_scalar(str(last_message_path))}",
         f"attempt: {attempt}",
         f"returncode: {returncode}",
+        f"launch_error: {_yaml_scalar(launch_error_class)}",
         "---",
         "",
     ]
@@ -1109,7 +1495,13 @@ def _read_optional_text(path: Path) -> str:
     """存在するテキストファイルだけをログ本文へ取り込む。"""
     if not path.exists():
         return ""
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(
+            encoding=_CODEX_TEXT_ENCODING,
+            errors=_CODEX_TEXT_ERRORS,
+        )
+    except OSError as error:
+        return f"[unreadable: {path}; reason: {error}]"
 
 
 def _validate_json_schema(value: object, schema: dict[str, object]) -> None:
@@ -1137,6 +1529,6 @@ def _validate_output_schema(schema: dict[str, object]) -> None:
 
 
 def _head80(value: str) -> str:
-    """元文字列の先頭 80 文字を stdout 表示向けに返す。"""
+    """元文字列の先頭 80 文字を返す。"""
     # oracle の切り詰め対象は、表示用変換前の prompt/output そのものである。
-    return value[:80].replace("\n", "\\n")
+    return value[:80]

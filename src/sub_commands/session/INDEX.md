@@ -23,25 +23,25 @@
 
 ## Summary
 
-- `src/sub_commands/session/abandon.py` は `cmoc session abandon` の本体処理で、現在の session branch を merge せず破棄して home branch に戻します。
-- 事前条件の検証、`session.state` と `apply.state` の確認、`.cmoc` が ignore 対象であることの保証、branch 切り替え、session state の `abandoned` 更新、session branch の強制削除、失敗時の rollback を扱います。
-- cleanup に失敗した場合は、再実行しやすい状態へ戻す rollback と、利用者へ手動復旧を促す `CmocError` の整形まで含みます。
+- `src/sub_commands/session/abandon.py` は `cmoc session abandon` の本体実装で、現在の session branch を merge せずに破棄して home branch に戻す。
+- `session.state` / `apply.state` の事前検証、`.cmoc` の ignore 保証、home branch への switch、`session.state=abandoned` への更新、session branch の強制削除を扱う。
+- cleanup 失敗時は branch/state を再実行しやすい状態へ戻す rollback と、手動復旧を促すエラー整形まで含む。
 
 ## Read this when
 
-- `cmoc session abandon` の実装・修正・レビュー・テストを行いたいとき。
-- session branch を merge せずに破棄する流れや、`session.state` と `apply.state` の前提条件を確認したいとき。
+- `cmoc session abandon` の実装・修正・レビュー・テストを行うとき。
+- session branch を merge せずに破棄する流れや、`session.state` / `apply.state` の前提条件を確認したいとき。
 - cleanup 失敗時の rollback や、再実行前に手動で整合を取るべき箇所を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session fork` の作成手順や active session の競合回避だけを確認したいとき。
+- `cmoc session fork` の作成条件や、active session の重複防止だけを確認したいとき。
 - `cmoc session join` の merge 処理や conflict 解消だけを確認したいとき。
-- `cmoc apply abandon` など、apply run 側の破棄仕様だけを確認したいとき。
+- `cmoc apply abandon` など、apply 側の破棄仕様だけを確認したいとき。
 
 ## hash
 
-- 83f293c0fe6cbc1e72e8e7d05679d4c3d7252fa35a1f030518023b5584ee309f
+- 725004adba5efd9262a7568da44b4044f0badc0c76a4324d405cd0b00c332b55
 
 # `fork.py`
 
@@ -72,21 +72,21 @@
 ## Summary
 
 - `src/sub_commands/session/join.py` は `cmoc session join` の本体処理を実装するモジュールです。
-- 現在の session branch が active で `apply.state = ready` であることを確認し、session home branch へ `git merge --no-ff` します。
-- merge conflict 発生時は禁止領域や対象外差分を検査し、Codex CLI に marker 解消を依頼したうえで、merge 後の `session.state` 更新と session branch の削除可否判定まで行います。
+- 現在の session branch が join 可能であることを検証し、session home branch へ `git merge --no-ff` します。
+- conflict が起きた場合は Codex CLI に marker 解消を依頼し、`session.state` 更新と branch 削除可否判定まで行います。
 
 ## Read this when
 
-- `cmoc session join` の処理順、事前条件、後始末を確認したいとき。
-- merge conflict 時の自動解消や手動復旧、`oracles` と禁止領域の扱いを追いたいとき。
-- 実装・修正・テスト・レビューで `src/sub_commands/session/join.py` の副作用境界を確認したいとき。
+- `src/sub_commands/session/join.py` の処理順、事前条件、後始末を実装・修正・レビュー・テストしたいとき。
+- `session.state` と `apply.state` の検証、`git merge --no-ff`、conflict 時の Codex CLI 依頼の流れを確認したいとき。
+- merge 後の `session` 反映、`oracles` を含む conflict marker の扱い、安全な session branch 削除条件を追いたいとき。
 
 ## Do not read this when
 
-- `cmoc session fork` や `cmoc session abandon` の作成・破棄手順だけを確認したいとき。
-- `cmoc apply` 側の開始・終了や、一般的な `git merge` の説明だけで足りるとき。
-- 利用手順だけを知りたくて、conflict 解消や state 更新の実装詳細が不要なとき。
+- `cmoc session fork` や `cmoc session abandon` の実装・修正・レビューだけを確認したいとき。
+- `cmoc apply` 系の開始・終了・破棄の流れだけを確認したいとき。
+- 一般的な `git merge` の説明だけで足り、`session.state` 更新や conflict 解消の実装詳細が不要なとき。
 
 ## hash
 
-- d7e0d1bad413766fee2da28e2ff682193a30d13294dd954c7590349e25dfb2d2
+- 61f4b42440c3fda5ead506427f77739e3c6008309da010ff51e4ade2c87317a9
