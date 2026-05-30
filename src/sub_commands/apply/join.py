@@ -247,6 +247,22 @@ def _validate_joinable_state(
             ],
             f"apply.apply_branch: {apply_branch}",
         )
+    apply_branch_session_id = session_id_from_branch(apply_branch)
+    if apply_branch_session_id != session_id:
+        raise CmocError(
+            "session state ファイルの apply branch が現在の session と一致しません。",
+            [
+                "session state の apply.apply_branch を確認して復旧してください。",
+                "別 session の apply branch を join 対象にしないでください。",
+            ],
+            "\n".join(
+                [
+                    f"session id: {session_id}",
+                    f"apply branch session id: {apply_branch_session_id}",
+                    f"apply.apply_branch: {apply_branch}",
+                ]
+            ),
+        )
     if current_branch_name not in {session_branch, apply_branch}:
         raise CmocError(
             "`cmoc apply join` は session branch または apply branch 上で実行してください。",

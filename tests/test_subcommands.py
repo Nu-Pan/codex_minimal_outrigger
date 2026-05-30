@@ -3095,6 +3095,50 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
     assert "joined apply branch:" in output
 
 
+def test_apply_join_rejects_cross_session_apply_branch_without_merge(
+    tmp_path: Path,
+) -> None:
+    """apply join は別 session の apply branch を merge しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _create_completed_apply_run(repo, oracle_snapshot)
+    other_session_id = "2026-05-10_22-21_10_000000999"
+    other_apply_run_id = "2026-05-10_22-22_10_000000123"
+    other_apply_branch = f"cmoc/apply/{other_session_id}/{other_apply_run_id}"
+    other_apply_worktree = (
+        repo
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / other_session_id
+        / other_apply_run_id
+    )
+    _git(repo, "branch", other_apply_branch, oracle_snapshot)
+    _git(repo, "worktree", "add", str(other_apply_worktree), other_apply_branch)
+    (other_apply_worktree / "foreign.txt").write_text(
+        "foreign\n",
+        encoding="utf-8",
+    )
+    _git(other_apply_worktree, "add", "foreign.txt")
+    _git(other_apply_worktree, "commit", "-m", "foreign implementation")
+    state_path = (
+        repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["apply_branch"] = other_apply_branch
+    state["apply"]["oracle_snapshot_commit"] = oracle_snapshot
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
+
+    assert "同じ session の apply branch" in error_info.value.actions[0]
+    assert not (repo / "foreign.txt").exists()
+    assert _git(repo, "branch", "--list", other_apply_branch).stdout.strip()
+    assert other_apply_worktree.exists()
+
+
 def test_apply_join_cleans_worktree_created_under_linked_worktree_repo_root(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -4107,6 +4151,43 @@ def test_apply_abandon_deletes_apply_artifacts_and_resets_state(
     assert f"abandoned apply worktree: {apply_worktree}" in output
     assert "previous apply.state: completed" in output
     assert "current apply.state: ready" in output
+
+
+def test_apply_abandon_rejects_cross_session_apply_branch_without_cleanup(
+    tmp_path: Path,
+) -> None:
+    """apply abandon は別 session の apply branch/worktree を削除しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _create_completed_apply_run(repo, oracle_snapshot)
+    other_session_id = "2026-05-10_22-21_10_000000999"
+    other_apply_run_id = "2026-05-10_22-22_10_000000123"
+    other_apply_branch = f"cmoc/apply/{other_session_id}/{other_apply_run_id}"
+    other_apply_worktree = (
+        repo
+        / ".cmoc"
+        / "worktrees"
+        / "apply"
+        / other_session_id
+        / other_apply_run_id
+    )
+    _git(repo, "branch", other_apply_branch, oracle_snapshot)
+    _git(repo, "worktree", "add", str(other_apply_worktree), other_apply_branch)
+    state_path = (
+        repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["apply_branch"] = other_apply_branch
+    state["apply"]["oracle_snapshot_commit"] = oracle_snapshot
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(repo)
+
+    assert "同じ session の apply branch" in error_info.value.actions[0]
+    assert _git(repo, "branch", "--list", other_apply_branch).stdout.strip()
+    assert other_apply_worktree.exists()
 
 
 def test_apply_abandon_accepts_apply_branch_worktree(

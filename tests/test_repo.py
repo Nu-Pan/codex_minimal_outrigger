@@ -1370,6 +1370,80 @@ def test_write_session_state_persists_durable_session_result(
     ] == "収束"
 
 
+def test_write_session_state_rejects_cross_session_apply_branch(
+    tmp_path: Path,
+) -> None:
+    """session state は別 session の apply branch を保持しない。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    other_session_id = "2026-05-10_22-21_10_000000999"
+
+    with pytest.raises(CmocError) as error:
+        write_session_state(
+            repo,
+            session_id,
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": "main",
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
+                },
+                "apply": {
+                    "state": "completed",
+                    "apply_branch": (
+                        f"cmoc/apply/{other_session_id}/"
+                        "2026-05-10_22-22_10_000000123"
+                    ),
+                    "oracle_snapshot_commit": "def456",
+                },
+            },
+        )
+
+    assert "同じ session の apply branch" in error.value.actions[0]
+    assert f"session id: {session_id}" in error.value.detail
+    assert f"apply branch session id: {other_session_id}" in error.value.detail
+
+
+def test_read_session_state_rejects_cross_session_apply_branch(
+    tmp_path: Path,
+) -> None:
+    """永続 session state の apply branch session id は file 名と一致させる。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    other_session_id = "2026-05-10_22-21_10_000000999"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": "main",
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
+                },
+                "apply": {
+                    "state": "completed",
+                    "apply_branch": (
+                        f"cmoc/apply/{other_session_id}/"
+                        "2026-05-10_22-22_10_000000123"
+                    ),
+                    "oracle_snapshot_commit": "def456",
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error:
+        read_session_state(repo, session_id)
+
+    assert "同じ session の apply branch" in error.value.actions[0]
+    assert f"session id: {session_id}" in error.value.detail
+    assert f"apply branch session id: {other_session_id}" in error.value.detail
+
+
 def test_initial_session_state_records_session_home_branch() -> None:
     """session fork 直後の home branch を state に保存する。"""
     state = initial_session_state("main", "abc123")

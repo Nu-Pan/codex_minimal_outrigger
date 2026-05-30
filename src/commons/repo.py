@@ -664,7 +664,7 @@ def _validate_session_state_schema(
         "apply.oracle_snapshot_commit",
         path,
     )
-    _validate_apply_state_invariants(apply, apply_state, path)
+    _validate_apply_state_invariants(apply, apply_state, path, path.stem)
 
 
 def _validate_required_keys(
@@ -779,6 +779,7 @@ def _validate_apply_state_invariants(
     apply: dict[object, object],
     apply_state: str,
     path: Path,
+    session_id: str,
 ) -> None:
     """apply.state ごとの補助 field 不変条件を検証する。"""
     apply_branch = apply.get("apply_branch")
@@ -794,16 +795,19 @@ def _validate_apply_state_invariants(
 
     if apply_state == "running":
         _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+        _validate_apply_branch_session_id(apply_branch, session_id, path)
         return
 
     if apply_state == "completed":
         _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+        _validate_apply_branch_session_id(apply_branch, session_id, path)
         return
 
     if apply_state == "error" and (
         apply_branch is not None or oracle_snapshot_commit is not None
     ):
         _validate_apply_run_fields(apply_branch, oracle_snapshot_commit, path)
+        _validate_apply_branch_session_id(apply_branch, session_id, path)
 
 
 def _validate_null_field(value: object, label: str, path: Path) -> None:
@@ -843,6 +847,34 @@ def _validate_apply_run_fields(
             ],
             f"{path}\napply.oracle_snapshot_commit: {oracle_snapshot_commit}",
         )
+
+
+def _validate_apply_branch_session_id(
+    apply_branch: object,
+    session_id: str,
+    path: Path,
+) -> None:
+    """apply branch がこの session state に属することを検証する。"""
+    if not isinstance(apply_branch, str):
+        return
+    branch_session_id = session_id_from_branch(apply_branch)
+    if branch_session_id == session_id:
+        return
+    raise CmocError(
+        "session state ファイルの形式が不正です。",
+        [
+            "apply.apply_branch は同じ session の apply branch である必要があります。",
+            "破損した session state を復旧してください。",
+        ],
+        "\n".join(
+            [
+                str(path),
+                f"session id: {session_id}",
+                f"apply branch session id: {branch_session_id}",
+                f"apply.apply_branch: {apply_branch}",
+            ]
+        ),
+    )
 
 
 def active_session_ids_for_home_branch(
