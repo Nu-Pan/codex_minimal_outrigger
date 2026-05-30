@@ -23,15 +23,15 @@
 
 ## Summary
 
-- `codex exec` の共通起動基盤として、コマンド組み立て、実行、再試行、`resume` をまとめるモジュールです。
-- Structured Output の JSON / schema 検証、`output-last-message` の読み取り、JSON 応答の解釈を扱います。
-- quota 待機と再開、capacity の指数バックオフ、oracle 保護、実行直前の `INDEX.md` メンテナンス連携まで含みます。
+- `codex exec` の共通起動基盤をまとめたモジュールです。コマンド組み立て、実行、再試行、`resume` の流れを扱います。
+- Structured Output の JSON / schema 検証、`output-last-message` の読み取り、JSON 応答のパースと意味検証を扱います。
+- quota 待機、capacity の指数バックオフ、oracle 保護、実行前の `INDEX.md` メンテナンス、呼び出しログ保存まで含みます。
 
 ## Read this when
 
-- `codex exec` をどう起動し、`read-only` と `workspace-write` をどう切り替えるか確認したいとき。
-- Structured Output の JSON / schema 検証、`output-last-message` の読み取り、JSON object パースを確認したいとき。
-- quota 枯渇時の待機と `resume`、capacity の指数バックオフ、oracle 保護、実行前の `INDEX.md` メンテナンス、呼び出しログの保存を確認したいとき。
+- `codex exec` の起動方法や、`read-only` と `workspace-write` の切り替えを確認したいとき。
+- Structured Output の JSON / schema 検証、`output-last-message` の読み取り、JSON 応答の解釈を確認したいとき。
+- quota 待機と `resume`、capacity の指数バックオフ、oracle 保護、実行ログの保存や `INDEX.md` メンテナンス連携を確認したいとき。
 
 ## Do not read this when
 
@@ -41,7 +41,7 @@
 
 ## hash
 
-- cbc7336134d19af0951c90e9c6500cdf0a2b6288674273cf4b3411a0b7ddd91a
+- dcb6d54f9e3426fb1a80deb7f2b0561e0293018d7c652f2709c51c4c210a9800
 <!-- cmoc-index-kind: file -->
 
 # `command_runner.py`
