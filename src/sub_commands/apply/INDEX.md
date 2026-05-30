@@ -29,21 +29,23 @@
 
 ## Read this when
 
-- `cmoc apply abandon` の実装・修正・レビュー・テストを行いたいとき。
-- 未 join の apply run を破棄する前提条件や、`session.state` / `apply.state` の検証条件を確認したいとき。
+- `src/sub_commands/apply/abandon.py` の役割と責務を素早く把握したいとき。
+- `cmoc apply abandon` の実装・修正・レビュー・テストを始める前に入口を確認したいとき。
+- 未 join の apply run を破棄する前提条件や、`session.state` / `apply.state` の検証条件を追いたいとき。
 - `running` 中の apply を停止する挙動や、apply branch / worktree の cleanup 方針を確認したいとき。
 - 破棄結果として標準出力に何を出し、warning をどう扱うかを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点の整理だけを確認したいとき。
-- `cmoc apply join` や `cmoc session abandon` など、別サブコマンドの終了・統合・破棄手順だけを確認したいとき。
+- `cmoc apply fork` の調査・修正ループや要修正点整理だけを確認したいときは、このファイルではなく `fork.py` を読むべきです。
+- `cmoc apply join` や `cmoc session abandon` など、別サブコマンドの終了・統合・破棄手順だけを確認したいときは対象外です。
 - `cmoc apply abandon` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/apply_abandon.md` を直接読むべきです。
-- `src/sub_commands/apply` パッケージ全体の役割だけを確認したいときは、`src/sub_commands/apply/INDEX.md` を読むべきです。
+- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいときは、このファイルではなく親の `INDEX.md` を読むべきです。
 
 ## hash
 
-- cd85d274a1d46f32aa63514c5dd6bf035e94a4b75060c91f70cb6bf286e8ecd1
+- 5c4b76179a3d140f178ba98e84da9d0dbe81db2197613991223184eadc473235
+<!-- cmoc-index-kind: file -->
 
 # `fork.py`
 

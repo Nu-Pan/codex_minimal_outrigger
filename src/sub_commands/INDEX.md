@@ -31,7 +31,7 @@
 
 ## Read this when
 
-- `cmoc apply` 系実装の入口をまとめて確認したいとき。
+- `src/sub_commands/apply` の実装入口をまとめて確認したいとき。
 - `fork`、`join`、`abandon` のどの実装ファイルへ進むべきか整理したいとき。
 - パッケージ入口と個別サブコマンド本体の対応関係を俯瞰したいとき。
 
@@ -39,11 +39,12 @@
 
 - `cmoc apply fork` / `cmoc apply join` / `cmoc apply abandon` のうち 1 つだけの詳細仕様、状態遷移、例外条件を確認したいときは、各実装モジュールを直接読むべきです。
 - `src/sub_commands/apply` のパッケージ宣言だけを確認したいときは、この目次ではなく `__init__.py` を直接読むべきです。
+- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/` 側を読むべきです。
 - `branch_model`、`codex_call`、`indexing`、`error_handling` などの共通仕様だけを確認したいときは、別の入口文書を読むべきです。
 
 ## hash
 
-- 2fbe8bb64166350d4edd964e0d2071e81c24b938878c16a6f62c0b61353dce40
+- 0ae9e1e55d4deb8aaf3b22a53a0f5dc3221b7f4fde0cccb2261703d1be4fa923
 <!-- cmoc-index-kind: directory -->
 
 # `eval_oracles.py`
