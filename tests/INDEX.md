@@ -28,26 +28,24 @@
 ## Summary
 
 - `commons.codex` の `run_codex_exec` と関連ヘルパーの回帰テストをまとめたファイルです。
-- Structured Output 用 schema の準備、JSON / text 検証、retry、quota 復旧の `resume`、`output_schema` キャッシュ、ログとコンソール出力を検証します。
-- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range のチェック、allowlist / conflict 例外、`skip_index_maintenance` も含めて境界条件を押さえます。
+- Structured Output 用 schema の準備、JSON / text 検証、semantic validation による retry、quota 復旧後の `resume` を検証します。
+- `output_schema` のキャッシュ、call log / last message の扱い、console 出力、workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を押さえます。
 
 ## Read this when
 
-- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行の挙動を変更したいとき
-- Structured Output の schema 検証、JSON / text の検証、`reasoning_effort` の制約を確認したいとき
-- codex 呼び出しログ、コンソール通知、`output_schema` のキャッシュやファイル化の仕様を確認したいとき
-- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の事前検査や例外判定を確認したいとき
-- quota 復旧の `resume` や、`skip_index_maintenance` の境界条件を確認したいとき
+- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を変更したいとき。
+- Structured Output の schema 検証、JSON / text 検証、`output_schema` の保存や再利用を確認したいとき。
+- Codex CLI の呼び出しログ、コンソール通知、workspace-write 時の `INDEX.md` 保守や oracle 変更検知を確認したいとき。
 
 ## Do not read this when
 
-- `commons.codex` の実装コードそのものを追いたいとき
-- `commons.indexing` や `commons.repo` など、`run_codex_exec` 以外の共通処理だけを確認したいとき
-- `INDEX.md` の生成ルールや `oracles` の正本仕様そのものを確認したいとき
+- `commons.codex` の実装そのものや、`run_codex_exec` 以外の共通処理だけを確認したいとき。
+- `tests/test_indexing.py` や `tests/test_repo.py` など、別の共通機能の回帰テストだけを確認したいとき。
+- `INDEX.md` の生成ルールや `oracles` の正本仕様そのものを確認したいとき。
 
 ## hash
 
-- ace67e6c5a0d5c153d83768cf8e9784622e7a5bbe777596dedeadbc4b2b1c300
+- 70017df866bcfb1996874d6bd210d600c1d6b0ec349f7db7b491a71de2d4cbe2
 
 # `test_file_naming.py`
 

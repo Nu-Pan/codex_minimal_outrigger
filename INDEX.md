@@ -197,7 +197,7 @@
 
 ## hash
 
-- 90ce04ddf0188314997c7abe35855cb7063e654ab821b90ac4f390bb234bdc48
+- 28a7e71f91aa99f02134a32c3759b4de2733a9fda190e84280c00eb58d1fd6b2
 
 # `test.sh`
 
@@ -246,10 +246,10 @@
 
 ## Do not read this when
 
-- cmoc の本体実装や `oracles` の正本仕様だけを確認したいとき。
+- cmoc 本体の実装や `oracles` の正本仕様だけを確認したいとき。
 - 個別テストの詳細な期待値やモックの作り方だけを追いたいとき。
 - `README.md`、`AGENTS.md`、`memo` などの運用文書やアクセス規則だけを見たいとき。
 
 ## hash
 
-- ba487808162d400c3c9d507547772926d7931cb98b55d9e11eba61a1aa2f28d0
+- fa80273388970d7f88d57120606c2c9d9251065611d16b4165060bd9c089b833
