@@ -1,5 +1,6 @@
 """`cmoc session abandon` の本体処理。"""
 
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +30,7 @@ class _AbandonRollbackSnapshot:
     session_head: str
     home_branch: str
     home_head: str
+    session_state: dict[str, object]
 
 
 def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
@@ -56,6 +58,7 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
         repo_root,
         session_branch,
         home_branch,
+        state,
     )
 
     try:
@@ -68,9 +71,9 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
         run_git(repo_root, ["switch", home_branch])
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
-        start_step(timer, 4, 4, "record abandoned session")
-        _mark_session_abandoned(state_root, session_id, state)
+        start_step(timer, 4, 4, "delete session branch and record abandoned session")
         run_git(repo_root, ["branch", "-D", session_branch])
+        _mark_session_abandoned(state_root, session_id, state)
     except Exception as error:
         restore_errors = _restore_abandon_state(
             repo_root,
@@ -80,21 +83,11 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
             rollback_snapshot,
         )
         detail = _cleanup_failure_detail(error, restore_errors)
-        if restore_errors:
-            message = (
-                "session abandon のクリーンアップに失敗し、"
-                "rollback にも失敗しました。"
-            )
-            actions = [
-                "Detail の rollback failure を確認し、session branch と session state を手動で整合させてください。",
-                "整合を確認できるまで `cmoc session abandon` の再実行は避けてください。",
-            ]
-        else:
-            message = "session abandon のクリーンアップに失敗しました。"
-            actions = [
-                "Detail を確認して問題を手動で解消してから `cmoc session abandon` を再実行してください。",
-                "session branch と session state が active に戻っていることを確認してください。",
-            ]
+        message = "session abandon のクリーンアップに失敗しました。"
+        actions = [
+            "Detail を確認して問題を手動で解消してから `cmoc session abandon` を再実行してください。",
+            "session branch と session state が active に戻っていることを確認してください。",
+        ]
         raise CmocError(
             message,
             actions,
@@ -185,6 +178,7 @@ def _capture_rollback_snapshot(
     repo_root: Path,
     session_branch: str,
     home_branch: str,
+    state: dict[str, object],
 ) -> _AbandonRollbackSnapshot:
     """cleanup 開始前の branch HEAD を保存する。"""
     return _AbandonRollbackSnapshot(
@@ -192,6 +186,7 @@ def _capture_rollback_snapshot(
         session_head=_branch_head(repo_root, session_branch),
         home_branch=home_branch,
         home_head=_branch_head(repo_root, home_branch),
+        session_state=deepcopy(state),
     )
 
 
@@ -247,26 +242,13 @@ def _restore_abandon_state(
 ) -> list[str]:
     """cleanup 失敗時に再実行しやすい状態へ戻す。"""
     restore_errors: list[str] = []
-    session = state.get("session")
-    if isinstance(session, dict):
-        session["state"] = "active"
-        try:
-            write_session_state(state_root, session_id, state)
-            restored = read_session_state(state_root, session_id)
-        except Exception as error:
-            restore_errors.append(f"state restore failed: {error}")
-        else:
-            restored_session = restored.get("session")
-            if not isinstance(restored_session, dict):
-                restore_errors.append(
-                    "state restore failed: restored session section is invalid"
-                )
-            elif restored_session.get("state") != "active":
-                restore_errors.append(
-                    "state restore failed: restored session.state is not active"
-                )
-    else:
-        restore_errors.append("state restore failed: session section is invalid")
+    restore_errors.extend(
+        _restore_session_state(
+            state_root,
+            session_id,
+            rollback_snapshot.session_state,
+        )
+    )
 
     restore_errors.extend(
         _restore_branch_head(
@@ -317,14 +299,6 @@ def _restore_branch_head(
     expected_head: str,
 ) -> list[str]:
     """branch HEAD を cleanup 開始前の commit へ戻す。"""
-    branch_exists = run_git(
-        repo_root,
-        ["show-ref", "--verify", f"refs/heads/{branch_name}"],
-        check=False,
-    )
-    if branch_exists.returncode != 0:
-        return [f"branch head restore failed: branch does not exist: {branch_name}"]
-
     current = current_branch(repo_root)
     if current == branch_name:
         result = run_git(repo_root, ["reset", "--hard", expected_head], check=False)
@@ -342,6 +316,36 @@ def _restore_branch_head(
     if not detail:
         detail = f"git restore branch head exited with code {result.returncode}"
     return [f"branch head restore failed: {branch_name}: {detail}"]
+
+
+def _restore_session_state(
+    state_root: Path,
+    session_id: str,
+    expected_state: dict[str, object],
+) -> list[str]:
+    """session state file を cleanup 開始前の内容へ戻す。"""
+    write_error: Exception | None = None
+    try:
+        write_session_state(state_root, session_id, deepcopy(expected_state))
+    except Exception as error:
+        write_error = error
+
+    try:
+        restored = read_session_state(state_root, session_id)
+    except Exception as error:
+        errors = [f"state restore failed: {error}"]
+        if write_error is not None:
+            errors.insert(0, f"state restore write failed: {write_error}")
+        return errors
+
+    if restored == expected_state:
+        return []
+
+    errors = []
+    if write_error is not None:
+        errors.append(f"state restore write failed: {write_error}")
+    errors.append("state restore failed: restored state differs from rollback snapshot")
+    return errors
 
 
 def _cleanup_failure_detail(
