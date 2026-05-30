@@ -838,12 +838,12 @@ def _normalize_repo_relative_paths(
     concrete_root = repo_root.resolve()
     for raw_path in paths:
         path = Path(raw_path)
-        if path.is_absolute():
-            try:
-                path = path.resolve().relative_to(concrete_root)
-            except ValueError:
-                continue
-        normalized.append(path.as_posix())
+        concrete_path = path if path.is_absolute() else concrete_root / path
+        try:
+            relative_path = concrete_path.resolve().relative_to(concrete_root)
+        except ValueError:
+            continue
+        normalized.append(relative_path.as_posix())
     return normalized
 
 

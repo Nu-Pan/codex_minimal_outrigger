@@ -811,6 +811,38 @@ def test_active_allowed_oracle_conflict_paths_preserves_special_path_tokens(
     ) == (relative_path,)
 
 
+def test_active_allowed_oracle_conflict_paths_normalizes_relative_segments(
+    tmp_path: Path,
+) -> None:
+    """相対 path の dot segment を解決して active conflict と比較する。"""
+    repo = _init_git_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "add oracle")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _git(repo, "checkout", "-b", "session")
+    (oracle_root / "spec.md").write_text("session\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "session oracle")
+    _git(repo, "checkout", home_branch)
+    (oracle_root / "spec.md").write_text("home\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md")
+    _git(repo, "commit", "-m", "home oracle")
+    with pytest.raises(subprocess.CalledProcessError):
+        _git(repo, "merge", "session")
+
+    assert _active_allowed_oracle_conflict_paths(
+        repo,
+        [
+            "oracles/../oracles/spec.md",
+            Path("oracles") / ".." / "oracles" / "spec.md",
+            "../outside.md",
+        ],
+    ) == ("oracles/spec.md",)
+
+
 def test_run_codex_exec_rejects_allowed_oracle_path_without_active_conflict(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
