@@ -7971,10 +7971,12 @@ def test_bin_cmoc_reports_missing_venv_to_stdout(tmp_path: Path) -> None:
     assert "仮想環境 Python の実行可能性チェック" not in result.stdout
 
 
-def test_bin_cmoc_reports_missing_venv_for_completion_probe(
+@pytest.mark.parametrize("complete_value", ["complete_bash", ""])
+def test_bin_cmoc_suppresses_missing_venv_report_for_completion_probe(
     tmp_path: Path,
+    complete_value: str,
 ) -> None:
-    """venv 欠落時は補完プローブでも成功扱いで握りつぶさない。"""
+    """補完プローブでは venv 欠落時も独自エラーレポートを混ぜない。"""
     repo_root = Path(__file__).resolve().parents[1]
     launcher = tmp_path / "repo" / "bin" / "cmoc"
     launcher.parent.mkdir(parents=True)
@@ -7988,7 +7990,7 @@ def test_bin_cmoc_reports_missing_venv_for_completion_probe(
         [str(launcher)],
         check=False,
         env={
-            "_CMOC_COMPLETE": "complete_bash",
+            "_CMOC_COMPLETE": complete_value,
             "COMP_WORDS": "cmoc ",
             "COMP_CWORD": "1",
         },
@@ -7999,9 +8001,7 @@ def test_bin_cmoc_reports_missing_venv_for_completion_probe(
 
     assert result.returncode == 1
     assert result.stderr == ""
-    assert "ERROR" in result.stdout
-    assert "Summary:" in result.stdout
-    assert "仮想環境 Python" in result.stdout
+    assert result.stdout == ""
 
 
 def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
