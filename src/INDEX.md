@@ -8,7 +8,7 @@
 
 ## Read this when
 
-- `cmoc` 全体で共有する実行制御、エラー整形、Git 操作、ログ記録の役割分担を把握したいとき。
+- cmoc 全体で共有する実行制御、エラー整形、Git 操作、ログ記録の役割分担を把握したいとき。
 - `codex exec` 呼び出し、`INDEX.md` 生成・維持、レポート保存、タイムスタンプ生成の共通処理を確認したいとき。
 - サブコマンド本体の土台になるユーティリティ群の入口をまとめて見たいとき。
 
@@ -20,7 +20,8 @@
 
 ## hash
 
-- 70ff3c924c8ffd5f7a868ca72c53bac80361aa4256253209aa91510602584892
+- 22f976ff2aecaba547007c41e07a03a0305957d597401236374a05dd05319740
+<!-- cmoc-index-kind: directory -->
 
 # `main.py`
 
@@ -69,4 +70,5 @@
 
 ## hash
 
-- 47c5b8acb94db4eda4a37758a044fcca71e0ed0a5202ebfee9fd1554a327da5a
+- fa9b262bd8f142e6cebc753e70e76bdf79f5730de5f240ed4ff2937348c00ba4
+<!-- cmoc-index-kind: directory -->

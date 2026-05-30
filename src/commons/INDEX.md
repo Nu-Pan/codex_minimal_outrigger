@@ -139,13 +139,14 @@
 
 ## Do not read this when
 
-- `cmoc` の起動手順や `init` / `session` / `apply` の操作フローだけを確認したいとき。
-- `repo.py` 以外の開発ルールや命名規則、テスト方針だけを確認したいとき。
+- cmoc の起動手順や `init` / `session` / `apply` の操作フローだけを確認したいとき。
+- 開発ルール、命名規則、テスト方針など `repo.py` 以外の共通仕様を確認したいとき。
 - .cmoc の保存形式ではなく、別の共通処理や個別サブコマンドの仕様を確認したいとき。
 
 ## hash
 
-- b1504af2ca2db6cd3fb9fd0aad05542fe895444b22d7550758db60c2ecb41c89
+- e24b1bd1472c18d950197b009582a71c30350e6a5868127998bdf34a40739a62
+<!-- cmoc-index-kind: file -->
 
 # `report_files.py`
 
