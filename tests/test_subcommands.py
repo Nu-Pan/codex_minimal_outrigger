@@ -36,6 +36,7 @@ from commons.repo import write_session_state
 from commons.timing import StepTimer, start_step
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.fork import _apply_prompt
+from sub_commands.apply.fork import APPLY_FORK_EXIT_CODE_UNCONVERGED
 from sub_commands.apply.fork import _DISCREPANCY_OUTPUT_SCHEMA
 from sub_commands.apply.fork import _commit_all_changes
 from sub_commands.apply.fork import _organize_prompt
@@ -4182,7 +4183,7 @@ def test_apply_uses_investigate_repeat_option_for_loop_limit(
 
     exit_code = cmoc_apply_impl(repo, repeat_investigate_and_fix=2)
 
-    assert exit_code == 0
+    assert exit_code == APPLY_FORK_EXIT_CODE_UNCONVERGED
     assert (
         "実装ループ (2/2) 要修正点: 1"
         in capsys.readouterr().out
@@ -4314,7 +4315,7 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     )
 
     output = capsys.readouterr().out
-    assert exit_code == 0
+    assert exit_code == APPLY_FORK_EXIT_CODE_UNCONVERGED
     assert len(organize_prompts) == 3
     assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in organize_kwargs)
     assert all(
@@ -4427,7 +4428,7 @@ def test_apply_fills_discrepancy_head_commit_hash(
         repo,
         repeat_investigate_and_fix=1,
         repeat_improove_fixing_list=0,
-    ) == 0
+    ) == APPLY_FORK_EXIT_CODE_UNCONVERGED
 
     assert apply_prompts
     assert all(
@@ -4511,7 +4512,10 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
 
-    assert cmoc_apply_impl(repo, repeat_investigate_and_fix=1) == 0
+    assert (
+        cmoc_apply_impl(repo, repeat_investigate_and_fix=1)
+        == APPLY_FORK_EXIT_CODE_UNCONVERGED
+    )
 
     assert apply_repos
     commit_subjects = _git(

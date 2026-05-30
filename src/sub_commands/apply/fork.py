@@ -56,6 +56,8 @@ from commons.timestamps import make_timestamp
 
 ApplyScope = Literal["rolling", "session", "full"]
 _APPLY_SCOPES = {"rolling", "session", "full"}
+APPLY_FORK_EXIT_CODE_CONVERGED = 0
+APPLY_FORK_EXIT_CODE_UNCONVERGED = 3
 
 
 @dataclass(frozen=True)
@@ -477,7 +479,9 @@ def cmoc_apply_impl(
             session_id,
             state,
         )
-        return 0
+        if completed:
+            return APPLY_FORK_EXIT_CODE_CONVERGED
+        return APPLY_FORK_EXIT_CODE_UNCONVERGED
     except Exception as error:
         if not apply_start_needs_error_record:
             raise
