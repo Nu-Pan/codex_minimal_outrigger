@@ -155,25 +155,27 @@
 
 ## Summary
 
-- サブコマンド本体と CLI 入口の決定論的な回帰テストをまとめたファイルです。
-- `init`、`session`、`apply`、`review oracles`、`main`、`bin/cmoc` の登録やヘルプ、エラー整形を横断して検証します。
-- 状態遷移、report 生成、prompt / validation、Fake Codex CLI、git worktree まわりの境界条件まで広く押さえます。
+- サブコマンド本体と CLI 入口の回帰テストをまとめ、`init`、`session`、`apply`、`review oracles`、`main`、`bin/cmoc` の振る舞いを横断して確認するファイルです。
+- 状態遷移、git worktree、report 生成、エラー整形、補完プローブ、Fake Codex CLI の境界条件まで広く押さえます。
+- 個別サブコマンドの詳細仕様というより、公開 CLI と周辺ヘルパーの決定論的な統合動作を守るための回帰群です。
 
 ## Read this when
 
-- 公開 CLI の登録内容、ヘルプ表示、補完プローブの振る舞いを確認したいとき。
-- `init`、`session`、`apply`、`review oracles`、`main`、`bin/cmoc` の回帰観点やエラー整形を追いたいとき。
-- 状態遷移、report 生成、prompt / validation ヘルパー、Fake Codex CLI、git worktree 境界のテスト意図を把握したいとき。
+- 公開 CLI の登録、ヘルプ、補完プローブ、`main` / `bin/cmoc` の入口仕様を確認したいとき。
+- `init`、`session`、`apply`、`review oracles` の各サブコマンドの状態遷移や失敗時の挙動を追いたいとき。
+- report 生成、エラー整形、prompt / validation、Fake Codex CLI、git worktree、conflict marker の境界条件を確認したいとき。
+- `run_command` や各ヘルパーの回帰テスト意図を把握したいとき。
 
 ## Do not read this when
 
 - `src/sub_commands` や `src/commons` の実装ロジックそのものを追いたいとき。
-- 個別サブコマンドの使い方や `oracles` の正本仕様だけを確認したいとき。
-- `INDEX.md` の生成ルールや内容ハッシュの扱いだけを調べたいとき。
+- `oracles` の正本仕様や各サブコマンドの個別手順だけを確認したいとき。
+- `INDEX.md` の生成ルールや内容ハッシュの管理だけを調べたいとき。
+- `tests/test_repo.py` や `tests/test_indexing.py` など、別の共通処理の回帰だけを見たいとき。
 
 ## hash
 
-- ed3984c8e87ae7f158284e8668a433771554c43b01f74c29aa23f2785c01503b
+- 80622f519d6e134d932a7b5561d00f72f3051cbaee724549dcb87baceb67a3c1
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
