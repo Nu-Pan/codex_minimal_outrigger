@@ -4127,7 +4127,12 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["apply"]["state"] = "running"
     write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
-    write_apply_process_id(repo, "2026-05-10_22-21_10_000000123", process.pid)
+    write_apply_process_id(
+        repo,
+        "2026-05-10_22-21_10_000000123",
+        process.pid,
+        apply_branch,
+    )
 
     try:
         cmoc_apply_abandon_impl(repo)
@@ -4143,6 +4148,46 @@ def test_apply_abandon_stops_running_process_and_resets_state(
     ).exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
+
+
+def test_apply_abandon_rejects_legacy_pid_without_killing_process(
+    tmp_path: Path,
+) -> None:
+    """PID だけの runtime file では apply process と断定せず停止しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+    )
+    state_path = repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["apply"]["state"] = "running"
+    write_session_state(repo, "2026-05-10_22-21_10_000000123", state)
+    process_id_path = (
+        repo / ".cmoc" / "runtime" / "apply"
+        / "2026-05-10_22-21_10_000000123.pid"
+    )
+    process_id_path.parent.mkdir(parents=True)
+    process_id_path.write_text(f"{process.pid}\n", encoding="utf-8")
+
+    try:
+        with pytest.raises(CmocError) as error_info:
+            cmoc_apply_abandon_impl(repo)
+
+        assert "安全に特定できませんでした" in error_info.value.message
+        assert process.poll() is None
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert state["apply"]["state"] == "running"
+        assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+        assert apply_worktree.exists()
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
 
 
 def test_apply_abandon_rejects_running_state_without_process_id(

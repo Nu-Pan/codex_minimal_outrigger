@@ -150,16 +150,46 @@ def write_apply_process_id(
     repo_root: Path,
     session_id: str,
     process_id: int,
+    apply_branch: str | None = None,
 ) -> Path:
-    """running apply process id を session state 外の runtime file に保存する。"""
+    """running apply process 情報を session state 外の runtime file に保存する。"""
     path = apply_process_id_path(repo_root, session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"{process_id}\n", encoding="utf-8")
+    record = {
+        "format": "cmoc-apply-process-v1",
+        "process_id": process_id,
+        "proc_start_time": process_start_time(process_id),
+        "cmdline": process_cmdline(process_id),
+        "repo_root": str(repo_root.resolve()),
+        "session_id": session_id,
+        "apply_branch": apply_branch,
+    }
+    path.write_text(
+        json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return path
 
 
 def read_apply_process_id(repo_root: Path, session_id: str) -> int | None:
     """runtime file から running apply process id を読む。"""
+    record = read_apply_process_record(repo_root, session_id)
+    if record is None:
+        return None
+    process_id = record.get("process_id")
+    if not isinstance(process_id, int):
+        raise _invalid_apply_process_id_error(
+            apply_process_id_path(repo_root, session_id),
+            process_id,
+        )
+    return process_id
+
+
+def read_apply_process_record(
+    repo_root: Path,
+    session_id: str,
+) -> dict[str, object] | None:
+    """runtime file から running apply process record を読む。"""
     path = apply_process_id_path(repo_root, session_id)
     if not path.exists():
         return None
@@ -175,26 +205,71 @@ def read_apply_process_id(repo_root: Path, session_id: str) -> int | None:
     except FileNotFoundError:
         return None
     try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        process_id = parsed.get("process_id")
+        if not isinstance(process_id, int) or process_id <= 0:
+            raise _invalid_apply_process_id_error(path, process_id)
+        return parsed
+    try:
         process_id = int(raw_value)
     except ValueError as error:
-        raise CmocError(
-            "apply process id ファイルの形式が不正です。",
-            [
-                ".cmoc/runtime/apply 配下の pid ファイルを確認してください。",
-                "手動で apply process の状態を確認してから再実行してください。",
-            ],
-            f"{path}\nprocess_id: {raw_value}",
-        ) from error
+        raise _invalid_apply_process_id_error(path, raw_value) from error
     if process_id <= 0:
-        raise CmocError(
-            "apply process id ファイルの形式が不正です。",
-            [
-                "process id は正の整数である必要があります。",
-                "手動で apply process の状態を確認してから再実行してください。",
-            ],
-            f"{path}\nprocess_id: {process_id}",
-        )
-    return process_id
+        raise _invalid_apply_process_id_error(path, process_id)
+    return {
+        "format": "legacy-pid-only",
+        "process_id": process_id,
+    }
+
+
+def process_start_time(process_id: int) -> int | None:
+    """Linux procfs から process starttime(clock ticks) を返す。"""
+    try:
+        content = Path(f"/proc/{process_id}/stat").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        fields_after_comm = content.rsplit(") ", 1)[1].split()
+    except IndexError:
+        return None
+    if len(fields_after_comm) < 20:
+        return None
+    try:
+        return int(fields_after_comm[19])
+    except ValueError:
+        return None
+
+
+def process_cmdline(process_id: int) -> list[str] | None:
+    """Linux procfs から process cmdline を argv list として返す。"""
+    try:
+        content = Path(f"/proc/{process_id}/cmdline").read_bytes()
+    except OSError:
+        return None
+    if not content:
+        return []
+    return [
+        value.decode("utf-8", errors="replace")
+        for value in content.rstrip(b"\0").split(b"\0")
+    ]
+
+
+def _invalid_apply_process_id_error(
+    path: Path,
+    process_id: object,
+) -> CmocError:
+    """apply process runtime file の形式不正を CmocError 化する。"""
+    return CmocError(
+        "apply process id ファイルの形式が不正です。",
+        [
+            ".cmoc/runtime/apply 配下の pid ファイルを確認してください。",
+            "手動で apply process の状態を確認してから再実行してください。",
+        ],
+        f"{path}\nprocess_id: {process_id}",
+    )
 
 
 def clear_apply_process_id(repo_root: Path, session_id: str) -> None:

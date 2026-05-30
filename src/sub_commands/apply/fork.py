@@ -776,7 +776,7 @@ def _mark_apply_running(
     apply["apply_branch"] = apply_branch
     apply["oracle_snapshot_commit"] = oracle_snapshot_commit
     write_session_state(repo_root, session_id, state)
-    write_apply_process_id(repo_root, session_id, os.getpid())
+    write_apply_process_id(repo_root, session_id, os.getpid(), apply_branch)
 
 
 def _mark_apply_completed(
