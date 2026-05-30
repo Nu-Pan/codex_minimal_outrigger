@@ -111,6 +111,24 @@ def apply_worktree_path_from_branch(repo_root: Path, apply_branch: str) -> Path:
     )
 
 
+def worktree_path_for_branch(repo_root: Path, branch_name: str) -> Path | None:
+    """指定 branch が checkout されている worktree path を返す。"""
+    result = run_git(repo_root, ["worktree", "list", "--porcelain"])
+    current_worktree: Path | None = None
+    target_ref = f"refs/heads/{branch_name}"
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            current_worktree = None
+            continue
+        if line.startswith("worktree "):
+            current_worktree = Path(line.removeprefix("worktree "))
+            continue
+        if line == f"branch {target_ref}" and current_worktree is not None:
+            return current_worktree
+    return None
+
+
 def session_state_path(repo_root: Path, session_id: str) -> Path:
     """session state JSON の保存先 path を返す。"""
     return repo_root / ".cmoc" / "sessions" / f"{session_id}.json"

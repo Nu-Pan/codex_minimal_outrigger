@@ -3749,6 +3749,67 @@ def test_apply_abandon_ignores_worktree_local_log_cmoc(
     assert not apply_worktree.exists()
 
 
+def test_apply_abandon_rejects_dirty_session_branch_worktree(
+    tmp_path: Path,
+) -> None:
+    """apply branch からの実行でも session branch worktree の差分で停止する。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    _git(repo, "switch", home_branch)
+    session_worktree = tmp_path / "session-worktree"
+    _git(repo, "worktree", "add", str(session_worktree), session_branch)
+    (session_worktree / "session-dirty.txt").write_text(
+        "dirty\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_abandon_impl(apply_worktree)
+
+    assert "未コミットの変更" in error_info.value.message
+    assert "session-dirty.txt" in error_info.value.detail
+    assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
+    assert apply_worktree.exists()
+
+
+def test_apply_abandon_does_not_check_unrelated_canonical_worktree(
+    tmp_path: Path,
+) -> None:
+    """session branch が別 worktree にある場合、canonical root の差分は見ない。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    _git(repo, "switch", home_branch)
+    session_worktree = tmp_path / "session-worktree"
+    _git(repo, "worktree", "add", str(session_worktree), session_branch)
+    (repo / "home-dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+    cmoc_apply_abandon_impl(apply_worktree)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert state["apply"]["state"] == "ready"
+    assert _git(repo, "branch", "--list", apply_branch).stdout == ""
+    assert not apply_worktree.exists()
+    assert (repo / "home-dirty.txt").exists()
+
+
 def test_apply_abandon_rejects_ready_state_without_cleanup(
     tmp_path: Path,
 ) -> None:

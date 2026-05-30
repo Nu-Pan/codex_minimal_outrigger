@@ -19,6 +19,7 @@ from commons.repo import (
     run_git,
     session_id_from_branch,
     session_state_repo_root,
+    worktree_path_for_branch,
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
@@ -44,13 +45,23 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
         branch_name,
         session_id,
     )
-    assert_no_uncommitted_changes(cmoc_root)
+    session_worktree = worktree_path_for_branch(
+        cmoc_root,
+        abandon_state.session_branch,
+    )
+    if session_worktree is not None:
+        assert_no_uncommitted_changes(session_worktree)
 
     start_step(timer, 2, 4, "stop running apply")
     warnings = _stop_running_apply(abandon_state)
 
     start_step(timer, 3, 4, "cleanup apply artifacts")
-    _relocate_from_apply_branch(cmoc_root, branch_name, abandon_state)
+    _relocate_from_apply_branch(
+        cmoc_root,
+        branch_name,
+        abandon_state,
+        session_worktree,
+    )
     warnings.extend(_cleanup_apply_artifacts(cmoc_root, abandon_state))
 
     start_step(timer, 4, 4, "record ready apply state")
@@ -264,9 +275,13 @@ def _relocate_from_apply_branch(
     repo_root: Path,
     current_branch_name: str,
     abandon_state: _AbandonState,
+    session_worktree: Path | None,
 ) -> None:
     """apply branch 上からの実行時に cleanup 基点を session branch へ移す。"""
     if current_branch_name != abandon_state.apply_branch:
+        return
+    if session_worktree is not None:
+        os.chdir(session_worktree)
         return
     switch_result = run_git(
         repo_root,
