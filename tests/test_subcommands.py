@@ -7356,31 +7356,43 @@ def test_session_join_allows_clean_auto_merged_root_forbidden_file(
     assert _git(repo, "status", "--porcelain").stdout == ""
 
 
-@pytest.mark.parametrize("forbidden_path", ["README.md", "AGENTS.md"])
-def test_session_join_rejects_forbidden_root_file_conflict(
+@pytest.mark.parametrize("root_doc_path", ["README.md", "AGENTS.md"])
+def test_session_join_allows_root_doc_file_conflict(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
-    forbidden_path: str,
+    root_doc_path: str,
 ) -> None:
-    """README/AGENTS の conflict は Codex に渡さず手動解消にする。"""
-    repo = _repo_with_session_join_forbidden_conflict(tmp_path, forbidden_path)
-    codex_calls: list[str] = []
+    """README/AGENTS の conflict も Codex に marker 解消を依頼する。"""
+    repo = _repo_with_session_join_root_doc_conflict(tmp_path, root_doc_path)
+    codex_prompts: list[str] = []
 
-    def fake_codex(*args: object, **kwargs: object) -> None:
-        """Codex 呼び出しが誤って発生したことを記録する。"""
-        del args, kwargs
-        codex_calls.append("called")
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """本物の Codex CLI なしで root doc conflict を解消する。"""
+        del kwargs
+        codex_prompts.append(prompt)
+        (repo_root / root_doc_path).write_text("resolved\n", encoding="utf-8")
 
     monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
 
-    with pytest.raises(CmocError) as error:
-        cmoc_session_join_impl(repo)
+    cmoc_session_join_impl(repo)
 
-    assert "禁止領域で conflict" in error.value.message
-    assert forbidden_path in error.value.detail
-    assert codex_calls == []
-    assert (repo / ".git" / "MERGE_HEAD").exists()
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert len(codex_prompts) == 1
+    assert f"`{repo / root_doc_path}` は conflict marker 解消に限って編集できます" in (
+        codex_prompts[0]
+    )
+    assert state["session"]["state"] == "joined"
+    assert (repo / root_doc_path).read_text(encoding="utf-8") == "resolved\n"
+    assert not (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_session_join_ignores_markers_outside_conflict_paths(
@@ -8658,14 +8670,15 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     """conflict 対象 oracle file は marker 解消に限って編集できる。"""
     repo = Path("/repo")
 
-    prompt = _conflict_prompt(repo, ["app.py", "oracles/spec.md"])
+    prompt = _conflict_prompt(repo, ["app.py", "README.md", "oracles/spec.md"])
 
     assert "あなたは merge conflict 解消担当です。" in prompt
     assert "cmoc session join" not in prompt
     assert "`/repo/oracles` は編集禁止です。" not in prompt
-    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/README.md` は編集禁止です。" not in prompt
+    assert "`/repo/README.md` は conflict marker 解消に限って編集できます。" in prompt
     assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
-    assert "['/repo/app.py', '/repo/oracles/spec.md']" in prompt
+    assert "['/repo/app.py', '/repo/README.md', '/repo/oracles/spec.md']" in prompt
     assert "['app.py" not in prompt
     assert "conflict marker 解消に限って編集できます" in prompt
     assert "意味的な仕様改訂" in prompt
@@ -8877,17 +8890,17 @@ def _repo_with_session_join_oracle_conflict(tmp_path: Path) -> Path:
     return repo
 
 
-def _repo_with_session_join_forbidden_conflict(
+def _repo_with_session_join_root_doc_conflict(
     tmp_path: Path,
     relative_path: str,
 ) -> Path:
-    """session join で root の編集禁止 file conflict が発生する repo を作る。"""
+    """session join で root doc file conflict が発生する repo を作る。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     target = repo / relative_path
     target.write_text("base\n", encoding="utf-8")
     _git(repo, "add", ".gitignore", relative_path)
-    _git(repo, "commit", "-m", "prepare forbidden session")
+    _git(repo, "commit", "-m", "prepare root doc session")
     home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     _checkout_session_branch(repo)
     session_branch = _git(repo, "branch", "--show-current").stdout.strip()
