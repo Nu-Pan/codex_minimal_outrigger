@@ -980,14 +980,21 @@ def commit_if_changed(repo_root: Path, paths: list[str], message: str) -> bool:
     if parent_hash is not None:
         commit_args[2:2] = ["-p", parent_hash]
     commit_hash = run_git(repo_root, commit_args).stdout.strip()
-    update_ref_args = ["update-ref", "HEAD", commit_hash]
-    if parent_hash is not None:
-        update_ref_args.append(parent_hash)
-    run_git(repo_root, update_ref_args)
-    _restore_index_after_pathspec_commit(
-        repo_root,
-        staged_outside_paths + staged_inside_paths,
-    )
+    with tempfile.TemporaryDirectory(prefix="cmoc-restore-index-") as temp_name:
+        restored_index = Path(temp_name) / "index"
+        staged_diff = staged_outside_paths + staged_inside_paths
+        _write_restored_index_after_internal_commit(
+            repo_root,
+            restored_index,
+            commit_hash,
+            staged_diff,
+            remove_cmoc=bool(staged_diff),
+        )
+        update_ref_args = ["update-ref", "HEAD", commit_hash]
+        if parent_hash is not None:
+            update_ref_args.append(parent_hash)
+        run_git(repo_root, update_ref_args)
+        _replace_git_index(repo_root, restored_index)
     return True
 
 
@@ -1553,18 +1560,6 @@ def _literal_pathspecs(paths: list[str]) -> list[str]:
 def _literal_exclude_pathspecs(paths: list[str]) -> list[str]:
     """repo 相対 path を git literal exclude pathspec へ変換する。"""
     return [f":(exclude,literal){path}" for path in paths]
-
-
-def _restore_index_after_pathspec_commit(
-    repo_root: Path,
-    staged_diff: str,
-) -> None:
-    """pathspec commit 後、既存 staged 差分を index に戻す。"""
-    _restore_index_after_internal_commit(
-        repo_root,
-        staged_diff,
-        remove_cmoc=bool(staged_diff),
-    )
 
 
 def _restore_index_after_internal_commit(

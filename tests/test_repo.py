@@ -836,12 +836,13 @@ def test_changed_implementation_files_ignores_git_info_exclude_for_untracked(
 def test_commit_if_changed_keeps_index_when_staged_restore_fails(
     tmp_path: Path,
 ) -> None:
-    """復元失敗時も、事前の staged blob を reset 済み index で壊さない。"""
+    """復元失敗時は、HEAD を進めず事前の staged blob も壊さない。"""
     repo = _init_repo(tmp_path)
     target = repo / "target.txt"
     target.write_text("base\n", encoding="utf-8")
     _git(repo, "add", "target.txt")
     _git(repo, "commit", "-m", "target base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     target.write_text("staged\n", encoding="utf-8")
     _git(repo, "add", "target.txt")
@@ -854,7 +855,8 @@ def test_commit_if_changed_keeps_index_when_staged_restore_fails(
     assert _git(repo, "diff", "--cached", "--name-only").stdout == (
         "target.txt\n"
     )
-    assert _git(repo, "show", "HEAD:target.txt").stdout == "internal\n"
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == base_commit
+    assert _git(repo, "show", "HEAD:target.txt").stdout == "base\n"
 
 
 def test_commit_if_changed_commits_file_with_cmoc_prefix(
