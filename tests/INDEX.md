@@ -161,9 +161,9 @@
 ## Read this when
 
 - 公開 CLI の登録内容やヘルプ、サブコマンドの接続関係を確認したいとき。
-- `run_command`、`cmoc_init_impl`、`cmoc_session_*`、`cmoc_apply_*`、`cmoc_eval_oracles_impl` の回帰観点を追いたいとき。
-- エラー整形、`bin/cmoc` の起動条件、補完プローブ、レポート出力、状態遷移のテスト意図を把握したいとき。
-- prompt 生成や validation ヘルパー、Fake Codex CLI を使う評価系テストの役割を確認したいとき。
+- `init`、`session`、`apply`、`review oracles`、`main`、`bin/cmoc` の回帰観点を追いたいとき。
+- エラー整形、レポート出力、状態遷移、prompt/validation ヘルパー、Fake Codex CLI を使う評価系テストの意図を把握したいとき。
+- サブコマンド本体と CLI 入口の決定論的な挙動を横断して確認したいとき。
 
 ## Do not read this when
 
@@ -174,7 +174,7 @@
 
 ## hash
 
-- 6e56547ce991c020e8cdcbb19d80e93d034699541721eca84d2de8a16ead5927
+- 2cad66b931d7d6b68a8da761693caf55ea09b0d36e14e93f3c38efae528cab57
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`

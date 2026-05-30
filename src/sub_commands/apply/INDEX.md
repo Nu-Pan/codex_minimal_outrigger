@@ -89,11 +89,12 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点の整理だけを確認したいとき。
+- `cmoc apply fork` の調査・修正ループや、要修正点の整理だけを確認したいとき。
 - `cmoc apply abandon` や `cmoc session join` / `cmoc session abandon` など、別サブコマンドの終了・破棄・統合手順だけを確認したいとき。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
 - `cmoc apply join` の実装内容を既に把握していて、ソースコードだけを直接追えば足りるとき。
 
 ## hash
 
-- 2682c1d21a99af9226ef78d2def4338951573c7c4499b295927a9536ed210c09
+- 4a93faf13175da51766cf6e56b532b8f3cb5e2e3bcc2a34ec4e801dc2210bc4e
+<!-- cmoc-index-kind: file -->
