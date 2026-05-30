@@ -128,25 +128,25 @@
 
 ## Summary
 
-- Git リポジトリと `cmoc` 作業ディレクトリを扱う共通処理をまとめたファイルです。
-- repo ルート探索、ブランチ・worktree 判定、session / apply の状態ファイル管理、`.cmoc` の追跡回避保証、差分検査を担当します。
-- `cmoc` の各種ブランチ命名、worktree の対応付け、session state の永続化と検証、git 状態の確認をこの 1 ファイルに集約しています。
+- Git リポジトリと cmoc 作業ディレクトリを扱う共通処理をまとめたモジュールです。
+- repo ルート探索、現在ブランチと HEAD の取得、cmoc 管理ブランチや worktree の判定を扱います。
+- session/apply の状態ファイル管理、`.cmoc` の追跡回避保証、差分・削除・変更ファイルの検査も担当します。
 
 ## Read this when
 
-- Git リポジトリのルート探索、現在ブランチ判定、HEAD 取得などの共通処理を確認したいとき。
-- `cmoc/session/*` と `cmoc/apply/*` のブランチ名判定や、session id の抽出方法を確認したいとき。
-- session state JSON の読み書き、スキーマ検証、`.cmoc` の ignore 保証、未コミット差分の検査を確認したいとき。
+- Git リポジトリのルート探索や、現在ブランチ・HEAD・worktree の取得方法を確認したいとき。
+- `cmoc/session/*` と `cmoc/apply/*` のブランチ名判定、session id 抽出、apply worktree の対応付けを追いたいとき。
+- session state JSON、apply process id、`.cmoc` の ignore 保証、差分・削除・変更ファイルの判定を確認したいとき。
 
 ## Do not read this when
 
-- cmoc の起動手順や `init` / `session` / `apply` の操作フローだけを確認したいとき。
-- 開発ルール、命名規則、テスト方針など `repo.py` 以外の共通仕様を確認したいとき。
-- .cmoc の保存形式ではなく、別の共通処理や個別サブコマンドの仕様を確認したいとき。
+- cmoc の起動手順や `init` / `session` / `apply` の操作フローそのものを確認したいとき。
+- 開発ルール、`INDEX.md` の生成ルール、エラー整形など `repo.py` 以外の共通仕様を確認したいとき。
+- .cmoc` の保存形式ではなく、別の共通モジュールや個別サブコマンドの仕様を確認したいとき。
 
 ## hash
 
-- e24b1bd1472c18d950197b009582a71c30350e6a5868127998bdf34a40739a62
+- a7a46c5156c451db23b7ca9ab384b70f0d9a12f940e53313284ed74d59b76a8f
 <!-- cmoc-index-kind: file -->
 
 # `report_files.py`

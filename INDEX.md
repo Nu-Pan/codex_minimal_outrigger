@@ -178,25 +178,25 @@
 
 ## Summary
 
-- `cmoc` の CLI エントリーポイント `main.py` と、共通処理 `commons/`、サブコマンド実装 `sub_commands/` をまとめた `src` 配下の入口です。
-- `main.py` は Typer アプリと `init` / `session` / `apply` / `review oracles` のコマンド登録を行い、各本体実装へ委譲します。
-- `commons/` は共通基盤、`sub_commands/` は `init`、`eval_oracles`、`apply`、`session` 系の実装入口です。
+- `cmoc` の実装コードをまとめる `src` ディレクトリの入口です。
+- `main.py`、`commons/`、`sub_commands/` へ分かれる構成を案内します。
+- CLI 起点、共通処理、各サブコマンド実装の配置をひと目でたどるための目次です。
 
 ## Read this when
 
-- cmoc CLI の起動点や、全体のコマンド構成を確認したいとき。
-- 共通処理とサブコマンド実装のどちらに進むべきか整理したいとき。
-- `src` 配下のどの入口から読み始めるべきかを把握したいとき。
+- `src` 配下の実装入口をまとめて把握したいとき。
+- CLI の起点である `main.py` と、共通処理・サブコマンド実装の配置を確認したいとき。
+- どの機能が `src/commons/` と `src/sub_commands/` に分かれているかを素早く整理したいとき。
 
 ## Do not read this when
 
-- `commons/` 内の個別ユーティリティや、`sub_commands/` 内の個別コマンド詳細だけを確認したいとき。
-- `oracles/` 側の仕様断片や運用手順だけを確認したいとき。
-- `INDEX.md` の生成ルールそのものや、`src` 配下の特定ファイルの実装詳細だけを追いたいとき。
+- `src/main.py` や `src/commons/`、`src/sub_commands/` の個別実装を直接読みたいとき。
+- `oracles` 配下の正本仕様だけを確認したいとき。
+- `INDEX.md` の生成ルールや維持処理そのものを確認したいとき。
 
 ## hash
 
-- 111a0a95501d0f7923f82b1f037998d71e3c9bca4fccacf30bf79b514e6fe1ab
+- 86d8b1498922b1fa3843eb54a618ef83ad574e7fdb45f64ff88e6956c67ccbfc
 <!-- cmoc-index-kind: directory -->
 
 # `test.sh`
@@ -227,25 +227,23 @@
 
 ## Summary
 
-- テスト共通設定と回帰テストをまとめた入口で、`conftest.py` と各 `test_*.py` が `src` 配下の実装を広く検証します。
-- `commons.codex`、`commons.indexing`、`commons.repo`、`commons.report_files`、`commons.timestamps`、`commons.timing` を対象に、CLI 実行・INDEX 保守・git 共通処理・レポート保存・時刻表示の挙動を確認します。
-- 旧ルーティングファイルの不存在や、テスト配置・命名規則などのリポジトリ構成ルールも含めて守ります。
+- `tests` 配下の pytest 回帰テスト群をまとめる目次です。
+- `src` 配下の共通処理、CLI サブコマンド、INDEX.md 保守、ファイル命名、タイムスタンプ、レポート保存の回帰観点を案内します。
+- 個別テストファイルの責務を素早く見分け、目的の検証対象へ進むための入口です。
 
 ## Read this when
 
-- tests ディレクトリ全体がどの実装領域を守っているかを俯瞰したいとき。
-- `run_codex_exec`、`maintain_indexes`、`repo` ヘルパー、サブコマンド制御、タイムスタンプ処理の回帰を確認したいとき。
-- `tests/conftest.py` の import path 設定や、`test_file_naming.py` の構成規約を確認したいとき。
-- 個別の `test_*.py` がどの責務を持つかを探したいとき。
+- `tests` 配下のどのファイルがどの機能を守っているか知りたいとき。
+- pytest の共通設定、INDEX.md メンテナンス、CLI 挙動、repo 周辺処理、レポート保存、タイムスタンプ仕様のどれを読むべきか判断したいとき。
+- `tests/INDEX.md` から目的の個別テストファイルへ辿りたいとき。
 
 ## Do not read this when
 
-- cmoc 本体の実装コードを直接追いたいとき。
-- `oracles` の正本仕様や、`INDEX.md` の生成ロジックそのものを確認したいとき。
-- 特定サブコマンドのユーザー向け操作手順や引数仕様だけを確認したいとき。
-- テストではなく、開発ルールや運用フローの入口文書を探しているとき。
+- `src` 配下の実装ロジックそのものを追いたいとき。
+- `oracles` の正本仕様だけを確認したいとき。
+- 個別のテストケース本文や詳細な期待値だけを読みたいとき。
 
 ## hash
 
-- a0b0b560578b832d95eff319bc167841b1839e10ef30546f77c265566f933689
+- d6cf3682385745283720dc26e2944c3922d8ded16c1b0c254df49f5a8cde2b4f
 <!-- cmoc-index-kind: directory -->
