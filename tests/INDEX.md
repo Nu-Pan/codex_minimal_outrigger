@@ -153,9 +153,9 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は cmoc の公開 CLI とサブコマンド群の起動・委譲・状態遷移を横断的に検証する回帰テスト集です。
-- `init`、`session`、`apply`、`review oracles`、`eval-oracles`、`main`、`bin/cmoc` の登録、ヘルプ、補完、エラー処理、終了コードをまとめて扱います。
-- branch / worktree / session-state / apply-state、Structured Output schema、プロンプト、差分・衝突解消、レポート生成まで含む決定論的な制御ロジックを確認します。
+- `tests/test_subcommands.py` は cmoc の公開 CLI と各サブコマンドの起動経路、委譲、状態遷移を横断的に検証する回帰テスト集です。
+- `init`、`session`、`apply`、`review oracles`、`eval-oracles`、`main`、`bin/cmoc` の登録や実行経路をまとめて扱います。
+- ヘルプ、補完、エラー処理、終了コード、Structured Output schema、プロンプト、差分検出、衝突解消、レポート生成などの決定論的な制御ロジックを押さえます。
 
 ## Read this when
 
@@ -171,7 +171,7 @@
 
 ## hash
 
-- 228a6b066a7a638a45209c1400e00724c8382fcd06190a033b3ca3f211e656fc
+- ab749ef07f5229f269643536238d6a141f181d565df395b9eb30b0b1be6a4fd4
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`

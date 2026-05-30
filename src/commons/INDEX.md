@@ -128,27 +128,28 @@
 
 ## Summary
 
-- Git リポジトリと cmoc 作業ディレクトリを扱う共通処理をまとめたモジュールです。
-- repo ルート探索、現在ブランチと HEAD の取得、cmoc 管理ブランチや worktree の判定を扱います。
-- session / apply の状態ファイル管理、`.cmoc` の追跡回避保証、差分・削除・変更ファイルの検査も担当します。
-- git status / diff / pathspec 解析と、内部で使う `run_git` の共通ラッパーも含みます。
+- Git リポジトリの root 探索と cwd の切り替えを扱う共通モジュールです。
+- `cmoc` 管理ブランチ、session/apply worktree、session id の判定と関連 path の復元を担います。
+- session state JSON と apply process id の保存・読込、`.cmoc` の追跡回避保証を含みます。
+- `git status`、`git diff`、pathspec、`gitignore` 判定をまとめる `run_git` ベースの共通処理です。
 
 ## Read this when
 
-- Git リポジトリの root 探索や、cwd を repo root に揃える処理を確認したいとき。
-- `cmoc/session/*` と `cmoc/apply/*` のブランチ判定、session id 抽出、apply worktree の対応付けを追いたいとき。
-- session state JSON、apply process id、`.cmoc` の ignore 保証、未コミット差分や削除ファイルの判定を確認したいとき。
-- `git` を叩く共通ラッパーや pathspec、status / diff 解析の実装を見たいとき。
+- リポジトリの root を探索して、cwd を repo root に揃えたいとき。
+- `cmoc/session/*` と `cmoc/apply/*` のブランチ判定や、session id・apply worktree の対応を確認したいとき。
+- session state JSON、apply process id、`.cmoc` の追跡回避、未コミット差分や削除ファイルの判定を確認したいとき。
+- `gitignore`、`status`、`diff`、pathspec の判定や、`run_git` を通した git 呼び出しの共通化を追いたいとき。
 
 ## Do not read this when
 
-- cmoc の起動手順や `init` / `session` / `apply` の操作フローそのものを確認したいとき。
-- `INDEX.md` 生成ルールやエラー整形、タイムスタンプなど他の共通機能を確認したいとき。
-- `repo.py` 以外の個別サブコマンドや別モジュールの仕様を追いたいとき。
+- `cmoc` の起動手順や `init` / `session` / `apply` の操作フローを確認したいとき。
+- `INDEX.md` 生成やエラー整形、タイムスタンプなど別の共通機能を見たいとき。
+- 個別サブコマンドの業務ロジックや CLI 引数だけを追いたいとき。
+- `repo.py` 以外のモジュールを調べたいとき。
 
 ## hash
 
-- 1e396b5ae50cddfe28d34d552b0fb5d64959cad4038213984b3f433ec6ecfad9
+- 9e62f5c53a345516ba8a0c1891b89b173b075753eb5afb756881360758412fdb
 <!-- cmoc-index-kind: file -->
 
 # `report_files.py`
