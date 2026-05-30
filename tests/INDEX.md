@@ -112,7 +112,7 @@
 - repo root 検出や `.cmoc` の ignore 保証、変更ファイル列挙の仕様を確認したいとき。
 - .gitignore、`oracles`、`memo`、`INDEX.md` の除外・対象判定を確認したいとき。
 - `changed_oracle_files`、`changed_implementation_files`、削除検出、`commit_if_changed` の境界条件を見たいとき。
-- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を確認したいとき.
+- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を確認したいとき。
 
 ## Do not read this when
 
@@ -122,7 +122,7 @@
 
 ## hash
 
-- 3b6333e327fe16cdadadd83fae7eb00b04b81e132bf327a21274ba909abd7c77
+- 0dd96be9670acacbde59323547b440fe8a12fd4c53c11fcdd848599760a7d6b3
 <!-- cmoc-index-kind: file -->
 
 # `test_report_files.py`
@@ -154,13 +154,13 @@
 ## Summary
 
 - `cmoc` のサブコマンド周りを検証するテスト群への入口です。
-- サブコマンドの起動経路、引数処理、分岐結果の回帰確認に関する内容を案内します。
+- 起動経路、引数処理、状態遷移、エラー処理、ヘルプやコマンド登録の回帰確認をまとめて扱います。
 - 実装変更に合わせて、どのテスト期待値を見直すべきかを判断するための目次です。
 
 ## Read this when
 
 - サブコマンドの追加・削除・名称変更に伴ってテストの期待値を見直したいとき。
-- CLI のルーティング、引数解釈、エラー表示の回帰テストを更新したいとき。
+- CLI のルーティング、引数解釈、エラー表示、ヘルプ出力、実行結果の回帰テストを更新したいとき。
 - `tests/test_subcommands.py` に書かれているサブコマンド関連の検証対象を素早く把握したいとき。
 
 ## Do not read this when
@@ -171,7 +171,7 @@
 
 ## hash
 
-- 3c15539becb7c93c123d745a51d5f31b07a534305df58dad84c0d3c56b6fa211
+- 0127be7605fa246d1d58c6c966b3b6a57617900248efe40317542dbfbb5b9a6a
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`

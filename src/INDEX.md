@@ -2,27 +2,27 @@
 
 ## Summary
 
-- `src/commons` は、cmoc 全体で共有する基盤処理を集めたディレクトリの入口です。
-- `__init__.py`、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`report_files.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` へのルーティングをまとめます。
-- 個別モジュールへ進む前に、共通実行制御、Git リポジトリ判定、ログ、計時、タイムスタンプ、レポート保存、`INDEX.md` 維持の責務分担を把握するための目次です。
+- `src/commons` は cmoc 全体で共有する基盤処理をまとめた入口です。
+- `__init__.py`、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`report_files.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` への導線を整理します。
+- 共通実行制御、エラー整形、Git リポジトリ判定、`INDEX.md` 維持、レポート保存、ログ、計時、タイムスタンプ生成の責務分担を把握するための目次です。
 
 ## Read this when
 
 - `src/commons` 配下の共有ユーティリティ全体を俯瞰したいとき。
-- Codex CLI 呼び出し、共通実行制御、共通エラー、Git リポジトリ判定、INDEX.md 維持、レポート保存、サブコマンドログ、タイムスタンプ、計時の入口をまとめて確認したいとき。
+- 共通実行制御、Codex CLI 呼び出し、共通エラー、Git リポジトリ判定、`INDEX.md` 維持、レポート保存、サブコマンドログ、タイムスタンプ、計時の入口をまとめて確認したいとき。
 - どの共通モジュールを読むべきかを素早く振り分けたいとき。
-- 共有処理の責務分担を把握してから個別モジュールに進みたいとき。
+- 共有処理の責務分担を先に整理してから個別モジュールへ進みたいとき。
 
 ## Do not read this when
 
-- 個別モジュールの実装詳細だけを確認したいときは、この目次ではなく `__init__.py`、`codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`report_files.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` を直接読むべきです。
+- 個別モジュールの実装詳細だけを確認したいときは、この目次ではなく各モジュールを直接読むべきです。
 - `cmoc` のサブコマンド本体や CLI 引数の詳細だけを追いたいときは、この共通基盤の入口は優先度が低いです。
 - `INDEX.md` の生成・維持ルールだけを確認したいときは、この入口ではなく `indexing.py` を読むべきです。
 - `oracles` 側の仕様断片や `src/sub_commands` 側の実装だけを確認したいときは、このディレクトリではなく該当領域を読むべきです。
 
 ## hash
 
-- 0f11418c658502b88f8940ea38e85539125e6369d77304ccc9baf220862964d2
+- e394b72f933e6a9076c5ddc12661ddc63b63c34e5f0bb1ef0215952dc88412a4
 <!-- cmoc-index-kind: directory -->
 
 # `main.py`

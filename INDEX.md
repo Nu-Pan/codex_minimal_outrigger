@@ -178,25 +178,25 @@
 
 ## Summary
 
-- `src` は cmoc 実装のルートで、`main.py`、`commons`、`sub_commands` への入口をまとめるディレクトリです。
-- `main.py` の CLI エントリーポイントと、`src/commons` の共通基盤、`src/sub_commands` の各サブコマンド実装へのルーティングを整理します。
-- 個別モジュールへ進む前に、起動点と責務分担を俯瞰するための目次です。
+- `src` 配下の cmoc 実装全体への入口です。
+- `main.py`、`commons`、`sub_commands` への導線を整理し、CLI 起動点・共通基盤・サブコマンド実装の責務分担を把握するための目次です。
+- 個別ファイルの詳細に入る前に、どこを読むべきかを判断するための上位ルーティングを担います。
 
 ## Read this when
 
-- cmoc 実装全体の入口や、どのファイルから読み始めるべきか確認したいとき。
-- `src/main.py` の CLI エントリーポイント、`src/commons` の共通基盤、`src/sub_commands` の各サブコマンド実装の役割分担を俯瞰したいとき。
-- `src` 配下のファイルとディレクトリを、個別の詳細に入る前に整理して把握したいとき。
+- `src` 配下のどの入口から読むべきかを確認したいとき。
+- `src/main.py`、`src/commons`、`src/sub_commands` の役割分担を把握したいとき。
+- cmoc 本体実装の全体構成を俯瞰して、必要なモジュールへ素早く辿りたいとき。
 
 ## Do not read this when
 
-- 個別の共通モジュールやサブコマンド実装の詳細だけを確認したいときは、ここではなく各 `INDEX.md` や各モジュールを直接読むべきです。
-- CLI の引数、状態遷移、エラー処理などの個別仕様だけを追いたいとき。
-- `INDEX.md` の生成・維持ルールだけを確認したいときは、ここではなく `src/commons/indexing.py` を読むべきです。
+- 個別モジュールの実装詳細だけを確認したいとき。
+- `cmoc` の CLI 仕様や開発ルールだけを確認したいとき。
+- `INDEX.md` の生成・維持ルールだけを確認したいとき。
 
 ## hash
 
-- dbdc880acf3dd544ba0bb58bb1ba1b6b1fd475615f20c6b2dc92edc00b433851
+- 2b5614f87b135d870f066b34ffef84b3d7417f421bb093eb28f60c72960f9890
 <!-- cmoc-index-kind: directory -->
 
 # `test.sh`
@@ -227,23 +227,23 @@
 
 ## Summary
 
-- pytest による cmoc の回帰テスト群の入口です。
-- 共有 fixture と、Codex 呼び出し、Git/`INDEX.md`、サブコマンド、タイムスタンプ、レポート保存、命名規則の各検証をまとめます。
-- 正規の Codex CLI そのものではなく、決定論的な制御ロジックとファイル操作の期待動作を守るための目次です。
+- `tests` 配下の pytest 回帰テスト群への入口です。
+- `commons` の共通処理、`sub_commands` の CLI 挙動、`INDEX.md` メンテナンス、タイムスタンプや命名規則の検証をまとめています。
+- `conftest.py` を含む、テスト実行に必要な共通設定もここからたどれます。
 
 ## Read this when
 
-- どのテストファイルにどの機能の回帰確認があるかを素早く把握したいとき。
-- `src/commons` や `src/sub_commands` の変更に対して、見直すべきテスト範囲を切り分けたいとき。
-- pytest 共通設定、Codex 呼び出しラッパー、Git 共通処理、`INDEX.md` 維持、サブコマンド、レポート、タイムスタンプの入口を探したいとき。
+- `tests` 配下にどんな回帰テストがあり、どの機能をカバーしているか全体像をつかみたいとき。
+- `commons.indexing`、`commons.repo`、`commons.codex`、`sub_commands` まわりのテストを探したいとき。
+- 新しいテストを追加・整理する前に、既存の分類や責務の分け方を確認したいとき。
 
 ## Do not read this when
 
-- 個別機能の正本仕様だけを確認したいときは、`tests` ではなく `src` や `oracles` を直接読むべきです。
-- Codex CLI や LLM の出力品質そのものを評価したいときは、このテスト群の目的ではありません。
-- ファイル編集可否やリポジトリ運用ルールだけを確認したいときは、この目次ではなく `AGENTS.md` を見るべきです。
+- 個別の `test_*.py` に書かれた期待値や失敗条件を、その場で直接確認したいとき。
+- `src` の実装ロジックや `oracles` の正本仕様だけを追いたいとき。
+- pytest の import 設定や fixture の詳細だけを知りたいときは、`conftest.py` だけを読むべきです。
 
 ## hash
 
-- 8dd7f5e7f88c18dc049e41ade2e2f5f7dd5fe18af4027d2d475f764d78cec72c
+- 796e450a4190626323dfdb21a5a0a3afeca0843bfc18704c7c5029ce0621064b
 <!-- cmoc-index-kind: directory -->

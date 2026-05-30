@@ -128,28 +128,28 @@
 
 ## Summary
 
-- Git リポジトリ root の探索と、`cmoc` 実行時に cwd を repo root に固定する共通処理をまとめるモジュールです。
-- `cmoc/session/*` と `cmoc/apply/*` のブランチ判定、session id 抽出、apply worktree path の復元、worktree 参照を扱います。
-- `.cmoc` の ignore 保証、session state JSON / apply process id の read-write と schema 検証、active session の整合性確認を含みます。
-- `git status` / `git diff` / `git check-ignore` / pathspec を使った未コミット差分、削除検出、oracle / implementation ファイル列挙と変更抽出をまとめます。
+- Git リポジトリ root の探索と、`cmoc` 実行時に cwd を repo root に固定する共通モジュールです。
+- `cmoc/session/*` と `cmoc/apply/*` の branch 判定、session id 抽出、apply worktree path の復元、worktree 参照を扱います。
+- `.cmoc` を ignore 対象にする保証、session state JSON / apply process id の読み書きと schema 検証、active session の整合性確認を含みます。
+- `git status` / `git diff` / `git check-ignore` / pathspec を使った未コミット差分、削除検出、oracle / implementation ファイル列挙と変更抽出、内部 commit の復元処理をまとめます。
 
 ## Read this when
 
-- repo root を見つけて `cmoc` 実行の cwd を揃えたいとき。
-- `cmoc/session/*` や `cmoc/apply/*` のブランチ命名判定、session id 抽出、apply worktree 復元を確認したいとき。
-- `.cmoc` を追跡対象外にする保証、session state / pid の永続化と検証、active session 判定を実装・修正したいとき。
-- `git` 由来の変更一覧、deleted files、oracle/implementation の対象抽出や commit 判定を追いたいとき。
+- repo root を見つけて `cmoc` の実行基準ディレクトリを揃えたいとき。
+- `session` / `apply` の branch ルール、session id の復元、worktree の場所特定を確認したいとき。
+- `.cmoc` の ignore 保証、session state / apply pid の永続化、スキーマ検証、active session の整合性を実装・修正したいとき。
+- `oracles` / 実装ファイルの列挙、変更抽出、削除検出、未コミット差分や pathspec commit の扱いを確認したいとき。
 
 ## Do not read this when
 
 - `cmoc init` / `session` / `apply` の操作手順や CLI 引数だけを確認したいとき。
-- `INDEX.md` の生成ルールや Structured Output 仕様だけを確認したいとき。
+- `INDEX.md` の生成ルールや Structured Output の仕様だけを確認したいとき。
 - エラーレポート整形や共通例外の仕様だけを確認したいとき。
 - タイムスタンプ、ログ保存、計時など他の共通モジュールだけを確認したいとき。
 
 ## hash
 
-- 2e840d6f62af65489d38527b8cf081f4c8160cfc8fa055238927450b9b743e55
+- 86730c21c41a8fbded798935298ff558ae6885ec3e3609ed7777b5ac5697ecda
 <!-- cmoc-index-kind: file -->
 
 # `report_files.py`
