@@ -166,12 +166,12 @@
 
 - `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
 - `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` など共通処理だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など別のテスト群だけで足りるとき。
+- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など、別のテスト群だけで足りるとき。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
 
 ## hash
 
-- 635008d6cf10b3828f0b514f1b7e29303d04ad6ec2beeaa381f3c289c11fc710
+- f60e44e644be1bbdeb5c749828fc8b094a56657ca839153b50d854399dc18bc2
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
