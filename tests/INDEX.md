@@ -150,25 +150,25 @@
 ## Summary
 
 - `tests/test_subcommands.py` は `cmoc` サブコマンド群の決定論的な制御ロジックを横断的に検証するテスト入口です。
-- `init`、`session`、`apply`、`review oracles` / `eval-oracles` の状態遷移、branch/worktree/state/report の整合性をまとめて扱います。
+- `init`、`session`、`apply`、`review oracles` / `eval-oracles` の状態遷移、branch・worktree・state・report の整合性をまとめて扱います。
 - 共通ランナー、エラー報告、CLI 登録、prompt、Structured Output schema、validation helper、レポート生成の回帰も含みます。
 
 ## Read this when
 
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用をまとめて追いたいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用をまとめて確認したいとき。
 - `review oracles` / `eval-oracles` の評価フロー、payload 検証、改善処理、レポート出力を確認したいとき。
-- `run_command`、`main`、`format_error_report`、CLI 登録、prompt 文言、schema、validation helper の変更を確認したいとき。
+- `run_command`、`main`、`format_error_report`、CLI 登録、prompt 文言、Structured Output schema、validation helper の変更を確認したいとき。
 
 ## Do not read this when
 
-- `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装を追いたいとき。
-- `src/commons/codex.py` や `src/commons/repo.py` など、共通処理だけを確認したいとき。
-- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など、他の個別テストだけで足りるとき。
+- `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
+- `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` などの共通処理だけを確認したいとき。
+- `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など他の個別テストだけで足りるとき。
 - `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 341009af5ff77656cdd21a649a177d71827840ec7ec7af0b34fac229256255e2
+- df0e14cf21f8f6623dab3b8a818c5596f6d868e541893b4345d54386602a40ef
 
 # `test_timestamps.py`
 

@@ -30,19 +30,20 @@
 ## Read this when
 
 - `cmoc apply abandon` の実装・修正・レビュー・テストを行いたいとき。
-- 未 join の apply run を破棄する前提条件や、`apply.state` の検証条件を確認したいとき。
+- 未 join の apply run を破棄する前提条件や、`session.state` / `apply.state` の検証条件を確認したいとき。
 - running 中の apply を停止する挙動や、apply worktree / apply branch の cleanup 方針を確認したいとき。
 - 破棄結果として標準出力に何を出し、warning をどう扱うかを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点一覧だけを確認したいときは、このモジュールではなく `fork.py` を読むべきです。
+- `cmoc apply fork` の修正点一覧、調査・修正ループ、レポート生成を確認したいときは、このモジュールではなく `fork.py` を読むべきです。
 - `cmoc apply join` や `cmoc session abandon` など、別サブコマンドの終了・統合・破棄手順だけを確認したいときは、このモジュールではなく該当モジュールを読むべきです。
 - `cmoc apply abandon` の仕様断片や利用手順だけを確認したいときは、`oracles/app_specs/sub_commands/apply_abandon.md` を直接読むべきです。
+- `src/sub_commands/apply` パッケージ全体の役割だけを確認したいときは、`src/sub_commands/apply/INDEX.md` を読むべきです。
 
 ## hash
 
-- 8bfed7fb89ac85ce255d8a910b02ca45356bfacae3c644da7acbedf040255c58
+- b45f20e131c92c70266770d4883e18ad802ecabecfc9630c56c0dc3a582b6566
 
 # `fork.py`
 
