@@ -25,6 +25,7 @@ from .errors import CmocError
 
 _INDEX_DIRECTORY_EXCLUDED_NAMES: set[str] = {"build", "tmp", "__pycache__"}
 _BINARY_DETECTION_CHUNK_SIZE = 8192
+_EMPTY_SHA256_DIGEST = hashlib.sha256(b"").hexdigest()
 _INDEX_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -309,10 +310,12 @@ def _write_index_if_needed(
         digest = _hash_path(repo_root, child, gitignore_matcher)
         if digest is None:
             continue
+        kind = _index_entry_kind(child)
         existing = existing_entries.get(child.name)
         if (
             existing is not None
             and _entry_hash(existing) == digest
+            and _entry_kind_matches(existing, kind, digest)
             and _entry_format_is_valid(existing, child.name, digest)
         ):
             entry_items.append(existing)
@@ -464,6 +467,7 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
             "## hash",
             "",
             f"- {digest}",
+            f"<!-- cmoc-index-kind: {_index_entry_kind(path)} -->",
         ]
     )
 
@@ -569,6 +573,11 @@ def _is_index_entry_target(
     if _looks_binary(path):
         return False
     return True
+
+
+def _index_entry_kind(path: Path) -> str:
+    """INDEX entry 再利用判定用の現在種別を返す。"""
+    return "directory" if path.is_dir() else "file"
 
 
 def _looks_binary(path: Path) -> bool:
@@ -852,7 +861,30 @@ def _parse_index_entries(content: str) -> dict[str, str]:
 def _entry_hash(entry: str) -> str | None:
     """目次情報ブロックから hash 欄の値を読む。"""
     # 仕様上の hash 欄だけを最新判定に使う。
-    match = re.search(r"(?m)^## hash\n\n- ([0-9a-f]{64})$", entry)
+    match = re.search(r"(?m)^## hash\n\n- ([0-9a-f]{64})", entry)
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def _entry_kind_matches(entry: str, kind: str, digest: str) -> bool:
+    """既存目次ブロックの記録種別が現在種別と矛盾しないか判定する。"""
+    entry_kind = _entry_kind(entry)
+    if entry_kind is not None:
+        return entry_kind == kind
+
+    # 旧形式 INDEX には種別メタデータが無い。空ファイルと空ディレクトリは
+    # 同じ SHA-256(empty bytes) になるため、この digest だけは再生成して
+    # 種別メタデータを付与する。
+    return digest != _EMPTY_SHA256_DIGEST
+
+
+def _entry_kind(entry: str) -> str | None:
+    """目次情報ブロックから内部種別メタデータを読む。"""
+    match = re.search(
+        r"(?m)^<!-- cmoc-index-kind: (file|directory) -->$",
+        entry,
+    )
     if match is None:
         return None
     return match.group(1)
@@ -884,6 +916,7 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
         r"\n"
         r"## hash\n\n"
         rf"- {digest}"
+        r"(?:\n<!-- cmoc-index-kind: (?:file|directory) -->)?"
         r"\Z"
     )
     return pattern.match(entry) is not None

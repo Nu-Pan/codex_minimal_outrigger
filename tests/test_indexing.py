@@ -1386,6 +1386,93 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_regenerates_entry_when_empty_file_becomes_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """旧形式の空 file entry は空 directory への種別変更時に再生成する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / "target"
+    target.write_bytes(b"")
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
+    empty_digest = hashlib.sha256(b"").hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `target`",
+                "",
+                "## Summary",
+                "",
+                "- old file summary",
+                "",
+                "## Read this when",
+                "",
+                "- read old file",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip old file",
+                "",
+                "## hash",
+                "",
+                f"- {empty_digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "old empty file index")
+
+    target.unlink()
+    target.mkdir()
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read regenerated"],
+                "do_not_read_this_when": ["skip regenerated"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert purposes == ["INDEX entry 生成 target"]
+    assert "- old file summary" not in content
+    assert "- INDEX entry 生成 target" in content
+    assert "<!-- cmoc-index-kind: directory -->" in content
+
+
 def test_maintain_indexes_round_trips_special_names_and_multiline_text(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
