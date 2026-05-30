@@ -3023,24 +3023,25 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
 ) -> None:
     """apply branch 側の非実装ファイル変更は想定外差分として停止する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    _git(apply_worktree, "add", "-f", "ignored.txt")
     _git(apply_worktree, "commit", "-m", "edit non implementation file")
 
     with pytest.raises(CmocError) as error_info:
         cmoc_apply_join_impl(repo)
 
     assert "想定外の差分" in error_info.value.message
-    assert f"{apply_branch}: memo/note.md" in error_info.value.detail
-    assert not (repo / "memo" / "note.md").exists()
+    assert f"{apply_branch}: ignored.txt" in error_info.value.detail
+    assert not (repo / "ignored.txt").exists()
     assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
     assert apply_worktree.exists()
 
@@ -3084,26 +3085,27 @@ def test_apply_join_reports_unexpected_diff_with_control_chars(
 ) -> None:
     """apply join の想定外差分検査は改行・tab を含む path を壊さない。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation files")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    relative_path = "memo/note\nline\tname.md"
+    relative_path = "ignored\nline\tname.md"
     (apply_worktree / relative_path).write_text("note\n", encoding="utf-8")
-    _git(apply_worktree, "add", relative_path)
-    _git(apply_worktree, "commit", "-m", "edit odd memo path")
+    _git(apply_worktree, "add", "-f", relative_path)
+    _git(apply_worktree, "commit", "-m", "edit odd ignored path")
 
     with pytest.raises(CmocError) as error_info:
         cmoc_apply_join_impl(repo)
 
     assert "想定外の差分" in error_info.value.message
     assert f"{apply_branch}: {relative_path}" in error_info.value.detail
-    assert "\tmemo/note" not in error_info.value.detail
-    assert '"memo/note\\nline\\tname.md"' not in error_info.value.detail
+    assert "\tignored" not in error_info.value.detail
+    assert '"ignored\\nline\\tname.md"' not in error_info.value.detail
 
 
 def test_apply_join_accepts_apply_branch_index_diff(
@@ -3293,9 +3295,9 @@ def test_apply_join_force_resolve_keeps_expected_apply_index_diff(
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
     assert (repo / "INDEX.md").read_text(encoding="utf-8") == "index\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert (repo / "memo" / "note.md").read_text(encoding="utf-8") == "note\n"
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: memo/note.md" not in output
 
 
 def test_apply_join_auto_resolves_index_conflict(
@@ -3542,18 +3544,19 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
 ) -> None:
     """強制モードは apply branch 側の非実装ファイル変更を revert して merge する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
+    _git(apply_worktree, "add", "-f", "ignored.txt", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected ignored file")
 
     cmoc_apply_join_impl(repo, force_resolve=True)
 
@@ -3564,9 +3567,9 @@ def test_apply_join_force_resolves_apply_branch_non_implementation_diff(
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert not (repo / "ignored.txt").exists()
     assert state["apply"]["state"] == "ready"
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: ignored.txt" in output
 
 
 def test_apply_join_force_resolves_with_missing_apply_worktree(
@@ -3575,18 +3578,19 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
 ) -> None:
     """強制モードは apply worktree 欠落時も一時 worktree で revert する。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/ignored.txt\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore non implementation file")
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
-    memo_root = apply_worktree / "memo"
-    memo_root.mkdir()
-    (memo_root / "note.md").write_text("note\n", encoding="utf-8")
+    (apply_worktree / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
-    _git(apply_worktree, "add", "memo/note.md", "feature.txt")
-    _git(apply_worktree, "commit", "-m", "implement with unexpected memo")
+    _git(apply_worktree, "add", "-f", "ignored.txt", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement with unexpected ignored file")
     _git(repo, "worktree", "remove", "--force", str(apply_worktree))
 
     cmoc_apply_join_impl(repo, force_resolve=True)
@@ -3598,12 +3602,12 @@ def test_apply_join_force_resolves_with_missing_apply_worktree(
         ).read_text(encoding="utf-8")
     )
     assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
-    assert not (repo / "memo" / "note.md").exists()
+    assert not (repo / "ignored.txt").exists()
     assert state["apply"]["state"] == "ready"
     assert _git(repo, "branch", "--list", apply_branch).stdout == ""
     assert not apply_worktree.exists()
     assert list((repo / ".cmoc" / "worktrees" / "tmp").glob("*")) == []
-    assert f"- {apply_branch}: memo/note.md" in output
+    assert f"- {apply_branch}: ignored.txt" in output
 
 
 def test_apply_join_accepts_apply_branch_copy_to_expected_path(
@@ -5410,7 +5414,6 @@ def test_apply_implementation_files_at_commit_matches_implementation_files(
         )
     ]
 
-    assert "memo/note.md" not in relative_paths
     assert relative_paths == [
         ".agents/skill.md",
         ".gitignore",
@@ -5418,6 +5421,7 @@ def test_apply_implementation_files_at_commit_matches_implementation_files(
         "README.md",
         "app.py",
         "docs/memo/note.md",
+        "memo/note.md",
     ]
 
 

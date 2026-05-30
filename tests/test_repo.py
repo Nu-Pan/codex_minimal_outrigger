@@ -285,7 +285,7 @@ def test_list_oracle_files_keeps_nested_file_for_rooted_basename_pattern(
 def test_list_implementation_files_excludes_specified_paths(
     tmp_path: Path,
 ) -> None:
-    """実装ファイル列挙は oracles、memo、INDEX.md、gitignore 対象を除外する。"""
+    """実装ファイル列挙は oracles、INDEX.md、gitignore 対象を除外する。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
     (repo / "app.py").write_text("app\n", encoding="utf-8")
@@ -303,7 +303,12 @@ def test_list_implementation_files_excludes_specified_paths(
         for path in list_implementation_files(repo)
     ]
 
-    assert relative_paths == [".gitignore", "README.md", "app.py"]
+    assert relative_paths == [
+        ".gitignore",
+        "README.md",
+        "app.py",
+        "memo/note.md",
+    ]
 
 
 def test_list_implementation_files_respects_gitignore_for_newline_paths(
@@ -327,11 +332,14 @@ def test_list_implementation_files_respects_gitignore_for_newline_paths(
     ]
 
 
-def test_list_implementation_files_excludes_only_root_memo(
+def test_list_implementation_files_includes_root_and_nested_memo(
     tmp_path: Path,
 ) -> None:
-    """実装ファイル列挙の memo 除外は repo root 直下だけに限定する。"""
+    """実装ファイル列挙は root 直下と nested の memo を含める。"""
     repo = _init_repo(tmp_path)
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("root note\n", encoding="utf-8")
     nested_memo = repo / "docs" / "memo"
     nested_memo.mkdir(parents=True)
     (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
@@ -341,7 +349,11 @@ def test_list_implementation_files_excludes_only_root_memo(
         for path in list_implementation_files(repo)
     ]
 
-    assert relative_paths == ["README.md", "docs/memo/note.md"]
+    assert relative_paths == [
+        "README.md",
+        "docs/memo/note.md",
+        "memo/note.md",
+    ]
 
 
 def test_list_implementation_files_ignores_only_root_gitignore(
@@ -442,12 +454,13 @@ def test_filter_apply_implementation_file_paths_matches_implementation_files(
         "README.md",
         "app.py",
         "docs/memo/note.md",
+        "memo/note.md",
     ]
     assert is_apply_implementation_path(repo, "README.md")
     assert is_apply_implementation_path(repo, "AGENTS.md")
     assert is_apply_implementation_path(repo, ".agents/skill.md")
     assert not is_apply_implementation_path(repo, ".cmoc/state.json")
-    assert not is_apply_implementation_path(repo, "memo/note.md")
+    assert is_apply_implementation_path(repo, "memo/note.md")
     assert is_apply_implementation_path(repo, "app.py")
 
 
@@ -707,7 +720,7 @@ def test_changed_oracle_files_ignores_nested_gitignore_for_untracked_files(
 def test_changed_implementation_files_filters_to_implementation_targets(
     tmp_path: Path,
 ) -> None:
-    """変更済み実装ファイルは oracles、memo、INDEX.md を除外して返す。"""
+    """変更済み実装ファイルは oracles、INDEX.md を除外して返す。"""
     repo = _init_repo(tmp_path)
     (repo / "base.py").write_text("base\n", encoding="utf-8")
     _git(repo, "add", ".")
@@ -729,7 +742,7 @@ def test_changed_implementation_files_filters_to_implementation_targets(
         for path in changed_implementation_files(repo, base_commit)
     ]
 
-    assert relative_paths == ["base.py", "new.py"]
+    assert relative_paths == ["base.py", "memo/note.md", "new.py"]
 
 
 def test_changed_implementation_files_preserves_special_path_tokens(

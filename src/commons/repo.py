@@ -1362,13 +1362,11 @@ def _is_implementation_file(repo_root: Path, path: Path) -> bool:
 
 def _is_excluded_implementation_path(relative_path: str) -> bool:
     """実装ファイル列挙から機械的に除外する path か判定する。"""
-    # oracles、root memo、.git、INDEX.md は仕様上の除外対象である。
+    # oracles、.git、INDEX.md は仕様上の除外対象である。
     path = Path(relative_path)
     return (
         relative_path == "oracles"
         or relative_path.startswith("oracles/")
-        or relative_path == "memo"
-        or relative_path.startswith("memo/")
         or relative_path == ".git"
         or relative_path.startswith(".git/")
         or path.name == "INDEX.md"
