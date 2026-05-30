@@ -1428,7 +1428,7 @@ def _maintain_indexes_accepts_excluded_roots() -> bool:
 
 def _apply_index_excluded_roots(repo_root: Path) -> list[Path]:
     """apply worktree の INDEX メンテナンスで書かない root 群を返す。"""
-    return []
+    return [repo_root / "oracles"]
 
 
 def _assert_forbidden_paths_clean(repo_root: Path) -> None:
@@ -1463,10 +1463,7 @@ def _is_forbidden_changed_path(relative_path: str) -> bool:
     """workspace-write prompt で禁止した変更 path か判定する。"""
     return (
         relative_path == "oracles"
-        or (
-            relative_path.startswith("oracles/")
-            and Path(relative_path).name != "INDEX.md"
-        )
+        or relative_path.startswith("oracles/")
         or relative_path == "README.md"
         or relative_path == "AGENTS.md"
         or relative_path == ".cmoc"

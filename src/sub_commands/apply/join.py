@@ -370,10 +370,10 @@ def _is_oracle_path(path: str) -> bool:
 
 def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
     """apply branch 側で cmoc が積み得る想定内 path か判定する。"""
-    if is_maintained_index_path(repo_root, path):
-        return True
     if _is_apply_branch_forbidden_path(path):
         return False
+    if is_maintained_index_path(repo_root, path):
+        return True
     return is_apply_implementation_path(repo_root, path)
 
 

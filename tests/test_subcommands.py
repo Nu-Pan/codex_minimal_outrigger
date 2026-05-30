@@ -36,6 +36,7 @@ from commons.repo import write_session_state
 from commons.timing import StepTimer, start_step
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.fork import _apply_prompt
+from sub_commands.apply.fork import _apply_index_excluded_roots
 from sub_commands.apply.fork import APPLY_FORK_EXIT_CODE_UNCONVERGED
 from sub_commands.apply.fork import _DISCREPANCY_OUTPUT_SCHEMA
 from sub_commands.apply.fork import _commit_all_changes
@@ -3541,14 +3542,14 @@ def test_apply_join_stops_on_apply_branch_memo_index_diff(
     assert f"{apply_branch}: memo/INDEX.md" in error_info.value.detail
 
 
-def test_apply_join_accepts_apply_branch_oracles_index_diff(
+def test_apply_join_rejects_apply_branch_oracles_index_diff(
     tmp_path: Path,
 ) -> None:
-    """apply branch 側の oracles/INDEX.md 差分は merge 対象にする。"""
+    """apply branch 側の oracles/INDEX.md 差分は想定外として止める。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
-    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
     )
@@ -3559,11 +3560,12 @@ def test_apply_join_accepts_apply_branch_oracles_index_diff(
     _git(apply_worktree, "add", "oracles/INDEX.md")
     _git(apply_worktree, "commit", "-m", "maintain oracle index")
 
-    cmoc_apply_join_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
 
-    assert (repo / "oracles" / "INDEX.md").read_text(encoding="utf-8") == (
-        "index\n"
-    )
+    assert "想定外の差分" in error_info.value.message
+    assert f"{apply_branch}: oracles/INDEX.md" in error_info.value.detail
+    assert not (repo / "oracles" / "INDEX.md").exists()
 
 
 def test_apply_join_accepts_session_branch_oracles_index_diff(
@@ -6027,11 +6029,11 @@ def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
     )
 
 
-def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
+def test_commit_all_changes_rejects_forbidden_oracles_index_after_index_update(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """INDEX メンテナンス後の oracle INDEX 差分は commit 対象にする。"""
+    """INDEX メンテナンス後の oracle INDEX 差分は commit 前に止める。"""
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
@@ -6051,12 +6053,19 @@ def test_commit_all_changes_rechecks_forbidden_paths_after_index_update(
         lambda *args, **kwargs: "maintain indexes",
     )
 
-    _commit_all_changes(repo)
+    with pytest.raises(CmocError) as error:
+        _commit_all_changes(repo)
 
-    assert _git(repo, "status", "--porcelain").stdout == ""
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
-        "maintain indexes"
-    )
+    assert "編集禁止パス" in error.value.message
+    assert "oracles/INDEX.md" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+
+
+def test_apply_index_maintenance_excludes_oracles_root(tmp_path: Path) -> None:
+    """apply worktree の INDEX メンテナンスは oracles 配下を書かない。"""
+    repo = _init_repo(tmp_path)
+
+    assert _apply_index_excluded_roots(repo) == [repo / "oracles"]
 
 
 def test_commit_all_changes_rejects_oracle_file_after_index_update(
