@@ -129,6 +129,7 @@
 
 - Git リポジトリと `cmoc` 作業ディレクトリを扱う共通処理をまとめたファイルです。
 - repo ルート探索、ブランチ・worktree 判定、session / apply の状態ファイル管理、`.cmoc` の追跡回避保証、差分検査を担当します。
+- `cmoc` の各種ブランチ命名、worktree の対応付け、session state の永続化と検証、git 状態の確認をこの 1 ファイルに集約しています。
 
 ## Read this when
 
@@ -140,11 +141,11 @@
 
 - `cmoc` の起動手順や `init` / `session` / `apply` の操作フローだけを確認したいとき。
 - `repo.py` 以外の開発ルールや命名規則、テスト方針だけを確認したいとき。
-- `.cmoc` の保存形式ではなく、別の共通処理や個別サブコマンドの仕様を確認したいとき。
+- .cmoc の保存形式ではなく、別の共通処理や個別サブコマンドの仕様を確認したいとき。
 
 ## hash
 
-- 7ce5be5945d5ccfe1708d20fc8040c2a83423d0c13e219b3dc36bc317ccd950d
+- b1504af2ca2db6cd3fb9fd0aad05542fe895444b22d7550758db60c2ecb41c89
 
 # `report_files.py`
 

@@ -108,7 +108,7 @@
 
 - git リポジトリ共通処理のテスト範囲を把握したいとき。
 - .gitignore、`oracles`、`memo`、`INDEX.md` の列挙・除外ルールを確認したいとき。
-- session state、apply process id、`cmoc` ブランチ判定の期待動作を見たいとき。
+- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を見たいとき。
 - 削除検出、変更抽出、`commit_if_changed` の境界条件を確認したいとき。
 
 ## Do not read this when
@@ -119,7 +119,7 @@
 
 ## hash
 
-- 7debdb6b6a0420925f7d27b28f9776954f058eec3c91aa7dd6ef03edaf6e1f3f
+- 4953da24d14c812f87138af987efa58fd2975eb47448427ac32419a2bb92a5cd
 
 # `test_report_files.py`
 
@@ -149,27 +149,25 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `cmoc` サブコマンド群の決定論的な制御ロジックを横断的に検証するテスト入口です。
-- `init`、`session`、`apply`、`review oracles` / `eval-oracles`、`main`、`format_error_report`、CLI 登録、`bin/cmoc` などを扱います。
-- branch、worktree、session/apply state、レポート、エラー報告、prompt、Structured Output schema、validation helper の整合性と回帰を押さえます。
-- 共通ランナーや補助関数を含め、`cmoc` 実行時のユーザー向け出力とエラー処理の仕様をまとめて確認できます。
+- `tests/test_subcommands.py` は `cmoc` のサブコマンド群と共通 CLI 入口の決定論的な制御ロジックを横断的に検証するテスト集です。
+- `init`、`session`、`apply`、`review oracles` / `eval-oracles`、`main`、`format_error_report`、CLI 登録、`bin/cmoc` まで含めて、起動・状態遷移・エラー整形・出力整合性を押さえます。
+- branch、worktree、session/apply state、レポート、Structured Output schema、validation helper、prompt 文言、ファイル差分や衝突処理の回帰をまとめて扱います。
 
 ## Read this when
 
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon` の状態遷移や副作用をまとめて確認したいとき。
+- `cmoc init` / `session fork|join|abandon` / `apply fork|join|abandon` の流れをまとめて確認したいとき。
 - `review oracles` / `eval-oracles` の評価フロー、payload 検証、改善処理、レポート出力を確認したいとき。
-- `run_command`、`main`、`format_error_report`、CLI 登録、prompt 文言、Structured Output schema、validation helper、`bin/cmoc` の挙動を変更したいとき。
+- `run_command`、`main`、`format_error_report`、CLI 登録、`bin/cmoc`、prompt 文言、Structured Output schema、validation helper の変更がこのテスト群に影響するか判断したいとき。
 
 ## Do not read this when
 
 - `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
 - `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/report_files.py` など共通処理だけを確認したいとき。
 - `tests/test_codex.py`、`tests/test_repo.py`、`tests/test_indexing.py` など別の個別テストだけで足りるとき。
-- `INDEX.md` の生成ルールや `oracles` の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 4460b0e77d8c16d8e39b1814e2bab2434ec83c5a461a1ad562f0073321ed5629
+- ee0351fba851d2e6a9c219018c719abae0b289ea079a7c9206988710fe995a8b
 
 # `test_timestamps.py`
 
