@@ -50,27 +50,26 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch から専用の apply branch と worktree を作成し、調査・修正ループとレポート保存まで担う。
-- 開始前の state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の遷移と worktree 作成のリトライ処理をまとめている。
-- 不整合調査の対象選定、Structured Output による要修正点の収集・整理、実装修正の適用と commit、変更要約付きの report 生成もこのモジュールの責務である。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session branch 上で専用 apply branch と worktree を作成し、要修正点の調査・適用・レポート生成までをまとめて担当するモジュールです。
+- 起動前の session/apply state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の `running` / `completed` / `error` 遷移、排他ロックと worktree 作成リトライを含みます。
+- Structured Output による不整合調査、要修正点の整理、修正適用、commit、編集禁止領域の検査、YAML Front Matter 付き report 出力と変更要約生成まで扱います。
 
 ## Read this when
 
-- `cmoc apply fork` の開始から終了までの処理順を追いたいとき。
-- session/apply state の検証、専用 apply branch / worktree の作成、scope に応じた調査対象選定を確認したいとき。
-- Structured Output による要修正点の収集・整理、実装修正の適用、commit、レポート生成を実装・修正・レビュー・テストしたいとき。
-- 編集禁止領域の検査や、`apply.state` の `running` / `completed` / `error` への更新条件を確認したいとき。
+- `cmoc apply fork` の処理順と責務の境界を確認したいとき。
+- `session.state` / `apply.state` の検証条件、apply branch/worktree の作成条件、scope ごとの調査対象選定を確認したいとき。
+- Structured Output の要修正点生成、修正反映、commit、report 生成の流れを実装・修正・レビュー・テストしたいとき。
+- 編集禁止領域の検査や report の検証条件を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon` の実装・テストだけを確認したいとき。
-- `cmoc apply fork` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきとき。
-- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいとき。
-- `INDEX.md` の生成ルールだけを確認したいときは、`oracles/app_specs/indexing.md` を読むべきとき。
+- `cmoc apply join` や `cmoc apply abandon` の実装・終了処理だけを確認したいとき。
+- `cmoc apply fork` の利用手順や正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/apply_fork.md` を直接読むべきとき。
+- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいときや、`INDEX.md` の生成ルールだけを確認したいとき。
 
 ## hash
 
-- d1ca2f1995e9afdc8ef511f9f6c8002cc393078b59ba4e5222cf85cd8f018e2c
+- 899b27c632c0f057a1887962c8e6cf3cfb6f6fc68e8504222bc361053ac8bca4
 <!-- cmoc-index-kind: file -->
 
 # `join.py`

@@ -25,7 +25,7 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンド実装の入口です。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装入口です。
 - `__init__.py` はパッケージ宣言だけを担い、本体ロジックは `fork.py`、`join.py`、`abandon.py` に分かれています。
 - この目次は、開始・統合・破棄のどの実装ファイルへ進むべきかを素早く振り分けるためのものです。
 
@@ -33,19 +33,19 @@
 
 - `src/sub_commands/apply` の実装入口と各モジュールの担当範囲を確認したいとき。
 - `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` のどれを読めばよいか整理したいとき。
-- `cmoc apply` 系の実装・修正・レビュー・テストを始める前に、関連ファイルの入口を把握したいとき。
-- パッケージ宣言だけでなく、開始・合流・破棄の役割分担を俯瞰したいとき。
+- 実装・修正・レビュー・テストを始める前に、関連ファイルの入口を把握したいとき。
+- パッケージ宣言だけでなく、開始・統合・破棄の役割分担を俯瞰したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の個別仕様、状態遷移、例外条件を確認したいときは、それぞれのモジュールを直接読むべきです。
+- 個別の `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の詳細仕様、状態遷移、例外条件を確認したいときは、それぞれのモジュールを直接読むべきです。
 - `src/sub_commands/apply` のパッケージ宣言だけを確認したいときは、この目次ではなく `__init__.py` を直接読むべきです。
-- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/` 側の正本仕様を読むべきです。
+- 利用手順や仕様断片だけを確認したいときは、`oracles/app_specs/sub_commands/` 側の正本仕様を読むべきです。
 - `branch_model`、`codex_call`、`indexing`、`error_handling` などの共通仕様だけを確認したいときは、別の入口文書を読むべきです。
 
 ## hash
 
-- 23cfcbf0cd4666c48eef7d7930ee938cfbdce15328cebd7c481d22bab7f97b3e
+- a464a9a078b3ccfad954b826f0f78427913649dcf7152b99db93fc69ffec65d1
 <!-- cmoc-index-kind: directory -->
 
 # `eval_oracles.py`
@@ -53,25 +53,25 @@
 ## Summary
 
 - `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
-- 現在の oracles スナップショットの評価対象選定、部分/全体評価の分岐、並列評価、問題点リスト改善、Markdown レポート生成をまとめています。
-- 評価前の `INDEX.md` メンテナンス、Structured Output 検証、Codex CLI 向けの prompt 構築とエラー時の報告処理も担います。
+- oracles スナップショットの評価対象選定、部分/全体評価の分岐、並列評価、問題点リストの改善反復をまとめて扱います。
+- 評価前の `INDEX.md` メンテナンス、Structured Output 検証、Codex CLI 用 prompt 構築、Markdown レポート生成と失敗時の報告処理も担います。
 
 ## Read this when
 
-- `cmoc review oracles` の実行順、部分評価・全体評価の切り替え、評価対象ファイルの選定を確認したいとき。
-- 評価前の `INDEX.md` メンテナンスや、評価対象の oracle スナップショットを固定する流れを追いたいとき。
-- Structured Output の検証条件、問題点リストの改善反復、参照可能ファイルの制約を実装・修正・レビューしたいとき。
+- `cmoc review oracles` の実行順、部分評価・全体評価の切り替え、評価対象の oracle ファイル選定を確認したいとき。
+- 評価前の `INDEX.md` メンテナンス、開始時点の oracles tree の固定、参照可能ファイルの制約を実装・修正・レビューしたいとき。
+- Structured Output の検証条件、問題点リストの改善反復、Codex CLI 向けの prompt 構築を確認したいとき。
 - レポート保存、error report、stderr フォールバックまで含めて `cmoc review oracles` の挙動を把握したいとき。
 
 ## Do not read this when
 
 - `cmoc review oracles` の CLI 引数や `main.py` への登録だけを確認したいとき。
 - `cmoc apply`、`cmoc session`、`cmoc init` など、別サブコマンドの実装や仕様を追いたいとき。
-- `oracles` 配下の個別仕様断片そのものを読みたいとき。
+- `oracles` 配下の個別仕様断片そのものを直接読みたいとき。
 
 ## hash
 
-- 2a68bb03fab8ab6426931305f6ceb3f7b57ead16d176858c8ca43e4484ec2431
+- 34c6e91d4fd996acd96b7440b5c556325973d9c961bb127bb6201f24864bedc8
 <!-- cmoc-index-kind: file -->
 
 # `init.py`

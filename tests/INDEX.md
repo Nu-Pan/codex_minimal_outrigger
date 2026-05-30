@@ -169,13 +169,13 @@
 ## Do not read this when
 
 - `src/sub_commands` や `src/commons` の実装ロジックそのものを追いたいとき。
-- `oracles` の正本仕様や、各サブコマンドの個別手順だけを確認したいとき。
+- 個別サブコマンドの詳細仕様や `oracles` の正本仕様だけを確認したいとき。
 - `INDEX.md` の生成ルールや内容ハッシュの管理だけを調べたいとき。
 - `tests/test_repo.py` や `tests/test_indexing.py` など、別の共通処理の回帰だけを見たいとき。
 
 ## hash
 
-- a8398352c25407c3617961fff3e5f401ddbafc9c50a42439aa0671db8f408851
+- acbc028621b52e949f98d0e7550749c8afa98289bf237a55570f7120ff361e4d
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
