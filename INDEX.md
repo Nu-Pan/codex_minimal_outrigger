@@ -130,25 +130,26 @@
 
 ## Summary
 
-- `oracles` 配下の入口であり、仕様の種類ごとに読むべきディレクトリを案内する目次です。
-- `app_specs` は利用手順とサブコマンド仕様、`dev_rules` は実装・テスト・環境ルール、`considered_alternatives` は採用しなかった設計案をまとめます。
-- 個別の仕様断片を探すときは、この目次から該当ディレクトリへ進みます。
+- `<cmoc-root>/oracles` 全体のルーティング入口で、配下の正本仕様断片へ案内する目次です。
+- `cmoc` の利用手順、開発ルール、採用しなかった代替案を、それぞれ適切な下位ディレクトリへ振り分けます。
+- `oracles` は人間が更新する仕様の集合として扱い、個別詳細は下位の `INDEX.md` や各仕様ファイルでたどる前提を示します。
 
 ## Read this when
 
-- `oracles` 配下のどこから読み始めるべきかを知りたいとき。
-- 仕様の種類ごとに、利用手順・開発ルール・代替案のどれを読むべきか素早く選びたいとき。
-- `cmoc` の正本仕様断片を全体として俯瞰し、入口を整理したいとき。
+- `<cmoc-root>/oracles` 全体の入口として、どの配下を読むべきか判断したいとき。
+- `app_specs`、`dev_rules`、`considered_alternatives` のどれへ進むべきか整理したいとき。
+- `oracles` が人間編集の正本仕様断片であることと、その役割分担を確認したいとき。
 
 ## Do not read this when
 
-- すでに読むべき個別ファイルが決まっていて、該当ディレクトリの `INDEX.md` や各仕様ファイルを直接開く段階にあるとき。
-- `app_specs`、`dev_rules`、`considered_alternatives` のうち、特定の 1 系統だけを確認したいとき。
-- `oracles` 以外の `<cmoc-root>` 全体ルールや、実装コード・テストコードの内容を探しているとき。
+- `<cmoc-root>/oracles` 配下の個別仕様ファイルの詳細だけを確認したいとき。
+- `cmoc` の実装コードやテストコードの修正だけが目的のとき。
+- `INDEX.md` の生成・更新ルールだけを確認したいときは、`app_specs/indexing.md` を直接読むべきです。
 
 ## hash
 
-- 0f2f40674b872cfab4188b38edded8d24dc9cff2b30a616b5ab88a8230363cdc
+- 3cad3889683cae9eabe6ef48e9ad3d27ec353923c25e7c3c64799f145e40f74e
+<!-- cmoc-index-kind: directory -->
 
 # `pyproject.toml`
 
