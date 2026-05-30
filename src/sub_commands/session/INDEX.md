@@ -47,25 +47,26 @@
 
 ## Summary
 
-- `cmoc session fork` の本体処理を実装するモジュールです。
-- 現在 checkout している local branch の HEAD を起点に session branch を作成し、session state を記録します。
-- detached HEAD、cmoc 管理 branch、未コミット差分、既存 active session を検査し、`.cmoc` の非追跡保証、session branch の一意作成、保存失敗時の rollback までを扱います。
+- `src/sub_commands/session/fork.py` は `cmoc session fork` の本体実装で、現在 checkout 中の local branch を session home branch とみなし、その HEAD から session branch を作成します。
+- detached HEAD、local branch 以外、`cmoc` 管理 branch、未コミット差分、既存 active session を検査し、`.cmoc` の非追跡保証と session state の保存を扱います。
+- session 作成の直列化、timestamp ベースの一意な branch 名生成、state 保存失敗時の rollback まで含みます。
 
 ## Read this when
 
-- `cmoc session fork` の実装・修正・テスト・レビューを行うとき。
-- 現在 checkout 中の local branch を session home branch とみなす条件や、session branch 名の生成・作成手順を確認したいとき。
-- active session の重複防止、`.cmoc` の非追跡保証、session state の保存、失敗時の rollback や再試行挙動を確認したいとき。
+- `cmoc session fork` の実装・修正・レビュー・テストを行うとき。
+- 現在 checkout 中の local branch を session home branch とみなす条件や、detached HEAD / remote-tracking / commit hash の扱いを確認したいとき。
+- active session の重複防止、`.cmoc` の非追跡保証、session branch 名の生成、state 保存失敗時の rollback を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session join` や `cmoc session abandon` の終了・統合・破棄手順だけを確認したいとき。
-- `cmoc apply` 系の開始条件や apply branch / worktree の扱いだけを確認したいとき。
-- branch model 全体や一般的な git 操作の説明だけで足りるとき。
+- `cmoc session join` / `cmoc session abandon` / `cmoc apply` 系の終了・破棄・統合だけを確認したいとき。
+- branch model 全体や一般的な git 操作だけを確認したいとき。
+- session 開始ではなく、session 終了や別コマンドの仕様を確認したいとき。
 
 ## hash
 
-- fe6da28add467a18855905a82c0007d6d3baba995fe4b6056a894125515bb9ea
+- a95a1f2a7b766935b5c1cfb30ee749bfdfa4ee0963a71ad87105f821892f8dad
+<!-- cmoc-index-kind: file -->
 
 # `join.py`
 

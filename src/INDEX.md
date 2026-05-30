@@ -15,14 +15,14 @@
 
 ## Do not read this when
 
-- 個別モジュールの実装詳細だけを確認したいときは、この目次ではなく `codex.py`、`repo.py`、`errors.py` など該当ファイルを直接読むべきです。
+- 個別モジュールの実装詳細だけを確認したいときは、この目次ではなく `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`report_files.py`、`subcommand_log.py`、`timestamps.py`、`timing.py` を直接読むべきです。
 - `cmoc` のサブコマンド本体や CLI 引数の詳細だけを追いたいときは、この共通基盤の目次は優先度が低いです。
+- `INDEX.md` の維持ロジックだけを確認したいときは、この入口ではなく `indexing.py` を読むべきです。
 - `oracles` 側の仕様断片や `src/sub_commands` の処理だけを確認したいときは、このディレクトリではなく該当領域を読むべきです。
-- `src/commons` 以外の実装やテストを探しているときは、この入口では目的に合いません。
 
 ## hash
 
-- 140f4a5e4cc30fdccaeb3af425ee8767bc86aec71f98e25748e78665940b5ee3
+- 45795410e9f50a7fea948d0f31b9f1df5d0e4737b7a934caf184732cfdb781e4
 <!-- cmoc-index-kind: directory -->
 
 # `main.py`
@@ -57,7 +57,7 @@
 
 - `src/sub_commands` は `cmoc` の個別サブコマンド実装への入口です。
 - `apply/` と `session/` の各パッケージ、`init.py`、`eval_oracles.py`、`__init__.py` をまとめて案内します。
-- 各コマンド本体の配置先を素早く選べるようにする目次です。
+- どのモジュールがどのコマンドを担当するかを素早く振り分けるための目次です。
 
 ## Read this when
 
@@ -73,5 +73,5 @@
 
 ## hash
 
-- 38f113674acd7070a57677a68c208d07e6e8fdbdfc6db58b4c2a22d0d761f3a5
+- 8730694c262dde33ad51e2ff94fab73e65a27907904ad8be2f794716cae658bd
 <!-- cmoc-index-kind: directory -->

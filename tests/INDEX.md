@@ -109,10 +109,10 @@
 
 ## Read this when
 
-- repo root 検出、`.cmoc` の ignore 保証、変更ファイル列挙の仕様を確認したいとき。
+- repo root 検出や `.cmoc` の ignore 保証、変更ファイル列挙の仕様を確認したいとき。
 - .gitignore、`oracles`、`memo`、`INDEX.md` の除外・対象判定を確認したいとき。
 - `changed_oracle_files`、`changed_implementation_files`、削除検出、`commit_if_changed` の境界条件を見たいとき。
-- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を確認したいとき。
+- session state、apply process id、`cmoc` ブランチ判定、active session 判定の期待動作を確認したいとき.
 
 ## Do not read this when
 
@@ -122,7 +122,7 @@
 
 ## hash
 
-- a181e14f100411359561998f21285511f778fcfb987ba8624eb95090cda59f04
+- 3b6333e327fe16cdadadd83fae7eb00b04b81e132bf327a21274ba909abd7c77
 <!-- cmoc-index-kind: file -->
 
 # `test_report_files.py`
@@ -162,16 +162,18 @@
 - 公開 CLI のコマンド登録や `main` / `bin/cmoc` の起動経路を確認したいとき。
 - `init`、`session`、`apply`、`review oracles`、`eval-oracles` の状態遷移やエラー報告を横断的に追いたいとき。
 - Structured Output schema、プロンプト文言、差分検出、衝突の自動解消、ヘルプや補完表示の回帰を確認したいとき。
+- `session join`、`session abandon`、`apply join`、`apply abandon`、`apply fork` などの連携挙動をまとめて追いたいとき。
 
 ## Do not read this when
 
 - `src/sub_commands/apply/` や `src/sub_commands/session/` の個別実装だけを追いたいとき。
 - `src/commons/codex.py`、`src/commons/repo.py`、`src/commons/errors.py` など共通処理だけを確認したいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_codex.py` など、`tests/test_subcommands.py` 以外のテスト群で足りるとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_codex.py` など、別の回帰テスト群で足りるとき。
+- `main.py` や `bin/cmoc` の単体仕様だけを見たいとき。
 
 ## hash
 
-- 57c5e141bb9e31177d818800725ac66fdb64bb226cf05969c52d7560cb79ae91
+- de46e7840d0b12a60c979d05241dfd673618c7e664b5d3bf6e3c34cb294e0dc9
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
