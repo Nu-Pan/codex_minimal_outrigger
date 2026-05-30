@@ -1,4 +1,4 @@
-# `cmoc eval-oracles`
+# `cmoc review oracles`
 
 ## 概要
 
@@ -8,6 +8,7 @@
 
 - 位置引数なし
 - オプション引数 `--full` (`-f`) を受け取る
+- オプション引数 `--repeat-improve-issues-list` を受け取る
 
 ## 事前条件
 
@@ -15,7 +16,7 @@
 
 ## 部分・全体評価モード
 
-- `cmoc eval-oracles` は部分評価・全体評価の２つのモードを持つ
+- `cmoc review oracles` は部分評価・全体評価の２つのモードを持つ
 - `<cmoc-session-branch>` 上に居る場合
     - `--full` がついている場合は全体評価モードへ
     - `--full` が付いていない場合は部分評価モードへ
@@ -28,7 +29,18 @@
 2. oracles ファイルを列挙
 3. 部分評価モードの場合、列挙した oracles ファイルリストを「`<cmoc-session-branch>` 上で変更があった oracles ファイル」のみに絞り込む
 4. 列挙した oracles ファイルリストに対して、ファイルごとの評価を行う
-6. これまでに出した評価を１つのレポートにまとめる
+5. 問題点リストを改善する
+6. 改善済みの問題点リストをレポートとしてレンダリングする
+
+## 評価対象はスナップショットである
+
+- `cmoc review oracles` は、コマンド開始時点で現在チェックアウトされている `<repo-root>/oracles` ツリーを「閉じた oracle スナップショット」として評価する
+- 過去にあった状態遷移は評価対象としない
+  - i.e. このコマンドは git 履歴・base commit・過去の oracle スナップショットとの差分を oracle の存在可否や仕様欠落の根拠としては扱わない。
+  - e.g. 現在の `<repo-root>/oracles` に存在しないファイル（過去に削除されたファイル）は評価対象にしない。
+- 現在の oracle スナップショット上の記述だけから、判断可能な問題は問題として報告して良い
+  - e.g. 参照切れ、INDEX の不整合、主要ワークフローの仕様不足、完了判定不能
+  - この場合も、問題の根拠としてよいのは、現在存在するファイルの記述だけである（過去に存在したファイルではない）
 
 ## 「致命的な問題」の定義
 
@@ -40,9 +52,11 @@
     - 仕様を元に実装が一意に定まらなくても良いものとする（そのために oracles が過剰に詳細になってしまうと、人間の負担が増えて oracles のビジョンと反してしまう）
 - この定義は `codex exec` のプロンプトに「リポジトリ固有の事情に依存しない汎用的な評価観点」として注入する。
 
-## 「ファイル毎の評価」の詳細
+## Codex CLI 呼び出しの規則
 
-- 1 回の `codex exec` 呼び出しで、ファイル 1 つを評価する
+- 以下の作業を Codex CLI に依頼する時、この規則を適用する
+  - ファイル毎の評価
+  - 問題点リストを改善
 - `codex exec` は読み取り専用で実行する。
 - 評価にあたってエージェントは以下のファイルを読んで良い
     - 対象 `oracle` ファイル
@@ -53,43 +67,45 @@
     - e.g. 実装ファイル、テストファイル、設定ファイル、ビルド成果物
 - 関連する oracles ファイルの選定方法
     - `oracles/INDEX.md` から始まる `INDEX.md` の Summary / Read this when / Do not read this when を根拠に行う
-- レポートには以下のことを明示する
-    - 評価が「仕様だけ」に基づくとする根拠
-    - 参照した oracle / INDEX ファイル
-    - 致命的問題の有無と根拠
-- 評価結果は Structured Output で受け取るとする
 
-## 「ファイルごとの評価」の Structured Output schema
+## 「ファイル毎の評価」の詳細
+
+- 1 回の `codex exec` 呼び出しで、ファイル 1 つを評価し、問題点リストを生成する
+- このファイルごとの評価は並列に実行する
+- 問題点リストは Structured Output で受け取る
+
+## 「問題点リストを改善」の詳細
+
+- ファイル毎に生成した問題点リストを１つに単純結合する
+- 結合された問題点リストを元に、意味論的に統合・改善された新しい問題点リストの生成を `codex exec` に依頼す
+- 作業完了後、問題点リストは以下の要件を満たしている事を目指す（ベストエフォートで良い）
+    - 問題点の内容の品質に明確な問題が存在しないこと
+    - 問題点同士に内容的な重複がないこと
+    - 問題点同士が相互に矛盾していないこと
+    - 問題点が False-Positive ではないこと
+- この改善作業は繰り返し実行する
+  - 最大で 3 回 (`--repeat-improve-issues-list` で指定された場合そちらを優先) 繰り返す
+  - 入力として与えた問題点リストと、出力として返ってきた問題点リストとが完全一致する場合はそこでループを打ち切る
+- 問題点リストは Structured Output で受け取る
+
+## 問題点リストの Structured Output schema
+
+- 「ファイル毎の評価」「問題点リストを改善」共に、以下の schema を使用する。
+- そのため、出力は常に問題点単位の `issues` 配列だけを持つ。
+- 評価対象ファイル単位のメタ情報は schema に含めない。
+- 問題がない場合は `issues: []` を返し、その場合は参照ファイル情報も出力しない。
 
 ```json
 {
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "target_oracle_path",
-    "referenced_paths",
-    "specification_only_basis",
     "issues"
   ],
   "properties": {
-    "target_oracle_path": {
-      "type": "string",
-      "description": "評価対象 oracle ファイルの絶対パス。"
-    },
-    "referenced_paths": {
-      "type": "array",
-      "description": "評価時に参照した oracle / INDEX ファイルの絶対パス。対象 oracle 自身も含める。",
-      "items": {
-        "type": "string"
-      }
-    },
-    "specification_only_basis": {
-      "type": "string",
-      "description": "この評価が oracles 配下の仕様断片と INDEX だけに基づくことの説明。"
-    },
     "issues": {
       "type": "array",
-      "description": "評価対象 oracle から検出した問題点。問題がない場合は空配列。",
+      "description": "検出した問題点。問題がない場合は空配列。",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -99,11 +115,13 @@
           "oracle_path",
           "oracle_line_start",
           "oracle_line_end",
+          "referenced_paths",
           "affected_workflow",
           "requirement",
           "problem",
           "reason",
-          "suggested_oracle_change"
+          "suggested_oracle_change",
+          "specification_only_basis"
         ],
         "properties": {
           "severity": {
@@ -117,19 +135,42 @@
           },
           "oracle_path": {
             "type": "string",
-            "description": "問題点の根拠となる oracle ファイルの絶対パス。通常は target_oracle_path と同じだが、関連 oracle 側に問題がある場合はそのファイルを指してよい。"
+            "description": "問題点の根拠となる oracle ファイルの絶対パス。"
           },
           "oracle_line_start": {
-            "type": ["integer", "null"],
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "問題点の根拠となる oracle 記述の開始行。特定できない場合は null。"
           },
           "oracle_line_end": {
-            "type": ["integer", "null"],
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "問題点の根拠となる oracle 記述の終了行。特定できない場合は null。"
+          },
+          "referenced_paths": {
+            "type": "array",
+            "description": "この問題点の評価時に参照した oracle / INDEX ファイルの絶対パス。oracle_path 自身は含めても含めなくてもよいが、レポートでは重複排除する。",
+            "items": {
+              "type": "string"
+            }
           },
           "affected_workflow": {
             "type": "string",
-            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply fork, cmoc eval-oracles, overall。"
+            "description": "影響を受ける workflow / subcommand / concept。例: cmoc apply fork, cmoc review oracles, overall。"
           },
           "requirement": {
             "type": "string",
@@ -146,6 +187,10 @@
           "suggested_oracle_change": {
             "type": "string",
             "description": "oracle をどう修正すべきか。"
+          },
+          "specification_only_basis": {
+            "type": "string",
+            "description": "この問題点の評価が oracles 配下の仕様断片と INDEX だけに基づくことの説明。"
           }
         }
       }
@@ -192,7 +237,6 @@ frontmatter には少なくとも以下の項目を書く。
 - `is_cmoc_branch`
 - `base_commit`
 - `head_commit`
-- `deleted_oracles_detected`
 - `oracle_count_total`
 - `oracle_count_evaluated`
 - `fatal_issue_count`
@@ -219,7 +263,7 @@ frontmatter には少なくとも以下の項目を書く。
 
 本文には以下のセクションをこの順番で必ず含める。
 
-1. `# cmoc eval-oracles report`
+1. `# cmoc review oracles report`
 2. `## Summary`
 3. `## Verdict`
 4. `## Evaluated oracle files`
@@ -262,7 +306,7 @@ frontmatter には少なくとも以下の項目を書く。
 ```markdown
 | No. | Oracle file | Issues |
 |---:|---|---:|
-| 1 | `oracles/app_specs/sub_commands/eval_oracles.md` | 2 |
+| 1 | `oracles/app_specs/sub_commands/review_oracles.md` | 2 |
 | 2 | `oracles/app_specs/workflow.md` | 0 |
 ```
 
@@ -275,15 +319,15 @@ frontmatter には少なくとも以下の項目を書く。
 ```markdown
 ### FATAL-001: レポートの成功判定条件が曖昧
 
-- Oracle file: `oracles/app_specs/sub_commands/eval_oracles.md`
+- Oracle file: `oracles/app_specs/sub_commands/review_oracles.md`
 - Lines: `72-80`
-- Affected workflow: `cmoc eval-oracles`
+- Affected workflow: `cmoc review oracles`
 - Requirement:
   - 評価結果を人間が判断可能な形でレポートする。
 - Problem:
   - レポート本文の形式が固定されておらず、致命的問題の有無を安定して確認できない。
 - Reason:
-  - `cmoc eval-oracles` の中核目的は oracle スナップショットの致命的問題を人間に報告することだが、報告形式が曖昧だと作業完了を判断できない。
+  - `cmoc review oracles` の中核目的は oracle スナップショットの致命的問題を人間に報告することだが、報告形式が曖昧だと作業完了を判断できない。
 - Suggested oracle change:
   - レポート本文の必須セクションと issue 項目の必須フィールドを仕様化する。
 ```
@@ -305,7 +349,7 @@ frontmatter には少なくとも以下の項目を書く。
 
 ## レポートの提示方法
 
-- 評価レポートは `<repo-root>/.cmoc/reports/eval-oracles/<time-stamp>.md` にファイルに保存する
+- 評価レポートは `<repo-root>/.cmoc/reports/review_oracles/<time-stamp>.md` にファイルに保存する
 - レポートファイルのフルパスを stdout に流す
 
 ## 評価時のワークフロー解釈

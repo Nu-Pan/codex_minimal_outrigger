@@ -38,7 +38,7 @@
 
 ## Do not read this when
 
-- `cmoc` の session / apply / eval-oracles など、この文書に直接関係しないサブコマンド仕様を確認したいとき
+- `cmoc` の session / apply / review oracles など、この文書に直接関係しないサブコマンド仕様を確認したいとき
 - `INDEX.md` の生成ルールや、`oracles` 全体のルーティング方針だけを確認したいとき
 - memory 系の一般論ではなく、個別の実装ファイルやテストファイルの仕様だけを確認したいとき
 

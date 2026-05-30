@@ -37,7 +37,9 @@ cmoc による操作対象リポジトリである `<repo-root>` は以下の要
 ## タイムスタンプのフォーマット
 
 - タイムスタンプ `<time-stamp>` はフォーマット `<year>-<month>-<day>_<hour>-<minute>_<sec>_<msec>` に従うものとする
-- month/day/hour/minute/sec/msec はゼロ埋めする
+- year は 4 ケタゼロ埋めとする
+- month/day/hour/minute/sec は 2 ケタゼロ埋めとする
+- msec は 9 ケタゼロ埋めとする
 - timezone はそのマシンのローカルとする
 
 ## 「`<cmoc-managed-branch>` 上で～」の定義

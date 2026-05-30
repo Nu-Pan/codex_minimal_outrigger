@@ -9,18 +9,24 @@ import pytest
 from commons.errors import CmocError
 from commons.repo import (
     active_session_ids_for_home_branch,
+    apply_process_id_path,
     assert_cmoc_ignored,
     assert_no_uncommitted_changes,
+    changed_paths,
     changed_oracle_files,
     changed_implementation_files,
     commit_if_changed,
     ensure_cmoc_ignored,
     find_repo_root,
+    filter_apply_implementation_file_paths,
+    gitignore_has_cmoc_rule,
     has_deleted_implementation_files,
     has_deleted_oracle_files,
+    is_apply_implementation_path,
     is_cmoc_branch,
     list_implementation_files,
     list_oracle_files,
+    read_apply_process_id,
     read_session_state,
     read_session_start_commit,
     session_state_path,
@@ -67,6 +73,38 @@ def test_ensure_cmoc_ignored_untracks_existing_cmoc_files(
     assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
 
 
+def test_gitignore_has_cmoc_rule_rejects_non_utf8_gitignore(
+    tmp_path: Path,
+) -> None:
+    """`.gitignore` が UTF-8 で読めない場合は CmocError に変換する。"""
+    repo = _init_repo(tmp_path)
+    gitignore = repo / ".gitignore"
+    gitignore.write_bytes(b"\xff\n")
+
+    with pytest.raises(CmocError) as error:
+        gitignore_has_cmoc_rule(repo)
+
+    assert ".gitignore ファイルを読めませんでした。" in error.value.message
+    assert "UTF-8 decode error" in error.value.detail
+    assert str(gitignore) in error.value.detail
+
+
+def test_ensure_cmoc_ignored_rejects_non_utf8_gitignore(
+    tmp_path: Path,
+) -> None:
+    """init 用の `.gitignore` 補修でも decode failure を CmocError にする。"""
+    repo = _init_repo(tmp_path)
+    gitignore = repo / ".gitignore"
+    gitignore.write_bytes(b"\xff\n")
+
+    with pytest.raises(CmocError) as error:
+        ensure_cmoc_ignored(repo)
+
+    assert ".gitignore ファイルを読めませんでした。" in error.value.message
+    assert "UTF-8 decode error" in error.value.detail
+    assert str(gitignore) in error.value.detail
+
+
 def test_assert_cmoc_ignored_does_not_modify_repository(
     tmp_path: Path,
 ) -> None:
@@ -77,6 +115,39 @@ def test_assert_cmoc_ignored_does_not_modify_repository(
         assert_cmoc_ignored(repo)
 
     assert "cmoc init" in "\n".join(error.value.actions)
+    assert not (repo / ".gitignore").exists()
+    assert _git(repo, "status", "--porcelain").stdout == ""
+
+
+def test_assert_cmoc_ignored_rejects_global_exclude_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """外部 exclude だけで `.cmoc` が ignore されても保証済みにしない。"""
+    repo = _init_repo(tmp_path)
+    global_ignore = tmp_path / "global-ignore"
+    global_ignore.write_text(".cmoc/\n", encoding="utf-8")
+    global_config = tmp_path / "global-gitconfig"
+    global_config.write_text(
+        f"[core]\n\texcludesFile = {global_ignore}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
+    assert (
+        _git(
+            repo,
+            "check-ignore",
+            "-q",
+            "--",
+            ".cmoc/.__cmoc_ignore_probe__",
+        ).returncode
+        == 0
+    )
+    with pytest.raises(CmocError) as error:
+        assert_cmoc_ignored(repo)
+
+    assert "probe が ignore されませんでした" in error.value.detail
     assert not (repo / ".gitignore").exists()
     assert _git(repo, "status", "--porcelain").stdout == ""
 
@@ -214,7 +285,7 @@ def test_list_oracle_files_keeps_nested_file_for_rooted_basename_pattern(
 def test_list_implementation_files_excludes_specified_paths(
     tmp_path: Path,
 ) -> None:
-    """実装ファイル列挙は oracles、memo、INDEX.md、gitignore 対象を除外する。"""
+    """実装ファイル列挙は oracles、INDEX.md、gitignore 対象を除外する。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
     (repo / "app.py").write_text("app\n", encoding="utf-8")
@@ -232,14 +303,43 @@ def test_list_implementation_files_excludes_specified_paths(
         for path in list_implementation_files(repo)
     ]
 
-    assert relative_paths == [".gitignore", "README.md", "app.py"]
+    assert relative_paths == [
+        ".gitignore",
+        "README.md",
+        "app.py",
+        "memo/note.md",
+    ]
 
 
-def test_list_implementation_files_excludes_only_root_memo(
+def test_list_implementation_files_respects_gitignore_for_newline_paths(
     tmp_path: Path,
 ) -> None:
-    """実装ファイル列挙の memo 除外は repo root 直下だけに限定する。"""
+    """root .gitignore 判定でも newline を含む path 境界を保つ。"""
     repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    (repo / "kept\nname.py").write_text("kept\n", encoding="utf-8")
+    (repo / "ignored\nname.py").write_text("ignored\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in list_implementation_files(repo)
+    ]
+
+    assert relative_paths == [
+        ".gitignore",
+        "README.md",
+        "kept\nname.py",
+    ]
+
+
+def test_list_implementation_files_includes_root_and_nested_memo(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル列挙は root 直下と nested の memo を含める。"""
+    repo = _init_repo(tmp_path)
+    memo_root = repo / "memo"
+    memo_root.mkdir()
+    (memo_root / "note.md").write_text("root note\n", encoding="utf-8")
     nested_memo = repo / "docs" / "memo"
     nested_memo.mkdir(parents=True)
     (nested_memo / "note.md").write_text("note\n", encoding="utf-8")
@@ -249,7 +349,11 @@ def test_list_implementation_files_excludes_only_root_memo(
         for path in list_implementation_files(repo)
     ]
 
-    assert relative_paths == ["README.md", "docs/memo/note.md"]
+    assert relative_paths == [
+        "README.md",
+        "docs/memo/note.md",
+        "memo/note.md",
+    ]
 
 
 def test_list_implementation_files_ignores_only_root_gitignore(
@@ -320,6 +424,44 @@ def test_list_implementation_files_ignores_system_excludes_file(
     ]
 
     assert relative_paths == [".gitignore", "README.md", "system-only.txt"]
+
+
+def test_filter_apply_implementation_file_paths_matches_implementation_files(
+    tmp_path: Path,
+) -> None:
+    """apply の実装調査対象は通常の実装ファイル列挙に合わせる。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text(
+        "/.cmoc/\nignored.py\n",
+        encoding="utf-8",
+    )
+    relative_paths = [
+        "README.md",
+        "AGENTS.md",
+        ".agents/skill.md",
+        ".cmoc/state.json",
+        "memo/note.md",
+        "oracles/spec.md",
+        "INDEX.md",
+        "ignored.py",
+        "app.py",
+        "docs/memo/note.md",
+    ]
+
+    assert filter_apply_implementation_file_paths(repo, relative_paths) == [
+        ".agents/skill.md",
+        "AGENTS.md",
+        "README.md",
+        "app.py",
+        "docs/memo/note.md",
+        "memo/note.md",
+    ]
+    assert is_apply_implementation_path(repo, "README.md")
+    assert is_apply_implementation_path(repo, "AGENTS.md")
+    assert is_apply_implementation_path(repo, ".agents/skill.md")
+    assert not is_apply_implementation_path(repo, ".cmoc/state.json")
+    assert is_apply_implementation_path(repo, "memo/note.md")
+    assert is_apply_implementation_path(repo, "app.py")
 
 
 def test_changed_oracle_files_uses_session_start_and_uncommitted_changes(
@@ -426,6 +568,40 @@ def test_changed_oracle_files_uses_renamed_oracle_new_path(
     assert has_deleted_oracle_files(repo, base_commit) is False
 
 
+def test_changed_oracle_files_preserves_special_path_tokens(
+    tmp_path: Path,
+) -> None:
+    """変更 oracle path は newline や前後空白を含んでも実 path のまま扱う。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    old_path = oracle_root / "old\nname.md"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    renamed = oracle_root / " new\nname.md "
+    _git(
+        repo,
+        "mv",
+        old_path.relative_to(repo).as_posix(),
+        renamed.relative_to(repo).as_posix(),
+    )
+    untracked = oracle_root / " untracked\nspec.md "
+    untracked.write_text("new\n", encoding="utf-8")
+
+    relative_paths = {
+        path.relative_to(repo).as_posix()
+        for path in changed_oracle_files(repo, base_commit)
+    }
+
+    assert relative_paths == {
+        "oracles/ new\nname.md ",
+        "oracles/ untracked\nspec.md ",
+    }
+
+
 def test_committed_oracle_rename_does_not_count_as_deletion(
     tmp_path: Path,
 ) -> None:
@@ -516,10 +692,35 @@ def test_changed_oracle_files_excludes_gitignored_files(
     assert changed_oracle_files(repo, base_commit) == []
 
 
+def test_changed_oracle_files_ignores_nested_gitignore_for_untracked_files(
+    tmp_path: Path,
+) -> None:
+    """未追跡 oracle 収集でも nested .gitignore の除外判定を使わない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    nested = oracle_root / "nested"
+    nested.mkdir(parents=True)
+    (oracle_root / "base.md").write_text("base\n", encoding="utf-8")
+    (nested / ".gitignore").write_text("*\n", encoding="utf-8")
+    _git(repo, "add", "oracles/base.md")
+    _git(repo, "add", "-f", "oracles/nested/.gitignore")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (nested / "hidden.md").write_text("hidden\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_oracle_files(repo, base_commit)
+    ]
+
+    assert relative_paths == ["oracles/nested/hidden.md"]
+
+
 def test_changed_implementation_files_filters_to_implementation_targets(
     tmp_path: Path,
 ) -> None:
-    """変更済み実装ファイルは oracles、memo、INDEX.md を除外して返す。"""
+    """変更済み実装ファイルは oracles、INDEX.md を除外して返す。"""
     repo = _init_repo(tmp_path)
     (repo / "base.py").write_text("base\n", encoding="utf-8")
     _git(repo, "add", ".")
@@ -541,7 +742,39 @@ def test_changed_implementation_files_filters_to_implementation_targets(
         for path in changed_implementation_files(repo, base_commit)
     ]
 
-    assert relative_paths == ["base.py", "new.py"]
+    assert relative_paths == ["base.py", "memo/note.md", "new.py"]
+
+
+def test_changed_implementation_files_preserves_special_path_tokens(
+    tmp_path: Path,
+) -> None:
+    """変更済み実装 path は newline や前後空白を含んでも実 path のまま扱う。"""
+    repo = _init_repo(tmp_path)
+    old_path = repo / "old\nname.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    renamed = repo / " new\nname.py "
+    _git(
+        repo,
+        "mv",
+        old_path.relative_to(repo).as_posix(),
+        renamed.relative_to(repo).as_posix(),
+    )
+    untracked = repo / " untracked\nimpl.py "
+    untracked.write_text("new\n", encoding="utf-8")
+
+    relative_paths = {
+        path.relative_to(repo).as_posix()
+        for path in changed_implementation_files(repo, base_commit)
+    }
+
+    assert relative_paths == {
+        " new\nname.py ",
+        " untracked\nimpl.py ",
+    }
 
 
 def test_changed_implementation_files_ignores_only_root_gitignore(
@@ -575,6 +808,30 @@ def test_changed_implementation_files_ignores_only_root_gitignore(
     assert relative_paths == [".pytest_cache/CACHEDIR.TAG", "app.py"]
 
 
+def test_changed_implementation_files_ignores_git_info_exclude_for_untracked(
+    tmp_path: Path,
+) -> None:
+    """未追跡実装収集でも .git/info/exclude の除外判定を使わない。"""
+    repo = _init_repo(tmp_path)
+    (repo / "base.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (repo / ".git" / "info" / "exclude").write_text(
+        "hidden-by-info.py\n",
+        encoding="utf-8",
+    )
+    (repo / "hidden-by-info.py").write_text("hidden\n", encoding="utf-8")
+
+    relative_paths = [
+        path.relative_to(repo).as_posix()
+        for path in changed_implementation_files(repo, base_commit)
+    ]
+
+    assert relative_paths == ["hidden-by-info.py"]
+
+
 def test_commit_if_changed_keeps_index_when_staged_restore_fails(
     tmp_path: Path,
 ) -> None:
@@ -599,12 +856,65 @@ def test_commit_if_changed_keeps_index_when_staged_restore_fails(
     assert _git(repo, "show", "HEAD:target.txt").stdout == "internal\n"
 
 
+def test_commit_if_changed_commits_file_with_cmoc_prefix(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` と同じ prefix の通常ファイルは commit 対象にする。"""
+    repo = _init_repo(tmp_path)
+    prefixed_file = repo / ".cmoc.py"
+    prefixed_file.write_text("regular file\n", encoding="utf-8")
+
+    assert commit_if_changed(repo, [".cmoc.py"], "add prefixed file") is True
+
+    assert _git(repo, "show", "HEAD:.cmoc.py").stdout == "regular file\n"
+
+
+def test_commit_if_changed_excludes_only_cmoc_directory(
+    tmp_path: Path,
+) -> None:
+    """`.cmoc` 配下だけを除外し、prefix が似た通常ファイルは残す。"""
+    repo = _init_repo(tmp_path)
+    cmoc_log = repo / ".cmoc" / "logs" / "internal.log"
+    cmoc_log.parent.mkdir(parents=True)
+    cmoc_log.write_text("internal\n", encoding="utf-8")
+    prefixed_file = repo / ".cmoc-config"
+    prefixed_file.write_text("regular config\n", encoding="utf-8")
+
+    assert (
+        commit_if_changed(
+            repo,
+            [".cmoc/logs/internal.log", ".cmoc-config"],
+            "add prefixed config",
+        )
+        is True
+    )
+
+    assert _git(repo, "show", "HEAD:.cmoc-config").stdout == "regular config\n"
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+
+
 def test_has_deleted_implementation_files_detects_target_deletion(
     tmp_path: Path,
 ) -> None:
     """cmoc ブランチ上の実装ファイル削除を全体適用切替用に検出する。"""
     repo = _init_repo(tmp_path)
     deleted = repo / "deleted.py"
+    deleted.write_text("delete me\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    deleted.unlink()
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_preserves_special_path_tokens(
+    tmp_path: Path,
+) -> None:
+    """削除済み実装 path の判定でも newline や前後空白を path として扱う。"""
+    repo = _init_repo(tmp_path)
+    deleted = repo / " delete\nme.py "
     deleted.write_text("delete me\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "base")
@@ -639,6 +949,59 @@ def test_has_deleted_implementation_files_ignores_only_root_gitignore(
     _git(repo, "add", "-u", ".pytest_cache")
 
     assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_detects_committed_rename_out(
+    tmp_path: Path,
+) -> None:
+    """committed 実装外 rename は旧実装 path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "oracles/old.py")
+    _git(repo, "commit", "-m", "move implementation out")
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_detects_staged_rename_out(
+    tmp_path: Path,
+) -> None:
+    """staged 実装外 rename は旧実装 path の削除として検出する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "oracles/old.py")
+
+    assert has_deleted_implementation_files(repo, base_commit) is True
+
+
+def test_has_deleted_implementation_files_ignores_implementation_rename(
+    tmp_path: Path,
+) -> None:
+    """実装ファイル同士の rename は削除扱いしない。"""
+    repo = _init_repo(tmp_path)
+    old_path = repo / "old.py"
+    old_path.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    _git(repo, "mv", "old.py", "new.py")
+
+    assert has_deleted_implementation_files(repo, base_commit) is False
 
 
 def test_changed_oracle_files_respects_slash_pattern_depth(
@@ -799,13 +1162,45 @@ def test_assert_no_uncommitted_changes_rejects_oracle_changes(
     assert "oracles/" in error.value.detail
 
 
+def test_changed_paths_preserves_special_path_tokens(tmp_path: Path) -> None:
+    """porcelain 由来の変更 path でも newline や前後空白を保持する。"""
+    repo = _init_repo(tmp_path)
+    tracked = repo / "old\nname.py"
+    tracked.write_text("same content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+
+    renamed = repo / " new\nname.py "
+    _git(
+        repo,
+        "mv",
+        tracked.relative_to(repo).as_posix(),
+        renamed.relative_to(repo).as_posix(),
+    )
+    untracked = repo / " untracked\nimpl.py "
+    untracked.write_text("new\n", encoding="utf-8")
+
+    assert set(changed_paths(repo)) == {
+        " new\nname.py ",
+        " untracked\nimpl.py ",
+    }
+
+
 @pytest.mark.parametrize(
     ("branch_name", "expected"),
     [
-        ("cmoc/session/2026-05-10_22-21_10_123", True),
-        ("cmoc/apply/2026-05-10_22-21_10_123/run-1", True),
-        ("cmoc/session/2026-05-10_22-21_10_123/extra", False),
-        ("cmoc/apply/2026-05-10_22-21_10_123", False),
+        ("cmoc/session/2026-05-10_22-21_10_000000123", True),
+        (
+            "cmoc/apply/"
+            "2026-05-10_22-21_10_000000123/"
+            "2026-05-10_22-22_10_000000123",
+            True,
+        ),
+        ("cmoc/session/test", False),
+        ("cmoc/apply/2026-05-10_22-21_10_000000123/run-1", False),
+        ("cmoc/apply/a/b", False),
+        ("cmoc/session/2026-05-10_22-21_10_000000123/extra", False),
+        ("cmoc/apply/2026-05-10_22-21_10_000000123", False),
     ],
 )
 def test_is_cmoc_branch(branch_name: str, expected: bool) -> None:
@@ -818,7 +1213,7 @@ def test_read_session_start_commit_uses_session_state(
 ) -> None:
     """部分評価用 base commit は session state から読む。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     write_session_state(
         repo,
         session_id,
@@ -855,12 +1250,30 @@ def test_session_state_root_uses_main_worktree_for_linked_worktree(
     assert session_state_root(linked) == repo
 
 
+def test_read_apply_process_id_rejects_non_utf8_pid_file(
+    tmp_path: Path,
+) -> None:
+    """apply pid file が UTF-8 で読めない場合は CmocError に変換する。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    path = apply_process_id_path(repo, session_id)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"\xff\n")
+
+    with pytest.raises(CmocError) as error:
+        read_apply_process_id(repo, session_id)
+
+    assert "apply process id ファイルを読めませんでした。" in error.value.message
+    assert "UTF-8 decode error" in error.value.detail
+    assert str(path) in error.value.detail
+
+
 def test_write_session_state_persists_only_oracle_schema(
     tmp_path: Path,
 ) -> None:
     """session state は oracle 定義の固定 field だけ永続化する。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
 
     state_path = write_session_state(
         repo,
@@ -875,8 +1288,8 @@ def test_write_session_state_persists_only_oracle_schema(
             "apply": {
                 "state": "completed",
                 "apply_branch": (
-                    "cmoc/apply/2026-05-10_22-21_10_123/"
-                    "2026-05-10_22-22_10_123"
+                    "cmoc/apply/2026-05-10_22-21_10_000000123/"
+                    "2026-05-10_22-22_10_000000123"
                 ),
                 "oracle_snapshot_commit": "def456",
                 "apply_worktree": "/repo/.cmoc/worktrees/apply/session/run",
@@ -896,8 +1309,8 @@ def test_write_session_state_persists_only_oracle_schema(
         "apply": {
             "state": "completed",
             "apply_branch": (
-                "cmoc/apply/2026-05-10_22-21_10_123/"
-                "2026-05-10_22-22_10_123"
+                "cmoc/apply/2026-05-10_22-21_10_000000123/"
+                "2026-05-10_22-22_10_000000123"
             ),
             "oracle_snapshot_commit": "def456",
         },
@@ -909,7 +1322,7 @@ def test_read_session_state_rejects_unknown_state_values(
 ) -> None:
     """session/apply state は oracle 定義の列挙値だけ受け入れる。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     state_path = session_state_path(repo, session_id)
     state_path.parent.mkdir(parents=True)
     state_path.write_text(
@@ -937,12 +1350,30 @@ def test_read_session_state_rejects_unknown_state_values(
     assert "session.state: paused" in error.value.detail
 
 
+def test_read_session_state_rejects_non_utf8_state_file(
+    tmp_path: Path,
+) -> None:
+    """session state が UTF-8 で読めない場合は CmocError に変換する。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_bytes(b"\xff\n")
+
+    with pytest.raises(CmocError) as error:
+        read_session_state(repo, session_id)
+
+    assert "session state ファイルを読めませんでした。" in error.value.message
+    assert "UTF-8 decode error" in error.value.detail
+    assert str(state_path) in error.value.detail
+
+
 def test_read_session_state_rejects_ready_apply_with_run_fields(
     tmp_path: Path,
 ) -> None:
     """apply.state が ready の永続 state は補助 field を null に保つ。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     state_path = session_state_path(repo, session_id)
     state_path.parent.mkdir(parents=True)
     state_path.write_text(
@@ -956,8 +1387,8 @@ def test_read_session_state_rejects_ready_apply_with_run_fields(
                 "apply": {
                     "state": "ready",
                     "apply_branch": (
-                        "cmoc/apply/2026-05-10_22-21_10_123/"
-                        "2026-05-10_22-22_10_123"
+                        "cmoc/apply/2026-05-10_22-21_10_000000123/"
+                        "2026-05-10_22-22_10_000000123"
                     ),
                     "oracle_snapshot_commit": None,
                 },
@@ -978,7 +1409,7 @@ def test_read_session_state_rejects_apply_schema_mismatch(
 ) -> None:
     """永続 session state の apply field 集合は oracle schema と一致させる。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
     state_path = session_state_path(repo, session_id)
     state_path.parent.mkdir(parents=True)
     state_path.write_text(
@@ -1016,7 +1447,7 @@ def test_write_session_state_rejects_completed_apply_without_run_fields(
     with pytest.raises(CmocError) as error:
         write_session_state(
             repo,
-            "2026-05-10_22-21_10_123",
+            "2026-05-10_22-21_10_000000123",
             {
                 "session": {
                     "state": "active",
@@ -1039,7 +1470,7 @@ def test_write_session_state_allows_error_before_apply_run_fields_exist(
 ) -> None:
     """apply branch 作成前の失敗は error state として保存できる。"""
     repo = _init_repo(tmp_path)
-    session_id = "2026-05-10_22-21_10_123"
+    session_id = "2026-05-10_22-21_10_000000123"
 
     state_path = write_session_state(
         repo,
@@ -1100,6 +1531,51 @@ def test_active_session_scan_fails_on_schema_invalid_state(
 
     assert "形式が不正" in error.value.message
     assert str(invalid_path) in error.value.detail
+
+
+def test_active_session_scan_fails_on_orphan_session_branch(
+    tmp_path: Path,
+) -> None:
+    """state がない session branch は active 判定を fail closed にする。"""
+    repo = _init_repo(tmp_path)
+    session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
+    _git(repo, "branch", session_branch)
+
+    with pytest.raises(CmocError) as error:
+        active_session_ids_for_home_branch(repo, "main")
+
+    assert "session state がない session branch" in error.value.message
+    assert session_branch in error.value.detail
+
+
+def test_active_session_scan_fails_on_active_state_without_branch(
+    tmp_path: Path,
+) -> None:
+    """active state に対応 branch がない場合は不整合として止める。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    write_session_state(
+        repo,
+        session_id,
+        {
+            "session": {
+                "state": "active",
+                "session_home_branch": "main",
+                "session_start_commit": "abc123",
+            },
+            "apply": {
+                "state": "ready",
+                "apply_branch": None,
+                "oracle_snapshot_commit": None,
+            },
+        },
+    )
+
+    with pytest.raises(CmocError) as error:
+        active_session_ids_for_home_branch(repo, "main")
+
+    assert "対応する session branch が存在しません" in error.value.message
+    assert session_id in error.value.detail
 
 
 def _init_repo(tmp_path: Path) -> Path:

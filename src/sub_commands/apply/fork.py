@@ -1,8 +1,12 @@
 """`cmoc apply` の本体処理。"""
 
+import fcntl
 import json
 import os
 import re
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from pathlib import Path
@@ -13,12 +17,16 @@ from commons.codex import (
     COMMIT_MESSAGE_REASONING_EFFORT,
     COST_PERFORMANCE_MODEL,
     COST_PERFORMANCE_REASONING_EFFORT,
+    FRONTIER_HIGH_REASONING_EFFORT,
+    FRONTIER_MODEL,
+    FRONTIER_REASONING_EFFORT,
     parse_json_object,
     run_codex_exec,
 )
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.indexing import maintain_indexes
+from commons.report_files import write_timestamped_report
 from commons.repo import (
     APPLY_BRANCH_PREFIX,
     assert_no_uncommitted_changes,
@@ -26,12 +34,15 @@ from commons.repo import (
     clear_apply_process_id,
     current_branch,
     ensure_cmoc_ignored,
+    filter_apply_implementation_file_paths,
     filter_oracle_file_paths,
+    git_name_only_paths,
+    git_name_status_entries,
+    git_status_paths,
     head_commit,
     is_session_branch,
     read_session_state,
     read_session_start_commit,
-    root_gitignored_paths,
     run_git,
     session_id_from_branch,
     session_state_root,
@@ -51,6 +62,33 @@ class _InvestigationTarget:
 
     path: Path
     deleted_at_snapshot: bool = False
+
+
+@dataclass(frozen=True)
+class _ApplyWorktreePlan:
+    """1 回の apply worktree 作成試行で使う識別子一式。"""
+
+    apply_run_id: str
+    apply_branch: str
+    apply_worktree: Path
+
+
+class _ApplyWorktreeCreationError(RuntimeError):
+    """apply worktree 作成失敗時に、最後に実試行した候補を保持する。"""
+
+    def __init__(self, message: str, last_plan: _ApplyWorktreePlan) -> None:
+        super().__init__(message)
+        self.last_plan = last_plan
+
+
+@dataclass(frozen=True)
+class _InvestigationJob:
+    """file 起点調査として並列実行する Codex CLI 呼び出し単位。"""
+
+    kind: str
+    index: int
+    total: int
+    target: _InvestigationTarget
 
 
 _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
@@ -255,30 +293,62 @@ def cmoc_apply_impl(
         session_branch,
     )
     assert_no_uncommitted_changes(repo_root)
-    session_head_at_apply_start = head_commit(repo_root)
-    oracle_snapshot_commit = session_head_at_apply_start
+    session_head_at_apply_start = ""
+    oracle_snapshot_commit = ""
 
     failed_stage = "create apply worktree"
-    apply_run_id, apply_branch, apply_worktree = _plan_apply_worktree(
-        repo_root,
-        session_id,
-    )
+    apply_run_id = ""
+    apply_branch = ""
+    apply_worktree = state_root / ".cmoc" / "worktrees" / "apply" / session_id
     discrepancy_counts: list[int] = []
+    apply_start_needs_error_record = False
+    apply_error_recorded = False
     try:
-        failed_stage = "create apply worktree"
-        start_step(timer, 3, 6, "create apply worktree")
-        apply_run_id, apply_branch, apply_worktree = _create_apply_worktree(
-            repo_root,
-            session_id,
-            oracle_snapshot_commit,
-        )
-        _mark_apply_running(
-            state_root,
-            session_id,
-            state,
-            apply_branch,
-            oracle_snapshot_commit,
-        )
+        with _locked_apply_start(state_root, session_id):
+            state = read_session_state(state_root, session_id)
+            session_start_commit = _validate_apply_fork_state(
+                state,
+                session_branch,
+            )
+            assert_no_uncommitted_changes(repo_root)
+            session_head_at_apply_start = head_commit(repo_root)
+            oracle_snapshot_commit = session_head_at_apply_start
+
+            failed_stage = "create apply worktree"
+            start_step(timer, 3, 6, "create apply worktree")
+            apply_start_needs_error_record = True
+            apply_plan = _plan_apply_worktree(state_root, session_id)
+            apply_run_id = apply_plan.apply_run_id
+            apply_branch = apply_plan.apply_branch
+            apply_worktree = apply_plan.apply_worktree
+            try:
+                apply_plan = _create_apply_worktree(
+                    state_root,
+                    session_id,
+                    oracle_snapshot_commit,
+                    apply_plan,
+                )
+                apply_run_id = apply_plan.apply_run_id
+                apply_branch = apply_plan.apply_branch
+                apply_worktree = apply_plan.apply_worktree
+                _mark_apply_running(
+                    state_root,
+                    session_id,
+                    state,
+                    apply_branch,
+                    oracle_snapshot_commit,
+                )
+            except _ApplyWorktreeCreationError as error:
+                apply_run_id = error.last_plan.apply_run_id
+                apply_branch = error.last_plan.apply_branch
+                apply_worktree = error.last_plan.apply_worktree
+                _mark_apply_error(state_root, session_id, state)
+                apply_error_recorded = True
+                raise
+            except Exception:
+                _mark_apply_error(state_root, session_id, state)
+                apply_error_recorded = True
+                raise
 
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
         failed_stage = "maintain INDEX.md files"
@@ -289,6 +359,8 @@ def cmoc_apply_impl(
         failed_stage = "要修正点の調査と適用"
         start_step(timer, 5, 6, "要修正点の調査と適用")
         completed = False
+        dirty_oracle_paths: set[Path] | None = None
+        dirty_implementation_paths: set[Path] | None = None
         for loop_index in range(1, repeat_investigate_and_fix + 1):
             loop_step_path = (
                 (5, 6),
@@ -308,7 +380,26 @@ def cmoc_apply_impl(
                 step_path=loop_step_path,
                 repeat_improove_fixing_list=repeat_improove_fixing_list,
                 full=full,
+                dirty_oracle_paths=dirty_oracle_paths,
+                dirty_implementation_paths=dirty_implementation_paths,
             )
+            next_dirty_oracle_paths = _dirty_oracle_paths_from_discrepancies(
+                apply_worktree,
+                discrepancies,
+            )
+            next_dirty_implementation_paths = (
+                _dirty_implementation_paths_from_discrepancies(
+                    apply_worktree,
+                    discrepancies,
+                )
+            )
+            found_dirty_evidences = bool(
+                next_dirty_oracle_paths or next_dirty_implementation_paths
+            )
+            dirty_oracle_paths = (
+                next_dirty_oracle_paths if found_dirty_evidences else None
+            )
+            dirty_implementation_paths = next_dirty_implementation_paths
             discrepancy_counts.append(len(discrepancies))
             print(
                 "実装ループ "
@@ -324,19 +415,27 @@ def cmoc_apply_impl(
                 discrepancies,
                 timer=timer,
                 step_path=(*loop_step_path, (5, 5)),
+                dirty_implementation_paths=dirty_implementation_paths,
             )
+            if not found_dirty_evidences and not dirty_implementation_paths:
+                dirty_implementation_paths = None
 
-        # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定してから
-        # report を生成する。
+        # 要修正点 0 件の経路も含め、apply run 中に生じた差分を確定する。
+        # report 生成と最終出力も apply fork の処理範囲なので、
+        # completed は最後に確定する。
         _assert_forbidden_paths_clean(apply_worktree)
         _commit_all_changes(apply_worktree)
 
         # 実行結果を人間向け report と exit code に変換する。
         failed_stage = "write report"
         start_step(timer, 6, 6, "write report")
+        session_head_at_apply_finish = _session_branch_head_for_report(
+            repo_root,
+            session_branch,
+        )
         report_path = _write_apply_report(
             apply_worktree,
-            repo_root,
+            state_root,
             session_id,
             apply_run_id,
             session_branch,
@@ -344,24 +443,33 @@ def cmoc_apply_impl(
             apply_worktree,
             oracle_snapshot_commit,
             session_head_at_apply_start,
-            session_head_at_apply_start,
+            session_head_at_apply_finish,
             completed,
             discrepancy_counts,
         )
+        failed_stage = "write final output"
+        print(f"apply run id: {apply_run_id}")
+        print(str(report_path))
+        timer.report()
+        failed_stage = "mark apply completed"
         _mark_apply_completed(
             state_root,
             session_id,
             state,
         )
-        print(f"apply run id: {apply_run_id}")
-        print(str(report_path))
-        timer.report()
         return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
     except Exception as error:
-        _mark_apply_error(state_root, session_id, state)
+        if not apply_start_needs_error_record:
+            raise
+        if not apply_error_recorded:
+            _mark_apply_error(state_root, session_id, state)
         try:
-            report_path = _write_apply_error_report(
+            session_head_at_apply_finish = _session_branch_head_for_report(
                 repo_root,
+                session_branch,
+            )
+            report_path = _write_apply_error_report(
+                state_root,
                 session_id,
                 apply_run_id,
                 session_branch,
@@ -369,7 +477,7 @@ def cmoc_apply_impl(
                 apply_worktree,
                 oracle_snapshot_commit,
                 session_head_at_apply_start,
-                session_head_at_apply_start,
+                session_head_at_apply_finish,
                 failed_stage,
                 error,
                 discrepancy_counts,
@@ -383,6 +491,20 @@ def cmoc_apply_impl(
             print(f"apply run id: {apply_run_id}")
             print(str(report_path))
         raise
+
+
+def _session_branch_head_for_report(repo_root: Path, session_branch: str) -> str:
+    """apply report 用に session branch の現在 HEAD を取得する。"""
+    result = run_git(
+        repo_root,
+        ["rev-parse", "--verify", f"refs/heads/{session_branch}^{{commit}}"],
+        check=False,
+    )
+    value = result.stdout.strip()
+    if result.returncode == 0 and value:
+        return value
+    detail = result.stderr.strip() or "git rev-parse returned no commit"
+    return f"unknown: failed to resolve {session_branch}: {detail}"
 
 
 def _validate_apply_fork_state(
@@ -461,18 +583,25 @@ def _create_apply_worktree(
     repo_root: Path,
     session_id: str,
     oracle_snapshot_commit: str,
-) -> tuple[str, str, Path]:
+    initial_plan: _ApplyWorktreePlan,
+) -> _ApplyWorktreePlan:
     """snapshot から apply branch と専用 worktree を作成する。"""
     # timestamp 衝突に備えて短い sleep を挟みながら最大 10 回リトライする。
+    last_plan = initial_plan
     for attempt in range(1, 11):
-        apply_run_id, apply_branch, apply_worktree = _plan_apply_worktree(
-            repo_root,
-            session_id,
+        plan = (
+            initial_plan
+            if attempt == 1
+            else _plan_apply_worktree(repo_root, session_id)
         )
-        print(f"create apply worktree attempt ({attempt}/10) {apply_branch}")
+        last_plan = plan
+        print(
+            "create apply worktree attempt "
+            f"({attempt}/10) {plan.apply_branch}"
+        )
         branch_result = run_git(
             repo_root,
-            ["branch", apply_branch, oracle_snapshot_commit],
+            ["branch", plan.apply_branch, oracle_snapshot_commit],
             check=False,
         )
         if branch_result.returncode != 0:
@@ -480,20 +609,70 @@ def _create_apply_worktree(
             continue
         worktree_result = run_git(
             repo_root,
-            ["worktree", "add", str(apply_worktree), apply_branch],
+            ["worktree", "add", str(plan.apply_worktree), plan.apply_branch],
             check=False,
         )
         if worktree_result.returncode == 0:
-            return apply_run_id, apply_branch, apply_worktree
-        run_git(repo_root, ["branch", "-D", apply_branch], check=False)
+            return plan
+        cleanup_result = run_git(
+            repo_root,
+            ["branch", "-D", plan.apply_branch],
+            check=False,
+        )
+        if cleanup_result.returncode != 0:
+            raise _ApplyWorktreeCreationError(
+                "\n".join(
+                    [
+                        "apply worktree 作成失敗後の branch cleanup に失敗しました。",
+                        f"apply_branch: {plan.apply_branch}",
+                        f"apply_worktree: {plan.apply_worktree}",
+                        "worktree add failure:",
+                        _format_git_failure(worktree_result),
+                        "branch cleanup failure:",
+                        _format_git_failure(cleanup_result),
+                    ]
+                ),
+                plan,
+            )
         sleep(0.001)
-    raise RuntimeError("リトライ後も一意な apply worktree を作成できませんでした。")
+    raise _ApplyWorktreeCreationError(
+        "リトライ後も一意な apply worktree を作成できませんでした。",
+        last_plan,
+    )
+
+
+def _format_git_failure(result: object) -> str:
+    """git 失敗時の診断情報をユーザー向け detail に載せる。"""
+    return "\n".join(
+        [
+            f"returncode: {getattr(result, 'returncode', '')}",
+            f"stdout: {getattr(result, 'stdout', '').strip()}",
+            f"stderr: {getattr(result, 'stderr', '').strip()}",
+        ]
+    )
+
+
+@contextmanager
+def _locked_apply_start(
+    state_root: Path,
+    session_id: str,
+) -> Iterator[None]:
+    """apply 開始時の ready 判定、artifact 作成、state 永続化を直列化する。"""
+    lock_dir = state_root / ".cmoc" / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / f"apply-fork-{session_id}.lock"
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _plan_apply_worktree(
     repo_root: Path,
     session_id: str,
-) -> tuple[str, str, Path]:
+) -> _ApplyWorktreePlan:
     """次に作成を試みる apply run id、branch、worktree path を組み立てる。"""
     apply_run_id = make_timestamp()
     apply_branch = f"{APPLY_BRANCH_PREFIX}{session_id}/{apply_run_id}"
@@ -505,7 +684,7 @@ def _plan_apply_worktree(
         / session_id
         / apply_run_id
     )
-    return apply_run_id, apply_branch, apply_worktree
+    return _ApplyWorktreePlan(apply_run_id, apply_branch, apply_worktree)
 
 
 def _mark_apply_running(
@@ -574,6 +753,8 @@ def _investigate_discrepancies(
     step_path: StepIndexPath,
     repeat_improove_fixing_list: int,
     full: bool,
+    dirty_oracle_paths: set[Path] | None = None,
+    dirty_implementation_paths: set[Path] | None = None,
 ) -> list[dict[str, object]]:
     """oracle ファイル・実装ファイルごとに不整合調査を実行する。"""
     # ループごとに部分・全体適用モードと調査対象を再評価する。
@@ -591,87 +772,46 @@ def _investigate_discrepancies(
         base_commit,
         oracle_snapshot_commit,
         partial,
+        dirty_paths=dirty_oracle_paths,
     )
     implementation_targets = _target_implementation_files(
         repo_root,
         base_commit,
         oracle_snapshot_commit,
         partial,
+        dirty_paths=dirty_implementation_paths,
     )
 
-    # oracle ファイルを 1 件ずつ独立に調査する。
-    for index, oracle_target in enumerate(oracle_targets, start=1):
-        start_step(
-            timer,
-            (*step_path, (2, 5), (index, len(oracle_targets))),
-            None,
-            f"oracle 調査 {oracle_target.path}",
+    jobs = [
+        _InvestigationJob("oracle", index, len(oracle_targets), target)
+        for index, target in enumerate(oracle_targets, start=1)
+    ]
+    jobs.extend(
+        _InvestigationJob(
+            "implementation",
+            index,
+            len(implementation_targets),
+            target,
         )
-        print(
-            f"oracle 調査 ({index}/{len(oracle_targets)}) "
-            f"{oracle_target.path}"
-        )
-        # Structured Output の fixing_points を 1 つの一覧へ結合する。
-        payload = parse_json_object(
-            run_codex_exec(
-                repo_root,
-                _investigation_prompt(repo_root, oracle_target),
-                purpose=(
-                    "oracle 調査 "
-                    f"{oracle_target.path.relative_to(repo_root)}"
-                ),
-                read_only=True,
-                expect_json=True,
-                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
-                json_validator=_validate_discrepancy_payload,
-                model=COST_PERFORMANCE_MODEL,
-                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
-                index_excluded_roots=_apply_index_excluded_roots(repo_root),
-            )
-        )
-        discrepancies.extend(
-            _fixing_points_with_head_commit_hash(repo_root, payload)
-        )
-
-    # 実装ファイルも 1 件ずつ独立に調査する。
-    for index, implementation_target in enumerate(
-        implementation_targets,
-        start=1,
-    ):
-        start_step(
-            timer,
-            (*step_path, (3, 5), (index, len(implementation_targets))),
-            None,
-            f"実装調査 {implementation_target.path}",
-        )
-        print(
-            "実装調査 "
-            f"({index}/{len(implementation_targets)}) "
-            f"{implementation_target.path}"
-        )
-        payload = parse_json_object(
-            run_codex_exec(
-                repo_root,
-                _implementation_investigation_prompt(
-                    repo_root,
-                    implementation_target,
-                ),
-                purpose=(
-                    "実装調査 "
-                    f"{implementation_target.path.relative_to(repo_root)}"
-                ),
-                read_only=True,
-                expect_json=True,
-                output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
-                json_validator=_validate_discrepancy_payload,
-                model=COST_PERFORMANCE_MODEL,
-                reasoning_effort=COST_PERFORMANCE_REASONING_EFFORT,
-                index_excluded_roots=_apply_index_excluded_roots(repo_root),
-            )
-        )
-        discrepancies.extend(
-            _fixing_points_with_head_commit_hash(repo_root, payload)
-        )
+        for index, target in enumerate(implementation_targets, start=1)
+    )
+    start_step(
+        timer,
+        (*step_path, (2, 5)),
+        None,
+        "file 起点調査を並列実行",
+    )
+    for job in jobs:
+        label = "oracle 調査" if job.kind == "oracle" else "実装調査"
+        print(f"{label} ({job.index}/{job.total}) {job.target.path}")
+    if jobs:
+        with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
+            futures = [
+                executor.submit(_run_investigation_job, repo_root, job)
+                for job in jobs
+            ]
+            for future in futures:
+                discrepancies.extend(future.result())
 
     return _improove_fixing_list(
         repo_root,
@@ -683,16 +823,55 @@ def _investigate_discrepancies(
     )
 
 
+def _run_investigation_job(
+    repo_root: Path,
+    job: _InvestigationJob,
+) -> list[dict[str, object]]:
+    """1 file 起点の不整合調査を実行し、fixing_points を返す。"""
+    if job.kind == "oracle":
+        prompt = _investigation_prompt(repo_root, job.target)
+        purpose = f"oracle 調査 {job.target.path.relative_to(repo_root)}"
+    else:
+        prompt = _implementation_investigation_prompt(repo_root, job.target)
+        purpose = f"実装調査 {job.target.path.relative_to(repo_root)}"
+    payload = parse_json_object(
+        run_codex_exec(
+            repo_root,
+            prompt,
+            purpose=purpose,
+            read_only=True,
+            expect_json=True,
+            output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
+            json_validator=_validate_discrepancy_payload,
+            model=FRONTIER_MODEL,
+            reasoning_effort=FRONTIER_REASONING_EFFORT,
+            skip_index_maintenance=True,
+            index_excluded_roots=_apply_index_excluded_roots(repo_root),
+        )
+    )
+    return _fixing_points_with_head_commit_hash(repo_root, payload)
+
+
 def _target_oracle_files(
     repo_root: Path,
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
+    *,
+    dirty_paths: set[Path] | None = None,
 ) -> list[_InvestigationTarget]:
     """適用モードに応じた oracle 調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
     all_files = _oracle_files_at_commit(repo_root, oracle_snapshot_commit)
     snapshot_paths = set(all_files)
+    if dirty_paths is not None:
+        return [
+            _InvestigationTarget(
+                path,
+                deleted_at_snapshot=path not in snapshot_paths,
+            )
+            for path in sorted(dirty_paths)
+        ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
     changed = set(
@@ -703,9 +882,11 @@ def _target_oracle_files(
         )
     )
     return [
-        _InvestigationTarget(path)
+        _InvestigationTarget(
+            path,
+            deleted_at_snapshot=path not in snapshot_paths,
+        )
         for path in sorted(changed)
-        if path in snapshot_paths
     ]
 
 
@@ -714,6 +895,8 @@ def _target_implementation_files(
     base_commit: str,
     oracle_snapshot_commit: str,
     partial: bool,
+    *,
+    dirty_paths: set[Path] | None = None,
 ) -> list[_InvestigationTarget]:
     """適用モードに応じた実装調査対象を返す。"""
     # apply run 開始時の snapshot に調査対象を固定する。
@@ -722,6 +905,14 @@ def _target_implementation_files(
         oracle_snapshot_commit,
     )
     snapshot_paths = set(all_files)
+    if dirty_paths is not None:
+        return [
+            _InvestigationTarget(
+                path,
+                deleted_at_snapshot=path not in snapshot_paths,
+            )
+            for path in sorted(dirty_paths)
+        ]
     if not partial:
         return [_InvestigationTarget(path) for path in all_files]
     changed = set(
@@ -732,9 +923,11 @@ def _target_implementation_files(
         )
     )
     return [
-        _InvestigationTarget(path)
+        _InvestigationTarget(
+            path,
+            deleted_at_snapshot=path not in snapshot_paths,
+        )
         for path in sorted(changed)
-        if path in snapshot_paths
     ]
 
 
@@ -801,15 +994,7 @@ def _filter_implementation_file_paths(
     relative_paths: list[str],
 ) -> list[str]:
     """root 相対 path から apply fork の実装調査対象だけを返す。"""
-    candidates = sorted(
-        {
-            path
-            for path in relative_paths
-            if not _is_excluded_implementation_path(path)
-        }
-    )
-    ignored = root_gitignored_paths(repo_root, candidates)
-    return [path for path in candidates if path not in ignored]
+    return filter_apply_implementation_file_paths(repo_root, relative_paths)
 
 
 def _tracked_files_at_commit(
@@ -820,9 +1005,9 @@ def _tracked_files_at_commit(
     """指定 commit の tracked file 一覧を repo 相対 path で返す。"""
     result = run_git(
         repo_root,
-        ["ls-tree", "-r", "--name-only", commit_hash, "--", pathspec],
+        ["ls-tree", "-r", "-z", "--name-only", commit_hash, "--", pathspec],
     )
-    return sorted(line for line in result.stdout.splitlines() if line)
+    return sorted(git_name_only_paths(result.stdout))
 
 
 def _changed_files_between_commits(
@@ -831,12 +1016,16 @@ def _changed_files_between_commits(
     commit_hash: str,
     pathspec: str,
 ) -> list[str]:
-    """指定 commit 範囲で変更された変更後 path を返す。"""
+    """指定 commit 範囲で変更された path を返す。
+
+    削除差分は変更後 path が存在しないため、削除前 path を返す。
+    """
     result = run_git(
         repo_root,
         [
             "log",
             "--name-status",
+            "-z",
             "-M",
             "--format=",
             f"{base_commit}..{commit_hash}",
@@ -845,37 +1034,17 @@ def _changed_files_between_commits(
         ],
     )
     paths: set[str] = set()
-    for line in result.stdout.splitlines():
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        status = parts[0]
+    for status, status_paths in git_name_status_entries(result.stdout):
         status_kind = status[:1]
-        if status_kind not in {"A", "C", "M", "R", "T"}:
+        if status_kind not in {"A", "C", "D", "M", "R", "T"}:
             continue
         if status_kind in {"C", "R"}:
-            if len(parts) >= 3 and parts[2]:
-                paths.add(parts[2])
+            if len(status_paths) >= 2:
+                paths.add(status_paths[1])
             continue
-        if parts[1]:
-            paths.add(parts[1])
+        if status_paths:
+            paths.add(status_paths[0])
     return sorted(paths)
-
-
-def _is_excluded_implementation_path(relative_path: str) -> bool:
-    """実装ファイル列挙から除外する path か判定する。"""
-    path = Path(relative_path)
-    return (
-        relative_path == "oracles"
-        or relative_path.startswith("oracles/")
-        or relative_path == "memo"
-        or relative_path.startswith("memo/")
-        or relative_path == ".git"
-        or relative_path.startswith(".git/")
-        or relative_path == ".cmoc"
-        or relative_path.startswith(".cmoc/")
-        or path.name == "INDEX.md"
-    )
 
 
 def _improove_fixing_list(
@@ -945,6 +1114,8 @@ def _organize_discrepancies(
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
             json_validator=_validate_discrepancy_payload,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
+            model=FRONTIER_MODEL,
+            reasoning_effort=FRONTIER_HIGH_REASONING_EFFORT,
         )
     )
     return _fixing_points_with_head_commit_hash(repo_root, payload)
@@ -970,12 +1141,89 @@ def _fixing_points_with_head_commit_hash(
     return fixing_points
 
 
+def _dirty_oracle_paths_from_discrepancies(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> set[Path]:
+    """最終要修正点リストの根拠から次回調査する oracle path を返す。"""
+    return {
+        repo_root / path
+        for path in filter_oracle_file_paths(
+            repo_root,
+            _evidence_relative_paths(repo_root, discrepancies),
+        )
+    }
+
+
+def _dirty_implementation_paths_from_discrepancies(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> set[Path]:
+    """最終要修正点リストの根拠から次回調査する実装 path を返す。"""
+    return {
+        repo_root / path
+        for path in _filter_implementation_file_paths(
+            repo_root,
+            _evidence_relative_paths(repo_root, discrepancies),
+        )
+    }
+
+
+def _evidence_relative_paths(
+    repo_root: Path,
+    discrepancies: list[dict[str, object]],
+) -> list[str]:
+    """要修正点 evidence の path を repo 相対 path に正規化する。"""
+    paths: set[str] = set()
+    for discrepancy in discrepancies:
+        evidences = discrepancy.get("evidences")
+        if not isinstance(evidences, list):
+            continue
+        for evidence in evidences:
+            if not isinstance(evidence, dict):
+                continue
+            value = evidence.get("path")
+            if not isinstance(value, str) or not value:
+                continue
+            relative_path = _repo_relative_path(repo_root, value)
+            if relative_path is not None:
+                paths.add(relative_path)
+    return sorted(paths)
+
+
+def _repo_relative_path(repo_root: Path, value: str) -> str | None:
+    """絶対・相対どちらの evidence path も repo 相対 path に変換する。"""
+    path = Path(value)
+    try:
+        if path.is_absolute():
+            return path.resolve().relative_to(repo_root.resolve()).as_posix()
+        return path.as_posix()
+    except ValueError:
+        return None
+
+
+def _changed_implementation_files_since(
+    repo_root: Path,
+    base_commit: str,
+    commit_hash: str,
+) -> set[Path]:
+    """指定 commit 範囲で変更された実装 path を絶対 path 集合で返す。"""
+    return set(
+        _changed_implementation_files_at_commit(
+            repo_root,
+            base_commit,
+            commit_hash,
+        )
+    )
+
+
 def _apply_discrepancies(
     repo_root: Path,
     discrepancies: list[dict[str, object]],
     *,
     timer: StepTimer,
     step_path: StepIndexPath,
+    dirty_implementation_paths: set[Path] | None = None,
 ) -> None:
     """Codex CLI に不整合追従作業を依頼する。"""
     # 不整合 1 件ごとに修正、禁止領域検査、commit までを完結させる。
@@ -987,6 +1235,7 @@ def _apply_discrepancies(
             "要修正点適用",
         )
         print(f"要修正点適用 ({index}/{len(discrepancies)})")
+        before_head = head_commit(repo_root)
         run_codex_exec(
             repo_root,
             _apply_prompt(repo_root, discrepancy),
@@ -997,6 +1246,15 @@ def _apply_discrepancies(
         )
         _assert_forbidden_paths_clean(repo_root)
         _commit_all_changes(repo_root)
+        after_head = head_commit(repo_root)
+        if dirty_implementation_paths is not None and after_head != before_head:
+            dirty_implementation_paths.update(
+                _changed_implementation_files_since(
+                    repo_root,
+                    before_head,
+                    after_head,
+                )
+            )
 
 
 def _commit_all_changes(repo_root: Path) -> None:
@@ -1081,6 +1339,10 @@ def _is_forbidden_changed_path(relative_path: str) -> bool:
     return (
         relative_path == "oracles"
         or relative_path.startswith("oracles/")
+        or relative_path == "README.md"
+        or relative_path == "AGENTS.md"
+        or relative_path == ".cmoc"
+        or relative_path.startswith(".cmoc/")
         or relative_path == ".agents"
         or relative_path.startswith(".agents/")
         or relative_path == "memo"
@@ -1103,11 +1365,7 @@ def _write_apply_report(
     discrepancy_counts: list[int],
 ) -> Path:
     """作業レポートを cmoc 側で組み立て、変更要約だけ Codex CLI に依頼する。"""
-    # report 保存先と timestamp 付きファイル名を用意する。
     report_dir = report_repo_root / ".cmoc" / "reports" / "apply" / "fork"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    generated_at = make_timestamp()
-    report_path = report_dir / f"{generated_at}.md"
 
     result_label = "収束" if completed else "未収束"
     change_summary = _generate_change_summary(
@@ -1115,27 +1373,28 @@ def _write_apply_report(
         branch_name,
         oracle_snapshot_commit,
     )
-    report = _apply_report_with_front_matter(
-        report_body=_render_apply_report_body(
+
+    def build_report(generated_at: str) -> str:
+        report = _apply_report_with_front_matter(
+            report_body=_render_apply_report_body(
+                apply_branch=branch_name,
+                result_label=result_label,
+                completed=completed,
+                discrepancy_counts=discrepancy_counts,
+                change_summary=change_summary,
+            ),
+            generated_at=generated_at,
+            session_id=session_id,
+            apply_run_id=apply_run_id,
+            session_branch=session_branch,
             apply_branch=branch_name,
+            apply_worktree=apply_worktree,
+            oracle_snapshot_commit=oracle_snapshot_commit,
+            session_head_at_apply_start=session_head_at_apply_start,
+            session_head_at_apply_finish=session_head_at_apply_finish,
             result_label=result_label,
-            completed=completed,
             discrepancy_counts=discrepancy_counts,
-            change_summary=change_summary,
-        ),
-        generated_at=generated_at,
-        session_id=session_id,
-        apply_run_id=apply_run_id,
-        session_branch=session_branch,
-        apply_branch=branch_name,
-        apply_worktree=apply_worktree,
-        oracle_snapshot_commit=oracle_snapshot_commit,
-        session_head_at_apply_start=session_head_at_apply_start,
-        session_head_at_apply_finish=session_head_at_apply_finish,
-        result_label=result_label,
-        discrepancy_counts=discrepancy_counts,
-    )
-    try:
+        )
         _validate_apply_report(
             report,
             branch_name,
@@ -1144,6 +1403,10 @@ def _write_apply_report(
             discrepancy_counts,
             require_front_matter=True,
         )
+        return report
+
+    try:
+        return write_timestamped_report(report_dir, build_report)
     except ValueError as error:
         raise CmocError(
             "apply report の生成に必要な変更要約が不足しています。",
@@ -1153,8 +1416,6 @@ def _write_apply_report(
             ],
             str(error),
         ) from error
-    report_path.write_text(report, encoding="utf-8")
-    return report_path
 
 
 def _generate_change_summary(
@@ -1163,7 +1424,12 @@ def _generate_change_summary(
     oracle_snapshot_commit: str,
 ) -> list[dict[str, object]]:
     """apply branch の変更内容を Structured Output でカテゴリ別要約にする。"""
-    if not _branch_has_changes(repo_root, oracle_snapshot_commit, branch_name):
+    changed_paths = _changed_paths_on_apply_branch(
+        repo_root,
+        oracle_snapshot_commit,
+        branch_name,
+    )
+    if not changed_paths:
         return [
             {
                 "category": "変更なし",
@@ -1179,7 +1445,10 @@ def _generate_change_summary(
             "あなたはソフトウェア変更内容の要約担当です。",
             f"`{repo_root}` のブランチ `{branch_name}` の変更内容をカテゴリ別に要約してください。",
             "完了条件は Structured Output schema に従い、changes 配列だけを返すことです。",
-            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分だけを対象にしてください。",
+            f"具体的には `{oracle_snapshot_commit}` から `{branch_name}` の HEAD までの差分と、"
+            "working tree / staging area に残っている未コミット差分を対象にしてください。",
+            "対象変更 path の機械的な収集結果は次の JSON 配列です。",
+            json.dumps(changed_paths, ensure_ascii=False),
             "変更内容の意味論に基づいてカテゴリ分けしてください。",
             "changed_paths は repo 相対パスで、要約の根拠になる主要ファイルだけを列挙してください。",
             f"`{repo_root / 'oracles'}` と `{repo_root / '.agents'}` は編集禁止です。",
@@ -1207,18 +1476,60 @@ def _generate_change_summary(
     return [change for change in changes if isinstance(change, dict)]
 
 
-def _branch_has_changes(
+def _changed_paths_on_apply_branch(
     repo_root: Path,
     base_commit: str,
     branch_name: str,
-) -> bool:
-    """base..branch に変更があるかを git diff で判定する。"""
-    result = run_git(
+) -> list[str]:
+    """apply branch 上の commit 済み/未コミット変更 path を集約する。"""
+    collected: set[str] = set()
+    commands = [
+        [
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACDMRT",
+            f"{base_commit}..{branch_name}",
+            "--",
+        ],
+        [
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACDMRT",
+            "HEAD",
+            "--",
+        ],
+        [
+            "diff",
+            "--cached",
+            "--name-status",
+            "-z",
+            "-M",
+            "--diff-filter=ACDMRT",
+            "--",
+        ],
+    ]
+    for command in commands:
+        result = run_git(repo_root, command, check=False)
+        if result.returncode not in (0, 1):
+            continue
+        for status, paths in git_name_status_entries(result.stdout):
+            if status[:1] in {"A", "C", "D", "M", "R", "T"} and paths:
+                collected.add(paths[-1])
+
+    status_result = run_git(
         repo_root,
-        ["diff", "--quiet", f"{base_commit}..{branch_name}", "--"],
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--"],
         check=False,
     )
-    return result.returncode == 1
+    if status_result.returncode in (0, 1):
+        for status, path in git_status_paths(status_result.stdout):
+            if status == "??" or "D" in status:
+                collected.add(path)
+    return sorted(collected)
 
 
 def _validate_change_summary_payload(value: object) -> None:
@@ -1270,6 +1581,15 @@ def _render_apply_report_body(
         "",
         f"## ブランチ {apply_branch} 上の全変更内容",
     ]
+    _append_change_summary_lines(lines, change_summary)
+    return "\n".join(lines).strip()
+
+
+def _append_change_summary_lines(
+    lines: list[str],
+    change_summary: list[dict[str, object]],
+) -> None:
+    """変更要約 Structured Output を Markdown 行へ追加する。"""
     for change in change_summary:
         category = str(change.get("category", "")).strip()
         summary = str(change.get("summary", "")).strip()
@@ -1287,7 +1607,83 @@ def _render_apply_report_body(
             lines.append("主な変更ファイル:")
             lines.extend(f"- `{path}`" for path in paths if isinstance(path, str))
         lines.append("")
-    return "\n".join(lines).strip()
+
+
+def _best_effort_change_summary(
+    repo_root: Path,
+    branch_name: str,
+    oracle_snapshot_commit: str,
+) -> list[dict[str, object]]:
+    """エラーレポート用に、可能な限り apply branch の変更要約を返す。"""
+    try:
+        change_summary = _generate_change_summary(
+            repo_root,
+            branch_name,
+            oracle_snapshot_commit,
+        )
+        _validate_change_summary_payload({"changes": change_summary})
+        return change_summary
+    except Exception as error:
+        return _fallback_change_summary_from_git(
+            repo_root,
+            branch_name,
+            oracle_snapshot_commit,
+            error,
+        )
+
+
+def _fallback_change_summary_from_git(
+    repo_root: Path,
+    branch_name: str,
+    oracle_snapshot_commit: str,
+    error: BaseException,
+) -> list[dict[str, object]]:
+    """Codex CLI 要約が使えない場合、git から取得できる範囲を report に残す。"""
+    try:
+        changed_paths = _changed_paths_on_apply_branch(
+            repo_root,
+            oracle_snapshot_commit,
+            branch_name,
+        )
+    except Exception as diff_error:
+        return [
+            {
+                "category": "変更要約生成失敗",
+                "summary": (
+                    "Codex CLI による変更内容要約に失敗し、git diff による"
+                    "変更ファイル一覧の取得にも失敗しました。"
+                    f"要約生成エラー: {type(error).__name__}: {error} / "
+                    f"diff 取得エラー: {type(diff_error).__name__}: {diff_error}"
+                ),
+                "changed_paths": [],
+            }
+        ]
+    if not changed_paths:
+        return [
+            {
+                "category": "変更なし",
+                "summary": (
+                    "Codex CLI による変更内容要約には失敗しましたが、"
+                    "git で確認できる apply branch 上の commit 済み変更と"
+                    "未コミット変更のファイルはありませんでした。"
+                    f"要約生成エラー: {type(error).__name__}: {error}"
+                ),
+                "changed_paths": [],
+            }
+        ]
+    return [
+        {
+            "category": "変更ファイル一覧",
+            "summary": (
+                "Codex CLI による意味論的カテゴリ別要約には失敗しました。"
+                "代替情報として、oracle snapshot commit から apply branch の"
+                "HEAD までの変更と、working tree / staging area に残っている"
+                "未コミット変更のファイル一覧を記録します。"
+                f"要約生成エラー: {type(error).__name__}: {error}"
+            ),
+            "changed_paths": changed_paths,
+        }
+    ]
 
 
 def _write_apply_error_report(
@@ -1306,9 +1702,6 @@ def _write_apply_error_report(
 ) -> Path:
     """例外終了時の apply レポートを cmoc 側で保存する。"""
     report_dir = report_repo_root / ".cmoc" / "reports" / "apply" / "fork"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    generated_at = make_timestamp()
-    report_path = report_dir / f"{generated_at}.md"
 
     count_lines = [
         f"- {index} 回目: {count} 件"
@@ -1317,54 +1710,62 @@ def _write_apply_error_report(
     if not count_lines:
         count_lines = ["- エラー発生前に記録済みの要修正点件数はありません。"]
 
-    body = "\n".join(
-        [
-            "## 作業結果",
-            "エラー",
-            "",
-            "`cmoc apply fork` は途中でエラーが起きたため、"
-            "調査・修正ループを正常に終了できませんでした。",
-            "",
-            "## エラー詳細",
-            f"- Failed stage: `{failed_stage}`",
-            f"- Exception type: `{type(error).__name__}`",
-            f"- Exception message: `{error}`",
-            "",
-            "## 要修正点件数の推移",
-            *count_lines,
-            "",
-            f"## ブランチ {apply_branch} 上の全変更内容",
-            "カテゴリ: エラー終了",
-            "",
-            "エラー終了したため、変更内容の意味論的カテゴリ別要約は"
-            "確定できません。必要に応じて apply worktree と apply branch の"
-            "差分を確認してください。",
-        ]
+    summary_repo_root = (
+        apply_worktree
+        if apply_worktree.exists()
+        else report_repo_root
     )
-    report = _apply_report_with_front_matter(
-        report_body=body,
-        generated_at=generated_at,
-        session_id=session_id,
-        apply_run_id=apply_run_id,
-        session_branch=session_branch,
-        apply_branch=apply_branch,
-        apply_worktree=apply_worktree,
-        oracle_snapshot_commit=oracle_snapshot_commit,
-        session_head_at_apply_start=session_head_at_apply_start,
-        session_head_at_apply_finish=session_head_at_apply_finish,
-        result_label="エラー",
-        discrepancy_counts=discrepancy_counts,
-    )
-    _validate_apply_report(
-        report,
+    change_summary = _best_effort_change_summary(
+        summary_repo_root,
         apply_branch,
-        "エラー",
-        completed=False,
-        discrepancy_counts=discrepancy_counts,
-        require_front_matter=True,
+        oracle_snapshot_commit,
     )
-    report_path.write_text(report, encoding="utf-8")
-    return report_path
+    body_lines = [
+        "## 作業結果",
+        "エラー",
+        "",
+        "`cmoc apply fork` は途中でエラーが起きたため、"
+        "調査・修正ループを正常に終了できませんでした。",
+        "",
+        "## エラー詳細",
+        f"- Failed stage: `{failed_stage}`",
+        f"- Exception type: `{type(error).__name__}`",
+        f"- Exception message: `{error}`",
+        "",
+        "## 要修正点件数の推移",
+        *count_lines,
+        "",
+        f"## ブランチ {apply_branch} 上の全変更内容",
+    ]
+    _append_change_summary_lines(body_lines, change_summary)
+    body = "\n".join(body_lines).strip()
+
+    def build_report(generated_at: str) -> str:
+        report = _apply_report_with_front_matter(
+            report_body=body,
+            generated_at=generated_at,
+            session_id=session_id,
+            apply_run_id=apply_run_id,
+            session_branch=session_branch,
+            apply_branch=apply_branch,
+            apply_worktree=apply_worktree,
+            oracle_snapshot_commit=oracle_snapshot_commit,
+            session_head_at_apply_start=session_head_at_apply_start,
+            session_head_at_apply_finish=session_head_at_apply_finish,
+            result_label="エラー",
+            discrepancy_counts=discrepancy_counts,
+        )
+        _validate_apply_report(
+            report,
+            apply_branch,
+            "エラー",
+            completed=False,
+            discrepancy_counts=discrepancy_counts,
+            require_front_matter=True,
+        )
+        return report
+
+    return write_timestamped_report(report_dir, build_report)
 
 
 def _validate_apply_report(
@@ -1739,6 +2140,9 @@ def _apply_prompt(
             "要修正点本文への逐語的追従や、要修正点で述べている目的を達成した保証は不要です。",
             f"要修正点: {json.dumps(discrepancy, ensure_ascii=False)}",
             f"`{repo_root / 'oracles'}` は編集禁止です。",
+            f"`{repo_root / 'README.md'}` は編集禁止です。",
+            f"`{repo_root / 'AGENTS.md'}` は編集禁止です。",
+            f"`{repo_root / '.cmoc'}` は編集禁止です。",
             f"`{repo_root / '.agents'}` は編集禁止です。",
             f"`{repo_root / 'memo'}` は読み書き禁止です。",
         ]

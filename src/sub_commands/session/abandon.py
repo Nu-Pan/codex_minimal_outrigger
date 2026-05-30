@@ -1,13 +1,15 @@
 """`cmoc session abandon` の本体処理。"""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.repo import (
-    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
+    assert_no_uncommitted_changes_outside_cmoc,
     current_branch,
+    ensure_cmoc_ignored_and_committed,
     is_session_branch,
     read_session_state,
     run_git,
@@ -16,6 +18,16 @@ from commons.repo import (
     write_session_state,
 )
 from commons.timing import StepTimer, start_step
+
+
+@dataclass(frozen=True)
+class _AbandonRollbackSnapshot:
+    """cleanup 開始前に復元すべき git 状態。"""
+
+    session_branch: str
+    session_head: str
+    home_branch: str
+    home_head: str
 
 
 def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
@@ -33,14 +45,22 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
     state = read_session_state(state_root, session_id)
     home_branch = _validate_abandonable_state(state, session_branch)
     _assert_local_branch_exists(repo_root, home_branch)
-    assert_no_uncommitted_changes(repo_root)
+    assert_no_uncommitted_changes_outside_cmoc(repo_root)
+    rollback_snapshot = _capture_rollback_snapshot(
+        repo_root,
+        session_branch,
+        home_branch,
+    )
 
-    start_step(timer, 2, 4, "ensure .cmoc is ignored")
-    assert_cmoc_ignored(repo_root)
-
-    start_step(timer, 3, 4, "switch to session home branch")
     try:
+        start_step(timer, 2, 4, "ensure .cmoc is ignored")
+        ensure_cmoc_ignored_and_committed(repo_root)
+        assert_no_uncommitted_changes(repo_root)
+
+        start_step(timer, 3, 4, "switch to session home branch")
         run_git(repo_root, ["switch", home_branch])
+        ensure_cmoc_ignored_and_committed(repo_root)
+        assert_no_uncommitted_changes(repo_root)
         start_step(timer, 4, 4, "record abandoned session")
         _mark_session_abandoned(state_root, session_id, state)
         run_git(repo_root, ["branch", "-D", session_branch])
@@ -50,7 +70,7 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
             state_root,
             session_id,
             state,
-            session_branch,
+            rollback_snapshot,
         )
         detail = _cleanup_failure_detail(error, restore_errors)
         if restore_errors:
@@ -143,6 +163,26 @@ def _validate_abandonable_state(
     return home_branch
 
 
+def _capture_rollback_snapshot(
+    repo_root: Path,
+    session_branch: str,
+    home_branch: str,
+) -> _AbandonRollbackSnapshot:
+    """cleanup 開始前の branch HEAD を保存する。"""
+    return _AbandonRollbackSnapshot(
+        session_branch=session_branch,
+        session_head=_branch_head(repo_root, session_branch),
+        home_branch=home_branch,
+        home_head=_branch_head(repo_root, home_branch),
+    )
+
+
+def _branch_head(repo_root: Path, branch_name: str) -> str:
+    """local branch の HEAD commit を返す。"""
+    result = run_git(repo_root, ["rev-parse", "--verify", branch_name])
+    return result.stdout.strip()
+
+
 def _assert_local_branch_exists(repo_root: Path, branch_name: str) -> None:
     """記録済み home branch が local branch として存在することを確認する。"""
     result = run_git(
@@ -185,7 +225,7 @@ def _restore_abandon_state(
     state_root: Path,
     session_id: str,
     state: dict[str, object],
-    session_branch: str,
+    rollback_snapshot: _AbandonRollbackSnapshot,
 ) -> list[str]:
     """cleanup 失敗時に再実行しやすい状態へ戻す。"""
     restore_errors: list[str] = []
@@ -210,25 +250,80 @@ def _restore_abandon_state(
     else:
         restore_errors.append("state restore failed: session section is invalid")
 
+    restore_errors.extend(
+        _restore_branch_head(
+            repo_root,
+            rollback_snapshot.home_branch,
+            rollback_snapshot.home_head,
+        )
+    )
+    restore_errors.extend(
+        _restore_branch_head(
+            repo_root,
+            rollback_snapshot.session_branch,
+            rollback_snapshot.session_head,
+        )
+    )
+
     branch_exists = run_git(
         repo_root,
-        ["show-ref", "--verify", f"refs/heads/{session_branch}"],
+        ["show-ref", "--verify", f"refs/heads/{rollback_snapshot.session_branch}"],
         check=False,
     )
     if branch_exists.returncode != 0:
         restore_errors.append(
             "branch restore failed: "
-            f"session branch does not exist: {session_branch}"
+            f"session branch does not exist: {rollback_snapshot.session_branch}"
         )
         return restore_errors
 
-    switch_result = run_git(repo_root, ["switch", session_branch], check=False)
+    switch_result = run_git(
+        repo_root,
+        ["switch", rollback_snapshot.session_branch],
+        check=False,
+    )
     if switch_result.returncode != 0:
         detail = switch_result.stderr.strip() or switch_result.stdout.strip()
         if not detail:
-            detail = f"git switch {session_branch} exited with code {switch_result.returncode}"
+            detail = (
+                f"git switch {rollback_snapshot.session_branch} exited with code "
+                f"{switch_result.returncode}"
+            )
         restore_errors.append(f"branch restore failed: {detail}")
     return restore_errors
+
+
+def _restore_branch_head(
+    repo_root: Path,
+    branch_name: str,
+    expected_head: str,
+) -> list[str]:
+    """branch HEAD を cleanup 開始前の commit へ戻す。"""
+    branch_exists = run_git(
+        repo_root,
+        ["show-ref", "--verify", f"refs/heads/{branch_name}"],
+        check=False,
+    )
+    if branch_exists.returncode != 0:
+        return [f"branch head restore failed: branch does not exist: {branch_name}"]
+
+    current = current_branch(repo_root)
+    if current == branch_name:
+        result = run_git(repo_root, ["reset", "--hard", expected_head], check=False)
+    else:
+        result = run_git(
+            repo_root,
+            ["branch", "-f", branch_name, expected_head],
+            check=False,
+        )
+
+    if result.returncode == 0:
+        return []
+
+    detail = result.stderr.strip() or result.stdout.strip()
+    if not detail:
+        detail = f"git restore branch head exited with code {result.returncode}"
+    return [f"branch head restore failed: {branch_name}: {detail}"]
 
 
 def _cleanup_failure_detail(

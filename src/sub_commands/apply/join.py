@@ -10,14 +10,17 @@ from typing import Iterator
 
 from commons.command_runner import run_command
 from commons.errors import CmocError
+from commons.indexing import is_maintained_index_path
 from commons.repo import (
     apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
     clear_apply_process_id,
     current_branch,
     filter_oracle_file_paths,
+    git_name_only_paths,
+    git_name_status_entries,
     is_apply_branch,
-    is_implementation_path,
+    is_apply_implementation_path,
     is_session_branch,
     read_session_state,
     run_git,
@@ -94,15 +97,27 @@ def cmoc_apply_join_impl(
     auto_resolved_index_conflicts: list[str] = []
     if merge_result.returncode != 0:
         unmerged = _unmerged_paths(cmoc_root)
-        if unmerged and all(_is_index_path(path) for path in unmerged):
+        index_conflicts = [path for path in unmerged if _is_index_path(path)]
+        non_index_conflicts = [
+            path for path in unmerged if not _is_index_path(path)
+        ]
+        if index_conflicts:
             auto_resolved_index_conflicts = _resolve_index_conflicts(
                 cmoc_root,
-                unmerged,
+                index_conflicts,
                 merge_result.stderr.strip(),
+                commit_merge=not non_index_conflicts,
             )
-        else:
-            detail = merge_result.stderr.strip()
-            if unmerged:
+            unmerged = _unmerged_paths(cmoc_root)
+            non_index_conflicts = [
+                path for path in unmerged if not _is_index_path(path)
+            ]
+        if non_index_conflicts or not index_conflicts:
+            if auto_resolved_index_conflicts and unmerged:
+                detail = "\n".join(["unmerged paths:", *unmerged]).strip()
+            else:
+                detail = merge_result.stderr.strip()
+            if unmerged and not detail.startswith("unmerged paths:"):
                 detail = "\n".join(["unmerged paths:", *unmerged, detail]).strip()
             raise CmocError(
                 "apply branch の merge で conflict が発生しました。",
@@ -317,6 +332,7 @@ def _changed_path_entries_between(
         [
             "diff",
             "--name-status",
+            "-z",
             "-M",
             "-C",
             "--find-copies-harder",
@@ -325,15 +341,10 @@ def _changed_path_entries_between(
         ],
     )
     entries: list[_ChangedPathEntry] = []
-    for line in result.stdout.splitlines():
-        parts = line.split("\t")
-        if not parts:
-            continue
-        status = parts[0]
-        if status.startswith(("R", "C")) and len(parts) >= 3:
-            entries.append(_ChangedPathEntry([parts[1], parts[2]]))
-        elif len(parts) >= 2:
-            entries.append(_ChangedPathEntry([parts[1]]))
+    for _status, paths in git_name_status_entries(result.stdout):
+        if paths:
+            # rename/copy は oracle の共通規則に合わせて変更後 path を対象にする。
+            entries.append(_ChangedPathEntry([paths[-1]]))
     return entries
 
 
@@ -347,8 +358,12 @@ def _is_apply_branch_expected_path(repo_root: Path, path: str) -> bool:
     if _is_oracle_path(path):
         return False
     return (
-        is_implementation_path(repo_root, path)
-        or Path(path).name == "INDEX.md"
+        is_apply_implementation_path(repo_root, path)
+        or is_maintained_index_path(
+            repo_root,
+            path,
+            excluded_index_roots=[repo_root / "oracles"],
+        )
     )
 
 
@@ -533,20 +548,25 @@ def _paths_existing_at_commit(
 
 def _unmerged_paths(repo_root: Path) -> list[str]:
     """unmerged path を git から取得する。"""
-    result = run_git(repo_root, ["diff", "--name-only", "--diff-filter=U"])
-    return [line for line in result.stdout.splitlines() if line]
+    result = run_git(repo_root, ["diff", "--name-only", "-z", "--diff-filter=U"])
+    return git_name_only_paths(result.stdout)
 
 
 def _resolve_index_conflicts(
     repo_root: Path,
     paths: list[str],
     merge_stderr: str,
+    *,
+    commit_merge: bool,
 ) -> list[str]:
-    """INDEX.md conflict を削除で解消し、merge commit を完了する。"""
+    """INDEX.md conflict を削除で解消し、必要なら merge commit を完了する。"""
     resolved_paths = sorted(paths)
     run_git(repo_root, ["rm", "--ignore-unmatch", "--", *resolved_paths])
     remaining = _unmerged_paths(repo_root)
-    if remaining:
+    remaining_index_conflicts = [
+        path for path in remaining if _is_index_path(path)
+    ]
+    if remaining_index_conflicts or (commit_merge and remaining):
         detail = "\n".join(
             [
                 "unmerged paths:",
@@ -562,6 +582,8 @@ def _resolve_index_conflicts(
             ],
             detail,
         )
+    if not commit_merge:
+        return resolved_paths
 
     commit_result = run_git(repo_root, ["commit", "--no-edit"], check=False)
     if commit_result.returncode != 0:

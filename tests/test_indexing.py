@@ -1,14 +1,25 @@
 """INDEX.md メンテナンス処理のテスト。"""
 
+import errno
 import hashlib
 import json
 import os
+import socket
 import subprocess
+import threading
+from multiprocessing import Process
 from pathlib import Path
+from time import monotonic
+from time import sleep
 
+import pytest
 from pytest import MonkeyPatch
 
+from commons.errors import CmocError
 from commons.indexing import _INDEX_OUTPUT_SCHEMA
+from commons.indexing import _index_maintenance_lock_path
+from commons.indexing import _locked_index_maintenance
+from commons.indexing import is_maintained_index_path
 from commons.indexing import maintain_indexes
 
 
@@ -53,6 +64,406 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert all(kwargs["model"] == "gpt-5.4-mini" for kwargs in codex_kwargs)
     assert all(
         kwargs["reasoning_effort"] == "medium" for kwargs in codex_kwargs
+    )
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "expected"),
+    [
+        ("INDEX.md", True),
+        ("docs/INDEX.md", True),
+        ("docs/memo/INDEX.md", True),
+        ("memo/INDEX.md", False),
+        ("memo/sub/INDEX.md", False),
+        ("oracles/INDEX.md", False),
+        ("oracles/nested/INDEX.md", False),
+        (".cmoc/INDEX.md", False),
+        (".agents/INDEX.md", False),
+        (".git/INDEX.md", False),
+        ("build/INDEX.md", False),
+        ("tmp/INDEX.md", False),
+        ("docs/readme.md", False),
+    ],
+)
+def test_is_maintained_index_path_matches_index_placement_rules(
+    tmp_path: Path,
+    relative_path: str,
+    expected: bool,
+) -> None:
+    """INDEX.md path 判定は配置対象外 root や禁止領域を許可しない。"""
+    repo = _init_repo(tmp_path)
+
+    assert (
+        is_maintained_index_path(
+            repo,
+            relative_path,
+            excluded_index_roots=["oracles"],
+        )
+        is expected
+    )
+
+
+def test_is_maintained_index_path_allows_ignored_index_file(
+    tmp_path: Path,
+) -> None:
+    """INDEX.md file 自体が ignored でも配置対象 directory なら許可する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("INDEX.md\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore index")
+
+    assert is_maintained_index_path(repo, "INDEX.md") is True
+
+
+def test_maintain_indexes_reports_directory_iteration_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """直下項目列挙の I/O failure は no-op にせず CmocError にする。"""
+    repo = _init_repo(tmp_path)
+    original_iterdir = Path.iterdir
+
+    def failing_iterdir(path: Path) -> object:
+        """repo root の直下列挙だけを失敗させる。"""
+        if path == repo:
+            raise OSError("cannot list directory")
+        return original_iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", failing_iterdir)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "ファイルシステム操作へ失敗" in error.value.message
+    assert "直下項目列挙" in error.value.detail
+    assert str(repo) in error.value.detail
+
+
+def test_maintain_indexes_reports_directory_walk_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """配置対象 directory 探索の I/O failure は silent skip にしない。"""
+    repo = _init_repo(tmp_path)
+    blocked = repo / "blocked"
+
+    def failing_walk(path: Path, *args: object, **kwargs: object) -> object:
+        """Path.walk の on_error 経由で探索失敗を通知する。"""
+        assert path == repo
+        on_error = kwargs.get("on_error")
+        assert on_error is not None
+        on_error(
+            OSError(errno.EACCES, "Permission denied", blocked.as_posix())
+        )
+        return iter(())
+
+    monkeypatch.setattr(Path, "walk", failing_walk)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "ファイルシステム操作へ失敗" in error.value.message
+    assert "directory tree の探索" in error.value.detail
+    assert str(blocked) in error.value.detail
+
+
+def test_maintain_indexes_reports_index_replace_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """INDEX.md 置換の I/O failure は成功相当の no-op にしない。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    def failing_replace(source: object, destination: object) -> None:
+        """INDEX.md 置換を失敗させる。"""
+        raise OSError(f"cannot replace {destination}")
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    monkeypatch.setattr("commons.indexing.os.replace", failing_replace)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "INDEX.md の置換" in error.value.detail
+    assert str(repo / "INDEX.md") in error.value.detail
+
+
+def test_maintain_indexes_reports_file_hash_read_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """hash 計算用の file read failure は対象除外にせず CmocError にする。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+    original_read_bytes = Path.read_bytes
+
+    def failing_read_bytes(path: Path) -> bytes:
+        """対象ファイルの hash read だけを失敗させる。"""
+        if path == target:
+            raise OSError("cannot read target")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", failing_read_bytes)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "ファイル内容の hash 計算" in error.value.detail
+    assert str(target) in error.value.detail
+
+
+def test_maintain_indexes_reports_binary_detection_open_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """binary 判定の open failure は binary 扱いで除外しない。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "target.txt"
+    target.write_text("target\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "target")
+    original_open = Path.open
+
+    def failing_open(path: Path, *args: object, **kwargs: object) -> object:
+        """対象ファイルの binary 判定 open だけを失敗させる。"""
+        if path == target and args[:1] == ("rb",):
+            raise OSError("cannot open target")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(CmocError) as error:
+        maintain_indexes(repo)
+
+    assert "バイナリ判定" in error.value.detail
+    assert str(target) in error.value.detail
+
+
+def test_maintain_indexes_generates_entries_in_parallel_with_stable_order(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """同じ INDEX.md 内の entry 生成は並列化しつつ辞書順を保つ。"""
+    repo = _init_repo(tmp_path)
+    for name in ["a.txt", "b.txt", "c.txt"]:
+        (repo / name).write_text(f"{name}\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "parallel entries")
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """同時実行数を記録する fake Codex CLI。"""
+        nonlocal active, max_active
+        purpose = str(kwargs["purpose"])
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        sleep(0.05)
+        with lock:
+            active -= 1
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert max_active > 1
+    assert content.index("# `README.md`") < content.index("# `a.txt`")
+    assert content.index("# `a.txt`") < content.index("# `b.txt`")
+    assert content.index("# `b.txt`") < content.index("# `c.txt`")
+
+
+def test_maintain_indexes_parallelizes_unrelated_indexes_at_same_depth(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """祖先・子孫関係にない同 depth の INDEX.md は並列処理する。"""
+    repo = _init_repo(tmp_path)
+    left = repo / "left"
+    right = repo / "right"
+    left.mkdir()
+    right.mkdir()
+    (left / "note.txt").write_text("left\n", encoding="utf-8")
+    (right / "note.txt").write_text("right\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "sibling indexes")
+    active_sibling_entries = 0
+    max_active_sibling_entries = 0
+    lock = threading.Lock()
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """同 depth sibling の entry 生成の重なりを記録する。"""
+        nonlocal active_sibling_entries, max_active_sibling_entries
+        purpose = str(kwargs["purpose"])
+        is_sibling_entry = purpose in {
+            "INDEX entry 生成 left/note.txt",
+            "INDEX entry 生成 right/note.txt",
+        }
+        if is_sibling_entry:
+            with lock:
+                active_sibling_entries += 1
+                max_active_sibling_entries = max(
+                    max_active_sibling_entries,
+                    active_sibling_entries,
+                )
+            sleep(0.05)
+            with lock:
+                active_sibling_entries -= 1
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+
+    assert changed is True
+    assert max_active_sibling_entries > 1
+
+
+def test_index_maintenance_lock_serializes_processes(
+    tmp_path: Path,
+) -> None:
+    """INDEX メンテナンス用 lock は別プロセスの同時実行を直列化する。"""
+    repo = _init_repo(tmp_path)
+    ready_path = tmp_path / "holder-ready"
+    release_path = tmp_path / "holder-release"
+    acquired_path = tmp_path / "contender-acquired"
+    holder = Process(
+        target=_hold_index_maintenance_lock,
+        args=(repo, ready_path, release_path),
+    )
+    contender = Process(
+        target=_record_index_maintenance_lock_acquisition,
+        args=(repo, acquired_path),
+    )
+
+    try:
+        holder.start()
+        _wait_until_path_exists(ready_path)
+        contender.start()
+        sleep(0.2)
+
+        assert not acquired_path.exists()
+
+        release_path.write_text("release\n", encoding="utf-8")
+        holder.join(5)
+        contender.join(5)
+
+        assert holder.exitcode == 0
+        assert contender.exitcode == 0
+        assert acquired_path.read_text(encoding="utf-8") == "acquired\n"
+    finally:
+        for process in (holder, contender):
+            if process.is_alive():
+                process.terminate()
+                process.join(5)
+
+
+def test_index_maintenance_lock_path_preserves_git_stdout_spaces(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """git 管理 directory path の空白は lock path でも保持する。"""
+    common_dir_text = " /tmp/cmoc common dir "
+
+    def fake_run(
+        *args: object,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        """空白を含む git stdout を返す。"""
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=f"{common_dir_text}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("commons.indexing.subprocess.run", fake_run)
+
+    lock_path = _index_maintenance_lock_path(tmp_path)
+
+    assert lock_path == Path(common_dir_text) / "cmoc-index-maintenance.lock"
+
+
+def test_index_maintenance_lock_path_is_shared_by_linked_worktrees(
+    tmp_path: Path,
+) -> None:
+    """linked worktree でも同一 repository の lock path を共有する。"""
+    repo = _init_repo(tmp_path)
+    linked_worktree = tmp_path / "linked-worktree"
+    _git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "linked-worktree-test",
+        linked_worktree.as_posix(),
+        "HEAD",
+    )
+
+    assert _index_maintenance_lock_path(linked_worktree) == (
+        _index_maintenance_lock_path(repo)
+    )
+
+
+def test_index_maintenance_lock_path_fails_without_git_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """git 管理 directory を取得できない場合は誤った fallback を使わない。"""
+
+    def fake_run(
+        *args: object,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        """git rev-parse の失敗を返す。"""
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=128,
+            stdout="",
+            stderr="fatal: not a git repository\n",
+        )
+
+    monkeypatch.setattr("commons.indexing.subprocess.run", fake_run)
+
+    with pytest.raises(CmocError) as error:
+        _index_maintenance_lock_path(tmp_path)
+
+    assert "git-common-dir" in error.value.detail
+    assert str(tmp_path / ".git" / "cmoc-index-maintenance.lock") not in (
+        error.value.detail
     )
 
 
@@ -109,6 +520,106 @@ def test_maintain_indexes_uses_local_exclude_but_ignores_external_excludes(
     assert "# `system-only.txt`" in content
 
 
+def test_maintain_indexes_respects_gitignore_for_newline_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """newline を含む path でも gitignore 判定の path 境界を保つ。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("ignored*\n", encoding="utf-8")
+    kept = repo / "kept\nname.txt"
+    ignored = repo / "ignored\nname.txt"
+    kept.write_text("kept\n", encoding="utf-8")
+    ignored.write_text("ignored\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "kept\nname.txt")
+    _git(repo, "commit", "-m", "newline paths")
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成対象を記録する fake Codex CLI。"""
+        purposes.append(str(kwargs["purpose"]))
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `kept%0Aname.txt`" in content
+    assert "# `ignored%0Aname.txt`" not in content
+    assert all("ignored\nname.txt" not in purpose for purpose in purposes)
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """newline path の最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for current newline path INDEX"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
+def test_maintain_indexes_round_trips_non_utf8_paths(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """非 UTF-8 filename でも INDEX 生成と再利用を停止せず行う。"""
+    repo = _init_repo(tmp_path)
+    raw_dir_name = b"bad_\xff_dir"
+    raw_file_name = b"note_\xfe.txt"
+    raw_dir = os.fsencode(repo) + b"/" + raw_dir_name
+    os.mkdir(raw_dir)
+    _write_bytes_file(raw_dir + b"/" + raw_file_name, b"note\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "non utf8 paths")
+    prompts: list[str] = []
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """非 UTF-8 path の安全な表示だけを受け取る fake Codex CLI。"""
+        prompts.append(str(args[1]))
+        purposes.append(str(kwargs["purpose"]))
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+    bad_dir = repo / os.fsdecode(raw_dir_name)
+    child_index = (bad_dir / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `bad_%FF_dir`" in root_index
+    assert "# `note_%FE.txt`" in child_index
+    assert any("bad_%FF_dir" in purpose for purpose in purposes)
+    assert any("bad_%FF_dir" in prompt for prompt in prompts)
+    assert not any(_has_surrogate(text) for text in [*prompts, *purposes])
+
+    def fail_codex(*args: object, **kwargs: object) -> str:
+        """非 UTF-8 path の最新 INDEX では呼ばれてはいけない。"""
+        raise AssertionError(
+            "codex exec should not be called for current non-UTF-8 path INDEX"
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fail_codex)
+
+    assert maintain_indexes(repo) is False
+
+
 def test_maintain_indexes_creates_empty_index_for_empty_directory(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -135,6 +646,38 @@ def test_maintain_indexes_creates_empty_index_for_empty_directory(
     assert changed is True
     assert (empty / "INDEX.md").exists()
     assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
+
+
+def test_maintain_indexes_replaces_non_utf8_empty_directory_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """空の配置対象ディレクトリでも非 UTF-8 INDEX.md は置き換える。"""
+    repo = _init_repo(tmp_path)
+    empty = repo / "empty"
+    empty.mkdir()
+    (empty / "INDEX.md").write_bytes(b"# broken\n\xff\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "broken empty directory index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """root INDEX の empty entry 向け Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+
+    assert changed is True
+    assert (empty / "INDEX.md").read_text(encoding="utf-8") == ""
+    index_mode = _git(repo, "ls-files", "-s", "empty/INDEX.md").stdout.split()
+    assert index_mode[0] == "100644"
 
 
 def test_maintain_indexes_skips_excluded_index_roots(
@@ -246,6 +789,81 @@ def test_maintain_indexes_excludes_symlink_entries(
     assert "# `linked-dir`" not in content
     assert not any("linked-file.txt" in purpose for purpose in purposes)
     assert not any("linked-dir" in purpose for purpose in purposes)
+
+
+def test_maintain_indexes_excludes_special_files(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """通常ファイルでもディレクトリでもない entry は安全に除外する。"""
+    repo = _init_repo(tmp_path)
+    socket_path = repo / "control.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind(str(socket_path))
+        (repo / "real.txt").write_text("real\n", encoding="utf-8")
+        _git(repo, "add", "real.txt")
+        _git(repo, "commit", "-m", "real file")
+        purposes: list[str] = []
+
+        def fake_codex(*args: object, **kwargs: object) -> str:
+            """INDEX 生成対象を記録する fake Codex CLI。"""
+            purpose = str(kwargs["purpose"])
+            purposes.append(purpose)
+            return json.dumps(
+                {
+                    "summary": [purpose],
+                    "read_this_when": ["read"],
+                    "do_not_read_this_when": ["skip"],
+                }
+            )
+
+        monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+        changed = maintain_indexes(repo)
+        content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "# `real.txt`" in content
+    assert "# `control.sock`" not in content
+    assert not any("control.sock" in purpose for purpose in purposes)
+
+
+def test_maintain_indexes_replaces_index_symlink_without_touching_target(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """既存 INDEX.md が symlink でもリンク先を書き換えない。"""
+    repo = _init_repo(tmp_path)
+    outside = tmp_path / "outside-index.md"
+    outside.write_text("outside sentinel\n", encoding="utf-8")
+    index_path = repo / "INDEX.md"
+    index_path.symlink_to(outside)
+    _git(repo, "add", "INDEX.md")
+    _git(repo, "commit", "-m", "index symlink")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = index_path.read_text(encoding="utf-8")
+
+    assert changed is True
+    assert outside.read_text(encoding="utf-8") == "outside sentinel\n"
+    assert not index_path.is_symlink()
+    assert index_path.is_file()
+    assert "# `README.md`" in content
+    assert _git(repo, "ls-files", "-s", "INDEX.md").stdout.split()[0] == (
+        "100644"
+    )
 
 
 def test_maintain_indexes_ignores_symlink_contents_in_directory_hash(
@@ -520,6 +1138,84 @@ def test_maintain_indexes_regenerates_malformed_current_entry(
     assert "## Do not read this when" in content
 
 
+def test_maintain_indexes_regenerates_known_cmoc_command_typo(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """hash が最新でも既知の cmoc コマンド名 typo は再生成する。"""
+    repo = _init_repo(tmp_path)
+    target = repo / "apply_join.md"
+    target.write_text("join spec\n", encoding="utf-8")
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `apply_join.md`",
+                "",
+                "## Summary",
+                "",
+                "- cmo apply fork からの合流仕様を扱います。",
+                "",
+                "## Read this when",
+                "",
+                "- apply join を確認するとき。",
+                "",
+                "## Do not read this when",
+                "",
+                "- unrelated.",
+                "",
+                "## hash",
+                "",
+                f"- {digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "stale command typo index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成された routing 文を返す。"""
+        return json.dumps(
+            {
+                "summary": ["cmoc apply fork からの合流仕様を扱います。"],
+                "read_this_when": ["apply join を確認するとき。"],
+                "do_not_read_this_when": ["unrelated."],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "cmo apply fork" not in content
+    assert "cmoc apply fork" in content
+
+
 def test_maintain_indexes_regenerates_non_utf8_index(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -690,11 +1386,98 @@ def test_maintain_indexes_does_not_call_codex_when_index_is_current(
     assert changed is False
 
 
+def test_maintain_indexes_regenerates_entry_when_empty_file_becomes_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """旧形式の空 file entry は空 directory への種別変更時に再生成する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    target = repo / "target"
+    target.write_bytes(b"")
+    readme_digest = hashlib.sha256(
+        (repo / "README.md").read_bytes()
+    ).hexdigest()
+    empty_digest = hashlib.sha256(b"").hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- readme summary",
+                "",
+                "## Read this when",
+                "",
+                "- read readme",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip readme",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+                "# `target`",
+                "",
+                "## Summary",
+                "",
+                "- old file summary",
+                "",
+                "## Read this when",
+                "",
+                "- read old file",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip old file",
+                "",
+                "## hash",
+                "",
+                f"- {empty_digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "old empty file index")
+
+    target.unlink()
+    target.mkdir()
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """再生成対象を記録できる Structured Output を返す。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read regenerated"],
+                "do_not_read_this_when": ["skip regenerated"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert purposes == ["INDEX entry 生成 target"]
+    assert "- old file summary" not in content
+    assert "- INDEX entry 生成 target" in content
+    assert "<!-- cmoc-index-kind: directory -->" in content
+
+
 def test_maintain_indexes_round_trips_special_names_and_multiline_text(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """特殊文字を含む名前と複数行説明文でも INDEX を再利用できる。"""
+    """特殊文字を含む名前と説明文でも INDEX を再利用できる。"""
     repo = _init_repo(tmp_path)
     target = repo / "we`ird\n%.txt"
     target.write_text("target\n", encoding="utf-8")
@@ -705,8 +1488,8 @@ def test_maintain_indexes_round_trips_special_names_and_multiline_text(
         """Markdown 境界に見える文字を含む Structured Output を返す。"""
         return json.dumps(
             {
-                "summary": ["first\n# `ghost`\nsecond"],
-                "read_this_when": ["read\r\nwhen"],
+                "summary": ["- first\n# `ghost`\nsecond"],
+                "read_this_when": ["* read\r\nwhen"],
                 "do_not_read_this_when": ["skip\twhen"],
             }
         )
@@ -720,8 +1503,10 @@ def test_maintain_indexes_round_trips_special_names_and_multiline_text(
     assert "# `we%60ird%0A%25.txt`" in content
     assert "# `we`ird" not in content
     assert "- first # `ghost` second" in content
-    assert "read when" in content
+    assert "- read when" in content
     assert "skip when" in content
+    assert "- - first" not in content
+    assert "- * read" not in content
 
     def fail_codex(*args: object, **kwargs: object) -> str:
         """特殊文字を含む最新 INDEX では呼ばれてはいけない。"""
@@ -772,6 +1557,59 @@ def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
     assert "INDEX entry 生成 folder" in purposes
     assert "# `folder`" in root_index
     assert "- INDEX entry 生成 folder" in root_index
+
+
+def test_maintain_indexes_propagates_nested_content_hash_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """深い leaf の内容変更は親 INDEX hash へ連鎖的に反映する。"""
+    repo = _init_repo(tmp_path)
+    parent = repo / "parent"
+    child = parent / "child"
+    child.mkdir(parents=True)
+    leaf = child / "leaf.md"
+    leaf.write_text("before\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "nested content")
+
+    purposes: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """呼び出し対象を本文に入れ、再生成範囲を検証できるようにする。"""
+        purpose = str(kwargs["purpose"])
+        purposes.append(purpose)
+        return json.dumps(
+            {
+                "summary": [purpose],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+    maintain_indexes(repo)
+
+    purposes.clear()
+    leaf.write_text("after\n", encoding="utf-8")
+
+    changed = maintain_indexes(repo)
+    leaf_digest = hashlib.sha256(leaf.read_bytes()).hexdigest()
+    child_digest = _directory_digest(repo, child)
+    parent_digest = _directory_digest(repo, parent)
+    child_index = (child / "INDEX.md").read_text(encoding="utf-8")
+    parent_index = (parent / "INDEX.md").read_text(encoding="utf-8")
+    root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert purposes == [
+        "INDEX entry 生成 parent/child/leaf.md",
+        "INDEX entry 生成 parent/child",
+        "INDEX entry 生成 parent",
+    ]
+    assert f"- {leaf_digest}" in child_index
+    assert f"- {child_digest}" in parent_index
+    assert f"- {parent_digest}" in root_index
 
 
 def test_maintain_indexes_reuses_current_index_with_empty_sections(
@@ -1068,6 +1906,76 @@ def _init_repo(tmp_path: Path) -> Path:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "initial")
     return repo
+
+
+def _hold_index_maintenance_lock(
+    repo: Path,
+    ready_path: Path,
+    release_path: Path,
+) -> None:
+    """テスト用に INDEX メンテナンス lock を保持する。"""
+    with _locked_index_maintenance(repo):
+        ready_path.write_text("ready\n", encoding="utf-8")
+        while not release_path.exists():
+            sleep(0.01)
+
+
+def _record_index_maintenance_lock_acquisition(
+    repo: Path,
+    acquired_path: Path,
+) -> None:
+    """テスト用に INDEX メンテナンス lock の取得完了を記録する。"""
+    with _locked_index_maintenance(repo):
+        acquired_path.write_text("acquired\n", encoding="utf-8")
+
+
+def _wait_until_path_exists(path: Path) -> None:
+    """指定 path が作られるまで短時間待つ。"""
+    deadline = monotonic() + 5
+    while monotonic() < deadline:
+        if path.exists():
+            return
+        sleep(0.01)
+    raise AssertionError(f"{path} was not created")
+
+
+def _write_bytes_file(path: bytes, content: bytes) -> None:
+    """bytes path の通常ファイルへ bytes を書く。"""
+    fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o644)
+    try:
+        os.write(fd, content)
+    finally:
+        os.close(fd)
+
+
+def _has_surrogate(value: str) -> bool:
+    """文字列に surrogateescape 由来文字が残っているか判定する。"""
+    return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+
+
+def _directory_digest(repo: Path, directory: Path) -> str:
+    """テスト用に仕様の directory hash serialization を計算する。"""
+    serialized_entries: list[str] = []
+    for child in sorted(
+        [
+            path
+            for path in directory.iterdir()
+            if path.name != "INDEX.md" and not path.name.startswith(".")
+        ],
+        key=lambda path: path.relative_to(repo).as_posix(),
+    ):
+        entry_type = "directory" if child.is_dir() else "file"
+        relative_path = child.relative_to(repo).as_posix()
+        if child.is_dir():
+            content_hash = _directory_digest(repo, child)
+        else:
+            content_hash = hashlib.sha256(child.read_bytes()).hexdigest()
+        serialized_entries.append(
+            f"{entry_type}\0{relative_path}\0{content_hash}\n"
+        )
+    return hashlib.sha256(
+        "".join(serialized_entries).encode("utf-8")
+    ).hexdigest()
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

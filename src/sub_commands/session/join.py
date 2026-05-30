@@ -8,9 +8,12 @@ from commons.codex import run_codex_exec
 from commons.command_runner import run_command
 from commons.errors import CmocError
 from commons.repo import (
-    assert_cmoc_ignored,
     assert_no_uncommitted_changes,
+    assert_no_uncommitted_changes_outside_cmoc,
     current_branch,
+    ensure_cmoc_ignored_and_committed,
+    git_name_only_paths,
+    git_status_paths,
     is_session_branch,
     read_session_state,
     run_git,
@@ -21,7 +24,7 @@ from commons.repo import (
 from commons.timing import StepTimer, start_step
 
 _MANUAL_RESOLUTION_MESSAGE: str = (
-    "手動解消が必要です。cmoc は merge 状態をロールバックしていません。"
+    "手動解消が必要です。cmoc は repository 状態をロールバックしていません。"
 )
 
 
@@ -33,7 +36,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("session join")
-    side_effect_started = False
+    manual_resolution_required = False
     try:
         start_step(timer, 1, 5, "validate session state")
         session_branch = _current_session_branch(repo_root)
@@ -41,14 +44,15 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         state_root = session_state_root(repo_root)
         state = read_session_state(state_root, session_id)
         home_branch = _validate_joinable_state(state, session_branch)
-        assert_no_uncommitted_changes(repo_root)
+        assert_no_uncommitted_changes_outside_cmoc(repo_root)
 
         start_step(timer, 2, 5, "ensure .cmoc is ignored")
-        assert_cmoc_ignored(repo_root)
+        manual_resolution_required = True
+        ensure_cmoc_ignored_and_committed(repo_root)
+        assert_no_uncommitted_changes(repo_root)
 
         start_step(timer, 3, 5, "switch to session home branch")
         _assert_local_branch_exists(repo_root, home_branch)
-        side_effect_started = True
         run_git(repo_root, ["switch", home_branch])
 
         start_step(timer, 4, 5, "merge session branch")
@@ -71,7 +75,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         timer.report()
     except Exception:
         # 副作用段階に入った後は rollback せず、手動解決を案内する。
-        if side_effect_started:
+        if manual_resolution_required:
             print(_MANUAL_RESOLUTION_MESSAGE, file=sys.stderr)
         raise
 
@@ -189,6 +193,7 @@ def _resolve_conflicts(repo_root: Path) -> None:
         )
     _assert_no_forbidden_conflict_paths(unmerged)
     _assert_no_forbidden_pending_paths(repo_root)
+    merge_state = _merge_state_snapshot(repo_root)
     protected_snapshot = _protected_conflict_snapshot(repo_root, unmerged)
 
     # conflict 解消用 Codex 呼び出しは INDEX メンテナンス例外として実行する。
@@ -202,6 +207,7 @@ def _resolve_conflicts(repo_root: Path) -> None:
         allowed_uncommitted_oracle_paths=_oracle_conflict_paths(unmerged),
     )
 
+    _assert_merge_state_unchanged(repo_root, merge_state)
     _assert_no_forbidden_pending_paths(repo_root)
 
     # conflict 対象外の差分は Codex 呼び出し前と同一でなければならない。
@@ -211,8 +217,8 @@ def _resolve_conflicts(repo_root: Path) -> None:
         protected_snapshot,
     )
 
-    # Codex が conflict 対象外へ marker を残した場合も、add 前に検出する。
-    marker_files = _files_with_conflict_markers(repo_root)
+    # conflict 対象に marker が残っていないことを add 前に検出する。
+    marker_files = _files_with_conflict_markers(repo_root, unmerged)
     if marker_files:
         raise CmocError(
             "Codex CLI による解消後も conflict marker が残っています。",
@@ -238,6 +244,69 @@ def _resolve_conflicts(repo_root: Path) -> None:
 
     # marker 確認と git add が完了してから merge commit を作成する。
     run_git(repo_root, ["commit", "--no-edit"])
+
+
+def _merge_state_snapshot(repo_root: Path) -> dict[str, str]:
+    """Codex 呼び出し前の merge state を保存する。"""
+    return {
+        "branch": current_branch(repo_root),
+        "head": _rev_parse(repo_root, "HEAD"),
+        "merge_head": _rev_parse(repo_root, "MERGE_HEAD"),
+        "unmerged_index": _unmerged_index_snapshot(repo_root),
+    }
+
+
+def _assert_merge_state_unchanged(
+    repo_root: Path,
+    before: dict[str, str],
+) -> None:
+    """Codex が merge state を完了・中止・移動していないことを確認する。"""
+    after = _merge_state_snapshot(repo_root)
+    if after == before and after["merge_head"]:
+        return
+
+    details = []
+    for key in ("branch", "head", "merge_head", "unmerged_index"):
+        if after.get(key) == before.get(key):
+            continue
+        if key == "unmerged_index":
+            details.append("unmerged_index: changed")
+            continue
+        details.append(
+            f"{key}: {before.get(key) or '(none)'}"
+            f" -> {after.get(key) or '(none)'}"
+        )
+    if not after["merge_head"] and "merge_head" not in {
+        detail.split(":", 1)[0] for detail in details
+    }:
+        details.append("merge_head: merge state is missing")
+
+    raise CmocError(
+        "Codex CLI が session join の merge state を変更しました。",
+        [
+            "merge commit は作成していません。",
+            "git status と git log を確認し、merge を手動で復旧または解消してください。",
+        ],
+        "\n".join(details),
+    )
+
+
+def _rev_parse(repo_root: Path, revision: str) -> str:
+    """存在する revision を full hash に解決し、存在しない場合は空文字を返す。"""
+    result = run_git(
+        repo_root,
+        ["rev-parse", "-q", "--verify", revision],
+        check=False,
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def _unmerged_index_snapshot(repo_root: Path) -> str:
+    """unmerged index stage 情報を Codex の git add 検出用に保存する。"""
+    result = run_git(repo_root, ["ls-files", "-u", "-z"])
+    return result.stdout
 
 
 def _raise_unexpected_merge_failure(
@@ -278,16 +347,18 @@ def _files_with_conflict_markers(
     paths: list[str] | None = None,
 ) -> list[str]:
     """conflict marker が残るファイルを列挙する。"""
-    # paths は後方互換のため受け取るが、仕様上は git 管理対象全体を検査する。
-    del paths
     matches: list[str] = []
-    result = run_git(repo_root, ["ls-files", "-z"])
-    tracked_paths = {
-        relative
-        for relative in result.stdout.split("\0")
-        if relative
-    }
-    for relative in sorted(tracked_paths):
+    if paths is None:
+        result = run_git(repo_root, ["ls-files", "-z"])
+        target_paths = {
+            relative
+            for relative in result.stdout.split("\0")
+            if relative
+        }
+    else:
+        target_paths = {relative for relative in paths if relative}
+
+    for relative in sorted(target_paths):
         path = repo_root / relative
         if not path.exists() or not path.is_file():
             continue
@@ -325,8 +396,13 @@ def _assert_no_forbidden_conflict_paths(unmerged: list[str]) -> None:
 
 def _is_forbidden_conflict_path(path: str) -> bool:
     """session join の自動 conflict 解消で編集禁止の path か判定する。"""
-    return path == ".agents" or path.startswith(".agents/") or (
-        path == "memo" or path.startswith("memo/")
+    return (
+        path == "README.md"
+        or path == "AGENTS.md"
+        or path == ".agents"
+        or path.startswith(".agents/")
+        or path == "memo"
+        or path.startswith("memo/")
     )
 
 
@@ -399,21 +475,12 @@ def _assert_protected_conflict_snapshot_unchanged(
 
 
 def _porcelain_status_entries(repo_root: Path) -> list[tuple[str, str]]:
-    """git status porcelain から status と path を取得する。"""
+    """git status porcelain から status と変更後 path を取得する。"""
     result = run_git(
         repo_root,
-        ["status", "--porcelain", "--untracked-files=all"],
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
     )
-    entries: list[tuple[str, str]] = []
-    for line in result.stdout.splitlines():
-        if not line:
-            continue
-        status = line[:2]
-        path = line[3:]
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        entries.append((status, path))
-    return entries
+    return git_status_paths(result.stdout)
 
 
 def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
@@ -429,8 +496,8 @@ def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
 def _unmerged_paths(repo_root: Path) -> list[str]:
     """unmerged path を git から取得する。"""
     # git diff の unmerged filter で現在残っている conflict path を読む。
-    result = run_git(repo_root, ["diff", "--name-only", "--diff-filter=U"])
-    return [line for line in result.stdout.splitlines() if line]
+    result = run_git(repo_root, ["diff", "--name-only", "-z", "--diff-filter=U"])
+    return git_name_only_paths(result.stdout)
 
 
 def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
@@ -448,12 +515,14 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
     ]
 
     lines = [
-        "あなたは `cmoc session join` の merge conflict 解消担当です。",
+        "あなたは merge conflict 解消担当です。",
         f"`{concrete_repo_root}` の以下の conflict 対象ファイルだけを編集してください:",
         str(concrete_unmerged),
         "完了条件は、conflict marker を削除し、解決内容と未解決ファイルの有無を報告することです。",
         "`git add` と `git commit` は実行禁止です。",
         "conflict 対象外のファイルは編集禁止です。",
+        f"`{concrete_repo_root / 'README.md'}` は編集禁止です。",
+        f"`{concrete_repo_root / 'AGENTS.md'}` は編集禁止です。",
         f"`{concrete_repo_root / '.agents'}` は編集禁止です。",
         f"`{concrete_repo_root / 'memo'}` は読み書き禁止です。",
     ]

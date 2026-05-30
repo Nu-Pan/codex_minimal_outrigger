@@ -25,49 +25,49 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装パッケージで、`__init__.py`、`fork.py`、`join.py`、`abandon.py` をまとめる入口です。
-- `fork.py` は apply の本体処理、`join.py` は apply branch の取り込み、`abandon.py` は未 join の apply run の破棄を担当します。
-- `__init__.py` はパッケージ宣言だけを担う最小モジュールです。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装パッケージです。
+- `__init__.py` はパッケージ宣言のみを担い、`fork.py`、`join.py`、`abandon.py` に各コマンド本体があります。
+- apply の開始、マージ、破棄の入口をまとめてたどるための目次です。
 
 ## Read this when
 
-- `src/sub_commands/apply` 配下の実装モジュールへの入口を探したいとき。
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の責務分担や処理の流れを把握したいとき。
-- `cmoc apply` の実装・修正・レビュー・テストで、どのモジュールを読むべきか判断したいとき。
+- `cmoc apply` 系の実装入口と、`fork` / `join` / `abandon` の対応関係を確認したいとき。
+- apply パッケージ全体の役割や、どのモジュールに責務が分かれているかを把握したいとき。
+- apply 配下の実装・修正・レビュー・テストを始める前に、読むべきファイルを整理したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、`oracles/app_specs/sub_commands/apply_*.md` を直接読むべきです。
-- `cmoc session` 系や `eval-oracles` など、`apply` 以外のサブコマンドを確認したいときは、このディレクトリではなく該当の入口へ進むべきです。
-- `apply` 系の共通ルールや設計方針だけを確認したいときは、`oracles/app_specs/` や `oracles/dev_rules/` 側を先に読むべきです。
+- 個別の `cmoc apply fork` / `join` / `abandon` の詳細仕様や状態遷移だけを確認したいとき。
+- `oracles/app_specs/sub_commands/` 側の正本仕様だけを確認したいとき。
+- `src/sub_commands/apply/__init__.py` のパッケージ宣言だけを確認したいとき。
 
 ## hash
 
-- 64a92ef2ddb68ff48e68957087efa6fbd77bba8c70dc94a45ad0ed118740cc04
+- b07f436b08bb6b1cf4a5da301390b8df3fb760db8a02275ff35e9ba4f52d82c2
 
 # `eval_oracles.py`
 
 ## Summary
 
-- `cmoc eval-oracles` の本体実装で、`oracles` 配下の仕様断片を Codex CLI で評価し、結果をレポート化する処理をまとめたモジュールです。
-- 現在ブランチと `--full` から部分評価 / 全体評価を切り替え、`INDEX.md` の整備、対象 oracle の列挙、各ファイルの評価実行、`.cmoc/reports/eval-oracles` への保存までを扱います。
-- 評価プロンプトの組み立て、Structured Output の検証、評価結果の集計、成功時とエラー時の Markdown レポート生成を支える補助関数も含みます。
+- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
+- oracles ファイルの列挙、部分評価/全体評価の分岐、並列評価、問題点リスト改善、Markdown レポート保存をまとめています。
+- 評価前の `INDEX.md` 事前メンテナンス、Structured Output の検証、error report と stderr フォールバックも担っています。
 
 ## Read this when
 
-- `cmoc eval-oracles` の実装・修正・レビューをするときに読むべきです。
-- `--full` の有無とブランチ種別から、部分評価か全体評価かを決めるロジックを確認したいときに読むべきです。
-- Codex CLI へ渡す評価プロンプト、Structured Output の schema、入力値検証、評価レポート生成の流れを確認したいときに読むべきです。
+- `cmoc review oracles` の実行順、部分評価/全体評価の切り替え、評価対象ファイルの選定を確認したいとき。
+- `referenced_paths` や `specification_only_basis` を含む Structured Output の検証条件、問題点リストの改善ロジックを追いたいとき。
+- レポート生成先、error report の出力、stderr フォールバックまで含めて実装・修正・レビューしたいとき。
 
 ## Do not read this when
 
-- `cmoc eval-oracles` のユーザー向け仕様や前提条件だけを確認したいときは、`oracles/app_specs/sub_commands/eval_oracles.md` を読むべきです。
-- CLI のコマンド登録や `--help` の定義だけを確認したいときは、`src/main.py` を読むべきです。
-- `cmoc session` や `cmoc apply` など他サブコマンドの実装だけを確認したいときは、このファイルではなく該当モジュールを読むべきです。
+- `cmoc review oracles` の CLI 引数やサブコマンド登録だけを確認したいとき。
+- `cmoc` の他サブコマンドや共通処理だけを確認したいとき。
+- `oracles` 配下の個別仕様断片そのものを読みたいとき。
 
 ## hash
 
-- 06f103b6f9e05053e16a0c0dd5f1985278eb3489d95a1aca9df5421c86fe7d3d
+- a4b4cedd92e397a119d16e0e938acce3a3c1e85a2d1379d7e85aa24105973cdb
 
 # `init.py`
 
@@ -96,8 +96,9 @@
 
 ## Summary
 
-- `src/sub_commands/session` は `cmoc session` 系サブコマンドのパッケージで、`fork.py`、`join.py`、`abandon.py` に各コマンド本体を持ち、`__init__.py` はパッケージ宣言のみを担います。
-- このディレクトリは session の開始・統合・破棄を扱う実装の入口であり、個別の処理詳細は各モジュールへ分かれています。
+- `src/sub_commands/session` は `cmoc session` 系サブコマンドのパッケージ入口で、`__init__.py`、`fork.py`、`join.py`、`abandon.py` に各コマンド本体を持つディレクトリです。
+- `fork.py` は session branch の作成と session state の記録を担当し、`join.py` は session branch の merge と conflict 解消、`abandon.py` は session branch の破棄を担当します。
+- この配下は session の開始・統合・破棄を扱う実装の入口であり、個別の処理詳細は各モジュールへ分かれています。
 
 ## Read this when
 
@@ -107,10 +108,10 @@
 
 ## Do not read this when
 
-- `cmoc apply` 系の開始・終了や、apply branch / worktree の仕様だけを確認したいとき。
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細を確認したいときは、該当するモジュールを直接読むべきです。
-- `src/sub_commands/session` 配下の Python パッケージ構造ではなく、`oracles/app_specs/sub_commands/` 側の利用手順だけを見たいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` のうち 1 つだけの詳細仕様、状態遷移、例外条件を確認したいとき。
+- `cmoc apply` 系の開始・統合・破棄の流れだけを確認したいとき。
+- `src/sub_commands/session` のパッケージ宣言だけを確認したいときは `__init__.py` を直接見れば足ります。
 
 ## hash
 
-- c613accffa48c967beddcd2fca1e0c073cb56376461bc4e6c68355596831c161
+- 46d18610eaf7078ce833fde501e8f6a852139ac98e1c549e8a3cdfff815e38c1
