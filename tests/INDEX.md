@@ -27,30 +27,25 @@
 
 ## Summary
 
-- `tests/test_codex.py` は、Codex CLI 呼び出しラッパー `run_codex_exec` の挙動を、正常系から異常系まで広く検証するテスト群です。
-- Structured Output のスキーマ検証、JSON / テキストの意味的 validation、quota や capacity の再試行、`resume` を含む復旧フロー、ログ出力を重点的に確認します。
-- あわせて、workspace-write 時の oracle 変更ガード、`subcommand_log` 連携、session id 抽出、`skip_index_maintenance` の使用範囲も検証します。
+- `tests/test_codex.py` は、Codex CLI 呼び出しラッパー `run_codex_exec` の挙動を検証するテスト群です。
+- Structured Output のパース失敗に対する再試行、ログの Markdown fence 生成、UTF-8 での入出力処理、起動失敗の `CmocError` 化を重点的に確認します。
+- `codex exec` の呼び出し・応答・失敗診断まわりを変更する前に参照する入口です。
 
 ## Read this when
 
-- `run_codex_exec` の起動前チェック、失敗時診断、再試行、再開処理を変更するとき。
-- Structured Output の `output_schema`、JSON/テキストの意味的検証、validator の扱いを変えるとき。
-- quota や capacity の検知、待機、`resume` への切り替え条件を調整するとき。
-- workspace-write 時の oracle 保護、未コミット差分の検出、`skip_index_maintenance` の前提を変えるとき。
-- call log、subcommand log、コンソール通知の出力形式や内容を変えるとき。
-- `_extract_session_id` や `_resume_command` の resume まわりのロジックを変えるとき。
+- `run_codex_exec` の Structured Output 処理や JSON パース失敗時の再試行仕様を変えるとき。
+- Codex CLI の stdout / stderr / last message を含む call log の Markdown 形式や fence の扱いを変えるとき。
+- CLI 入出力の UTF-8 取り扱い、`CmocError` への正規化、起動失敗時の診断ログを変更するとき。
 
 ## Do not read this when
 
-- `commons.codex` の実装仕様そのものだけを確認したいとき。
-- `subcommand_log` や `commons.indexing` の単体仕様だけを確認したいとき。
-- `oracles` 配下の個別仕様やファイル生成ルールだけを確認したいとき。
-- このテスト群ではなく、特定の実装ファイルや別のテストだけを見れば足りるとき。
+- `run_codex_exec` 以外のサブコマンドや別モジュールの挙動だけを確認したいとき。
+- `commons.repo`、`commons.indexing`、`subcommand_log` など周辺共通処理の仕様だけを追いたいとき。
+- Codex CLI 呼び出しの再試行、ログ整形、UTF-8 処理、起動失敗の診断ではなく、別のテスト群を見れば足りるとき。
 
 ## hash
 
 - 5c177f32272e25df3ac2f00e175cf157ed70d19402d5416527dcc012f399168e
-<!-- cmoc-index-kind: file -->
 
 # `test_file_naming.py`
 
@@ -155,27 +150,27 @@
 
 ## Summary
 
-- このファイルは、`cmoc` のサブコマンド全体に対する決定論的な制御ロジックを検証する pytest テストの集約です。
-- `run_command` のログ出力、エラー報告、終了コード、経過時間計測、`cmoc init` / `session` / `apply` / `eval oracles` の状態遷移と副作用を広く扱います。
-- CLI エントリポイントの登録、補完、`main` のエラー変換、エラーメッセージ整形、バイナリ起動ラッパー、プロンプトや検証ヘルパーの回帰もここで確認します。
+- `tests/test_subcommands.py` は、cmoc のサブコマンド全体に対する決定論的な制御ロジックを検証する pytest テストの集約です。
+- `run_command` の共通実行制御に加えて、`cmoc init`、`session`、`apply`、`eval-oracles` の状態遷移と副作用を広く確認します。
+- CLI エントリポイントの登録、completion、エラー変換、プロンプト生成、検証ヘルパー、レポート保存の回帰もここで押さえます。
 
 ## Read this when
 
-- `cmoc` のサブコマンド群に対する決定論的な制御ロジックのテスト観点を確認したいとき。
-- `run_command` の標準出力 tee、終了集計、例外時レポート、repo ルート解決失敗時の扱いを修正したいとき。
-- `init`、`session fork/join/abandon`、`apply fork/join/abandon`、`eval oracles`、`main` のルーティングや登録、completion、エラー変換の挙動を変更したとき。
-- サブコマンドの状態遷移、`INDEX.md` メンテナンス、session/apply state の保存、レポート生成、プロンプト検証に関する回帰テストを探したいとき。
+- cmoc のサブコマンド群に対する決定論的な制御ロジックと、その回帰テストの範囲を把握したいとき。
+- `run_command` のログ出力、エラー報告、終了コード、経過時間計測の挙動を変更したいとき。
+- `cmoc init`、`session`、`apply`、`eval-oracles` の状態遷移、レポート生成、payload 検証を修正・確認したいとき。
+- CLI 登録、completion、`main` のエラー変換、プロンプト生成や差分・競合検証ヘルパーの回帰を探したいとき。
 
 ## Do not read this when
 
-- `cmoc` の個別サブコマンドの手順や引数仕様だけを確認したいときは、このテスト集約ファイルではなく `oracles/app_specs/sub_commands/` 配下の該当仕様を読むべきです。
-- `src/sub_commands/` 側の実装ロジックだけを追いたいときは、このテストではなく実装ファイルを直接読むべきです。
-- コマンド実行の制御やエラー処理ではなく、CLI の文言調整や一般的なテスト規約だけを確認したいときは、このファイルではなく `oracles/dev_rules/test_rules.md` を読むべきです。
+- `cmoc apply fork/join/abandon` など、個別サブコマンドの手順や引数仕様だけを確認したいとき。
+- `cmoc session fork/join/abandon` の詳細な状態遷移や例外条件だけを追いたいとき。
+- `src/sub_commands/` 側の実装ロジックだけを直接読みたいとき。
+- `oracles` の正本仕様や `INDEX.md` の生成ルールだけを確認したいとき。
 
 ## hash
 
 - 9f22e55cf90e59bb7df381a501d8fe7a5fe8d3464b401071fadc9bdaa519c678
-<!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
 

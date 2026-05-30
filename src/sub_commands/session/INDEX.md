@@ -44,7 +44,6 @@
 ## hash
 
 - c7c43e136ef9dba82d64c4ebf89d1d4af3b24f40d8de1a6cdd99ffe4843515c4
-<!-- cmoc-index-kind: file -->
 
 # `fork.py`
 
@@ -74,23 +73,22 @@
 
 ## Summary
 
-- `src/sub_commands/session/join.py` は `cmoc session join` の本体実装で、現在の session branch を記録済み home branch へ merge し、join 完了までの後始末を行う。
-- session / apply の state 検証、`git switch` と `git merge --no-ff`、merge 後の `session.state=joined` 保存、削除可能な場合のみ branch を消す処理をまとめている。
-- merge conflict 時は Codex CLI に conflict marker の解消だけを依頼し、`oracles` や root docs の例外、`memo` と `.agents` の編集禁止、conflict 対象外の保護、rollback しない手動復旧案内を含む。
+- `src/sub_commands/session/join.py` は `cmoc session join` の本体で、現在の session branch を記録済み home branch へ merge し、join 完了までの後始末を行う。
+- session / apply state の前提条件を検証し、`git switch` と `git merge --no-ff`、`session.state=joined` の保存、安全な場合のみ branch 削除までをまとめて扱う。
+- merge conflict 時は Codex CLI に conflict marker の解消だけを依頼し、conflict 対象外の変更や禁止領域を保護しつつ、rollback せず手動復旧を案内する。
 
 ## Read this when
 
 - `cmoc session join` の前提条件、merge 手順、後始末を実装・修正・レビュー・テストしたいとき。
-- merge conflict 発生時の Codex CLI 依頼範囲や、`oracles` / `README.md` / `AGENTS.md` の扱いを確認したいとき。
-- session 完了後の state 更新や branch 削除可否、手動復旧メッセージの出し方を追いたいとき。
+- merge conflict 発生時の Codex CLI への依頼範囲や、`oracles` / `README.md` / `AGENTS.md` / `memo` / `.agents` の扱いを確認したいとき。
+- session 完了後の state 更新、branch 削除可否、手動復旧メッセージの出し方を追いたいとき。
 
 ## Do not read this when
 
 - `cmoc session fork` や `cmoc session abandon` の挙動だけを確認したいとき。
 - `cmoc apply` 系の開始・破棄・統合だけを確認したいとき。
-- 一般的な `git merge` の解説だけで足り、session 状態管理や conflict 保護が不要なとき。
+- 一般的な `git merge` の解説だけで足り、cmoc の session 状態管理や conflict 保護が不要なとき。
 
 ## hash
 
 - 507a5ab0b85aa2c06cb816adbd2d78608a6f96b672f55ed70d0da0dd2935408e
-<!-- cmoc-index-kind: file -->
