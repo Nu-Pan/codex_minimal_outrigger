@@ -874,7 +874,7 @@ def ensure_cmoc_ignored(repo_root: Path) -> bool:
     changed = _ensure_cmoc_ignore_rule(repo_root)
     tracked = _tracked_cmoc_paths(repo_root)
     if tracked:
-        run_git(repo_root, ["rm", "--cached", "-r", "--", ".cmoc"])
+        _remove_cmoc_from_index(repo_root, env={})
         changed = True
 
     # gitignore と git index の両面から完了条件を検証する。
@@ -974,9 +974,18 @@ def gitignore_has_cmoc_rule(repo_root: Path) -> bool:
 def staged_diff_from_head(repo_root: Path) -> str:
     """現在 stage 済みの差分を HEAD 基準の patch として返す。"""
     # init commit 後に利用者の stage 済み差分だけを復元するため事前保存する。
+    # `.cmoc` は init の完了条件として必ず index から外すため復元対象にしない。
     result = run_git(
         repo_root,
-        ["diff", "--cached", "--binary", "--full-index"],
+        [
+            "diff",
+            "--cached",
+            "--binary",
+            "--full-index",
+            "--",
+            ".",
+            ":(exclude,literal).cmoc",
+        ],
     )
     return result.stdout
 

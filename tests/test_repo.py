@@ -75,6 +75,25 @@ def test_ensure_cmoc_ignored_untracks_existing_cmoc_files(
     assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
 
 
+def test_ensure_cmoc_ignored_untracks_modified_cmoc_files(
+    tmp_path: Path,
+) -> None:
+    """差分がある tracked `.cmoc` も作業ツリーに残して index から外す。"""
+    repo = _init_repo(tmp_path)
+    cmoc_file = repo / ".cmoc" / "logs" / "tracked.log"
+    cmoc_file.parent.mkdir(parents=True)
+    cmoc_file.write_text("tracked\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".cmoc/logs/tracked.log")
+    _git(repo, "commit", "-m", "track cmoc")
+    cmoc_file.write_text("modified\n", encoding="utf-8")
+
+    assert ensure_cmoc_ignored(repo) is True
+
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert cmoc_file.read_text(encoding="utf-8") == "modified\n"
+    assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+
+
 def test_gitignore_has_cmoc_rule_rejects_non_utf8_gitignore(
     tmp_path: Path,
 ) -> None:

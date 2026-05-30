@@ -399,6 +399,46 @@ def test_init_untracks_existing_cmoc_file_and_commits_it(
     assert ".cmoc/logs/tracked.log" in last_commit_paths
 
 
+def test_init_untracks_modified_cmoc_file_and_keeps_worktree_file(
+    tmp_path: Path,
+) -> None:
+    """差分あり tracked `.cmoc` でも init を完了し、実ファイルは残す。"""
+    repo = _init_repo(tmp_path)
+    cmoc_file = repo / ".cmoc" / "logs" / "tracked.log"
+    cmoc_file.parent.mkdir(parents=True)
+    cmoc_file.write_text("tracked\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".cmoc/logs/tracked.log")
+    _git(repo, "commit", "-m", "track cmoc")
+    cmoc_file.write_text("staged\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".cmoc/logs/tracked.log")
+    cmoc_file.write_text("worktree\n", encoding="utf-8")
+
+    cmoc_init_impl(repo)
+
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert (
+        _git(
+            repo,
+            "check-ignore",
+            "-q",
+            "--",
+            ".cmoc/.__cmoc_ignore_probe__",
+        ).returncode
+        == 0
+    )
+    assert cmoc_file.read_text(encoding="utf-8") == "worktree\n"
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    last_commit_paths = _git(
+        repo,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+    ).stdout
+    assert ".gitignore" in last_commit_paths
+    assert ".cmoc/logs/tracked.log" in last_commit_paths
+
+
 def test_init_does_not_commit_existing_gitignore_changes(
     tmp_path: Path,
 ) -> None:
