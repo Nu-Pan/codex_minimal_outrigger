@@ -7411,14 +7411,15 @@ def test_main_delegates_group_completion_probe_to_typer(
 
 
 def test_main_treats_empty_completion_env_as_completion_probe() -> None:
-    """_CMOC_COMPLETE が空文字でも独自の事前検査を実行しない。"""
+    """_CMOC_COMPLETE が空文字でも通常 CLI エラーを出さない。"""
     result = _run_completion_probe([], "cmoc ", 1, complete_value="")
 
-    assert result.returncode == 2
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout == ""
     assert "ERROR" not in result.stdout
     assert "Summary:" not in result.stdout
     assert "コマンドが指定されていません。" not in result.stdout
-    assert "Missing command." in result.stderr
 
 
 def test_format_error_report_fills_empty_generic_detail() -> None:
