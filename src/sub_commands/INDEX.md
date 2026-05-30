@@ -51,7 +51,7 @@
 
 - `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装です。
 - oracles ファイルの列挙、部分評価/全体評価の分岐、並列評価、問題点リスト改善、Markdown レポート保存をまとめています。
-- 評価前の `INDEX.md` 事前メンテナンス、Structured Output の検証、error report と stderr フォールバックも担います。
+- 評価前の `INDEX.md` 事前メンテナンス、Structured Output の検証、error report と stderr フォールバックも担っています。
 
 ## Read this when
 
@@ -67,7 +67,7 @@
 
 ## hash
 
-- ec9409592cd3045f51ef84e6be120934e7c0c8277cad2a8e92789e253830d413
+- a4b4cedd92e397a119d16e0e938acce3a3c1e85a2d1379d7e85aa24105973cdb
 
 # `init.py`
 
