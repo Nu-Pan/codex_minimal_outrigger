@@ -67,11 +67,11 @@
 
 - `cmoc review oracles` の CLI 引数や `main.py` への登録だけを確認したいとき。
 - `cmoc apply`、`cmoc session`、`cmoc init` など、別サブコマンドの実装や仕様を追いたいとき。
-- `oracles` 配下の個別仕様断片そのものを読みたいときは、このファイルではなく `oracles/...` 側を直接読むべきです。
+- `oracles` 配下の個別仕様断片そのものを読みたいとき。
 
 ## hash
 
-- 7aa6164a883f80a4ccce3ab0b7b7d33c4313dca0c0bd049a3e70e40992b0284e
+- 2a68bb03fab8ab6426931305f6ceb3f7b57ead16d176858c8ca43e4484ec2431
 <!-- cmoc-index-kind: file -->
 
 # `init.py`

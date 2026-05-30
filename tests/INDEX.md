@@ -163,7 +163,7 @@
 
 - 公開 CLI の登録、ヘルプ、補完プローブ、`main` / `bin/cmoc` の入口仕様を確認したいとき。
 - `init`、`session`、`apply`、`review oracles` の状態遷移や失敗時の挙動、`run_command` のログ出力を確認したいとき。
-- report 生成、エラー整形、prompt / validation、Fake Codex CLI、git worktree、conflict marker の境界条件を確認したいとき。
+- report 生成、エラー整形、prompt / validation helper、Fake Codex CLI、git worktree、conflict marker の境界条件を確認したいとき。
 - `format_error_report` や各種 prompt / validation helper の回帰意図を把握したいとき。
 
 ## Do not read this when
@@ -175,7 +175,7 @@
 
 ## hash
 
-- c64c37a82805f34bda522198a89b3838f76f1fb2a8684cedaabe1dc8f58921ab
+- a8398352c25407c3617961fff3e5f401ddbafc9c50a42439aa0671db8f408851
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`

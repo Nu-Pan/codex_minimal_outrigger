@@ -65,10 +65,10 @@
 ## Do not read this when
 
 - 個別の `cmoc apply` / `cmoc session` / `cmoc init` / `cmoc review oracles` の詳細仕様だけを追いたいとき。
-- `src/main.py` のコマンド登録や、`commons` の共通処理だけを確認したいとき。
+- `src/main.py` のコマンド登録や、`src/commons` の共通処理だけを確認したいとき。
 - 各モジュールの内部ロジックを直接確認したいときや、`src/sub_commands` の入口整理が不要なとき。
 
 ## hash
 
-- 3be95a3c0e6d0c7236e7cc045a7fe04af3e0e833b87848340d5af9f4561a6d5d
+- dc3c61d7b23e32656edf764bdcd0b721e40b1fcb764989489fbcf52321a1c7d6
 <!-- cmoc-index-kind: directory -->
