@@ -114,7 +114,7 @@
 - `changed_paths`、`changed_oracle_files`、`changed_implementation_files`、削除検出の境界条件を調べたいとき。
 - `commit_if_changed` のコミット可否や、失敗時に index と HEAD を壊さない挙動を確認したいとき。
 - session state の読み書き、`active_session_ids_for_home_branch`、`is_cmoc_branch` の判定条件を確認したいとき。
-- `.gitignore`、`.git/info/exclude`、`INDEX.md`、`memo` の除外・対象判定の回帰を修正するとき。
+- .gitignore、`.git/info/exclude`、`INDEX.md`、`memo` の除外・対象判定の回帰を修正するとき。
 
 ## Do not read this when
 
@@ -125,7 +125,7 @@
 
 ## hash
 
-- b192e39b66753b510f1487472b881e0674f4a1e290f604132a1ecfe47d7d684e
+- 80385bba58bf311ef6c963184cfd1b01b1d81f1b9871704381ed6c9040b63a19
 <!-- cmoc-index-kind: file -->
 
 # `test_report_files.py`
@@ -176,7 +176,7 @@
 
 ## hash
 
-- 125a812aa0f345c434408bb56c4611f948636683fdc2ee8ed9ff3f7511d5fea7
+- f457e1942c7d5f93d94298a361d28fc821c36daf5507980d030b3ec8832d31f0
 <!-- cmoc-index-kind: file -->
 
 # `test_timestamps.py`
