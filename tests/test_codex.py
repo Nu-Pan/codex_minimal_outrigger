@@ -2202,6 +2202,60 @@ def test_extract_session_id_keeps_session_id_compatibility() -> None:
     assert _extract_session_id(stdout, "") == "session-1"
 
 
+def test_extract_session_id_uses_latest_stdout_session_before_quota() -> None:
+    """quota resume id は stderr や古い stdout 候補ではなく直近候補を使う。"""
+    stdout = "\n".join(
+        [
+            '{"type":"thread.started","thread_id":"old-thread"}',
+            '{"type":"item.completed","item":{"text":"working"}}',
+            '{"type":"thread.started","thread_id":"stopped-thread"}',
+            '{"type":"error","message":"Quota exceeded while running"}',
+        ]
+    )
+    stderr = '{"type":"thread.started","thread_id":"stderr-thread"}'
+
+    assert _extract_session_id(stdout, stderr) == "stopped-thread"
+
+
+def test_extract_session_id_prefers_quota_event_session_id() -> None:
+    """quota event 自身に id があれば、その event の停止対象として採用する。"""
+    stdout = "\n".join(
+        [
+            '{"type":"thread.started","thread_id":"previous-thread"}',
+            '{"type":"turn.failed","thread_id":"quota-thread",'
+            '"error":{"message":"out of credits"}}',
+        ]
+    )
+
+    assert _extract_session_id(stdout, "") == "quota-thread"
+
+
+def test_extract_session_id_ignores_stderr_for_quota_resume_id() -> None:
+    """resume 対象は stdout JSONL の quota 判定対象から選び、stderr は使わない。"""
+    stdout = '{"type":"error","message":"Quota exceeded"}'
+    stderr = '{"type":"thread.started","thread_id":"stderr-thread"}'
+
+    assert _extract_session_id(stdout, stderr) is None
+
+
+def test_extract_session_id_rejects_ambiguous_quota_event_ids() -> None:
+    """quota event 内の候補が複数なら曖昧な id で resume しない。"""
+    stdout = (
+        '{"type":"turn.failed","session_id":"session-1",'
+        '"detail":{"thread_id":"thread-2"},'
+        '"error":{"message":"You hit your spend cap"}}'
+    )
+
+    with pytest.raises(CmocError) as error:
+        _extract_session_id(stdout, "")
+
+    assert "resume session id を一意に決定できませんでした" in (
+        error.value.message
+    )
+    assert "session-1" in error.value.detail
+    assert "thread-2" in error.value.detail
+
+
 def test_resume_command_uses_resume_subcommand_form() -> None:
     """quota 復旧時の再実行は停止 session を resume サブコマンドで復元する。"""
     command = [

@@ -1173,22 +1173,69 @@ def _codex_error_message(value: object) -> str | None:
 
 
 def _extract_session_id(stdout: str, stderr: str) -> str | None:
-    """JSONL ログから resume 用 id を取り出す。"""
-    # Codex JSONL の構造化 field だけを参照し、本文中のコード断片を誤抽出しない。
-    for line in f"{stdout}\n{stderr}".splitlines():
+    """stdout JSONL の quota 停止 event に対応する resume 用 id を取り出す。"""
+    del stderr
+    first_stdout_session_id: str | None = None
+    latest_session_ids: tuple[str, ...] = ()
+
+    for line in stdout.splitlines():
         try:
             value = json.loads(line)
         except json.JSONDecodeError:
             continue
-        session_id = _session_id_from_json(value)
-        if session_id is not None:
-            return session_id
-    return None
+        session_ids = _session_ids_from_json(value)
+        if session_ids:
+            if first_stdout_session_id is None:
+                first_stdout_session_id = session_ids[0]
+            latest_session_ids = session_ids
+        message = _codex_error_message(value)
+        if message is None or not _is_quota_message(message):
+            continue
+        if session_ids:
+            return _single_resume_session_id(session_ids, "quota event")
+        if latest_session_ids:
+            return _single_resume_session_id(
+                latest_session_ids,
+                "latest stdout session event before quota",
+            )
+        return None
+
+    return first_stdout_session_id
 
 
-def _session_id_from_json(value: object) -> str | None:
-    """ネストした JSON object から resume 用 id らしい文字列を探す。"""
+def _is_quota_message(message: str) -> bool:
+    """quota 枯渇として扱う既知文言か判定する。"""
+    return any(fragment in message for fragment in _QUOTA_MESSAGES)
+
+
+def _single_resume_session_id(
+    session_ids: Iterable[str],
+    source: str,
+) -> str:
+    """候補が一意に決まる場合だけ resume 用 id として返す。"""
+    unique_ids = tuple(dict.fromkeys(session_ids))
+    if len(unique_ids) == 1:
+        return unique_ids[0]
+    raise CmocError(
+        "quota 枯渇後の resume session id を一意に決定できませんでした。",
+        [
+            "codex exec のログを確認してください。",
+            "曖昧な session id で resume せず、状態を確認してから cmoc を再実行してください。",
+        ],
+        "\n".join(
+            [
+                f"Source: {source}",
+                "Candidates:",
+                *unique_ids,
+            ]
+        ),
+    )
+
+
+def _session_ids_from_json(value: object) -> tuple[str, ...]:
+    """ネストした JSON object から resume 用 id らしい文字列を順序付きで集める。"""
     # Codex JSONL のフィールド名変化に備えて再帰的に探す。
+    session_ids: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
             key_text = str(key).lower().replace("-", "_")
@@ -1198,16 +1245,13 @@ def _session_id_from_json(value: object) -> str | None:
                 "thread_id",
                 "threadid",
             } and isinstance(child, str):
-                return child
-            found = _session_id_from_json(child)
-            if found is not None:
-                return found
+                session_ids.append(child)
+                continue
+            session_ids.extend(_session_ids_from_json(child))
     if isinstance(value, list):
         for child in value:
-            found = _session_id_from_json(child)
-            if found is not None:
-                return found
-    return None
+            session_ids.extend(_session_ids_from_json(child))
+    return tuple(session_ids)
 
 
 def _resume_command(command: list[str], session_id: str | None) -> list[str]:
