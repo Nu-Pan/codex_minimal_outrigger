@@ -475,11 +475,11 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
 def _index_prompt(repo_root: Path, path: Path, digest: str) -> str:
     """INDEX 目次情報生成用の Codex prompt を作る。"""
     # Codex 側には hash を返させず、cmoc が計算した値だけを後段で埋め込む。
-    display_path = _display_index_path(repo_root, path)
+    concrete_path = _display_concrete_index_path(path)
     return "\n".join(
         [
             "あなたはリポジトリのルーティング文書を作るアシスタントです。",
-            f"`{display_path}` の `INDEX.md` 目次情報を作成してください。",
+            f"`{concrete_path}` の `INDEX.md` 目次情報を作成してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             "summary、read_this_when、do_not_read_this_when はそれぞれ",
             "日本語の文字列配列にしてください。",
@@ -808,6 +808,11 @@ def _is_index_text_character(character: str) -> bool:
 def _display_index_path(repo_root: Path, path: Path) -> str:
     """Codex prompt やログ用途の repo 相対 path を安全な 1 行表現にする。"""
     return _encode_index_token(path.relative_to(repo_root).as_posix())
+
+
+def _display_concrete_index_path(path: Path) -> str:
+    """Codex prompt 用の絶対 path を安全な 1 行表現にする。"""
+    return _encode_index_token(path.resolve().as_posix())
 
 
 def _encode_index_token(value: str) -> str:

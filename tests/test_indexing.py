@@ -34,10 +34,12 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     (repo / "ignored.txt").write_text("ignored\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "content")
+    codex_prompts: list[str] = []
     codex_kwargs: list[dict[str, object]] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """INDEX 生成用の Structured Output を返す fake Codex CLI。"""
+        codex_prompts.append(str(args[1]))
         codex_kwargs.append(kwargs)
         return json.dumps(
             {
@@ -56,6 +58,10 @@ def test_maintain_indexes_generates_routing_entries_and_respects_gitignore(
     assert "# `kept.txt`" in content
     assert "kept summary" in content
     assert "# `ignored.txt`" not in content
+    assert any(f"`{repo / 'README.md'}`" in prompt for prompt in codex_prompts)
+    assert any(f"`{repo / 'kept.txt'}`" in prompt for prompt in codex_prompts)
+    assert not any("`README.md` の `INDEX.md`" in prompt for prompt in codex_prompts)
+    assert not any("`kept.txt` の `INDEX.md`" in prompt for prompt in codex_prompts)
     assert codex_kwargs
     assert all(
         kwargs["output_schema"] == _INDEX_OUTPUT_SCHEMA
