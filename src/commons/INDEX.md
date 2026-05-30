@@ -108,20 +108,20 @@
 
 ## Read this when
 
-- INDEX.md の自動生成・再生成・更新・自動コミットの実装を確認したいとき。
-- ディレクトリ列挙、`gitignore` 判定、`memo` 除外、バイナリ判定、symlink 除外の対象選別を追いたいとき。
+- `INDEX.md` の自動生成・再生成・更新・自動コミットの実装や挙動を確認したいとき。
+- ディレクトリ列挙、`gitignore` 判定、`memo` 除外、隠しディレクトリや `build` / `tmp` / `__pycache__` の除外、symlink とバイナリの排除条件を追いたいとき。
 - 既存 `INDEX.md` の再利用条件、内容ハッシュによる更新判定、Structured Output から Markdown への変換を確認したいとき。
-- INDEX メンテナンス用の lock による直列化や、I/O 失敗をユーザー向けエラーへ変換する処理を確認したいとき。
+- INDEX メンテナンス用の lock による直列化や、I/O 失敗をユーザー向けの `CmocError` に変換する処理を確認したいとき。
 
 ## Do not read this when
 
-- INDEX.md の配置ルールや目次フォーマットの概要だけを確認したいとき。
+- `INDEX.md` の配置ルールや見出し構成の概要だけを知りたいとき。
 - `codex.py`、`repo.py`、`errors.py` など他の共通モジュールの仕様だけを追いたいとき。
 - cmoc の個別サブコマンドの引数や実行フロー、テストの詳細だけを確認したいとき。
 
 ## hash
 
-- fb7a5b42cf8a1fd322102080872aa45c85d1b28d2f6185f257c5c58e34f6b8f2
+- 3ab05d06c4e06d2f0f36e88a68c2c9b67fe522e2f8f314ade836d69b6d0ca084
 
 # `repo.py`
 
