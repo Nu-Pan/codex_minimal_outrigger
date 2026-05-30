@@ -54,7 +54,6 @@ from commons.timing import StepTimer, start_step
 from commons.timing import StepIndexPath
 from commons.timestamps import make_timestamp
 
-_APPLY_INCOMPLETE_EXIT_CODE: int = 2
 ApplyScope = Literal["rolling", "session", "full"]
 _APPLY_SCOPES = {"rolling", "session", "full"}
 
@@ -447,7 +446,7 @@ def cmoc_apply_impl(
         _assert_forbidden_paths_clean(apply_worktree)
         _commit_all_changes(apply_worktree)
 
-        # 実行結果を人間向け report と exit code に変換する。
+        # 実行結果を人間向け report に変換する。
         failed_stage = "write report"
         start_step(timer, 6, 6, "write report")
         session_head_at_apply_finish = _session_branch_head_for_report(
@@ -478,7 +477,7 @@ def cmoc_apply_impl(
             session_id,
             state,
         )
-        return 0 if completed else _APPLY_INCOMPLETE_EXIT_CODE
+        return 0
     except Exception as error:
         if not apply_start_needs_error_record:
             raise
