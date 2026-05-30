@@ -368,12 +368,14 @@ def _relocate_from_apply_branch(
     if session_worktree is not None:
         os.chdir(session_worktree)
         return
+    assert_no_uncommitted_changes(repo_root)
     switch_result = run_git(
         repo_root,
         ["switch", abandon_state.session_branch],
         check=False,
     )
     if switch_result.returncode == 0:
+        assert_no_uncommitted_changes(repo_root)
         return
     detail = switch_result.stderr.strip()
     raise CmocError(
