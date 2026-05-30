@@ -28,26 +28,27 @@
 ## Summary
 
 - `commons.codex` の `run_codex_exec` と周辺ヘルパーの回帰テストをまとめたファイルです。
-- Structured Output 用 schema の準備、JSON / text 検証、semantic validation による retry、quota 復旧後の `resume` を検証します。
-- `output_schema` のキャッシュ、call log / last message の扱い、console 出力、workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を押さえます。
+- Structured Output の schema 準備、JSON / text 検証、semantic validation による retry、quota 復旧後の `resume` を検証します。
+- `output_schema` のキャッシュ、呼び出しログ、コンソール出力、`INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を押さえます。
 
 ## Read this when
 
-- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を変更・確認したいとき。
-- Structured Output の schema 準備、JSON / text 検証、semantic validation、`output_schema` キャッシュの扱いを確認したいとき。
-- Codex CLI の呼び出しログ、コンソール通知、`last_message`、`call` ログの整合性を確認したいとき。
+- `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を確認したいとき。
+- Structured Output の schema 準備、JSON / text 検証、semantic validation、`output_schema` キャッシュを確認したいとき。
+- Codex CLI の呼び出しログ、コンソール通知、`last_message`、`subcommand_log` の整合性を確認したいとき。
 - workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を確認したいとき。
 - `_extract_session_id`、`_resume_command`、`_active_allowed_oracle_conflict_paths` など周辺ヘルパーの仕様を確認したいとき。
 
 ## Do not read this when
 
-- `commons.codex` の実装本体を直接確認したいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_report_files.py` など、Codex 呼び出し以外の回帰テストだけを追いたいとき。
-- `INDEX.md` の生成ルールや `oracles` 全体の正本仕様そのものを確認したいとき。
+- `commons.codex` の実装本体を直接追いたいとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_report_files.py` など、`test_codex.py` 以外の回帰テストだけを見たいとき。
+- `INDEX.md` の生成ルールや `oracles` 全体の正本仕様だけを確認したいとき。
+- `session` や `apply` など、Codex 呼び出し以外のサブコマンド仕様を探しているとき。
 
 ## hash
 
-- 7fe52a0a4f0b9330a8faca23fd2e99963eacbc127b31cd77c83cc40441260a0a
+- 4db6f06cb09a522741e69b7b638ff6170df53982835e0300ea4ecfa93e61580b
 <!-- cmoc-index-kind: file -->
 
 # `test_file_naming.py`

@@ -29,19 +29,19 @@
 
 ## Read this when
 
-- `cmoc` から `codex exec` をどう起動し、`read-only` と `workspace-write` をどう切り替えるか確認したいとき。
+- `codex exec` をどう起動し、`read-only` と `workspace-write` をどう切り替えるか確認したいとき。
 - Structured Output の JSON / schema 検証、`output-last-message` の読み取り、JSON object パースを確認したいとき。
 - quota 枯渇時の待機と `resume`、capacity の指数バックオフ、oracle 保護、実行前の `INDEX.md` メンテナンス、呼び出しログの保存を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
+- 個別サブコマンドの引数や業務ロジックだけを確認したいとき。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
-- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など、他の共通モジュールの仕様だけを追いたいとき。
+- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など他の共通モジュールの仕様だけを追いたいとき。
 
 ## hash
 
-- eccd676622fbaff51b1d3f54185f0585e1b64d785fb133b78b6709594206f9de
+- cbc7336134d19af0951c90e9c6500cdf0a2b6288674273cf4b3411a0b7ddd91a
 <!-- cmoc-index-kind: file -->
 
 # `command_runner.py`
