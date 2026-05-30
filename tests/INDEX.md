@@ -79,24 +79,24 @@
 ## Summary
 
 - `tests/test_indexing.py` は `INDEX.md` メンテナンス処理の回帰テスト集です。
-- 目次エントリの生成・再利用・再生成条件と、ハッシュ更新や Structured Output の検証を扱います。
+- 目次エントリの生成・再利用・再生成条件、hash 更新、Structured Output の検証を扱います。
 - gitignore、symlink、binary、非 UTF-8 path、並列処理、排他 lock、自動 commit まで広く押さえます。
 
 ## Read this when
 
 - `maintain_indexes` と `is_maintained_index_path` の期待動作を確認したいとき。
-- `INDEX.md` の生成・再利用・再生成条件や、特殊な path の扱いを調べたいとき。
-- 並列実行、排他 lock、自動 commit、gitignore、symlink、binary、非 UTF-8 path の回帰を修正・追加したいとき。
+- gitignore、symlink、binary、非 UTF-8 path、空ディレクトリ、特殊文字を含む path の扱いを修正・追加したいとき。
+- 並列生成、排他 lock、Codex 呼び出しの再試行、既存 INDEX の再利用・再生成、自動 commit の境界条件を確認したいとき。
 
 ## Do not read this when
 
-- `commons.indexing` の実装詳細だけを追いたいとき。
-- `INDEX.md` の生成ルール全体や `oracles` 側の正本仕様だけを確認したいとき。
-- `session` や `apply` など、INDEX 以外のサブコマンド仕様を調べたいとき。
+- `commons.indexing` の実装ロジックをそのまま追いたいだけのとき。
+- `oracles` 側の正本仕様や、`INDEX.md` 全体の生成ルールだけを確認したいとき。
+- `session` や `apply` など、INDEX 保守以外のサブコマンド仕様を調べたいとき。
 
 ## hash
 
-- a176e3753f7acc9efd2a347685b0e0353f4ff0f11892a316d156d4a50fa9eb0d
+- ca92d4f8ae0ab1ad5af06b24e2cd6de771974db09db746d149e01205831dcabe
 <!-- cmoc-index-kind: file -->
 
 # `test_repo.py`
