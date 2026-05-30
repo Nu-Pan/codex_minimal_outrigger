@@ -226,10 +226,11 @@ def initial_session_state(
     session_start_commit: str,
 ) -> dict[str, object]:
     """`cmoc session fork` 直後の session state を返す。"""
+    _ = session_home_branch
     return {
         "session": {
             "state": "active",
-            "session_home_branch": session_home_branch,
+            "session_home_branch": None,
             "session_start_commit": session_start_commit,
             "last_joined_apply_oracle_snapshot_commit": None,
         },
@@ -400,7 +401,7 @@ def _validate_session_state_schema(
         path,
     )
     _validate_state_value(session_state, SESSION_STATES, "session.state", path)
-    _validate_required_string(
+    _validate_optional_string(
         session,
         "session_home_branch",
         "session.session_home_branch",
@@ -645,7 +646,15 @@ def active_session_ids_for_home_branch(
             )
         if (
             session.get("state") == "active"
-            and session.get("session_home_branch") == session_home_branch
+            and (
+                session.get("session_home_branch") == session_home_branch
+                or _active_session_origin_matches_home_branch(
+                    repo_root,
+                    session_id,
+                    session,
+                    session_home_branch,
+                )
+            )
         ):
             session_ids.append(session_id)
     orphan_branch_ids = sorted(session_branch_ids - state_session_ids)
@@ -658,6 +667,27 @@ def active_session_ids_for_home_branch(
             ],
         )
     return session_ids
+
+
+def _active_session_origin_matches_home_branch(
+    repo_root: Path,
+    session_id: str,
+    session: dict[str, object],
+    session_home_branch: str,
+) -> bool:
+    """home branch が null の active session を分岐元 commit から照合する。"""
+    if session.get("session_home_branch") is not None:
+        return False
+    start_commit = session.get("session_start_commit")
+    if not isinstance(start_commit, str) or not start_commit:
+        return False
+    session_branch = f"{SESSION_BRANCH_PREFIX}{session_id}"
+    result = run_git(
+        repo_root,
+        ["merge-base", session_home_branch, session_branch],
+        check=False,
+    )
+    return result.returncode == 0 and result.stdout.strip() == start_commit
 
 
 def _session_branch_names(repo_root: Path) -> list[str]:

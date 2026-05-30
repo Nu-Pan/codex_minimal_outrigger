@@ -22,6 +22,7 @@ from commons.repo import (
     gitignore_has_cmoc_rule,
     has_deleted_implementation_files,
     has_deleted_oracle_files,
+    initial_session_state,
     is_apply_implementation_path,
     is_cmoc_branch,
     list_implementation_files,
@@ -1320,6 +1321,46 @@ def test_write_session_state_persists_only_oracle_schema(
     }
 
 
+def test_initial_session_state_uses_null_session_home_branch() -> None:
+    """session fork 直後の home branch は apply join まで null にする。"""
+    state = initial_session_state("main", "abc123")
+
+    assert state["session"]["session_home_branch"] is None
+    assert state["session"]["session_start_commit"] == "abc123"
+
+
+def test_read_session_state_allows_null_session_home_branch(
+    tmp_path: Path,
+) -> None:
+    """session_home_branch は session 作成直後の null を受け入れる。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": None,
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
+                },
+                "apply": {
+                    "state": "ready",
+                    "apply_branch": None,
+                    "oracle_snapshot_commit": None,
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    assert read_session_state(repo, session_id)["session"][
+        "session_home_branch"
+    ] is None
+
+
 def test_read_session_state_rejects_unknown_state_values(
     tmp_path: Path,
 ) -> None:
@@ -1625,6 +1666,36 @@ def test_active_session_scan_fails_on_active_state_without_branch(
 
     assert "対応する session branch が存在しません" in error.value.message
     assert session_id in error.value.detail
+
+
+def test_active_session_scan_matches_null_home_branch_by_origin(
+    tmp_path: Path,
+) -> None:
+    """初期値 null の active session も分岐元 branch の重複として扱う。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    start_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "branch", f"cmoc/session/{session_id}")
+    write_session_state(
+        repo,
+        session_id,
+        {
+            "session": {
+                "state": "active",
+                "session_home_branch": None,
+                "session_start_commit": start_commit,
+                "last_joined_apply_oracle_snapshot_commit": None,
+            },
+            "apply": {
+                "state": "ready",
+                "apply_branch": None,
+                "oracle_snapshot_commit": None,
+            },
+        },
+    )
+
+    assert active_session_ids_for_home_branch(repo, home_branch) == [session_id]
 
 
 def _init_repo(tmp_path: Path) -> Path:

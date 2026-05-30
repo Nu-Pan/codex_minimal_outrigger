@@ -548,7 +548,7 @@ def test_session_fork_creates_session_branch_and_records_state(
     state = json.loads(record_path.read_text(encoding="utf-8"))
     assert branch_name.startswith("cmoc/session/")
     assert state["session"]["state"] == "active"
-    assert state["session"]["session_home_branch"] == home_branch
+    assert state["session"]["session_home_branch"] is None
     assert state["session"]["session_start_commit"] == base_commit
     assert state["session"]["last_joined_apply_oracle_snapshot_commit"] is None
     assert state["apply"] == {
@@ -962,7 +962,7 @@ def test_session_fork_keeps_state_when_rollback_branch_delete_fails(
     assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
     assert session_branch in branches
     assert state["session"]["state"] == "active"
-    assert state["session"]["session_home_branch"] == home_branch
+    assert state["session"]["session_home_branch"] is None
     assert state["apply"]["state"] == "ready"
 
 
@@ -2909,6 +2909,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
 ) -> None:
     """`cmoc apply join` は apply branch を session branch へ merge する。"""
     repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
     apply_branch, apply_worktree, report_path = _create_completed_apply_run(
@@ -2933,6 +2934,7 @@ def test_apply_join_merges_completed_apply_branch_and_resets_state(
         "oracle_snapshot_commit": None,
         "state": "ready",
     }
+    assert state["session"]["session_home_branch"] == home_branch
     assert state["session"]["last_joined_apply_oracle_snapshot_commit"] == (
         oracle_snapshot
     )
@@ -3010,6 +3012,7 @@ def test_apply_join_cleans_worktree_created_from_linked_worktree(
         "oracle_snapshot_commit": None,
         "state": "ready",
     }
+    assert state["session"]["session_home_branch"] == "feature"
     assert state["session"]["last_joined_apply_oracle_snapshot_commit"] == (
         oracle_snapshot
     )
@@ -7878,6 +7881,7 @@ def _create_completed_apply_run(
             encoding="utf-8"
         )
     )
+    state["session"]["session_home_branch"] = None
     state["apply"] = {
         "state": "completed",
         "apply_branch": apply_branch,
