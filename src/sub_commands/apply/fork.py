@@ -132,7 +132,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "array",
                         "description": (
                             "要修正点の根拠となる文言の位置情報。"
-                            "`oracles`・実装どちらかのファイルが必ず 1 つは"
+                            "仕様ファイル・実装ファイルのどちらかが必ず 1 つは"
                             "根拠として存在するはずであるから空配列は想定しない。"
                         ),
                         "items": {
@@ -176,7 +176,7 @@ _DISCREPANCY_OUTPUT_SCHEMA: dict[str, object] = {
                     "oracle_requirement": {
                         "type": "string",
                         "description": (
-                            "oracle が要求している仕様。実装のみから発見した"
+                            "仕様ファイルが要求している仕様。実装のみから発見した"
                             "要修正点であったとしても必ず関係する仕様を記載する。"
                         ),
                     },
@@ -2134,10 +2134,12 @@ def _investigation_prompt(
             f"`{oracle_target.path}` を起点に `{repo_root}` の要修正点を調査してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             target_note,
-            "要修正点には、oracles ファイルと実装との明確な不整合だけでなく、",
+            f"要修正点には、`{repo_root / 'oracles'}` 配下の仕様ファイルと"
+            "実装との明確な不整合だけでなく、",
             "実装だけから見た成果物品質上の致命的な問題も含めてください。",
-            "実装のみから発見した要修正点でも、関係する oracle 仕様を oracle_requirement に記載してください。",
-            "指定ファイルは調査の起点であり、必要なら他の oracle・実装ファイルも読んでください。",
+            "実装のみから発見した要修正点でも、関係する仕様要求を "
+            "oracle_requirement に記載してください。",
+            "指定ファイルは調査の起点であり、必要なら他の仕様ファイル・実装ファイルも読んでください。",
             "各要修正点には title、evidences、oracle_requirement、",
             "observed_implementation、reason、suggested_fix を含めてください。",
             "evidences には path、line_start、line_end、summary を含めてください。",
@@ -2163,10 +2165,12 @@ def _implementation_investigation_prompt(
             f"`{repo_root}` の要修正点を調査してください。",
             "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
             target_note,
-            "要修正点には、oracles ファイルと実装との明確な不整合だけでなく、",
+            f"要修正点には、`{repo_root / 'oracles'}` 配下の仕様ファイルと"
+            "実装との明確な不整合だけでなく、",
             "実装だけから見た成果物品質上の致命的な問題も含めてください。",
-            "実装のみから発見した要修正点でも、関係する oracle 仕様を oracle_requirement に記載してください。",
-            "指定ファイルは調査の起点であり、必要なら他の oracle・実装ファイルも読んでください。",
+            "実装のみから発見した要修正点でも、関係する仕様要求を "
+            "oracle_requirement に記載してください。",
+            "指定ファイルは調査の起点であり、必要なら他の仕様ファイル・実装ファイルも読んでください。",
             "各要修正点には title、evidences、oracle_requirement、",
             "observed_implementation、reason、suggested_fix を含めてください。",
             "evidences には path、line_start、line_end、summary を含めてください。",
@@ -2182,10 +2186,10 @@ def _investigation_target_note(target: _InvestigationTarget) -> str:
     """削除済み target の履歴調査が必要なことを prompt に明示する。"""
     if target.deleted_at_snapshot:
         return (
-            "この起点 path は oracle snapshot 時点では存在しません。"
+            "この起点 path は調査対象として固定された commit 時点では存在しません。"
             "削除差分や履歴上の変更内容を確認して調査してください。"
         )
-    return "この起点 path は oracle snapshot 時点に存在するファイルです。"
+    return "この起点 path は調査対象として固定された commit 時点に存在するファイルです。"
 
 
 def _organize_prompt(
@@ -2218,7 +2222,8 @@ def _organize_prompt(
             "False-Positive と判断できる要修正点は除外してください。",
             "要修正点を先頭から順番に対応した時に、作業順序として適切になるよう並べ替えてください。",
             "改善過程で発見した漏れがあれば、要修正点リストに追加してください。",
-            "実装のみから発見した要修正点でも、関係する oracle 仕様を oracle_requirement に記載してください。",
+            "実装のみから発見した要修正点でも、関係する仕様要求を "
+            "oracle_requirement に記載してください。",
             "改善点がない場合は入力と同じ要修正点リストを返してください。",
             "top-level の git_head_commit_hash は必ず含め、値は null で構いません。",
             "明確な要修正点がない場合だけ fixing_points に空配列を返してください。",
@@ -2254,12 +2259,14 @@ def _apply_prompt(
     return "\n".join(
         [
             "あなたはソフトウェア実装担当です。",
-            f"`{repo_root}` の実装を、oracle 要求に追従するようベストエフォートで更新してください。",
+            f"`{repo_root}` の実装を、要修正点情報に記載された仕様要求に"
+            "追従するようベストエフォートで更新してください。",
             "完了条件は、必要と判断した実装修正とテスト更新を終え、変更内容と残課題を報告することです。",
             "作業が必要と判断できる場合は、実装修正と必要なテスト更新を行ってください。",
             "以下の要修正点情報は作業のためのヒントです。",
             "絶対に従わなければならない指示書としては扱わないでください。",
-            "実装状況や oracle を確認した結果として不適切なら、この要修正点情報は無視してかまいません。",
+            "実装状況や仕様ファイルを確認した結果として不適切なら、"
+            "この要修正点情報は無視してかまいません。",
             "作業目的は、要修正点が指摘している問題の修正を試みることです。",
             "要修正点本文への逐語的追従や、要修正点で述べている目的を達成した保証は不要です。",
             f"要修正点: {json.dumps(discrepancy, ensure_ascii=False)}",

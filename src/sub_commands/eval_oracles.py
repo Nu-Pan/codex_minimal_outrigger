@@ -69,7 +69,7 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
         },
         "oracle_path": {
             "type": "string",
-            "description": "問題点の根拠となる oracle ファイルの絶対パス。",
+            "description": "問題点の根拠となる仕様ファイルの絶対パス。",
         },
         "oracle_line_start": {
             "anyOf": [
@@ -77,7 +77,7 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
                 {"type": "null"},
             ],
             "description": (
-                "問題点の根拠となる oracle 記述の開始行。"
+                "問題点の根拠となる仕様記述の開始行。"
                 "特定できない場合は null。"
             ),
         },
@@ -87,14 +87,14 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
                 {"type": "null"},
             ],
             "description": (
-                "問題点の根拠となる oracle 記述の終了行。"
+                "問題点の根拠となる仕様記述の終了行。"
                 "特定できない場合は null。"
             ),
         },
         "referenced_paths": {
             "type": "array",
             "description": (
-                "この問題点の評価時に参照した oracle / INDEX ファイルの絶対パス。"
+                "この問題点の評価時に参照した仕様ファイルまたは INDEX.md の絶対パス。"
             ),
             "items": {"type": "string"},
         },
@@ -102,12 +102,12 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
             "type": "string",
             "description": (
                 "影響を受ける workflow / subcommand / concept。"
-                "例: cmoc apply fork, cmoc review oracles, overall。"
+                "例: apply fork, review, overall。"
             ),
         },
         "requirement": {
             "type": "string",
-            "description": "oracle が要求している、または要求すべき仕様。",
+            "description": "仕様ファイルが要求している、または要求すべき仕様。",
         },
         "problem": {
             "type": "string",
@@ -122,12 +122,12 @@ _ISSUE_OUTPUT_SCHEMA: dict[str, object] = {
         },
         "suggested_oracle_change": {
             "type": "string",
-            "description": "oracle をどう修正すべきか。",
+            "description": "仕様ファイルをどう修正すべきか。",
         },
         "specification_only_basis": {
             "type": "string",
             "description": (
-                "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
+                "この問題点の評価が仕様ファイルと INDEX.md だけに"
                 "基づくことの説明。"
             ),
         },
@@ -479,28 +479,29 @@ def _evaluation_prompt(
     # 仕様の構成順序に従い、完了条件を詳細指示より前に置く。
     lines = [
         "あなたはソフトウェア仕様のレビュー担当です。",
-        f"`{concrete_repo_root}` 内の oracle ファイル "
+        f"`{concrete_repo_root}` 内の仕様ファイル "
         f"`{concrete_oracle_file}` を評価してください。",
         "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。",
         "issues には検出した問題点を入れ、問題がない場合は空配列を返してください。",
     ]
     if oracle_snapshot is not None:
         lines.append(
-            f"評価時に読む対象ファイルは固定済み snapshot の `{readable_oracle_file}` です。"
+            "評価時に読む対象ファイルは、開始時点の内容を固定したコピー "
+            f"`{readable_oracle_file}` です。"
         )
     lines.extend(
         [
-            "問題がある場合、各 issue の referenced_paths には参照した oracle / INDEX ",
-            "ファイルに対応する元 repo 側の絶対パスをすべて返してください。",
+            "問題がある場合、各 issue の referenced_paths には参照した仕様ファイル",
+            "または INDEX.md に対応する元リポジトリ側の絶対パスをすべて返してください。",
             f"出力する oracle_path / referenced_paths は `{concrete_oracle_root}` "
             "配下の絶対パスにしてください。",
-            "各 issue の specification_only_basis には、評価が oracles 配下の仕様断片と",
-            "INDEX だけに基づくことの説明を書いてください。",
-            "対象 oracle、関連する oracle ファイル、関連判断に必要な",
+            "各 issue の specification_only_basis には、評価が仕様ファイルと",
+            "INDEX.md だけに基づくことの説明を書いてください。",
+            "対象仕様ファイル、関連する仕様ファイル、関連判断に必要な",
             f"`{readable_oracle_root}` 配下の INDEX.md だけを読んでください。",
             f"`{readable_oracle_index}` から始まる INDEX.md の Summary /",
             "Read this when / Do not read this when を根拠に、",
-            "関連 oracle を選定してください。",
+            "関連する仕様ファイルを選定してください。",
             f"`{readable_oracle_root}` 外のファイルは一切参照禁止です。",
             "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。",
             "致命的な問題とは、実装を参照せずに仕様だけから判断・実装したとき、",
@@ -587,11 +588,12 @@ def _improvement_prompt(
     payload_text = json.dumps(issue_payload, ensure_ascii=False, indent=2)
     lines = [
         "あなたはソフトウェア仕様レビュー結果の整理担当です。",
-        f"`{concrete_repo_root}` の oracle 評価で得られた問題点リストを改善してください。",
+        f"`{concrete_repo_root}` の仕様評価で得られた問題点リストを改善してください。",
     ]
     if oracle_snapshot is not None:
         lines.append(
-            f"必要に応じて読む oracle tree は固定済み snapshot の `{readable_oracle_root}` です。"
+            "必要に応じて読む仕様ファイル群は、開始時点の内容を固定したコピー "
+            f"`{readable_oracle_root}` です。"
         )
     lines.extend(
         [
@@ -599,11 +601,11 @@ def _improvement_prompt(
             "入力 issues を意味論的に統合・改善し、重複、矛盾、False-Positive を",
             "ベストエフォートで減らしてください。",
             "問題点がない場合は issues: [] を返してください。",
-            "必要に応じて oracle ファイル、関連する oracle ファイル、関連判断に必要な",
+            "必要に応じて仕様ファイル、関連する仕様ファイル、関連判断に必要な",
             f"`{readable_oracle_root}` 配下の INDEX.md だけを読んでください。",
             f"`{readable_oracle_index}` から始まる INDEX.md の Summary /",
             "Read this when / Do not read this when を根拠に、",
-            "関連 oracle を選定してください。",
+            "関連する仕様ファイルを選定してください。",
             f"`{readable_oracle_root}` 外のファイルは一切参照禁止です。",
             f"出力する oracle_path / referenced_paths は `{concrete_oracle_root}` "
             "配下の絶対パスにしてください。",

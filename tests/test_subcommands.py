@@ -1117,7 +1117,7 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert basis_schema == {
         "type": "string",
         "description": (
-            "この問題点の評価が oracles 配下の仕様断片と INDEX だけに"
+            "この問題点の評価が仕様ファイルと INDEX.md だけに"
             "基づくことの説明。"
         ),
     }
@@ -1216,7 +1216,7 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
         """prompt 上の snapshot path を読み、開始時点の内容だけを返す。"""
         prompt = str(args[1])
         match = re.search(
-            r"固定済み snapshot の `([^`]+/oracles/spec\.md)`",
+            r"開始時点の内容を固定したコピー `([^`]+/oracles/spec\.md)`",
             prompt,
         )
         assert match is not None
@@ -2559,7 +2559,7 @@ def test_eval_oracles_prompt_forbids_implementation_references() -> None:
     assert "`oracles` 外のファイルは一切参照禁止です。" not in prompt
     assert "`oracles/INDEX.md`" not in prompt
     assert "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。" in prompt
-    assert "各 issue の referenced_paths には参照した oracle / INDEX" in prompt
+    assert "各 issue の referenced_paths には参照した仕様ファイル" in prompt
     assert "Structured Output schema に一致する JSON" in prompt
     assert "仕様だけから判断・実装したとき" in prompt
 
@@ -2580,7 +2580,7 @@ def test_eval_oracles_improvement_prompt_uses_index_routing() -> None:
 
     assert "`/repo/oracles/INDEX.md` から始まる INDEX.md" in prompt
     assert "Read this when / Do not read this when を根拠に、" in prompt
-    assert "関連 oracle を選定してください。" in prompt
+    assert "関連する仕様ファイルを選定してください。" in prompt
     assert "`/repo/oracles` 外のファイルは一切参照禁止です。" in prompt
     assert "`oracles/INDEX.md`" not in prompt
     assert "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。" in prompt
@@ -2593,7 +2593,7 @@ def test_eval_oracles_prompt_orders_completion_before_details() -> None:
 
     assert lines[0] == "あなたはソフトウェア仕様のレビュー担当です。"
     assert lines[1] == (
-        "`/repo` 内の oracle ファイル `/repo/oracles/spec.md` を評価してください。"
+        "`/repo` 内の仕様ファイル `/repo/oracles/spec.md` を評価してください。"
     )
     assert lines[2] == (
         "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。"
@@ -5126,7 +5126,8 @@ def test_apply_prompt_orders_completion_before_details() -> None:
 
     assert lines[0] == "あなたはソフトウェア実装担当です。"
     assert lines[1] == (
-        "`/repo` の実装を、oracle 要求に追従するようベストエフォートで更新してください。"
+        "`/repo` の実装を、要修正点情報に記載された仕様要求に"
+        "追従するようベストエフォートで更新してください。"
     )
     assert lines[2] == (
         "完了条件は、必要と判断した実装修正とテスト更新を終え、変更内容と残課題を報告することです。"
@@ -6670,7 +6671,7 @@ def test_apply_deleted_investigation_target_prompt_mentions_history(
     prompt = apply_module._implementation_investigation_prompt(repo, target)
 
     assert "`" + str(repo / "deleted.py") + "` を起点" in prompt
-    assert "oracle snapshot 時点では存在しません" in prompt
+    assert "調査対象として固定された commit 時点では存在しません" in prompt
     assert "削除差分や履歴上の変更内容" in prompt
 
 
@@ -6690,7 +6691,12 @@ def test_apply_oracle_investigation_prompt_orders_completion_before_details() ->
     assert lines[2] == (
         "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。"
     )
-    assert lines.index("この起点 path は oracle snapshot 時点に存在するファイルです。") > 2
+    assert (
+        lines.index(
+            "この起点 path は調査対象として固定された commit 時点に存在するファイルです。"
+        )
+        > 2
+    )
 
 
 def test_apply_implementation_investigation_prompt_orders_completion_before_details() -> None:
@@ -6711,7 +6717,7 @@ def test_apply_implementation_investigation_prompt_orders_completion_before_deta
         "完了条件は、指定された Structured Output schema に一致する JSON だけを返すことです。"
     )
     assert lines.index(
-        "この起点 path は oracle snapshot 時点では存在しません。"
+        "この起点 path は調査対象として固定された commit 時点では存在しません。"
         "削除差分や履歴上の変更内容を確認して調査してください。"
     ) > 3
 
