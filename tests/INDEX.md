@@ -34,19 +34,21 @@
 ## Read this when
 
 - `run_codex_exec` の呼び出し条件、戻り値、例外、再試行、`resume` の挙動を変更・確認したいとき。
-- Structured Output の schema 検証、JSON / text 検証、`output_schema` のキャッシュや再利用を確認したいとき。
-- Codex CLI の呼び出しログ、コンソール通知、workspace-write 時の `INDEX.md` 保守や oracle 変更検知を確認したいとき。
-- quota 復旧、capacity の指数バックオフ、`_extract_session_id`、`_resume_command` などの周辺ヘルパーを確認したいとき。
+- Structured Output の schema 準備、JSON / text 検証、semantic validation、`output_schema` キャッシュの扱いを確認したいとき。
+- Codex CLI の呼び出しログ、コンソール通知、`last_message`、`call` ログの整合性を確認したいとき。
+- workspace-write 時の `INDEX.md` 保守、oracle 変更検知、HEAD / reflog / commit range の境界条件を確認したいとき。
+- `_extract_session_id`、`_resume_command`、`_active_allowed_oracle_conflict_paths` など周辺ヘルパーの仕様を確認したいとき。
 
 ## Do not read this when
 
-- `commons.codex` の実装本体ではなく、別の共通モジュールや別サブコマンドの仕様だけを確認したいとき。
-- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_report_files.py` など、codex 以外の回帰テストだけを追いたいとき。
+- `commons.codex` の実装本体を直接確認したいとき。
+- `tests/test_repo.py`、`tests/test_indexing.py`、`tests/test_report_files.py` など、Codex 呼び出し以外の回帰テストだけを追いたいとき。
 - `INDEX.md` の生成ルールや `oracles` 全体の正本仕様そのものを確認したいとき。
 
 ## hash
 
-- a37d24f86e298b18514cd92ce3cbf47b17d19fe475e88f00b754138d980fea17
+- 7fe52a0a4f0b9330a8faca23fd2e99963eacbc127b31cd77c83cc40441260a0a
+<!-- cmoc-index-kind: file -->
 
 # `test_file_naming.py`
 

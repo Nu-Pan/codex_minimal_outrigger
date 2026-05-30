@@ -37,11 +37,12 @@
 
 - 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
-- git 操作、レポート保存、タイムスタンプ、サブコマンドログなど、他の共通モジュールの詳細だけを追いたいとき。
+- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など、他の共通モジュールの仕様だけを追いたいとき。
 
 ## hash
 
-- f94ff2c98bd6d0d9af967a169c867ad97d0fc995abf84a4f70192cb041bbb81a
+- eccd676622fbaff51b1d3f54185f0585e1b64d785fb133b78b6709594206f9de
+<!-- cmoc-index-kind: file -->
 
 # `command_runner.py`
 
