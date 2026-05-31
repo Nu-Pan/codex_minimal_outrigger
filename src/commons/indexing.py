@@ -457,15 +457,15 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
             "",
             "## Summary",
             "",
-            *_bullet_lines(_safe_index_texts(summary)),
+            *_bullet_lines(_safe_index_texts(repo_root, summary)),
             "",
             "## Read this when",
             "",
-            *_bullet_lines(_safe_index_texts(read_when)),
+            *_bullet_lines(_safe_index_texts(repo_root, read_when)),
             "",
             "## Do not read this when",
             "",
-            *_bullet_lines(_safe_index_texts(do_not_read_when)),
+            *_bullet_lines(_safe_index_texts(repo_root, do_not_read_when)),
             "",
             "## hash",
             "",
@@ -781,25 +781,6 @@ def _bullet_lines(values: list[str]) -> list[str]:
     return [f"- {value}" for value in values]
 
 
-def _safe_index_texts(values: list[str]) -> list[str]:
-    """Markdown の 1 行 bullet として扱える文字列へ正規化する。"""
-    # Structured Output 由来の説明文が block 境界を壊さないようにする。
-    return [_safe_index_text(value) for value in values]
-
-
-def _safe_index_text(value: str) -> str:
-    """INDEX.md の固定フォーマットを壊さない 1 行文字列へ変換する。"""
-    # 改行や制御文字は Markdown block の構造を壊すため空白へ寄せる。
-    text = "".join(
-        character if _is_index_text_character(character) else " "
-        for character in value
-    )
-    text = re.sub(r"\s+", " ", text).strip()
-    # Structured Output の項目文字列は「本文」として扱い、Markdown bullet は
-    # cmoc 側で 1 つだけ付与する。
-    return re.sub(r"^(?:[-*+]\s+)+", "", text).strip()
-
-
 def _is_index_text_character(character: str) -> bool:
     """INDEX.md の説明行へそのまま置ける文字か判定する。"""
     # Unicode の通常文字は維持し、ASCII 制御文字と surrogate は除外する。
@@ -885,7 +866,7 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
     """既存目次ブロックが仕様の固定フォーマットに一致するか判定する。"""
     # 見出しと 4 セクションの順序、説明欄の bullet 形式まで検査する。
     # Structured Output schema は空配列を許容するため、bullet 0 件も有効。
-    if _entry_has_known_command_typo(entry):
+    if _entry_has_known_stale_routing_text(entry):
         return False
 
     encoded_name = _encode_index_token(name)
@@ -912,13 +893,47 @@ def _entry_format_is_valid(entry: str, name: str, digest: str) -> bool:
     return pattern.match(entry) is not None
 
 
-def _entry_has_known_command_typo(entry: str) -> bool:
-    """既知の cmoc コマンド名 typo を含む古い routing entry を弾く。"""
-    # `cmo apply fork` のような誤誘導は hash が最新でも再生成対象にする。
+def _entry_has_known_stale_routing_text(entry: str) -> bool:
+    """既知の古い routing text を含む entry を弾く。"""
+    # `cmo apply fork` のような誤誘導や、過去の仕様配置に基づく存在しない
+    # oracles path は hash が最新でも再生成対象にする。
     return (
         re.search(
             r"(?<![A-Za-z0-9_-])cmo\s+(?:init|session|review|apply)\b",
             entry,
         )
         is not None
+        or "oracles/app_specs/" in entry
     )
+
+
+def _safe_index_texts(repo_root: Path, values: list[str]) -> list[str]:
+    """Markdown の 1 行 bullet として扱える文字列へ正規化する。"""
+    return [_safe_index_text(repo_root, value) for value in values]
+
+
+def _safe_index_text(repo_root: Path, value: str) -> str:
+    """INDEX.md の固定フォーマットを壊さない 1 行文字列へ変換する。"""
+    # 改行や制御文字は Markdown block の構造を壊すため空白へ寄せる。
+    text = "".join(
+        character if _is_index_text_character(character) else " "
+        for character in value
+    )
+    text = re.sub(r"\s+", " ", text).strip()
+    text = _normalize_known_index_routes(repo_root, text)
+    # Structured Output の項目文字列は「本文」として扱い、Markdown bullet は
+    # cmoc 側で 1 つだけ付与する。
+    return re.sub(r"^(?:[-*+]\s+)+", "", text).strip()
+
+
+def _normalize_known_index_routes(repo_root: Path, text: str) -> str:
+    """過去の仕様配置に基づく既知の古い path 表記を実在 path へ寄せる。"""
+    stale_prefix = "oracles/app_specs/"
+    current_prefix = "oracles/docs/app_specs/"
+    if stale_prefix not in text:
+        return text
+    if (repo_root / "oracles/app_specs").exists():
+        return text
+    if not (repo_root / "oracles/docs/app_specs").exists():
+        return text
+    return text.replace(stale_prefix, current_prefix)

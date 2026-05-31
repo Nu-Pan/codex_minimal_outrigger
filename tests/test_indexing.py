@@ -112,6 +112,71 @@ def test_maintain_indexes_prompts_with_recoverable_json_path_for_symbols(
     assert not any("a%25b%60c.txt" in prompt for prompt in codex_prompts)
 
 
+def test_maintain_indexes_refreshes_stale_oracle_routing_path(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """古い oracles/app_specs 導線は hash が同じでも実在 path へ更新する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "README.md").write_text(
+        "基本ワークフローは oracles/app_specs/usage.md を参照\n",
+        encoding="utf-8",
+    )
+    current_usage = repo / "oracles/docs/app_specs/usage.md"
+    current_usage.parent.mkdir(parents=True)
+    current_usage.write_text("usage\n", encoding="utf-8")
+    readme_digest = hashlib.sha256((repo / "README.md").read_bytes()).hexdigest()
+    (repo / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "# `README.md`",
+                "",
+                "## Summary",
+                "",
+                "- README summary",
+                "",
+                "## Read this when",
+                "",
+                "- 基本ワークフローの入口として `oracles/app_specs/usage.md` を読むとき",
+                "",
+                "## Do not read this when",
+                "",
+                "- skip",
+                "",
+                "## hash",
+                "",
+                f"- {readme_digest}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "stale index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """古い path を返す INDEX 生成応答も実在 path へ正規化される。"""
+        del args, kwargs
+        return json.dumps(
+            {
+                "summary": ["README summary"],
+                "read_this_when": [
+                    "基本ワークフローの入口として `oracles/app_specs/usage.md` を読むとき"
+                ],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "oracles/app_specs/" not in content
+    assert "oracles/docs/app_specs/usage.md" in content
+
+
 @pytest.mark.parametrize(
     ("relative_path", "expected"),
     [
