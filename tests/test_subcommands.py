@@ -1130,11 +1130,11 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "## Specification-only basis" not in report
 
 
-def test_eval_oracles_freezes_snapshot_before_index_maintenance(
+def test_eval_oracles_snapshots_maintained_indexes_before_evaluation(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """review 対象と report head は INDEX.md メンテナンス前に固定する。"""
+    """review 対象は開始時点で固定し、評価 snapshot は最新 INDEX を含む。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1153,8 +1153,12 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
             "generated\n",
             encoding="utf-8",
         )
+        (repo_root / "oracles" / "INDEX.md").write_text(
+            "maintained oracle index\n",
+            encoding="utf-8",
+        )
         (repo_root / "INDEX.md").write_text("index\n", encoding="utf-8")
-        _git(repo_root, "add", "INDEX.md", "oracles/generated.md")
+        _git(repo_root, "add", "INDEX.md", "oracles")
         _git(repo_root, "commit", "-m", "fake index maintenance")
         return True
 
@@ -1164,10 +1168,20 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
         fake_maintain_indexes,
     )
     evaluated_purposes: list[str] = []
+    snapshot_index_texts: list[str] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """固定済み oracle だけが評価されることを記録する。"""
+        """固定済み oracle だけが最新 INDEX snapshot で評価されることを記録する。"""
         evaluated_purposes.append(str(kwargs["purpose"]))
+        prompt = str(args[1])
+        match = re.search(
+            r"`([^`]+/oracles/INDEX\.md)` から始まる INDEX\.md",
+            prompt,
+        )
+        assert match is not None
+        snapshot_index_texts.append(
+            Path(match.group(1)).read_text(encoding="utf-8")
+        )
         return json.dumps({"issues": []}, ensure_ascii=False)
 
     monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
@@ -1179,6 +1193,7 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
     ).read_text(encoding="utf-8")
     assert maintain_exclusions == [[]]
     assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
+    assert snapshot_index_texts == ["maintained oracle index\n"]
     assert f'head_commit: "{review_start_head}"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 1" in report
@@ -1189,7 +1204,7 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """評価本文と path 検証は review 開始時点の oracle snapshot に固定する。"""
+    """評価本文と path 検証は評価直前の oracle snapshot に固定する。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1197,10 +1212,9 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
     oracle_file.write_text("original snapshot text\n", encoding="utf-8")
 
     def fake_maintain_indexes(repo_root: Path) -> bool:
-        """評価前に live oracle を書き換える状況を模擬する。"""
-        oracle_file.unlink()
-        (repo_root / "oracles" / "later.md").write_text(
-            "later live text\n",
+        """INDEX.md メンテナンス自体は oracle 本文を変えない。"""
+        (repo_root / "oracles" / "INDEX.md").write_text(
+            "maintained index\n",
             encoding="utf-8",
         )
         return True
@@ -1213,13 +1227,18 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
     snapshot_texts: list[str] = []
 
     def fake_codex(*args: object, **kwargs: object) -> str:
-        """prompt 上の snapshot path を読み、開始時点の内容だけを返す。"""
+        """prompt 上の snapshot path を読み、live tree 変更の影響がないことを返す。"""
         prompt = str(args[1])
         match = re.search(
             r"開始時点の内容を固定したコピー `([^`]+/oracles/spec\.md)`",
             prompt,
         )
         assert match is not None
+        oracle_file.unlink()
+        (repo / "oracles" / "later.md").write_text(
+            "later live text\n",
+            encoding="utf-8",
+        )
         snapshot_path = Path(match.group(1))
         snapshot_texts.append(snapshot_path.read_text(encoding="utf-8"))
         issue = _eval_oracle_issue(
