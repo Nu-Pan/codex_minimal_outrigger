@@ -27,25 +27,28 @@
 
 ## Summary
 
-- `tests/test_codex.py` は、Codex CLI 呼び出しラッパー `run_codex_exec` の挙動を検証するテスト群です。
-- Structured Output のパース失敗に対する再試行、ログの Markdown fence 生成、UTF-8 での入出力処理、起動失敗の `CmocError` 化を重点的に確認します。
-- `codex exec` の呼び出し・応答・失敗診断まわりを変更する前に参照する入口です。
+- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` と関連ヘルパーの回帰テスト群です。
+- Structured Output の再試行、JSON / テキスト検証、`output_schema` の生成とキャッシュ、`resume` と quota 復旧の分岐を重点的に確認します。
+- 呼び出しログ、コンソール通知、UTF-8 処理、workspace-write 時の oracle 変更検出も含みます。
 
 ## Read this when
 
-- `run_codex_exec` の Structured Output 処理や JSON パース失敗時の再試行仕様を変えるとき。
-- Codex CLI の stdout / stderr / last message を含む call log の Markdown 形式や fence の扱いを変えるとき。
-- CLI 入出力の UTF-8 取り扱い、`CmocError` への正規化、起動失敗時の診断ログを変更するとき。
+- `run_codex_exec` の再試行条件や `json_validator` / `text_validator` の扱いを確認したいとき。
+- `output_schema` の検証、ファイル化、キャッシュ再利用、schema 不一致時の挙動を追いたいとき。
+- `resume`、quota 枯渇時の poll、capacity retry、last message 読み取り失敗の診断を追いたいとき。
+- call log、subcommand log、コンソール進捗表示、prompt preview の整形を確認したいとき。
+- workspace-write 実行時の oracle 変更ガードや `skip_index_maintenance` の境界を調べたいとき。
 
 ## Do not read this when
 
-- `run_codex_exec` 以外のサブコマンドや別モジュールの挙動だけを確認したいとき。
-- `commons.repo`、`commons.indexing`、`subcommand_log` など周辺共通処理の仕様だけを追いたいとき。
-- Codex CLI 呼び出しの再試行、ログ整形、UTF-8 処理、起動失敗の診断ではなく、別のテスト群を見れば足りるとき。
+- `commons.indexing` や `commons.repo` のような別モジュールの実装だけを追いたいとき。
+- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など別領域の回帰を確認したいとき。
+- `INDEX.md` 全体の生成ルールや `oracles` 側の正本仕様だけを知りたいとき。
+- `test_codex.py` 以外の CLI サブコマンドやファイル命名ルールを調べたいとき。
 
 ## hash
 
-- 5c177f32272e25df3ac2f00e175cf157ed70d19402d5416527dcc012f399168e
+- 928d159cdfd5fe88884b65a523c2f628dd789a55dec1060d93d5e6816ec7dd21
 
 # `test_file_naming.py`
 
