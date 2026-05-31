@@ -154,25 +154,31 @@
 ## Summary
 
 - このファイルは cmoc のサブコマンド全体に対する決定論的な制御ロジックを検証する pytest テスト群です。
-- `run_command` のログ出力、エラーレポート、終了コード、経過時間計測を広く押さえます。
-- `cmoc init`、`session`、`apply`、`review oracles` の状態遷移、副作用、レポート生成、プロンプト検証、CLI ルーティングや補完の回帰を扱います。
+- `run_command`、`format_error_report`、`main`、`bin/cmoc` などの共通制御とエラー整形を広く押さえます。
+- `cmoc init`、`session`、`apply`、`review oracles` の状態遷移、commit、recovery、レポート生成の回帰を扱います。
+- 補完プローブ、Typer 登録、prompt/validation helper、payload 検証、ルーティング関連の回帰も含みます。
 
 ## Read this when
 
 - サブコマンド群の制御ロジックや状態遷移の回帰テストを確認したいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles`、`main` の登録や補完、エラー変換を修正するとき。
-- `run_command` の tee 出力、終了集計、例外時の stdout レポート、repo root 解決失敗時の扱いを変更するとき。
-- サブコマンドのプロンプトや validation helper、`INDEX.md` メンテナンス連携の回帰を探したいとき。
+- `run_command` の tee 出力、終了コード、例外時の stdout レポート、repo root 解決失敗時の扱いを調べたいとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon` の副作用や commit 挙動のテスト観点を整理したいとき。
+- `review oracles` の評価フロー、プロンプト、payload 検証、レポート生成の回帰を確認したいとき。
+- `main` の Typer 登録、補完プローブ、エラー変換、`bin/cmoc` の実行前提をまとめて追いたいとき。
+- テスト全体がどのサブシステムを横断しているかを把握し、読むべき個別モジュールを切り分けたいとき。
 
 ## Do not read this when
 
-- 個別の `cmoc init`、`cmoc session`、`cmoc apply`、`cmoc review oracles` の実装ロジックだけを追いたいとき。
-- `src/sub_commands/` 配下の本体実装や共通ユーティリティだけを確認したいとき。
-- pytest の一般的な使い方や、`INDEX.md` 生成ルールそのものだけを確認したいとき。
+- 個別の `cmoc init` / `cmoc session` / `cmoc apply` / `cmoc review oracles` の実装ロジックだけを追いたいとき。
+- `src/sub_commands/` 配下の本体実装や共通ユーティリティのコードを確認したいとき。
+- `run_command` や `format_error_report` の実装そのものではなく、仕様断片だけを確認したいとき。
+- pytest の一般的な書き方や、テストの共通設定だけを確認したいとき。
+- `INDEX.md` の生成ルールや `oracles` 側の正本仕様だけを確認したいとき。
+- `bin/cmoc` のエントリポイントだけを確認したいときは、このファイルではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- 6ae8c8a3cf89b5f862b8e0c75947e7a334c5c06b568a0c24329f546578eb424d
+- 06a0d7ccfa7310ebf6f260e1643fd25c2d5398860f7ec4599d33b991bbeb227f
 
 # `test_timestamps.py`
 

@@ -76,24 +76,25 @@
 
 ## Summary
 
-- `src/sub_commands/apply/join.py` は `cmoc apply join` の本体実装で、完了済みの apply branch を session branch に取り込む処理を担当します。
-- session/apply state の妥当性確認、現在 branch と local branch の存在確認、未コミット差分と想定外差分の検出・必要時の強制修復をまとめています。
-- merge 後の `apply.state` を `ready` に戻す処理、`INDEX.md` conflict の自動解消、report/result の保存状況を踏まえた apply branch / worktree の cleanup まで扱います。
+- `src/sub_commands/apply/join.py` は `cmoc apply join` の本体で、完了済みの apply branch を session branch に取り込む処理を実装する。
+- session/apply state の検証、現在ブランチと local ブランチの存在確認、未コミット差分の検出、想定外差分の `--force-resolve` 処理をまとめている。
+- merge 後の `apply.state=ready` への更新、`INDEX.md` conflict の自動解消、保存済み report/result を踏まえた apply branch / worktree の cleanup まで担う。
 
 ## Read this when
 
-- `cmoc apply join` の実装・修正・レビュー・テストで、処理順や責務の境界を確認したいとき。
-- apply branch を session branch に取り込む前提条件や、`--force-resolve` による想定外差分の扱いを確認したいとき。
-- `INDEX.md` の conflict を自動解消する条件、merge 後の `apply.state` 更新、不要になった apply branch / worktree の削除条件を確認したいとき。
-- report/result の保存状況に応じた cleanup の warning 条件を把握したいとき。
+- `cmoc apply join` の処理順、前提条件、終了後の後始末を実装・修正・レビュー・テストしたいとき。
+- `--force-resolve` を付けたときに、想定外差分をどのように revert してから merge するか確認したいとき。
+- `INDEX.md` conflict の自動解消条件や、merge 後に `apply.state` を `ready` に戻す流れを確認したいとき。
+- apply report と result の保存状況に応じて、`<cmoc-apply-branch>` と `<cmoc-apply-worktree>` を削除してよい条件を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点リスト作成だけを確認したいとき。
+- `cmoc apply fork` の調査・修正ループや要修正点リストの仕様だけを確認したいとき。
 - `cmoc apply abandon` の破棄手順や running 中の停止処理だけを確認したいとき。
-- `cmoc apply join` の仕様断片や利用手順だけを確認したいときは、実装ではなく正本仕様を直接参照したいとき。
-- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
+- `cmoc session join` や `cmoc session abandon` など、session 側の終了・統合・破棄だけを確認したいとき。
+- `cmoc apply join` の利用手順や仕様断片だけを読みたいときは、実装ではなく正本仕様を直接参照したいとき。
+- このディレクトリの `INDEX.md` 全体方針や、`oracles` のルーティング方針だけを確認したいとき。
 
 ## hash
 
-- 5aefd2f80aec3dd2d61d4a8b6c886f932f6c88239e5cb7746964f2f90510b85b
+- a9689461069946ed57458c52d977a474be944350d00edb0d177965d4a8945a1b
