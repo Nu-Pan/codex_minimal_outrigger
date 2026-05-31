@@ -435,9 +435,9 @@ def cmoc_apply_impl(
                     discrepancies,
                 )
             )
-            found_dirty_evidences = bool(
-                next_dirty_oracle_paths or next_dirty_implementation_paths
-            )
+            # 要修正点が残る反復では、空集合も「全候補 dirty=false」
+            # という有効な dirty フラグ状態として次ループへ渡す。
+            found_dirty_evidences = bool(discrepancies)
             dirty_oracle_paths = (
                 next_dirty_oracle_paths if found_dirty_evidences else None
             )

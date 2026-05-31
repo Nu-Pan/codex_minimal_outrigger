@@ -4904,6 +4904,68 @@ def test_apply_reinvestigates_files_changed_by_previous_fix(
     )
 
 
+def test_apply_keeps_empty_oracle_dirty_set_when_only_implementation_evidence(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """実装 evidence だけの次ループで oracle dirty 空集合を再スコープ化しない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "targets")
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+    discrepancy_returned = False
+    oracle_investigation_purposes: list[str] = []
+    implementation_investigation_purposes: list[str] = []
+
+    def implementation_only_discrepancy() -> str:
+        payload = json.loads(_discrepancy_json("fix app"))
+        payload["fixing_points"][0]["evidences"][0]["path"] = "app.py"
+        return json.dumps(payload)
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """初回 oracle 調査だけ実装 evidence の要修正点を返す。"""
+        nonlocal discrepancy_returned
+        purpose = str(kwargs.get("purpose"))
+        if purpose.startswith("investigate oracle"):
+            oracle_investigation_purposes.append(purpose)
+            if not discrepancy_returned:
+                discrepancy_returned = True
+                return implementation_only_discrepancy()
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        if purpose.startswith("investigate implementation"):
+            implementation_investigation_purposes.append(purpose)
+            return '{"git_head_commit_hash": null, "fixing_points": []}'
+        if purpose.startswith("apply fixing point"):
+            return ""
+        if purpose == "summarize apply changes":
+            return _change_summary_json()
+        return ""
+
+    monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+
+    assert cmoc_apply_impl(
+        repo,
+        repeat_investigate_and_fix=2,
+        repeat_improove_fixing_list=0,
+    ) == 0
+
+    assert len(oracle_investigation_purposes) == 1
+    assert sum(
+        purpose.endswith("app.py")
+        for purpose in implementation_investigation_purposes
+    ) == 2
+
+
 def test_apply_improoves_fixing_list_until_same_result_or_limit(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
