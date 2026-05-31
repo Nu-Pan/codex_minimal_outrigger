@@ -83,7 +83,7 @@
 - `cmoc apply join` の処理順、前提条件、終了後の後始末を実装・修正・レビュー・テストしたいとき。
 - `--force-resolve` を付けたときに、想定外差分をどう扱うか確認したいとき。
 - `INDEX.md` conflict の自動解消条件や、merge 後に `apply.state` を `ready` に戻す流れを確認したいとき。
-- apply report と result の保存状況に応じて、`<cmoc-apply-branch>` と `<cmoc-apply-worktree>` を削除してよい条件を確認したいとき.
+- apply report と result の保存状況に応じて、`<cmoc-apply-branch>` と `<cmoc-apply-worktree>` を削除してよい条件を確認したいとき。
 
 ## Do not read this when
 
@@ -94,4 +94,4 @@
 
 ## hash
 
-- 1b62ae4cdcbd532f3c9840511e60015d67e92c740825fd6be270262485b5824b
+- b9bf4a07cbe7a969ae3042fe6a68df3f752451cf57a04827c8a11e311d1ea4b1
