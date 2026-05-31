@@ -110,9 +110,9 @@
 ## Do not read this when
 
 - `cmoc apply` や `cmoc review` など、session 以外のサブコマンドだけを確認したいとき。
-- 仕様断片そのものを確認したいときは、このディレクトリではなく `oracles/docs/app_specs/sub_commands/` 側を読むべきです。
-- パッケージ宣言だけ、あるいは一般的な git branch 操作だけを確認したいときは、この目次は回り道です。
+- `oracles/docs/app_specs/sub_commands/` 側の正本仕様だけを確認したいとき。
+- パッケージ宣言だけ、または一般的な git branch 操作だけを確認したいとき。
 
 ## hash
 
-- df1d16f0435e603e58af3b301fbf7c508ee19b635c4e8e4300529758eca9acdc
+- 81392657a58f0678fe39b710520399e44ff073b696dc4d446e8cfe623fabdb77

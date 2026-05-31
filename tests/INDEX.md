@@ -168,14 +168,14 @@
 
 ## Do not read this when
 
-- 個別サブコマンドの引数仕様や状態遷移だけを確認したいとき。
+- 個別の `cmoc` サブコマンドの引数仕様や単一機能だけを確認したいとき。
 - `src/commons` の内部実装や共通ヘルパーの詳細だけを追いたいとき。
 - `src/sub_commands` の各本体実装そのものを直接確認したいとき。
 - `bin/cmoc` の起動ラッパーだけを単独で確認したいとき。
 
 ## hash
 
-- 4b65c48a83199e00ea7f7ba1576a608cf92f6a49e510080e996150e33ae834bc
+- fa8c64fbd092fdcd0f309f8e33143c4b34b7242516959469d391a94bc8a2b8ff
 
 # `test_timestamps.py`
 

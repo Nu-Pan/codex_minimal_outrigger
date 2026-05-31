@@ -53,22 +53,22 @@
 
 ## Summary
 
-- `src/sub_commands` は cmoc のサブコマンド実装をまとめる入口ディレクトリです。
-- `__init__.py` はパッケージ宣言のみを担い、`init.py` は `cmoc init` の本体処理を持ちます。
-- `apply`、`session`、`review` の各ディレクトリに、それぞれのサブコマンド群の実装入口があります。
+- `src/sub_commands` は cmoc のサブコマンド実装の入口で、`__init__.py`、`init.py`、`review/`、`apply/`、`session/` へ振り分ける目次です。
+- `__init__.py` はパッケージ宣言のみ、`init.py` は `cmoc init`、`review/` は `cmoc review` 系、`apply/` と `session/` はそれぞれ個別の `INDEX.md` を持つ入口です。
+- このディレクトリの目次は、個別サブコマンドの詳細へ入る前に、どの実装ファイルを開くべきかを素早く判断するための案内です。
 
 ## Read this when
 
-- `src/sub_commands` 配下のサブコマンド実装全体の入口構造を把握したいとき。
-- `cmoc init` の実装入口と、`apply`・`session`・`review` 系サブコマンドの配置を確認したいとき。
-- `src/sub_commands` ディレクトリ内で、どのファイルや下位ディレクトリへ進むべきかを素早く判断したいとき。
+- `src/sub_commands` 配下で、どのファイルやディレクトリがどのサブコマンドを担当するか確認したいとき。
+- サブコマンド実装・修正・レビュー・テストの前に、該当モジュールや配下ディレクトリへ進む入口を整理したいとき。
+- `__init__.py`、`init.py`、`review/`、`apply/`、`session/` の役割分担を素早く把握したいとき。
 
 ## Do not read this when
 
-- `cmoc init` の本体処理だけを確認したいときは、`src/sub_commands/init.py` を直接読むべきです。
-- `cmoc apply`、`cmoc session`、`cmoc review` の個別実装だけを確認したいときは、それぞれの下位ディレクトリの `INDEX.md` や実装モジュールを読むべきです。
-- `src/sub_commands` のパッケージ宣言だけを確認したいときは、この目次ではなく `src/sub_commands/__init__.py` を読むべきです。
+- 個別サブコマンドの引数、状態遷移、例外条件だけを確認したいとき。
+- `apply/` や `session/` のさらに細かい仕様だけを確認したいとき。
+- `src/commons` や `oracles` 全体の共通仕様だけを確認したいとき。
 
 ## hash
 
-- ef24cdc3808001e02d74a74a2579fd1a9db8548e5b7181dbbf470ea60f6f13e0
+- 25fa5849ed06c2b67386ba01abd228a511913ff7d385869e8c3b30e0a85734a4

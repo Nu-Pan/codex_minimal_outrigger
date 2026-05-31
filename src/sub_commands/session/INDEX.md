@@ -87,10 +87,10 @@
 
 ## Do not read this when
 
-- `cmoc session join` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/session_join.md` を読むべきです。
-- `cmoc session fork` / `cmoc session abandon` の挙動だけを確認したいときは、このファイルではなく各実装モジュールを読むべきです。
-- `src/sub_commands/session` ディレクトリ全体の入口構造だけを確認したいときは、このファイルではなく `src/sub_commands/session/INDEX.md` を読むべきです。
+- `cmoc session join` の利用手順や正本仕様だけを確認したいとき。
+- `cmoc session fork` / `cmoc session abandon` の挙動だけを確認したいとき。
+- `src/sub_commands/session` ディレクトリ全体の入口構造だけを確認したいとき。
 
 ## hash
 
-- ca5764d2ad965f3b188bb4d434d0912055ae8374311149e95955da931bfba9a7
+- 76f2557889599920e6775df9d75784ecb03e73e71cba693e70aa109199222191
