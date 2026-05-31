@@ -3897,6 +3897,37 @@ def test_apply_join_accepts_session_branch_oracles_index_diff(
     assert state["apply"]["state"] == "ready"
 
 
+def test_apply_join_accepts_session_branch_new_oracle_file(
+    tmp_path: Path,
+) -> None:
+    """session branch 側の新規 oracle ファイル追加は想定内として扱う。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    new_oracle = repo / "oracles" / "new_spec.md"
+    new_oracle.write_text("new spec\n", encoding="utf-8")
+    _git(repo, "add", "oracles/new_spec.md")
+    _git(repo, "commit", "-m", "add oracle on session")
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement feature")
+
+    cmoc_apply_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert new_oracle.read_text(encoding="utf-8") == "new spec\n"
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert state["apply"]["state"] == "ready"
+
+
 def test_apply_join_accepts_session_branch_memo_diff(
     tmp_path: Path,
 ) -> None:
@@ -3988,6 +4019,44 @@ def test_apply_join_force_resolve_keeps_expected_apply_index_diff(
     assert not (repo / "memo" / "note.md").exists()
     assert state["apply"]["state"] == "ready"
     assert f"- {apply_branch}: memo/note.md" in output
+
+
+def test_apply_join_force_resolve_keeps_session_branch_new_oracle_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """強制モードも session branch 側の新規 oracle ファイル追加を戻さない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    new_oracle = repo / "oracles" / "new_spec.md"
+    new_oracle.write_text("new spec\n", encoding="utf-8")
+    (repo / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+    _git(repo, "add", "oracles/new_spec.md", "unexpected.txt")
+    _git(repo, "commit", "-m", "edit session during apply")
+    (apply_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+    _git(apply_worktree, "add", "feature.txt")
+    _git(apply_worktree, "commit", "-m", "implement feature")
+
+    cmoc_apply_join_impl(repo, force_resolve=True)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert new_oracle.read_text(encoding="utf-8") == "new spec\n"
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "implemented\n"
+    assert not (repo / "unexpected.txt").exists()
+    assert state["apply"]["state"] == "ready"
+    assert f"- {apply_branch}: feature.txt" not in output
+    assert "- cmoc/session/2026-05-10_22-21_10_000000123: unexpected.txt" in output
+    assert "oracles/new_spec.md" not in output
 
 
 def test_apply_join_auto_resolves_index_conflict(

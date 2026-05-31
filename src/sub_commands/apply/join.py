@@ -17,7 +17,6 @@ from commons.repo import (
     clear_apply_process_id,
     current_branch,
     filter_apply_implementation_file_paths_at_commit,
-    filter_oracle_file_paths_at_commit,
     git_name_only_paths,
     git_name_status_entries,
     is_apply_branch,
@@ -348,7 +347,7 @@ def _unexpected_diffs(repo_root: Path, join_state: _JoinState) -> list[str]:
             for path in entry.paths
             if not _is_session_branch_expected_path(
                 repo_root,
-                join_state.oracle_snapshot_commit,
+                join_state.session_branch,
                 path,
             )
         ]
@@ -428,19 +427,29 @@ def _is_apply_branch_forbidden_path(path: str) -> bool:
 
 def _is_session_branch_expected_path(
     repo_root: Path,
-    oracle_snapshot_commit: str,
+    session_branch: str,
     path: str,
 ) -> bool:
     """session branch 側で利用者が編集し得る想定内 path か判定する。"""
     return (
-        filter_oracle_file_paths_at_commit(
-            repo_root,
-            oracle_snapshot_commit,
-            [path],
-        )
-        == [path]
+        _is_session_branch_oracle_path_at_commit(repo_root, session_branch, path)
         or _is_memo_path(path)
         or _is_index_path(path)
+    )
+
+
+def _is_session_branch_oracle_path_at_commit(
+    repo_root: Path,
+    commit_hash: str,
+    path: str,
+) -> bool:
+    """session branch 側で利用者が編集し得る oracle file path か判定する。"""
+    if not path.startswith("oracles/") or Path(path).name == "INDEX.md":
+        return False
+    return path not in root_gitignored_paths_at_commit(
+        repo_root,
+        commit_hash,
+        [path],
     )
 
 
@@ -514,7 +523,7 @@ def _force_resolve_unexpected_diffs(
             ),
             lambda path: _is_session_branch_expected_path(
                 repo_root,
-                join_state.oracle_snapshot_commit,
+                join_state.session_branch,
                 path,
             ),
         ),
