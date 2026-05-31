@@ -159,7 +159,7 @@ class _OracleEvaluationSnapshot:
     reference_files: frozenset[Path]
 
 
-def cmoc_eval_oracles_impl(
+def cmoc_review_oracles_impl(
     repo_root: Path | None = None,
     *,
     full: bool,
@@ -169,7 +169,7 @@ def cmoc_eval_oracles_impl(
     # 直接呼び出し時は共通 runner で repo root 解決とエラー整形を行う。
     if repo_root is None:
         run_command(
-            lambda resolved_repo_root: cmoc_eval_oracles_impl(
+            lambda resolved_repo_root: cmoc_review_oracles_impl(
                 resolved_repo_root,
                 full=full,
                 repeat_improve_issues_list=repeat_improve_issues_list,

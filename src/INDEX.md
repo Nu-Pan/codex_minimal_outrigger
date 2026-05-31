@@ -46,7 +46,7 @@
 
 ## hash
 
-- d03b4e0b3d0c12971884d8bc1e159f95c3f0efe50e8fca99dc96066066992456
+- 34ab9fdae7d4622e261437958669dd52ce211f233a2300c1c7c831efc256c365
 
 # `sub_commands`
 
@@ -54,7 +54,7 @@
 
 - `src/sub_commands/__init__.py` は `src.sub_commands` パッケージを宣言するだけの最小モジュールで、公開 API、定数、実行ロジック、再エクスポートは持ちません。
 - `src/sub_commands/apply/` は `cmoc apply` 系サブコマンドの入口で、`fork.py`、`join.py`、`abandon.py` をまとめて案内します。
-- `src/sub_commands/eval_oracles.py` は `cmoc review oracles` の本体実装で、oracle 評価、`INDEX.md` 保守、Structured Output 検証、レポート生成までを扱います。
+- `src/sub_commands/review/oracles.py` は `cmoc review oracles` の本体実装で、oracle 評価、`INDEX.md` 保守、Structured Output 検証、レポート生成までを扱います。
 - `src/sub_commands/init.py` は `cmoc init` の本体処理で、直接呼び出し時の共通 runner 委譲と `.cmoc` の ignore 保証、初期化差分の commit を担います。
 - `src/sub_commands/session/` は `cmoc session` 系サブコマンドの入口で、`fork.py`、`join.py`、`abandon.py` を振り分けます。
 
@@ -76,4 +76,4 @@
 
 ## hash
 
-- 0ced75abe1ee53bdddb9150ab2a357a2a8f8df3f533be490575e65ae6e0ee535
+- a8482de9b5ed771ab9f8afa0a0b4f27044e042aae5ae832721928e68c7fcbcda

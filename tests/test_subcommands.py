@@ -16,7 +16,7 @@ from pytest import MonkeyPatch
 
 import sub_commands.apply.fork as apply_module
 import sub_commands.apply.join as apply_join_module
-import sub_commands.eval_oracles as eval_oracles_module
+import sub_commands.review.oracles as review_oracles_module
 import sub_commands.session.abandon as session_abandon_module
 import sub_commands.session.fork as session_fork_module
 import sub_commands.session.join as session_join_module
@@ -44,9 +44,9 @@ from sub_commands.apply.fork import _organize_prompt
 from sub_commands.apply.fork import _validate_discrepancy_payload
 from sub_commands.apply.abandon import cmoc_apply_abandon_impl
 from sub_commands.apply.join import cmoc_apply_join_impl
-from sub_commands.eval_oracles import cmoc_eval_oracles_impl
-from sub_commands.eval_oracles import _evaluation_prompt
-from sub_commands.eval_oracles import _improvement_prompt
+from sub_commands.review.oracles import cmoc_review_oracles_impl
+from sub_commands.review.oracles import _evaluation_prompt
+from sub_commands.review.oracles import _improvement_prompt
 from sub_commands.init import cmoc_init_impl
 from sub_commands.session.abandon import cmoc_session_abandon_impl
 from sub_commands.session.fork import cmoc_session_fork_impl
@@ -1084,7 +1084,7 @@ def test_eval_oracles_writes_report_with_fake_codex(
         return False
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         fake_maintain_indexes,
     )
@@ -1098,9 +1098,9 @@ def test_eval_oracles_writes_report_with_fake_codex(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
@@ -1108,9 +1108,9 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert maintain_calls == [repo]
     assert codex_kwargs[0]["expect_json"] is True
     assert codex_kwargs[0]["output_schema"] == (
-        eval_oracles_module._EVALUATION_OUTPUT_SCHEMA
+        review_oracles_module._EVALUATION_OUTPUT_SCHEMA
     )
-    issue_schema = eval_oracles_module._EVALUATION_OUTPUT_SCHEMA["properties"][
+    issue_schema = review_oracles_module._EVALUATION_OUTPUT_SCHEMA["properties"][
         "issues"
     ]["items"]
     basis_schema = issue_schema["properties"]["specification_only_basis"]
@@ -1159,7 +1159,7 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
         return True
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         fake_maintain_indexes,
     )
@@ -1170,9 +1170,9 @@ def test_eval_oracles_freezes_snapshot_before_index_maintenance(
         evaluated_purposes.append(str(kwargs["purpose"]))
         return json.dumps({"issues": []}, ensure_ascii=False)
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1206,7 +1206,7 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
         return True
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         fake_maintain_indexes,
     )
@@ -1232,9 +1232,9 @@ def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
         )
         return json.dumps({"issues": [issue]}, ensure_ascii=False)
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1276,9 +1276,9 @@ def test_eval_oracles_index_maintenance_updates_oracles_index(
         return json.dumps({"issues": []}, ensure_ascii=False)
 
     monkeypatch.setattr("commons.indexing.run_codex_exec", fake_index_codex)
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_review_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_review_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     assert (oracle_root / "INDEX.md").read_text(encoding="utf-8") != stale_index
     changed_files = _git(
@@ -1304,7 +1304,7 @@ def test_eval_oracles_runs_file_evaluations_in_parallel(
         (oracle_root / name).write_text(f"{name}\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1328,9 +1328,9 @@ def test_eval_oracles_runs_file_evaluations_in_parallel(
             active_calls -= 1
         return json.dumps({"issues": []}, ensure_ascii=False)
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1360,7 +1360,7 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1369,10 +1369,10 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
         """oracle 評価中に失敗する Codex 実行を模擬する。"""
         raise RuntimeError("fake evaluation failure")
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
     with pytest.raises(RuntimeError, match="fake evaluation failure"):
-        cmoc_eval_oracles_impl(repo, full=True)
+        cmoc_review_oracles_impl(repo, full=True)
 
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
@@ -1430,13 +1430,13 @@ def test_eval_oracles_writes_error_report_when_preparation_fails(
         raise RuntimeError("fake preparation failure")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         fake_maintain_indexes,
     )
 
     with pytest.raises(RuntimeError, match="fake preparation failure"):
-        cmoc_eval_oracles_impl(repo, full=True)
+        cmoc_review_oracles_impl(repo, full=True)
 
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
@@ -1466,7 +1466,7 @@ def test_eval_oracles_error_report_marks_unevaluated_files_in_table(
     oracle_b.write_text("b\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1481,10 +1481,10 @@ def test_eval_oracles_error_report_marks_unevaluated_files_in_table(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
     with pytest.raises(RuntimeError, match="fake second evaluation failure"):
-        cmoc_eval_oracles_impl(repo, full=True)
+        cmoc_review_oracles_impl(repo, full=True)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1513,7 +1513,7 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
     oracle_file.write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1529,15 +1529,15 @@ def test_eval_oracles_writes_error_report_when_report_generation_fails(
         """通常レポート書き込みだけが失敗する状態を模擬する。"""
         raise OSError("fake report failure")
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "_write_report",
         fake_write_report,
     )
 
     with pytest.raises(OSError, match="fake report failure"):
-        cmoc_eval_oracles_impl(repo, full=True)
+        cmoc_review_oracles_impl(repo, full=True)
 
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     assert len(reports) == 1
@@ -1564,7 +1564,7 @@ def test_eval_oracles_preserves_original_error_when_error_report_fails(
     (oracle_root / "spec.md").write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1577,15 +1577,15 @@ def test_eval_oracles_preserves_original_error_when_error_report_fails(
         """error report 書き込み自体の二次失敗を模擬する。"""
         raise OSError("secondary report failure")
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "_write_error_report",
         fake_write_error_report,
     )
 
     with pytest.raises(RuntimeError, match="primary evaluation failure") as exc_info:
-        cmoc_eval_oracles_impl(repo, full=True)
+        cmoc_review_oracles_impl(repo, full=True)
 
     assert [
         "review oracles error report generation also failed: "
@@ -1615,7 +1615,7 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
     oracle_index.write_text("index\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1679,9 +1679,9 @@ def test_eval_oracles_report_aggregates_issues_by_severity(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1761,7 +1761,7 @@ def test_eval_oracles_report_frontmatter_quotes_string_scalars(
     branch_name = "feature: #topic\nquoted \"branch\""
     commit_hash = "abc123: #hash\nnext"
 
-    report_path = eval_oracles_module._write_report(
+    report_path = review_oracles_module._write_report(
         repo,
         "full",
         True,
@@ -1776,12 +1776,12 @@ def test_eval_oracles_report_frontmatter_quotes_string_scalars(
     )
 
     frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
-    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
-    oracle_root_value = eval_oracles_module._yaml_string(
+    repo_root_value = review_oracles_module._yaml_string(str(repo.resolve()))
+    oracle_root_value = review_oracles_module._yaml_string(
         str(oracle_root.resolve())
     )
-    branch_value = eval_oracles_module._yaml_string(branch_name)
-    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    branch_value = review_oracles_module._yaml_string(branch_name)
+    commit_value = review_oracles_module._yaml_string(commit_hash)
     assert f"repo_root: {repo_root_value}" in frontmatter
     assert f"oracle_root: {oracle_root_value}" in frontmatter
     assert f"branch: {branch_value}" in frontmatter
@@ -1799,7 +1799,7 @@ def test_eval_oracles_error_report_frontmatter_quotes_string_scalars(
     branch_name = "feature: #topic\nquoted \"branch\""
     commit_hash = "abc123: #hash\nnext"
 
-    report_path = eval_oracles_module._write_error_report(
+    report_path = review_oracles_module._write_error_report(
         repo,
         "partial: #mode",
         False,
@@ -1816,10 +1816,10 @@ def test_eval_oracles_error_report_frontmatter_quotes_string_scalars(
     )
 
     frontmatter = report_path.read_text(encoding="utf-8").split("---\n", 2)[1]
-    repo_root_value = eval_oracles_module._yaml_string(str(repo.resolve()))
-    mode_value = eval_oracles_module._yaml_string("partial: #mode")
-    branch_value = eval_oracles_module._yaml_string(branch_name)
-    commit_value = eval_oracles_module._yaml_string(commit_hash)
+    repo_root_value = review_oracles_module._yaml_string(str(repo.resolve()))
+    mode_value = review_oracles_module._yaml_string("partial: #mode")
+    branch_value = review_oracles_module._yaml_string(branch_name)
+    commit_value = review_oracles_module._yaml_string(commit_hash)
     assert f"repo_root: {repo_root_value}" in frontmatter
     assert f"mode: {mode_value}" in frontmatter
     assert f"branch: {branch_value}" in frontmatter
@@ -1838,7 +1838,7 @@ def test_review_oracles_improves_combined_issue_list(
     oracle_file.write_text("spec\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -1863,9 +1863,9 @@ def test_review_oracles_improves_combined_issue_list(
             )
         return json.dumps({"issues": [issue("Raw warning")]}, ensure_ascii=False)
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=2)
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=2)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -1900,7 +1900,7 @@ def test_eval_oracles_rejects_too_many_issue_list_improvements(
         ValueError,
         match="--repeat-improve-issues-list must be between 0 and 3",
     ):
-        cmoc_eval_oracles_impl(repo, full=True, repeat_improve_issues_list=4)
+        cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=4)
 
 
 def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
@@ -1935,7 +1935,7 @@ def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
         ValueError,
         match="oracle_path must match an evaluated oracle file",
     ):
-        eval_oracles_module._validate_issues_payload(
+        review_oracles_module._validate_issues_payload(
             {"issues": [improved_issue]},
             repo,
             {evaluated_oracle.resolve()},
@@ -1945,7 +1945,7 @@ def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
         ValueError,
         match="oracle_path must match an evaluated oracle file",
     ):
-        eval_oracles_module._redistribute_improved_issues(
+        review_oracles_module._redistribute_improved_issues(
             evaluations,
             [improved_issue],
         )
@@ -1978,7 +1978,7 @@ def test_review_oracles_redistribution_uses_only_final_issue_provenance(
     improved_issue["referenced_paths"] = []
     improved_issue["specification_only_basis"] = ""
 
-    redistributed = eval_oracles_module._redistribute_improved_issues(
+    redistributed = review_oracles_module._redistribute_improved_issues(
         evaluations,
         [improved_issue],
     )
@@ -2015,7 +2015,7 @@ def test_review_oracles_redistribution_clears_deleted_issue_provenance(
         }
     ]
 
-    redistributed = eval_oracles_module._redistribute_improved_issues(
+    redistributed = review_oracles_module._redistribute_improved_issues(
         evaluations,
         [],
     )
@@ -2032,23 +2032,23 @@ def test_review_oracles_redistribution_clears_deleted_issue_provenance(
 
 def test_eval_oracles_result_precedence() -> None:
     """result は評価対象数と severity 件数から機械的に決まる。"""
-    assert eval_oracles_module._evaluation_result(
+    assert review_oracles_module._evaluation_result(
         0,
         {"fatal": 0, "inconclusive": 0, "warning": 0},
     ) == "no_targets"
-    assert eval_oracles_module._evaluation_result(
+    assert review_oracles_module._evaluation_result(
         1,
         {"fatal": 1, "inconclusive": 1, "warning": 1},
     ) == "fatal"
-    assert eval_oracles_module._evaluation_result(
+    assert review_oracles_module._evaluation_result(
         1,
         {"fatal": 0, "inconclusive": 1, "warning": 1},
     ) == "inconclusive"
-    assert eval_oracles_module._evaluation_result(
+    assert review_oracles_module._evaluation_result(
         1,
         {"fatal": 0, "inconclusive": 0, "warning": 1},
     ) == "warning"
-    assert eval_oracles_module._evaluation_result(
+    assert review_oracles_module._evaluation_result(
         1,
         {"fatal": 0, "inconclusive": 0, "warning": 0},
     ) == "ok"
@@ -2066,7 +2066,7 @@ def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
     oracle.write_text("spec\n", encoding="utf-8")
     oracle_index.write_text("index\n", encoding="utf-8")
 
-    eval_oracles_module._validate_evaluation_payload(
+    review_oracles_module._validate_evaluation_payload(
         {
             "issues": [
                 _eval_oracle_issue(
@@ -2108,7 +2108,7 @@ def test_eval_oracles_payload_rejects_index_as_issue_oracle_path(
         ValueError,
         match="issues\\[0\\]\\.oracle_path must be an oracle file",
     ):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [issue],
             },
@@ -2141,7 +2141,7 @@ def test_eval_oracles_payload_rejects_other_oracle_as_issue_oracle_path(
         ValueError,
         match="issues\\[0\\]\\.oracle_path must match an evaluated oracle file",
     ):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [issue],
             },
@@ -2164,7 +2164,7 @@ def test_eval_oracles_payload_rejects_legacy_top_level_metadata(
         ValueError,
         match="Evaluation payload keys do not match schema",
     ):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "target_oracle_path": str(oracle.resolve()),
                 "referenced_paths": [str(oracle.resolve())],
@@ -2193,7 +2193,7 @@ def test_eval_oracles_payload_rejects_legacy_issue_metadata(
         ValueError,
         match="issues\\[0\\] keys do not match schema",
     ):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {"issues": [issue]},
             repo,
             oracle,
@@ -2212,7 +2212,7 @@ def test_eval_oracles_payload_accepts_empty_referenced_paths(
     issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
     issue["referenced_paths"] = []
 
-    eval_oracles_module._validate_evaluation_payload(
+    review_oracles_module._validate_evaluation_payload(
         {"issues": [issue]},
         repo,
         oracle,
@@ -2231,7 +2231,7 @@ def test_eval_oracles_payload_accepts_empty_specification_only_basis(
     issue = _eval_oracle_issue("warning", "warning", oracle, 1, 1)
     issue["specification_only_basis"] = ""
 
-    eval_oracles_module._validate_evaluation_payload(
+    review_oracles_module._validate_evaluation_payload(
         {"issues": [issue]},
         repo,
         oracle,
@@ -2249,7 +2249,7 @@ def test_eval_oracles_payload_rejects_missing_referenced_path(
     oracle.write_text("spec\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="referenced_paths\\[1\\] must exist"):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [
                     _eval_oracle_issue(
@@ -2279,7 +2279,7 @@ def test_eval_oracles_payload_rejects_directory_referenced_path(
     oracle.write_text("spec\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="referenced_paths\\[1\\] must be a file"):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [
                     _eval_oracle_issue(
@@ -2314,7 +2314,7 @@ def test_eval_oracles_payload_rejects_ignored_oracle_path(
         ValueError,
         match="referenced_paths\\[1\\] must be an oracle file or INDEX.md",
     ):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [
                     _eval_oracle_issue(
@@ -2345,7 +2345,7 @@ def test_eval_oracles_payload_rejects_missing_issue_oracle_path(
     issue = _eval_oracle_issue("fatal", "fatal", missing_oracle, 1, 1)
 
     with pytest.raises(ValueError, match="issues\\[0\\]\\.oracle_path must exist"):
-        eval_oracles_module._validate_evaluation_payload(
+        review_oracles_module._validate_evaluation_payload(
             {
                 "issues": [issue],
             },
@@ -2356,9 +2356,9 @@ def test_eval_oracles_payload_rejects_missing_issue_oracle_path(
 
 def test_eval_oracles_verdict_text_distinguishes_error() -> None:
     """error や未知の result を ok 相当の Verdict にしない。"""
-    ok_verdict = eval_oracles_module._verdict_text("ok")
-    error_verdict = eval_oracles_module._verdict_text("error")
-    unknown_verdict = eval_oracles_module._verdict_text("unexpected")
+    ok_verdict = review_oracles_module._verdict_text("ok")
+    error_verdict = review_oracles_module._verdict_text("error")
+    unknown_verdict = review_oracles_module._verdict_text("unexpected")
 
     assert "問題点が検出されませんでした" in ok_verdict
     assert "成功評価ではありません" in error_verdict
@@ -2389,7 +2389,7 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
 
     evaluated_prompts: list[str] = []
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -2402,9 +2402,9 @@ def test_eval_oracles_stays_partial_when_oracle_was_deleted(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=False)
+    cmoc_review_oracles_impl(repo, full=False)
 
     reports = list((repo / ".cmoc" / "reports" / "review_oracles").glob("*.md"))
     report = reports[0].read_text(encoding="utf-8")
@@ -2436,7 +2436,7 @@ def test_eval_oracles_full_mode_does_not_depend_on_session_state(
     session_state.write_text("{broken\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -2448,9 +2448,9 @@ def test_eval_oracles_full_mode_does_not_depend_on_session_state(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=True)
+    cmoc_review_oracles_impl(repo, full=True)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -2486,7 +2486,7 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
     changed_oracle.write_text("after\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        eval_oracles_module,
+        review_oracles_module,
         "maintain_indexes",
         lambda repo_root: False,
     )
@@ -2506,9 +2506,9 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
             ensure_ascii=False,
         )
 
-    monkeypatch.setattr(eval_oracles_module, "run_codex_exec", fake_codex)
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
 
-    cmoc_eval_oracles_impl(repo, full=False)
+    cmoc_review_oracles_impl(repo, full=False)
 
     report = next(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
@@ -2525,14 +2525,14 @@ def test_eval_oracles_uses_full_mode_on_apply_branch(
     )
 
 
-def test_eval_oracles_body_uses_importable_module_name() -> None:
-    """`eval-oracles` の本体は通常 import 可能なモジュールに置く。"""
+def test_review_oracles_body_uses_command_path_module_name() -> None:
+    """`review oracles` の本体はコマンド path 対応のモジュールに置く。"""
     repo_root = Path(__file__).resolve().parents[1]
 
-    body = repo_root / "src" / "sub_commands" / "eval_oracles.py"
+    body = repo_root / "src" / "sub_commands" / "review" / "oracles.py"
     legacy = repo_root / "src" / "sub_commands" / "eval-oracles.py"
     body_text = body.read_text(encoding="utf-8")
-    assert "def cmoc_eval_oracles_impl" in body_text
+    assert "def cmoc_review_oracles_impl" in body_text
     assert "spec_from_file_location" not in body_text
     assert not legacy.exists()
 
@@ -2541,7 +2541,7 @@ def test_eval_oracles_validation_helpers_are_ordered_caller_first() -> None:
     """同一ファイル内の validation helper は caller first に並べる。"""
     repo_root = Path(__file__).resolve().parents[1]
     source = (
-        repo_root / "src" / "sub_commands" / "eval_oracles.py"
+        repo_root / "src" / "sub_commands" / "review" / "oracles.py"
     ).read_text(encoding="utf-8")
 
     callee = source.index("def _require_absolute_oracle_path(")
@@ -8208,7 +8208,7 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     import main
 
     source = inspect.getsource(main)
-    eval_oracles_source = inspect.getsource(main.eval_oracles_command)
+    review_oracles_source = inspect.getsource(main.review_oracles_command)
 
     assert "def _run_command" not in source
     assert "_run_command(" not in source
@@ -8216,10 +8216,10 @@ def test_main_typer_functions_delegate_only_to_impls() -> None:
     assert "cmoc_session_fork_impl()" in source
     assert "importlib.util" not in source
     assert "spec_from_file_location" not in source
-    assert "from sub_commands.eval_oracles import cmoc_eval_oracles_impl" in source
+    assert "from sub_commands.review.oracles import cmoc_review_oracles_impl" in source
     assert "eval-oracles.py" not in source
-    assert "eval_oracles_source" not in eval_oracles_source
-    assert "cmoc_eval_oracles_impl(" in source
+    assert "eval_oracles_source" not in review_oracles_source
+    assert "cmoc_review_oracles_impl(" in source
     assert "repeat_improve_issues_list=repeat_improve_issues_list" in source
     assert "repeat_investigate_and_fix=repeat_investigate_and_fix" in source
     assert "repeat_improove_fixing_list=repeat_improove_fixing_list" in source
