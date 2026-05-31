@@ -61,6 +61,16 @@ from sub_commands.session.join import _conflict_prompt
 from sub_commands.session.join import _files_with_conflict_markers
 
 
+def _assert_markdown_error_report(report: str) -> None:
+    """共通エラーレポートは markdown 見出しで区切り、空行を含めない。"""
+    assert "# ERROR" in report
+    assert "## Summary" in report
+    assert "## Next actions" in report
+    assert "## Detail" in report
+    assert "## Call stack" in report
+    assert all(line != "" for line in report.splitlines())
+
+
 def test_python_sources_do_not_use_future_annotations() -> None:
     """実装コードは annotations future import を使わない。"""
     src_root = Path(__file__).resolve().parents[1] / "src"
@@ -287,7 +297,7 @@ def test_run_command_logs_summary_on_exception(
     )
     log_content = log_file.read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 1
-    assert "ERROR" in captured.err
+    _assert_markdown_error_report(captured.err)
     assert "RuntimeError" in captured.err
     assert "boom" in captured.err
     assert "ERROR" not in captured.out
@@ -359,13 +369,9 @@ def test_run_command_reports_nonzero_typer_exit(
         (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
     ).read_text(encoding="utf-8")
     assert exit_info.value.exit_code == 7
-    assert "ERROR" in captured.err
-    assert "Summary:" in captured.err
+    _assert_markdown_error_report(captured.err)
     assert "サブコマンドがエラー終了しました。" in captured.err
-    assert "Next actions:" in captured.err
-    assert "Detail:" in captured.err
     assert "typer.Exit(7)" in captured.err
-    assert "Call stack:" in captured.err
     assert "raise typer.Exit(7)" in captured.err
     assert "Traceback is not available for this exception." not in captured.err
     assert "ERROR" not in captured.out
@@ -450,13 +456,9 @@ def test_run_command_reports_repo_root_resolution_error(
 
     captured = capsys.readouterr()
     assert exit_info.value.exit_code == 1
-    assert "ERROR" in captured.err
-    assert "Summary:" in captured.err
+    _assert_markdown_error_report(captured.err)
     assert "Git リポジトリのルートが見つかりませんでした。" in captured.err
-    assert "Next actions:" in captured.err
-    assert "Detail:" in captured.err
     assert f"開始パス: {tmp_path.resolve()}" in captured.err
-    assert "Call stack:" in captured.err
     assert "ERROR" not in captured.out
     assert "# Command completion report" in captured.out
     assert "subcommand log: unavailable" in captured.out
@@ -9620,7 +9622,7 @@ def test_cmoc_review_oracles_rejects_too_many_issue_list_improvements() -> None:
 
     assert result.returncode != 0
     assert result.stdout == ""
-    assert "ERROR" in result.stderr
+    _assert_markdown_error_report(result.stderr)
     assert "4 is not in the range 0<=x<=3" in result.stderr
 
 
@@ -9684,8 +9686,7 @@ def test_main_returns_nonzero_for_subcommand_error() -> None:
     )
 
     assert result.returncode == 1
-    assert "ERROR" in result.stderr
-    assert "Summary:" in result.stderr
+    _assert_markdown_error_report(result.stderr)
     assert "ERROR" not in result.stdout
     assert "# Command completion report" in result.stdout
 
@@ -9705,12 +9706,10 @@ def test_main_reports_no_args_error_with_non_empty_detail() -> None:
 
     assert result.returncode == 2
     assert result.stdout == ""
-    assert "ERROR" in result.stderr
-    assert "Summary:\nコマンドが指定されていません。" in result.stderr
-    assert "Next actions:" in result.stderr
+    _assert_markdown_error_report(result.stderr)
+    assert "## Summary\nコマンドが指定されていません。" in result.stderr
     assert "- 利用可能なコマンドを確認するには `cmoc --help` を実行してください。" in result.stderr
-    assert "Detail:\ncmoc がサブコマンドなしで起動されました。" in result.stderr
-    assert "Call stack:" in result.stderr
+    assert "## Detail\ncmoc がサブコマンドなしで起動されました。" in result.stderr
     assert "Traceback (most recent call last):" in result.stderr
     assert "raise _missing_command_error(\"cmoc\")" in result.stderr
     assert "Traceback is not available for this exception." not in result.stderr
@@ -9724,7 +9723,7 @@ def test_main_delegates_root_completion_probe_to_typer() -> None:
     assert result.returncode == 0
     assert result.stderr == ""
     assert "ERROR" not in result.stdout
-    assert "Summary:" not in result.stdout
+    assert "## Summary" not in result.stdout
     assert "init" in result.stdout
     assert "session" in result.stdout
     assert "apply" in result.stdout
@@ -9750,16 +9749,16 @@ def test_main_reports_command_group_without_subcommand_as_single_error_report(
     assert result.returncode == 2
     assert result.stdout == ""
     assert result.stderr.count("ERROR") == 1
-    assert "Summary:\nコマンドが指定されていません。" in result.stderr
+    _assert_markdown_error_report(result.stderr)
+    assert "## Summary\nコマンドが指定されていません。" in result.stderr
     assert (
         f"- 利用可能なコマンドを確認するには `cmoc {command_group} --help` を実行してください。"
         in result.stderr
     )
     assert (
-        f"Detail:\ncmoc {command_group} がサブコマンドなしで起動されました。"
+        f"## Detail\ncmoc {command_group} がサブコマンドなしで起動されました。"
         in result.stderr
     )
-    assert "Call stack:" in result.stderr
     assert "Traceback (most recent call last):" in result.stderr
     assert "Traceback is not available for this exception." not in result.stderr
     assert f"Usage: cmoc {command_group}" not in result.stderr
@@ -9787,7 +9786,7 @@ def test_main_delegates_group_completion_probe_to_typer(
     assert result.returncode == 0
     assert result.stderr == ""
     assert "ERROR" not in result.stdout
-    assert "Summary:" not in result.stdout
+    assert "## Summary" not in result.stdout
     for expected_command in expected_commands:
         assert expected_command in result.stdout
 
@@ -9817,7 +9816,8 @@ def test_format_error_report_fills_empty_generic_detail() -> None:
 
     report = format_error_report(error)
 
-    assert "Summary:\nException" in report
+    _assert_markdown_error_report(report)
+    assert "## Summary\nException" in report
     assert (
         "- 入力値が誤っている場合は、コマンド引数を修正してから cmoc を再実行してください。"
         in report
@@ -9826,8 +9826,7 @@ def test_format_error_report_fills_empty_generic_detail() -> None:
         "- リポジトリ状態が原因の場合は、Detail と Call stack を確認して作業ツリーや設定を修正してください。"
         in report
     )
-    assert "Detail:\nbuiltins.Exception がメッセージなしで発生しました。" in report
-    assert "Call stack:" in report
+    assert "## Detail\nbuiltins.Exception がメッセージなしで発生しました。" in report
 
 
 def test_format_error_report_includes_called_process_output() -> None:
@@ -9841,13 +9840,13 @@ def test_format_error_report_includes_called_process_output() -> None:
 
     report = format_error_report(error)
 
-    assert "Summary:\nCalledProcessError" in report
-    assert "Detail:" in report
+    _assert_markdown_error_report(report)
+    assert "## Summary\nCalledProcessError" in report
+    assert "## Detail" in report
     assert "returncode:\n128" in report
     assert "cmd:\ngit switch 'missing branch'" in report
     assert "stderr:\nfatal: invalid reference: missing branch" in report
     assert "stdout:\nstdout diagnostic" in report
-    assert "Call stack:" in report
 
 
 def test_format_error_report_uses_passed_exception_traceback() -> None:
@@ -9995,11 +9994,7 @@ def test_bin_cmoc_reports_missing_venv_to_stderr(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert result.stdout == ""
-    assert "ERROR" in result.stderr
-    assert "Summary:" in result.stderr
-    assert "Next actions:" in result.stderr
-    assert "Detail:" in result.stderr
-    assert "Call stack:" in result.stderr
+    _assert_markdown_error_report(result.stderr)
     assert "仮想環境 Python" in result.stderr
     assert "at print_missing_venv_error" in result.stderr
     assert "at require_venv_python" in result.stderr
