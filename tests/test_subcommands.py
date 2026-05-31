@@ -739,6 +739,7 @@ def test_session_fork_repairs_missing_cmoc_ignore_before_clean_check(
 ) -> None:
     """`.cmoc` ignore 不足は内部初期化 commit として補修して続行する。"""
     repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
     initial_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     cmoc_session_fork_impl(repo)
@@ -751,15 +752,13 @@ def test_session_fork_repairs_missing_cmoc_ignore_before_clean_check(
         )
     )
     assert branch_name.startswith("cmoc/session/")
-    assert state["session"]["session_start_commit"] != initial_head
-    assert state["session"]["session_start_commit"] == _git(
-        repo,
-        "rev-parse",
-        "HEAD",
-    ).stdout.strip()
+    assert state["session"]["session_start_commit"] == initial_head
+    assert _git(repo, "merge-base", home_branch, branch_name).stdout.strip() == (
+        initial_head
+    )
     assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
-        "Initialize cmoc"
+        "Initialize cmoc session branch"
     )
     assert _git(repo, "status", "--porcelain").stdout == ""
 

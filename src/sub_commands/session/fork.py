@@ -44,6 +44,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
             ],
             f"現在の branch: {home_branch}",
         )
+    start_commit = head_commit(repo_root)
     assert_no_uncommitted_changes(repo_root)
 
     start_step(timer, 2, 4, ".cmoc ignore 確認")
@@ -55,7 +56,6 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
         home_branch,
     )
     _assert_no_active_session(active_session_ids)
-    start_commit = head_commit(repo_root)
 
     start_step(timer, 3, 4, "session branch 作成")
     state_root = session_state_root(repo_root)
@@ -65,11 +65,19 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
             home_branch,
         )
         _assert_no_active_session(active_session_ids)
-        session_id, branch_name = _create_unique_session_branch(repo_root)
+        session_id, branch_name = _create_unique_session_branch(
+            repo_root,
+            start_commit,
+        )
 
         start_step(timer, 4, 4, "session 状態記録")
         session_state = initial_session_state(home_branch, start_commit)
         try:
+            ensure_cmoc_ignored_and_committed(
+                repo_root,
+                message="Initialize cmoc session branch",
+            )
+            assert_no_uncommitted_changes(repo_root)
             write_session_state(
                 state_root,
                 session_id,
@@ -151,7 +159,10 @@ def _current_local_branch(repo_root: Path) -> str:
     return branch_name
 
 
-def _create_unique_session_branch(repo_root: Path) -> tuple[str, str]:
+def _create_unique_session_branch(
+    repo_root: Path,
+    start_commit: str,
+) -> tuple[str, str]:
     """衝突時に session id を作り直して branch 作成をリトライする。"""
     # timestamp 衝突に備えて短い sleep を挟みながら最大 10 回リトライする。
     for attempt in range(1, 11):
@@ -160,7 +171,7 @@ def _create_unique_session_branch(repo_root: Path) -> tuple[str, str]:
         print(f"session branch 作成試行 ({attempt}/10) {branch_name}")
         result = run_git(
             repo_root,
-            ["checkout", "-b", branch_name],
+            ["checkout", "-b", branch_name, start_commit],
             check=False,
         )
         if result.returncode == 0:
