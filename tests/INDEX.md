@@ -113,7 +113,7 @@
 - `changed_paths`、`changed_oracle_files`、`changed_implementation_files`、削除検出の境界条件を調べたいとき。
 - `commit_if_changed` のコミット可否や、失敗時に index と HEAD を壊さない挙動を確認したいとき。
 - session state の読み書き、`active_session_ids_for_home_branch`、`is_cmoc_branch` の判定条件を確認したいとき。
-- `.gitignore`、`.git/info/exclude`、`INDEX.md`、`memo` の除外・対象判定の回帰を修正するとき。
+- .gitignore、`.git/info/exclude`、`INDEX.md`、`memo` の除外・対象判定の回帰を修正するとき。
 
 ## Do not read this when
 
@@ -124,7 +124,7 @@
 
 ## hash
 
-- d8cd32cc46ff21b90d2d2feb6821ea192f08e8010336b04a0c094472e412f46b
+- b7403b94b28a7bc1e49ee19246d4c4ca6eab7b2f77dd62cd20f49cd377dd12a9
 
 # `test_report_files.py`
 
@@ -161,7 +161,7 @@
 ## Read this when
 
 - cmoc のサブコマンド群をまたぐ決定論的な制御ロジックの回帰を確認したいとき。
-- `run_command` の tee 出力、終了コード、例外時の stdout レポート、repo root 解決失敗時の扱いを調べたいとき。
+- `run_command` の tee 出力、終了コード、例外時レポート、repo root 解決失敗の扱いを調べたいとき。
 - `cmoc init` の `.cmoc` ignore 修復、tracked `.cmoc` の untrack、初回 commit の挙動を確認したいとき。
 - `session fork` / `join` / `abandon` の状態遷移、branch 管理、rollback、cleanup の回帰を追いたいとき。
 - `apply fork` / `join` / `abandon` の差分調査、並列処理、commit、レポート生成、未収束時の扱いを確認したいとき。
@@ -171,15 +171,15 @@
 
 ## Do not read this when
 
-- 個別の `init` / `session` / `apply` / `review oracles` の実装ロジックそのものを追いたいとき。
+- 個別の `init` / `session` / `apply` / `review oracles` 実装そのものを追いたいとき。
 - `src/sub_commands/` 配下の本体コードだけを確認したいとき。
-- `run_command` や `format_error_report` だけの共通基盤仕様を知りたいとき。
-- pytest の共通設定や `tests/INDEX.md` 全体の生成ルールだけを確認したいとき。
-- `bin/cmoc` の起動要件や help 表示だけを単独で確認したいとき。
+- `commons.command_runner` や `format_error_report` だけの共通基盤仕様を知りたいとき。
+- `tests/test_indexing.py` や `tests/test_repo.py` など、別領域の回帰を探したいとき。
+- pytest 共通設定や `tests/INDEX.md` 全体の生成ルールだけを確認したいとき。
 
 ## hash
 
-- bd0fe5ef2c54ad9c59371341342983724f35e52b1edd40813051126abe0f6099
+- 84ea1d503c3070ff184494f3dde5e4e6d11f16d4baa203e02fd93203c288c6ec
 
 # `test_timestamps.py`
 

@@ -2,27 +2,28 @@
 
 ## Summary
 
-- cmoc の共通処理を集約する Python パッケージです。
-- `codex.py`、`indexing.py`、`repo.py`、`errors.py`、`subcommand_log.py`、`timing.py`、`timestamps.py` をまとめ、Codex CLI 実行補助、git と状態管理、エラー整形、`INDEX.md` 維持、ログ、計時、タイムスタンプ生成を担います。
-- `__init__.py` はパッケージ宣言のみで、ここでは公開 API や実行ロジックを持ちません。
+- `src/commons` は cmoc 全体で共有する基盤モジュール群をまとめたディレクトリです。
+- リポジトリ検出、実行制御、Codex CLI 呼び出し、エラー整形、ログ、計測、日時、レポート保存、`INDEX.md` 生成などの横断処理を集約しています。
+- 個別サブコマンド本体ではなく、複数機能から再利用される共通実装を読む入口です。
 
 ## Read this when
 
-- サブコマンド間で共通化したい処理や再利用先を探しているとき
-- Codex CLI 呼び出し、Structured Output、`INDEX.md` メンテナンスの実装を確認したいとき
-- repo root 探索、session/apply state、作業ツリー、共通エラー、ログ、計時、タイムスタンプを横断的に追いたいとき
-- `src` 配下の実装で共通基盤の責務分担を把握したいとき
+- リポジトリルート探索、`cmoc/session/*` と `cmoc/apply/*` の判定、worktree 復元の共通処理を確認したいとき。
+- `codex exec` の起動、Structured Output 検証、quota 待機、capacity 再試行、`INDEX.md` メンテナンスの流れを追いたいとき。
+- 共通例外 `CmocError` の定義や、利用者向けエラーレポートの整形規則を確認したいとき。
+- サブコマンド実行の共通ラッパー、JSON Lines ログ、ステップ計測、日時文字列、Markdown レポート保存の実装を確認したいとき。
+- このディレクトリ配下の各共通モジュールを、役割ベースで素早く振り分けたいとき。
 
 ## Do not read this when
 
-- `src/sub_commands` の個別コマンド処理だけを追いたいとき
-- 特定のヘルパー 1 つの詳細だけを確認したいときは、そのモジュールを直接読むべきです
-- `oracles` 側の上位フローや利用手順だけを確認したいとき
-- テストの期待値やユーザー向け案内だけを確認したいとき
+- 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき。
+- `cmoc session` / `cmoc apply` の操作手順や CLI 全体のユーザー向け説明だけを見たいとき。
+- `src/commons` 以外のモジュールやテストの詳細を調べたいとき。
+- 必要な対象ファイルが既に分かっているなら、このディレクトリの索引ではなく該当モジュールを直接読むべきです。
 
 ## hash
 
-- 7f9eb8af132448178bd3cff3ec0172aa7bee3dcf8ad6216fef15a136a7746499
+- 068905a26a30fe70b6e2f8ad33749a0b3791eba2b396474429c8935971ca8f80
 
 # `main.py`
 
@@ -71,4 +72,4 @@
 
 ## hash
 
-- 01c034b011e9d6e1cd1dc8f623cdfc00c2be3d8fcc0e4650cde93e27df5478f0
+- e69f386803376cc51b2959b6e0b820455b71875c9e1c34c35a2cfd8f07a4cceb
