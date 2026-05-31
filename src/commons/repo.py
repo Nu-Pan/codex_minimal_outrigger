@@ -1793,8 +1793,13 @@ def _is_excluded_implementation_path(relative_path: str) -> bool:
 
 def _is_forbidden_apply_implementation_path(relative_path: str) -> bool:
     """apply の Codex 調査起点にしてはいけない path か判定する。"""
-    # root 直下 memo は prompt 上で読み書き禁止にしているため調査対象からも外す。
-    return relative_path == "memo" or relative_path.startswith("memo/")
+    # root 直下 memo と .agents は Codex が編集できないため調査対象からも外す。
+    return (
+        relative_path == "memo"
+        or relative_path.startswith("memo/")
+        or relative_path == ".agents"
+        or relative_path.startswith(".agents/")
+    )
 
 
 def read_session_start_commit(repo_root: Path, branch_name: str) -> str:
