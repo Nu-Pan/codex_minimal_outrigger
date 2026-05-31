@@ -23,15 +23,17 @@
 
 ## Summary
 
-- `src/sub_commands/review/oracles.py` は `cmoc review oracles` の本体実装です。
-- oracles スナップショットの固定、対象ファイル選定、並列評価、問題点リストの改善反復、Markdown レポート出力とエラー報告をまとめて扱います。
-- 評価前の `INDEX.md` メンテナンス、Structured Output 検証、Codex CLI 向け prompt 構築も担います。
+- `src/sub_commands/review/oracles.py` は `cmoc review oracles` の実行本体で、oracle 仕様ファイル群の評価とレポート作成をまとめて担当します。
+- 評価開始時点の `oracles` tree を snapshot として固定し、その後に `INDEX.md` をメンテナンスしてから評価を進めます。
+- 対象 oracle ファイルを選定し、各ファイルを並列に評価したうえで、問題点リストの改善反復を行います。
+- 最終結果を Markdown レポートとして保存し、異常時にはエラーレポートとフォールバック出力も行います。
 
 ## Read this when
 
-- `cmoc review oracles` の実行順や partial / full の切り替えを確認したいとき。
-- 評価対象の選定、開始時点の oracles tree の固定、参照可能ファイルの制約を実装・修正・レビューしたいとき。
-- Structured Output の検証条件、問題点リストの改善反復、レポート保存や失敗時の報告処理を把握したいとき。
+- `src/sub_commands/review/oracles.py` が `cmoc review oracles` の本体として何をしているか把握したいとき。
+- 開始時点の oracles tree の snapshot 固定、評価対象ファイル選定、並列評価の流れを確認したいとき。
+- 問題点リストの改善反復、Structured Output 検証、Markdown レポート出力の実装を確認したいとき。
+- 評価前の `INDEX.md` メンテナンスや、失敗時のエラーレポート生成の流れを追いたいとき。
 
 ## Do not read this when
 
@@ -41,4 +43,4 @@
 
 ## hash
 
-- 837bf529c6021dc33f63b55fabd717bccfbe10f319d08e8d05fe6e3440b788e1
+- 1440c8a39b0ef7a272026f272b5671c8e2038dd72e3574b1742133311bd3e8a4
