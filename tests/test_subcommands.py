@@ -813,6 +813,37 @@ def test_session_fork_rejects_cmoc_managed_branch_before_creating_state(
     assert _session_state_paths(repo) == []
 
 
+@pytest.mark.parametrize(
+    "branch_name",
+    [
+        "cmoc/session/not-a-timestamp",
+        "cmoc/session/2026-05-10_22-21_10_000000123/extra",
+        "cmoc/apply/foo/bar",
+        "cmoc/apply/2026-05-10_22-21_10_000000123/run-1",
+    ],
+)
+def test_session_fork_rejects_cmoc_reserved_branch_namespace(
+    tmp_path: Path,
+    branch_name: str,
+) -> None:
+    """不正形式でも cmoc 予約 namespace 上では session を開始しない。"""
+    repo = _init_repo(tmp_path)
+    _git(repo, "checkout", "-b", branch_name)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_fork_impl(repo)
+
+    assert "cmoc 管理 branch" in error.value.message
+    branches = _git(repo, "branch", "--format=%(refname:short)").stdout.splitlines()
+    assert branch_name in branches
+    assert [
+        branch
+        for branch in branches
+        if branch.startswith("cmoc/session/") and branch != branch_name
+    ] == []
+    assert _session_state_paths(repo) == []
+
+
 def test_session_fork_rejects_uncommitted_changes_before_branch_creation(
     tmp_path: Path,
 ) -> None:

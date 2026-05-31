@@ -25,6 +25,7 @@ from commons.repo import (
     initial_session_state,
     is_apply_implementation_path,
     is_cmoc_branch,
+    is_cmoc_reserved_branch,
     list_implementation_files,
     list_oracle_files,
     read_apply_process_id,
@@ -1258,6 +1259,31 @@ def test_changed_paths_preserves_special_path_tokens(tmp_path: Path) -> None:
 def test_is_cmoc_branch(branch_name: str, expected: bool) -> None:
     """cmoc ブランチ命名規則を判定する。"""
     assert is_cmoc_branch(branch_name) is expected
+
+
+@pytest.mark.parametrize(
+    ("branch_name", "expected"),
+    [
+        ("cmoc/session/2026-05-10_22-21_10_000000123", True),
+        ("cmoc/session/test", True),
+        ("cmoc/session/2026-05-10_22-21_10_000000123/extra", True),
+        (
+            "cmoc/apply/"
+            "2026-05-10_22-21_10_000000123/"
+            "2026-05-10_22-22_10_000000123",
+            True,
+        ),
+        ("cmoc/apply/2026-05-10_22-21_10_000000123/run-1", True),
+        ("cmoc/apply/a/b", True),
+        ("cmoc/apply/2026-05-10_22-21_10_000000123", True),
+        ("feature/cmoc/session/test", False),
+        ("cmoc/sessionish/test", False),
+        ("main", False),
+    ],
+)
+def test_is_cmoc_reserved_branch(branch_name: str, expected: bool) -> None:
+    """cmoc が予約している branch namespace 配下か判定する。"""
+    assert is_cmoc_reserved_branch(branch_name) is expected
 
 
 def test_read_session_start_commit_uses_session_state(

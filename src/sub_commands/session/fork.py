@@ -15,7 +15,7 @@ from commons.repo import (
     ensure_cmoc_ignored_and_committed,
     head_commit,
     initial_session_state,
-    is_cmoc_branch,
+    is_cmoc_reserved_branch,
     run_git,
     session_state_path,
     session_state_root,
@@ -35,7 +35,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
     timer = StepTimer("session fork")
     start_step(timer, 1, 4, "validate repository state")
     home_branch = _current_local_branch(repo_root)
-    if is_cmoc_branch(home_branch):
+    if is_cmoc_reserved_branch(home_branch):
         raise CmocError(
             "`cmoc session fork` は cmoc 管理 branch 上では実行できません。",
             [

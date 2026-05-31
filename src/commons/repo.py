@@ -70,6 +70,13 @@ def is_cmoc_branch(branch_name: str) -> bool:
     return is_session_branch(branch_name) or is_apply_branch(branch_name)
 
 
+def is_cmoc_reserved_branch(branch_name: str) -> bool:
+    """cmoc が予約している branch namespace 配下か判定する。"""
+    return branch_name.startswith(SESSION_BRANCH_PREFIX) or branch_name.startswith(
+        APPLY_BRANCH_PREFIX
+    )
+
+
 def is_session_branch(branch_name: str) -> bool:
     """`cmoc/session/<session-id>` 形式のブランチ名か判定する。"""
     session_id = branch_name.removeprefix(SESSION_BRANCH_PREFIX)
