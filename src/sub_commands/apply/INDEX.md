@@ -52,11 +52,11 @@
 
 - `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装です。
 - session branch 上で専用 apply branch と worktree を作成し、不整合調査と修正反復を実行して report 生成までを担います。
-- 起動前の state 検証、`.cmoc` の ignore 保証、apply start の排他制御、失敗時の状態更新とエラーレポート作成も含みます。
+- 起動前の state 検証、`.cmoc` の ignore 保証、apply start の排他制御、失敗時の状態更新と error report 生成も含みます。
 
 ## Read this when
 
-- `cmoc apply fork` の本体実装の責務と処理順を確認したいとき。
+- `cmoc apply fork` の責務と処理順を確認したいとき。
 - session/apply state の検証、`.cmoc` の ignore 保証、apply start のロック、worktree 作成の流れを追いたいとき。
 - 要修正点の Structured Output、調査・修正ループ、scope に応じた対象選定、commit の流れを確認したいとき。
 - `INDEX.md` の保守、report / error report の生成、`running` / `completed` / `error` の状態遷移を確認したいとき。
@@ -70,7 +70,7 @@
 
 ## hash
 
-- 413f47324c667842b937c6453158c7ca007f739528a183e479df30dac0519d0e
+- 4d044f23a46c340fc9f7e2e785f7402c2a96d1c23cf82780856ba11b99235e76
 
 # `join.py`
 
@@ -85,7 +85,6 @@
 - `cmoc apply join` の実装・修正・レビュー・テストを行いたいとき。
 - `session.state` / `apply.state` の前提条件や、`apply.state = error` を許容して進める条件を確認したいとき。
 - `--force-resolve`、想定外差分、`INDEX.md` のコンフリクト自動解決、merge 後の cleanup 条件を追いたいとき。
-- apply branch の取り込み後に `apply.state` を `ready` に更新し、report / result を前提に branch と worktree を削除する流れを確認したいとき。
 
 ## Do not read this when
 
@@ -95,4 +94,4 @@
 
 ## hash
 
-- e7b45bab554c3b55954e9101e918bc288bf37737da55b119ce41b0bef84c7b57
+- ae0b4c5b9b1e3664865e0851810c4e898cd54272df8e7eefc22ef11b860aad8e
