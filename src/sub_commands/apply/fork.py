@@ -58,8 +58,10 @@ from commons.timestamps import make_timestamp
 
 ApplyScope = Literal["rolling", "session", "full"]
 _APPLY_SCOPES = {"rolling", "session", "full"}
-APPLY_FORK_EXIT_CODE_CONVERGED = 0
-APPLY_FORK_EXIT_CODE_UNCONVERGED = 3
+APPLY_FORK_EXIT_CODE_SUCCESS = 0
+APPLY_FORK_EXIT_CODE_CONVERGED = APPLY_FORK_EXIT_CODE_SUCCESS
+# 未収束はレポート上の作業結果区分であり、CLI 実行としては正常終了する。
+APPLY_FORK_EXIT_CODE_UNCONVERGED = APPLY_FORK_EXIT_CODE_SUCCESS
 
 
 @dataclass(frozen=True)

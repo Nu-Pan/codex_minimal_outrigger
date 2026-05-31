@@ -312,6 +312,32 @@ def test_run_command_reports_nonzero_typer_exit(
     )
 
 
+def test_run_command_treats_apply_unconverged_as_success(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """apply fork の未収束区分は CLI 実行失敗として扱わない。"""
+    repo = _init_repo(tmp_path)
+    monkeypatch.chdir(repo)
+
+    def handler(_repo: Path) -> int:
+        """未収束の apply fork 本体と同じ終了コードを返す。"""
+        return APPLY_FORK_EXIT_CODE_UNCONVERGED
+
+    run_command(handler)
+
+    captured = capsys.readouterr()
+    log_content = next(
+        (repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl")
+    ).read_text(encoding="utf-8")
+    assert captured.err == ""
+    assert "ERROR" not in captured.out
+    assert "# Command completion report" in captured.out
+    assert "subcommand return code: 0" in captured.out
+    assert '"returncode": 0' in log_content
+
+
 def test_run_command_reports_repo_root_resolution_error(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
