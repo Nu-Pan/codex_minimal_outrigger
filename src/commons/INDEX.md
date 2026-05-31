@@ -184,27 +184,29 @@
 
 ## Summary
 
-- サブコマンド呼び出し単位の JSON Lines ログを管理する共通処理への入口です。
-- ログ状態の保持、イベント追記、quota 待ち時間の加算、現在のログコンテキスト取得をまとめます。
-- ログファイルの作成先を `repo root` 側に寄せつつ、worktree 配下に出力しないための判定と `git info/exclude` 更新も扱います。
+- `src/commons/subcommand_log.py` は、サブコマンド呼び出し単位の JSON Lines ログを管理する共通処理の入口です。
+- `SubcommandLogContext` で現在のログ状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間加算を行います。
+- ログファイルは `repo root` 側の `.cmoc/logs/sub_commands/` に作成され、worktree 配下に出力しないための判定と `git info/exclude` 更新もこのモジュールが担います。
+- `subcommand_log()` はログ開始時にコンテキストを設定し、開始イベントとコンソール表示を出したうえで呼び出し本体へ制御を渡します。
 
 ## Read this when
 
-- サブコマンド呼び出し単位の JSON Lines ログをどこにどう作るか確認したいとき。
+- サブコマンド呼び出し単位の JSON Lines ログをどこに、どのように作るか確認したいとき。
 - 現在実行中のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する実装を確認したいとき。
 - `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の作成、排他生成、即時 flush、ログ追記の流れを実装・修正・レビューしたいとき。
 - `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、worktree での保存先切り替えを確認したいとき。
+- quota 待ち時間の加算と、その記録がサブコマンドログへどう反映されるかを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数や状態遷移だけを確認したいときは、この共通ログ処理ではなく該当サブコマンドの仕様を読むべきです。
-- `cmoc` のコンソール表示フォーマットだけを確認したいときは、`console_and_file_log.md` を先に読むべきです。
-- `codex exec` の呼び出し方や quota 待ちの共通規約だけを確認したいときは、`codex_call.md` を読むべきです。
-- `.cmoc` の配置や `INDEX.md` の生成ルールそのものを確認したいときは、このファイルではなく `misc_specs.md` や `indexing.md` を読むべきです。
+- 個別サブコマンドの引数や状態遷移だけを確認したいときは、この共通ログ処理ではなく該当サブコマンドの実装を読むべきです。
+- `cmoc` のコンソール表示やエラー整形だけを確認したいときは、このファイルではなく `command_runner.py` や `errors.py` を読むべきです。
+- `codex exec` の呼び出し方や quota 待ちの共通規約だけを確認したいときは、このファイルではなく `codex.py` を読むべきです。
+- `INDEX.md` の生成ルールや共通メンテナンスの仕様だけを確認したいときは、このファイルではなく `indexing.py` を読むべきです。
 
 ## hash
 
-- c5363a43ba379d9f913aed453f9a6588296f5b5a2f6d9aa207ef4687eb837977
+- a8392e8695d5228031fa1ccc61da042673427c01d5dbfb7775f7b6250c6e9919
 
 # `timestamps.py`
 

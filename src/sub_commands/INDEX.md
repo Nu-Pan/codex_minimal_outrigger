@@ -37,13 +37,13 @@
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、このディレクトリではなく `oracles/docs/app_specs/sub_commands/apply_*.md` を読むべきです。
+- `cmoc apply` の利用手順や仕様断片だけを確認したいときは、このディレクトリではなく `oracles/app_specs/sub_commands/` 側を読むべきです。
 - `cmoc session` や `cmoc review oracles` など、別サブコマンドの実装・仕様を確認したいときは、このディレクトリは対象外です。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいときは、このディレクトリを読む必要はありません。
 
 ## hash
 
-- 17d02c86fda9502abcbb54c40153c11adf1d1fd8ed75740d7d47f06ffcf3ecf3
+- 96b08ed84d1908639a2375bcdbaef8316951c0440241ce43c5063f5d142038c1
 
 # `init.py`
 
