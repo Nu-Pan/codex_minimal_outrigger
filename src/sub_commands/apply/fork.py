@@ -1161,10 +1161,13 @@ def _changed_files_between_commits(
     base_commit: str,
     commit_hash: str,
     pathspec: str,
+    *,
+    include_deleted: bool = False,
 ) -> list[str]:
     """指定 commit 範囲で変更された path を返す。
 
-    削除差分は対象外にし、rename/copy は変更後 path だけを返す。
+    既定では削除差分は対象外にし、rename/copy は変更後 path だけを返す。
+    include_deleted=True では削除 path と rename 前 path も返す。
     """
     result = run_git(
         repo_root,
@@ -1182,10 +1185,16 @@ def _changed_files_between_commits(
     paths: set[str] = set()
     for status, status_paths in git_name_status_entries(result.stdout):
         status_kind = status[:1]
-        if status_kind not in {"A", "C", "M", "R", "T"}:
+        if status_kind not in {"A", "C", "D", "M", "R", "T"}:
+            continue
+        if status_kind == "D":
+            if include_deleted and status_paths:
+                paths.add(status_paths[0])
             continue
         if status_kind in {"C", "R"}:
             if len(status_paths) >= 2:
+                if include_deleted and status_kind == "R":
+                    paths.add(status_paths[0])
                 paths.add(status_paths[1])
             continue
         if status_paths:
@@ -1354,13 +1363,20 @@ def _changed_implementation_files_since(
     commit_hash: str,
 ) -> set[Path]:
     """指定 commit 範囲で変更された実装 path を絶対 path 集合で返す。"""
-    return set(
-        _changed_implementation_files_at_commit(
+    return {
+        repo_root / path
+        for path in _filter_implementation_file_paths_at_commit(
             repo_root,
-            base_commit,
             commit_hash,
+            _changed_files_between_commits(
+                repo_root,
+                base_commit,
+                commit_hash,
+                ".",
+                include_deleted=True,
+            ),
         )
-    )
+    }
 
 
 def _apply_discrepancies(

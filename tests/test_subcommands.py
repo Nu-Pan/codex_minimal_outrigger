@@ -7241,6 +7241,42 @@ def test_apply_dirty_targets_record_snapshot_and_worktree_existence(
     }
 
 
+def test_apply_dirty_changed_implementation_files_include_deleted_paths(
+    tmp_path: Path,
+) -> None:
+    """修正後 dirty 更新用の変更実装 path は削除側 path も含める。"""
+    repo = _init_repo(tmp_path)
+    (repo / "app.py").write_text("app\n", encoding="utf-8")
+    (repo / "obsolete.py").write_text("obsolete\n", encoding="utf-8")
+    (repo / "old.py").write_text("old\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base implementation files")
+    base_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    (repo / "app.py").write_text("changed\n", encoding="utf-8")
+    _git(repo, "rm", "obsolete.py")
+    _git(repo, "mv", "old.py", "new.py")
+    _git(repo, "add", "app.py")
+    _git(repo, "commit", "-m", "change delete and rename implementation files")
+    head_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    dirty_paths = sorted(
+        path.relative_to(repo).as_posix()
+        for path in apply_module._changed_implementation_files_since(
+            repo,
+            base_commit,
+            head_commit,
+        )
+    )
+
+    assert dirty_paths == [
+        "app.py",
+        "new.py",
+        "obsolete.py",
+        "old.py",
+    ]
+
+
 def test_apply_partial_targets_use_renamed_new_paths(
     tmp_path: Path,
 ) -> None:
