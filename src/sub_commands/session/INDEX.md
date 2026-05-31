@@ -82,15 +82,15 @@
 ## Read this when
 
 - `cmoc session join` の前提条件、merge 手順、conflict 解消、完了後の後始末を実装・修正・レビュー・テストしたいとき。
-- `session.state` / `apply.state` の検証条件や、記録済み session home branch の復元・存在確認を追いたいとき。
+- `session.state` / `apply.state` の検証条件や、記録済みの session home branch の復元・存在確認を追いたいとき。
 - `.cmoc` の ignore 保証、Codex CLI への conflict marker 解消依頼、merge 後の `session.state=joined` 更新と安全な branch 削除条件を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc session join` の利用手順や正本仕様だけを確認したいとき。
-- `cmoc session fork` / `cmoc session abandon` の挙動だけを確認したいとき。
+- `cmoc session fork` や `cmoc session abandon` の開始・破棄フローだけを確認したいとき。
+- `cmoc apply` 系の実行条件、想定外差分、`apply.state` の扱いだけを確認したいとき。
 - `src/sub_commands/session` ディレクトリ全体の入口構造だけを確認したいとき。
 
 ## hash
 
-- 76f2557889599920e6775df9d75784ecb03e73e71cba693e70aa109199222191
+- 3138699869e4d0f4759c5d6f0a67c2a5c8dd99a27f878413b3d4b6ebff73f723

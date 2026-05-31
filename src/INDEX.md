@@ -53,7 +53,7 @@
 
 ## Summary
 
-- `src/sub_commands` は `cmoc` の個別サブコマンド実装の入口ディレクトリです。
+- `src/sub_commands` は cmoc の個別サブコマンド実装の入口ディレクトリです。
 - `__init__.py` はパッケージ宣言のみを担い、`apply/` は `cmoc apply` 系、`init.py` は `cmoc init`、`review/` は `cmoc review` 系、`session/` は `cmoc session` 系の本体実装を含みます。
 - 個別モジュールへ進む前に、この配下全体の責務分担を把握するための目次です。
 
@@ -71,4 +71,4 @@
 
 ## hash
 
-- 2630f8511b5f184c8fb1d14cf07a2309e074bf8a685ef031e757a9c461deb253
+- ba09bbcdbcf2968e0bd2a044d5539f110569e2975d74a163b0e3b5a8455ffffe

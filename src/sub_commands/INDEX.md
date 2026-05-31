@@ -98,21 +98,25 @@
 ## Summary
 
 - `src/sub_commands/session` は `cmoc session` 系サブコマンドの実装入口です。
-- `__init__.py` はパッケージ宣言のみを担い、`fork.py`、`join.py`、`abandon.py` に開始・統合・破棄の本体処理があります。
-- session の開始、home branch への統合、merge せず破棄する流れを、このディレクトリから辿れます。
+- `__init__.py` はパッケージ宣言だけを担う最小モジュールです。
+- `abandon.py` は session branch を merge せず破棄して home branch へ戻す本体実装です。
+- `fork.py` は local branch から session branch を作成し、session state を記録する本体実装です。
+- `join.py` は session branch を home branch へ `git merge --no-ff` で取り込み、session を完了する本体実装です。
 
 ## Read this when
 
-- `cmoc session fork` の作成条件、session branch 名、state 保存、rollback を確認したいとき。
+- `src/sub_commands/session` が Python パッケージとして宣言されていることを確認したいとき。
+- `cmoc session abandon` の前提条件、cleanup 順序、rollback を確認したいとき。
+- `cmoc session fork` の作成条件、branch 名、state 保存、retry を確認したいとき。
 - `cmoc session join` の merge 手順、state 検証、conflict 解消、後始末を確認したいとき。
-- `cmoc session abandon` の破棄条件、cleanup 順序、rollback を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` や `cmoc review` など、session 以外のサブコマンドだけを確認したいとき。
+- `cmoc session` 以外の `cmoc` サブコマンドの実装だけを確認したいとき。
+- `cmoc apply` 側の破棄や取り込みの仕様だけを確認したいとき。
 - `oracles/docs/app_specs/sub_commands/` 側の正本仕様だけを確認したいとき。
 - パッケージ宣言だけ、または一般的な git branch 操作だけを確認したいとき。
 
 ## hash
 
-- 81392657a58f0678fe39b710520399e44ff073b696dc4d446e8cfe623fabdb77
+- 8abe880028a57337b24282d378c5dfa41d632400551b61888b63c54ff9589522
