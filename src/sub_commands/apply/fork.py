@@ -472,14 +472,6 @@ def cmoc_apply_impl(
             repo_root,
             session_branch,
         )
-        failed_stage = "apply 完了記録"
-        _mark_apply_completed(
-            state_root,
-            session_id,
-            state,
-        )
-        apply_start_needs_error_record = False
-
         # 実行結果を人間向け report に変換する。
         failed_stage = "report 書き込み"
         start_step(timer, 6, 6, "report 書き込み")
@@ -501,6 +493,13 @@ def cmoc_apply_impl(
         print(f"apply run id: {apply_run_id}")
         print(str(report_path))
         timer.report()
+        failed_stage = "apply 完了記録"
+        _mark_apply_completed(
+            state_root,
+            session_id,
+            state,
+        )
+        apply_start_needs_error_record = False
         if completed:
             return APPLY_FORK_EXIT_CODE_CONVERGED
         return APPLY_FORK_EXIT_CODE_UNCONVERGED

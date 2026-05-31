@@ -2940,7 +2940,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     assert exit_code == 0
     assert len(reports) == 1
     assert state["apply"]["state"] == "completed"
-    assert event_order == ["apply 完了記録", "report 書き込み"]
+    assert event_order == ["report 書き込み", "apply 完了記録"]
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
@@ -5785,11 +5785,11 @@ def test_apply_report_validation_requires_change_summary_item() -> None:
     assert "ブランチ上の全変更内容" in str(error.value)
 
 
-def test_apply_rejects_incomplete_change_summary_from_codex(
+def test_apply_marks_error_when_success_report_generation_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """completed 更新後の report 失敗は state を error に戻さない。"""
+    """成功 report 生成失敗は completed ではなく error として記録する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -5845,7 +5845,7 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
         ).read_text(encoding="utf-8")
     )
     report_dir = repo / ".cmoc" / "reports" / "apply" / "fork"
-    assert state["apply"]["state"] == "completed"
+    assert state["apply"]["state"] == "error"
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
@@ -5856,16 +5856,23 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
         state["apply"]["apply_branch"],
     ).stdout.strip()
     session_head_at_finish = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    assert reports == []
+    assert len(reports) == 1
+    assert 'result: "エラー"' in reports[0].read_text(encoding="utf-8")
     assert session_head != session_head_at_finish
     assert session_head != apply_head
+    assert not (
+        repo
+        / ".cmoc"
+        / "sessions"
+        / "2026-05-10_22-21_10_000000123.apply_process.json"
+    ).exists()
 
 
-def test_apply_keeps_completed_when_final_output_fails(
+def test_apply_marks_error_when_final_output_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """completed 更新後の最終出力失敗は state を error に戻さない。"""
+    """最終出力失敗は completed ではなく error として記録する。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
@@ -5910,12 +5917,19 @@ def test_apply_keeps_completed_when_final_output_fails(
     )
     report_texts = [report.read_text(encoding="utf-8") for report in reports]
 
-    assert state["apply"]["state"] == "completed"
+    assert state["apply"]["state"] == "error"
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
-    assert len(reports) == 1
+    assert len(reports) == 2
     assert any('result: "収束"' in text for text in report_texts)
+    assert any('result: "エラー"' in text for text in report_texts)
+    assert not (
+        repo
+        / ".cmoc"
+        / "sessions"
+        / "2026-05-10_22-21_10_000000123.apply_process.json"
+    ).exists()
 
 
 def test_apply_fallback_change_summary_preserves_special_path_tokens(
