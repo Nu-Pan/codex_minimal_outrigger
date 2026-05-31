@@ -378,7 +378,12 @@ def cmoc_apply_impl(
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
         failed_stage = "maintain INDEX.md files"
         start_step(timer, 4, 6, "maintain INDEX.md files")
+        before_index_head = head_commit(apply_worktree)
         _maintain_apply_indexes(apply_worktree)
+        _assert_forbidden_paths_unchanged_since(
+            apply_worktree,
+            before_index_head,
+        )
 
         # 不整合調査と追従作業を指定回数まで反復する。
         failed_stage = "要修正点の調査と適用"
@@ -1360,6 +1365,7 @@ def _apply_discrepancies(
             expect_json=False,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
         )
+        _assert_forbidden_paths_unchanged_since(repo_root, before_head)
         _assert_forbidden_paths_clean(repo_root)
         _commit_all_changes(repo_root)
         after_head = head_commit(repo_root)
@@ -1380,7 +1386,9 @@ def _commit_all_changes(repo_root: Path) -> None:
         return
 
     # 実装差分によって INDEX.md が古くなった場合は commit 前に更新する。
+    before_index_head = head_commit(repo_root)
     _maintain_apply_indexes(repo_root)
+    _assert_forbidden_paths_unchanged_since(repo_root, before_index_head)
     _assert_forbidden_paths_clean(repo_root)
     if not changed_paths(repo_root):
         return
@@ -1428,7 +1436,7 @@ def _maintain_indexes_accepts_excluded_roots() -> bool:
 
 def _apply_index_excluded_roots(repo_root: Path) -> list[Path]:
     """apply worktree の INDEX メンテナンスで書かない root 群を返す。"""
-    return []
+    return [repo_root / "oracles"]
 
 
 def _assert_forbidden_paths_clean(repo_root: Path) -> None:
@@ -1437,6 +1445,30 @@ def _assert_forbidden_paths_clean(repo_root: Path) -> None:
     forbidden = [
         path
         for path in _changed_paths_for_forbidden_check(repo_root)
+        if _is_forbidden_changed_path(path)
+    ]
+    if forbidden:
+        raise CmocError(
+            "実装作業により編集禁止パスが変更されました。",
+            [
+                "編集禁止パスの変更を確認し、手動で解消してください。",
+                "作業ツリーが許容できる状態になってから `cmoc apply` を再実行してください。",
+            ],
+            "\n".join(forbidden),
+        )
+
+
+def _assert_forbidden_paths_unchanged_since(
+    repo_root: Path,
+    before_commit: str,
+) -> None:
+    """Codex CLI 中の commit 済み禁止 path 変更を検出する。"""
+    forbidden = [
+        path
+        for path in _changed_paths_since_for_forbidden_check(
+            repo_root,
+            before_commit,
+        )
         if _is_forbidden_changed_path(path)
     ]
     if forbidden:
@@ -1459,16 +1491,35 @@ def _changed_paths_for_forbidden_check(repo_root: Path) -> list[str]:
     return [path for _status, path in git_status_paths(result.stdout)]
 
 
+def _changed_paths_since_for_forbidden_check(
+    repo_root: Path,
+    before_commit: str,
+) -> list[str]:
+    """禁止 path 検査用に commit 範囲内の変更 path を列挙する。"""
+    result = run_git(
+        repo_root,
+        [
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "-C",
+            "--find-copies-harder",
+            f"{before_commit}..HEAD",
+            "--",
+        ],
+    )
+    paths: list[str] = []
+    for status, entry_paths in git_name_status_entries(result.stdout):
+        if status.startswith("R"):
+            paths.extend(entry_paths)
+        elif entry_paths:
+            paths.append(entry_paths[-1])
+    return paths
+
+
 def _is_forbidden_changed_path(relative_path: str) -> bool:
     """workspace-write prompt で禁止した変更 path か判定する。"""
-    if (
-        relative_path == "oracles/INDEX.md"
-        or (
-            relative_path.startswith("oracles/")
-            and relative_path.endswith("/INDEX.md")
-        )
-    ):
-        return False
     return (
         relative_path == "oracles"
         or relative_path.startswith("oracles/")

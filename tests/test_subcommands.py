@@ -2764,7 +2764,8 @@ def test_apply_returns_complete_when_no_discrepancies(
         for kwargs in investigation_kwargs
     )
     assert all(
-        kwargs["index_excluded_roots"] == []
+        kwargs["index_excluded_roots"]
+        == [apply_worktree / "oracles"]
         for kwargs in investigation_kwargs
     )
     report_kwargs = [
@@ -3060,7 +3061,9 @@ def test_apply_commits_index_changes_when_no_discrepancies(
     )
     assert len(report_kwargs) == 1
     assert report_kwargs[0].get("skip_index_maintenance") is not True
-    assert report_kwargs[0]["index_excluded_roots"] == []
+    assert report_kwargs[0]["index_excluded_roots"] == [
+        apply_worktree / "oracles"
+    ]
     assert maintained_roots.count(apply_worktree) == 2
     assert f"session_head_at_apply_start: \"{session_head}\"" in report_text
     assert f"session_head_at_apply_finish: \"{session_head}\"" in report_text
@@ -6279,11 +6282,11 @@ def test_apply_commits_preexisting_staged_oracles_after_cmoc_guarantee(
     )
 
 
-def test_commit_all_changes_allows_oracles_index_after_index_update(
+def test_commit_all_changes_rejects_oracles_index_after_index_update(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """INDEX メンテナンス後の oracle INDEX 差分は commit できる。"""
+    """INDEX メンテナンス後も oracle INDEX 差分は commit 前に止める。"""
     repo = _init_repo(tmp_path)
     (repo / "app.py").write_text("changed\n", encoding="utf-8")
 
@@ -6303,29 +6306,21 @@ def test_commit_all_changes_allows_oracles_index_after_index_update(
         lambda *args, **kwargs: "maintain indexes",
     )
 
-    _commit_all_changes(repo)
+    with pytest.raises(CmocError) as error:
+        _commit_all_changes(repo)
 
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
-        "maintain indexes"
-    )
-    committed_files = _git(
-        repo,
-        "diff-tree",
-        "--no-commit-id",
-        "--name-only",
-        "-r",
-        "HEAD",
-    ).stdout.splitlines()
-    assert "oracles/INDEX.md" in committed_files
+    assert "編集禁止パス" in error.value.message
+    assert "oracles/INDEX.md" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
 def test_apply_index_maintenance_does_not_exclude_oracles_root(
     tmp_path: Path,
 ) -> None:
-    """apply worktree の INDEX メンテナンスは oracles 配下も対象にする。"""
+    """apply worktree の INDEX メンテナンスは oracles 配下を対象外にする。"""
     repo = _init_repo(tmp_path)
 
-    assert _apply_index_excluded_roots(repo) == []
+    assert _apply_index_excluded_roots(repo) == [repo / "oracles"]
 
 
 def test_commit_all_changes_rejects_oracle_file_after_index_update(
@@ -6889,6 +6884,56 @@ def test_commit_all_changes_rejects_root_forbidden_changes(
     else:
         assert forbidden_file in error.value.detail
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
+
+
+def test_apply_discrepancies_rejects_committed_forbidden_change(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Codex CLI が commit 済みにした禁止 path 差分も検出する。"""
+    repo = _init_repo(tmp_path)
+    (repo / "app.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "app.py")
+    _git(repo, "commit", "-m", "add app")
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+
+    def fake_codex(repo_root: Path, *args: object, **kwargs: object) -> str:
+        """workspace-write Codex 実行中の禁止 path commit を模擬する。"""
+        (repo_root / "README.md").write_text("forbidden\n", encoding="utf-8")
+        _git(repo_root, "add", "README.md")
+        _git(repo_root, "commit", "-m", "commit forbidden path")
+        return ""
+
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.run_codex_exec",
+        fake_codex,
+    )
+
+    with pytest.raises(CmocError) as error:
+        apply_module._apply_discrepancies(
+            repo,
+            [
+                {
+                    "title": "fix",
+                    "evidences": [],
+                    "oracle_requirement": "requirement",
+                    "observed_implementation": "observed",
+                    "reason": "reason",
+                    "suggested_fix": "suggested",
+                }
+            ],
+            timer=StepTimer("test"),
+            step_path=((1, 1),),
+        )
+
+    assert "編集禁止パス" in error.value.message
+    assert "README.md" in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "commit forbidden path"
+    )
 
 
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
