@@ -50,25 +50,26 @@
 
 ## Summary
 
-- `cmoc apply fork` の本体実装で、session branch 上の apply run を開始し、不整合調査から修正反復、レポート出力までを担います。
-- state 検証、apply worktree の作成、`running` / `completed` / `error` への状態遷移、終了コードの分岐をまとめています。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch 上で apply run を開始し、不整合調査から修正反復、報告書作成までを担当します。
+- state 検証、apply worktree 作成、scope に応じた調査対象の絞り込み、Codex CLI への file 起点調査、修正適用、INDEX 保守、終了コード分岐をまとめています。
 
 ## Read this when
 
 - `cmoc apply fork` の処理順や責務を追いたいとき。
-- session/apply state の検証、` .cmoc` の ignore 保証、apply worktree 作成、排他制御の流れを確認したいとき。
-- 要修正点の Structured Output、調査・修正ループ、`INDEX.md` の自動メンテナンスを確認したいとき。
+- session/apply state の検証、apply worktree 作成、排他制御、`.cmoc` の ignore 保証を確認したいとき。
+- 要修正点の Structured Output、調査・修正ループ、レポート出力、`INDEX.md` の自動メンテナンスを確認したいとき。
 - 途中失敗時の error report と、収束・未収束の終了コードを確認したいとき。
 
 ## Do not read this when
 
+- `cmoc apply` の利用手順や正本仕様だけを確認したいとき。
 - `cmoc apply join` や `cmoc apply abandon` の終了・破棄処理だけを確認したいとき。
-- `src/sub_commands/apply/__init__.py` など、パッケージ宣言や入口構造だけを確認したいとき。
-- `oracles/docs/app_specs/sub_commands/apply_fork.md` の利用手順や引数仕様だけを確認したいとき。
+- `src/sub_commands/apply` 配下のパッケージ宣言や入口構造だけを確認したいとき。
+- `apply_fork` とは無関係な `session` や `review` の実装を確認したいとき。
 
 ## hash
 
-- 5b7f1ac57be0122785aefb693a21b42b39d2d9cccd1c72cd4075e057285c8c25
+- 37ac5341488de18ae59771e4b9e5912312b48d3d00306f943cb484c646d2b64f
 
 # `join.py`
 

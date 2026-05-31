@@ -153,28 +153,27 @@
 
 ## Summary
 
-- `cmoc` のサブコマンド横断の決定論的な制御ロジック、共通実行ラッパー、CLI 配線、起動経路をまとめて守る統合回帰テスト群です。
+- `tests/test_subcommands.py` は、`cmoc` のサブコマンド横断の決定論的な制御ロジックと CLI 配線を守る統合回帰テスト群の入口です。
 - `init` / `session` / `apply` / `review oracles` の状態遷移、エラー処理、報告出力、Structured Output まわりの境界条件を一つのファイルで確認します。
-- `bin/cmoc` と `test.sh` の実行経路や、`main.py` の登録内容・互換エイリアスも対象です。
+- `main.py`、`bin/cmoc`、`test.sh` の起動経路や、`run_command()` まわりの共通実行制御も対象です。
 
 ## Read this when
 
-- サブコマンド横断の起動フロー、終了コード、共通エラーレポートを確認したいとき。
-- `run_command()`、`StepTimer`、`start_step()`、`format_error_report()` の回帰を見たいとき。
-- `init`、`session`、`apply`、`review oracles` の状態遷移や前提条件をまとめて確認したいとき。
+- `init` / `session` / `apply` / `review oracles` を横断する起動フロー、終了コード、共通エラーレポートを確認したいとき。
+- `run_command()`、`StepTimer`、`start_step()`、`format_error_report()` の回帰や境界条件を見たいとき。
 - `main.py` の Typer 登録、`bin/cmoc`、`test.sh` の起動経路、互換 alias を確認したいとき。
 - prompt / payload / report schema の検証や、階層 step index、並列実行、エラー時 report 保存の挙動を確認したいとき。
 
 ## Do not read this when
 
-- `tests/test_timestamps.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別系統の共通処理や INDEX 保守だけを確認したいとき。
+- `tests/test_timestamps.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別系統の共通処理や回帰観点だけを確認したいとき。
 - `src/commons` や `src/sub_commands/...` の実装そのものを直接追いたいとき。
-- `tests/test_subcommands.py` ではなく、単一サブコマンドや単一ヘルパーだけの仕様を見たいとき。
+- 単一サブコマンドだけの仕様や、個別ヘルパー 1 つの挙動だけを見たいとき。
 - `oracles` 側の正本仕様や `INDEX.md` 生成ルールだけを確認したいとき。
 
 ## hash
 
-- 0483bc401d987ab76208e878e0c40c6f3f19a8b2c96f2e08726923868eb38bd5
+- 62a085318546a2ea57ee5f22bc86b83304dbfe19d6efae318345fed59fe0891a
 
 # `test_timestamps.py`
 
