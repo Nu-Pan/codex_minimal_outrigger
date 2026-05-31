@@ -1686,6 +1686,91 @@ def test_subcommand_log_from_apply_worktree_writes_to_main_repo(
     assert apply_logs == []
 
 
+def test_run_codex_exec_from_apply_worktree_writes_logs_to_main_repo(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """apply worktree の Codex CLI 証跡は所有元 repo 側へ集約する。"""
+    repo = _init_git_repo(tmp_path)
+    session_id = "2026-05-28_05-10_00_000000000"
+    apply_run_id = "2026-05-28_05-11_00_000000000"
+    apply_worktree = (
+        repo / ".cmoc" / "worktrees" / "apply" / session_id / apply_run_id
+    )
+    apply_worktree.parent.mkdir(parents=True)
+    _git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        f"cmoc/apply/{session_id}/{apply_run_id}",
+        str(apply_worktree),
+        "HEAD",
+    )
+    cwd_seen = tmp_path / "cwd_seen.txt"
+    schema_arg = tmp_path / "schema_arg.txt"
+    last_arg = tmp_path / "last_arg.txt"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "SCHEMA=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  if [ \"$PREV\" = \"--output-schema\" ]; then",
+                "    SCHEMA=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                f"pwd > {cwd_seen}",
+                f"printf '%s\\n' \"$SCHEMA\" > {schema_arg}",
+                f"printf '%s\\n' \"$LAST\" > {last_arg}",
+                "printf '{\"ok\":true}\\n' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    output = run_codex_exec(
+        apply_worktree,
+        "prompt",
+        read_only=True,
+        expect_json=True,
+        output_schema=_BOOLEAN_SCHEMA,
+        skip_index_maintenance=True,
+    )
+
+    assert output == '{"ok":true}\n'
+    assert Path(cwd_seen.read_text(encoding="utf-8").strip()) == apply_worktree
+    call_logs = list(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
+    )
+    last_messages = list(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "output_last_message").glob(
+            "*.json"
+        )
+    )
+    schemas = list(
+        (repo / ".cmoc" / "logs" / "codex_exec" / "output_schema").glob("*.log")
+    )
+    assert len(call_logs) == 1
+    assert len(last_messages) == 1
+    assert len(schemas) == 1
+    assert schema_arg.read_text(encoding="utf-8").strip() == str(schemas[0])
+    assert last_arg.read_text(encoding="utf-8").strip() == str(last_messages[0])
+    assert not (apply_worktree / ".cmoc" / "logs" / "codex_exec").exists()
+
+
 def test_subcommand_log_from_linked_apply_worktree_writes_to_linked_repo(
     tmp_path: Path,
 ) -> None:

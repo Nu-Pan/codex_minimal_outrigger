@@ -42,7 +42,7 @@ def subcommand_log(
     cwd: Path | None = None,
 ) -> Iterator[SubcommandLogContext]:
     """サブコマンドイベントを `<repo-root>/.cmoc/logs/sub_commands` へ記録する。"""
-    log_root = _subcommand_log_repo_root(repo_root)
+    log_root = resolve_log_repo_root(repo_root)
     _ensure_logs_excluded(log_root)
     log_dir = log_root / ".cmoc" / "logs" / "sub_commands"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -174,8 +174,8 @@ def _git_exclude_path(repo_root: Path) -> Path | None:
     return repo_root / path
 
 
-def _subcommand_log_repo_root(repo_root: Path) -> Path:
-    """サブコマンドログを書き込む repo root を返す。"""
+def resolve_log_repo_root(repo_root: Path) -> Path:
+    """cmoc の実行ログを書き込む repo root を返す。"""
     owner_root = _owning_repo_root_from_apply_worktree_path(repo_root)
     if owner_root is not None:
         return owner_root
@@ -204,6 +204,11 @@ def _subcommand_log_repo_root(repo_root: Path) -> Path:
     if _is_cmoc_managed_worktree_root(repo_root, common_root):
         return common_root
     return repo_root
+
+
+def _subcommand_log_repo_root(repo_root: Path) -> Path:
+    """サブコマンドログを書き込む repo root を返す。"""
+    return resolve_log_repo_root(repo_root)
 
 
 def _owning_repo_root_from_apply_worktree_path(repo_root: Path) -> Path | None:
