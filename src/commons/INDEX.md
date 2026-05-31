@@ -249,16 +249,17 @@
 
 - サブコマンド全体と各ステップの経過時間の計測方法を確認したいとき。
 - ステップ開始通知の表示形式や、`step_index` の flat / hierarchical 表現を確認したいとき。
-- `current_timer()`、`report_current_timer()`、`clear_current_timer()` などの現在の計測器管理を追いたいとき。
+- `current_timer()`、`report_current_timer()`、`clear_current_timer()` など現在の計測器管理を追いたいとき。
 - `format_duration()` の stdout 向け表示や、0.1 秒単位の切り捨て規則を確認したいとき。
+- ネストしたステップで、どのステップがいつ終了扱いになるかを確認したいとき。
 
 ## Do not read this when
 
 - サブコマンド本体の引数解析や業務ロジックだけを確認したいとき。
 - `codex exec` の起動制御、Structured Output、`INDEX.md` メンテナンスそのものを確認したいとき。
-- タイムスタンプ生成やサブコマンドログ保存だけを調べたいときは、`timestamps.py` や `subcommand_log.py` を読むべきです。
+- タイムスタンプ生成やサブコマンドログ保存だけを調べたいとき。
 - `StepTimer` 以外の共通例外、repo 探索、ファイルレポート保存を確認したいとき。
 
 ## hash
 
-- da12b431690040219484b33d51f4d6c45f488289b91d04f383232107820071fd
+- 822869d260c24c976ead0ecc66a80a76f2267fe39cbad09b80b426f42b996474

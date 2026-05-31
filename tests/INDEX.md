@@ -153,27 +153,26 @@
 
 ## Summary
 
-- cmoc のサブコマンド横断の決定論的な制御ロジックを検証する統合回帰テストです。
-- `main.py` の登録、`run_command`、`format_error_report()`、`bin/cmoc` の起動ラッパーまでを広く扱います。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、エラー処理、関連ヘルパーの回帰を守ります。
+- `tests/test_subcommands.py` は、cmoc のサブコマンド横断の決定論的な制御ロジックを検証する統合回帰テストです。
+- `main.py` の登録、`run_command`、`format_error_report()`、`bin/cmoc` の起動ラッパーまでを広くカバーします。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、エラー処理、関連ヘルパーの回帰をまとめて守ります。
 
 ## Read this when
 
-- サブコマンド横断の実行フローや終了コードの仕様を確認したいとき。
-- `run_command` のコンソール出力、JSONL ログ、エラー要約、例外時の扱いを変更したいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の制御ロジックを追いたいとき。
-- `src/main.py` の Typer 登録や `bin/cmoc` の起動失敗時メッセージの回帰を確認したいとき。
+- サブコマンド横断の起動フロー、終了コード、共通エラーレポートの仕様を確認したいとき。
+- `main.py` の Typer 登録や、`bin/cmoc` と `test.sh` の起動経路の回帰を確認したいとき。
+- `cmoc init`、`cmoc session`、`cmoc apply`、`cmoc review oracles` の状態遷移や前提条件を広く押さえたいとき。
+- `run_command` のログ出力、`format_error_report()` の整形、エラー時の stdout / stderr の分担を確認したいとき。
 
 ## Do not read this when
 
-- 単一サブコマンドの引数仕様や個別機能だけを確認したいとき。
-- `src/commons` の内部実装や共通ヘルパーの詳細だけを追いたいとき。
-- `src/sub_commands` 配下の本体実装を直接確認したいとき。
-- `bin/cmoc` だけを単独で確認したいとき。
+- `tests/test_timestamps.py` や `tests/test_indexing.py` など、別の共通ヘルパーや INDEX 保守のテストだけを確認したいとき。
+- `commons.repo`、`commons.codex`、`commons.timing` など、個別の共通実装そのものを直接追いたいとき。
+- `src/sub_commands/apply` や `src/sub_commands/session` の単一サブコマンド実装だけを確認したいとき。
 
 ## hash
 
-- 4a8d263deb4a4aa6ed96556d7217ce653a451ee6f49d3ec45ab50aa73264a243
+- 9c2181e225fdd4994016984ee9e031f5ec722ef43718a6ff9fe1e35502c26f63
 
 # `test_timestamps.py`
 
