@@ -160,23 +160,23 @@
 
 ## Read this when
 
-- サブコマンド横断の制御フローや終了コードの仕様を確認したいとき。
-- `cmoc init`、`session fork`、`session join`、`session abandon`、`apply fork`、`apply join`、`apply abandon`、`review oracles` の回帰観点を整理したいとき。
-- `main` の補完登録、`bin/cmoc` の起動前提、`format_error_report` の出力整形を確認したいとき。
+- サブコマンド横断の制御フロー、終了コード、エラー表示、レポート出力の回帰を確認したいとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon`、`cmoc review oracles` の状態遷移や受け入れ条件を整理したいとき。
+- `main` のコマンド登録、補完プローブ、`bin/cmoc` の起動前提、`format_error_report` の整形仕様を確認したいとき。
 - `run_command` がコンソール出力と JSONL サブコマンドログをどう残すか確認したいとき。
-- `tests/test_subcommands.py` がどの範囲の振る舞いを守るか把握したいとき。
+- `tests/test_subcommands.py` にまとまっている共通テスト補助関数や、`_init_repo`、`_git` などのテスト用セットアップを参照したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの内部実装だけを追いたいときは、`src/sub_commands/*` を直接読むべきです。
-- `commons.command_runner` や `commons.errors` など単一の共通ヘルパーだけを確認したいとき。
-- `tests/test_timestamps.py` や `tests/test_report_files.py` のような別のテスト入口を見たいとき。
-- pytest の共通設定やテスト命名規則だけを確認したいとき。
+- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを追いたいとき。
+- `commons.command_runner`、`commons.errors`、`commons.repo` など単一の共通ヘルパーだけを確認したいとき。
+- `tests/test_timestamps.py`、`tests/test_report_files.py`、`tests/test_indexing.py` のような別領域のテスト入口を見たいとき。
 - `INDEX.md` の生成ルール全体や `oracles` 側の正本仕様だけを確認したいとき。
+- pytest の共通設定やファイル命名規則だけを確認したいとき。
 
 ## hash
 
-- a06b5aef920742eb5287fe0019ee77b8b826f00589b1e053d7e1eaafd5afed4f
+- 64bab4163d3ab0ec43937e75322abfe83b4b28fc28ef37214fa8c89b6fa51f6c
 
 # `test_timestamps.py`
 

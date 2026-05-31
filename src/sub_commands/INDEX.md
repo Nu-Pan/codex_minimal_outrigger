@@ -27,25 +27,26 @@
 
 - `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装をまとめるディレクトリです。
 - ここには `__init__.py` と、`apply` の主要な本体処理である `abandon.py`、`fork.py`、`join.py` が置かれています。
+- 個別実装に進む前に、`apply` 系の責務分担と入口構造を俯瞰するための目次です。
 
 ## Read this when
 
 - `src/sub_commands/apply` が `cmoc apply` 系サブコマンドの実装パッケージであることを確認したいとき。
+- `__init__.py` がパッケージ宣言だけを担うことを把握したいとき。
 - `fork.py` の不整合調査、apply branch / worktree 作成、state 更新、report 生成の流れを追いたいとき。
-- `join.py` の merge、想定外差分の解消、INDEX.md conflict の扱い、cleanup の流れを確認したいとき。
-- `abandon.py` の running apply 停止、apply branch / worktree の破棄、state を ready に戻す流れを確認したいとき。
-- `__init__.py` がこのパッケージの宣言だけを担うことを確認したいとき。
+- `join.py` の merge、想定外差分の解消、`INDEX.md` conflict の扱い、cleanup の流れを確認したいとき。
+- `abandon.py` の running apply 停止、apply branch / worktree の破棄、`apply.state` を `ready` に戻す流れを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` ではなく、`session` 側の fork/join/abandon を調べたいとき。
+- `cmoc session` や `cmoc review` など、`apply` 以外のサブコマンドの入口だけを確認したいとき。
+- 個別の `fork` / `join` / `abandon` の詳細仕様を追いたいときは、このディレクトリではなく各モジュールの目次を直接読むべきとき。
 - `cmoc apply` の利用手順や仕様断片だけを確認したいときは、`oracles` 側の該当文書を読むべきとき。
-- `cmoc apply` の共通起動処理や CLI 全体の入口だけを確認したいとき。
-- `cmoc apply` 以外のサブコマンド実装や、`src` 配下の別領域を確認したいとき。
+- この配下ではなく、`src/sub_commands` 全体の構成や CLI の他領域を確認したいとき。
 
 ## hash
 
-- fa1306346d4984653088a5de4a11cc0b6321c6fe50b67be1b98bc14b86573a24
+- 220c705c4a5324b2c538e7bfda18313b5eef01fcfe7a88a5a2ef38fd0d15c68a
 
 # `init.py`
 

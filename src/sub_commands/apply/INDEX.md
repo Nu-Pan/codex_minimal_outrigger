@@ -87,11 +87,11 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや、要修正点リストの生成仕様だけを確認したいとき。
+- `cmoc apply fork` の不整合調査や要修正点の整理だけを確認したいとき。
 - `cmoc apply abandon` の破棄手順や、実行中プロセスの停止処理だけを確認したいとき。
 - `cmoc session join` や `cmoc session abandon` など、session 側の終了・統合・破棄だけを確認したいとき。
 - `cmoc apply join` の利用手順ではなく、仕様断片だけを読みたいときは正本仕様を直接参照したいとき。
 
 ## hash
 
-- d165b399c718de13cda6d0ca8c1f844d3691b876734153ee3258eecf4ce649ec
+- 19a1d2634c780c3ec2ad3bd0eea358cb2617db8f5c6c1bf7ab507316933ee65a
