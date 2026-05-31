@@ -522,13 +522,11 @@ def test_filter_apply_implementation_file_paths_matches_implementation_files(
     ]
 
     assert filter_apply_implementation_file_paths(repo, relative_paths) == [
-        "AGENTS.md",
-        "README.md",
         "app.py",
         "docs/memo/note.md",
     ]
-    assert is_apply_implementation_path(repo, "README.md")
-    assert is_apply_implementation_path(repo, "AGENTS.md")
+    assert not is_apply_implementation_path(repo, "README.md")
+    assert not is_apply_implementation_path(repo, "AGENTS.md")
     assert not is_apply_implementation_path(repo, ".agents")
     assert not is_apply_implementation_path(repo, ".agents/skill.md")
     assert not is_apply_implementation_path(repo, ".cmoc/state.json")

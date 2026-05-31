@@ -1783,9 +1783,11 @@ def _is_excluded_implementation_path(relative_path: str) -> bool:
 
 def _is_forbidden_apply_implementation_path(relative_path: str) -> bool:
     """apply の Codex 調査起点にしてはいけない path か判定する。"""
-    # root 直下 memo と .agents は Codex が編集できないため調査対象からも外す。
+    # workspace-write で編集できない root 管理文書と禁止領域は調査対象からも外す。
     return (
-        relative_path == "memo"
+        relative_path == "README.md"
+        or relative_path == "AGENTS.md"
+        or relative_path == "memo"
         or relative_path.startswith("memo/")
         or relative_path == ".agents"
         or relative_path.startswith(".agents/")

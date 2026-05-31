@@ -3896,7 +3896,9 @@ def test_apply_join_stops_on_apply_branch_forbidden_diff(
     )
     repo_target = repo / relative_path
     before_exists = repo_target.exists()
-    before_content = repo_target.read_text(encoding="utf-8") if before_exists else None
+    before_content = (
+        repo_target.read_text(encoding="utf-8") if before_exists else None
+    )
     target = apply_worktree / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
@@ -3925,27 +3927,40 @@ def test_apply_join_stops_on_apply_branch_forbidden_diff(
         ("AGENTS.md", "joined agents\n"),
     ],
 )
-def test_apply_join_allows_root_doc_implementation_diff(
+def test_apply_join_rejects_root_doc_implementation_diff(
     tmp_path: Path,
     relative_path: str,
     content: str,
 ) -> None:
-    """root の README/AGENTS は実装ファイルとして apply join できる。"""
+    """root の README/AGENTS は apply join の実装差分として取り込まない。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     oracle_snapshot = _add_oracle_snapshot(repo)
-    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
         repo,
         oracle_snapshot,
+    )
+    repo_target = repo / relative_path
+    before_exists = repo_target.exists()
+    before_content = (
+        repo_target.read_text(encoding="utf-8") if before_exists else None
     )
     target = apply_worktree / relative_path
     target.write_text(content, encoding="utf-8")
     _git(apply_worktree, "add", relative_path)
     _git(apply_worktree, "commit", "-m", "edit root doc implementation file")
 
-    cmoc_apply_join_impl(repo)
+    with pytest.raises(CmocError) as error_info:
+        cmoc_apply_join_impl(repo)
 
-    assert (repo / relative_path).read_text(encoding="utf-8") == content
+    assert "想定外の差分" in error_info.value.message
+    assert (
+        f"{apply_branch}: {json.dumps((repo / relative_path).resolve().as_posix())}"
+        in error_info.value.detail
+    )
+    assert repo_target.exists() is before_exists
+    if before_content is not None:
+        assert repo_target.read_text(encoding="utf-8") == before_content
 
 
 def test_apply_join_reports_unexpected_diff_with_control_chars(
@@ -5839,8 +5854,8 @@ def test_apply_prompt_treats_discrepancy_as_optional_hint(
     assert "目的を達成した保証は不要" in prompt
     assert f"`{tmp_path / 'oracles'}` は編集禁止です。" in prompt
     assert "配下の `INDEX.md` 以外は編集禁止" not in prompt
-    assert f"`{tmp_path / 'README.md'}` は編集禁止です。" not in prompt
-    assert f"`{tmp_path / 'AGENTS.md'}` は編集禁止です。" not in prompt
+    assert f"`{tmp_path / 'README.md'}` は編集禁止です。" in prompt
+    assert f"`{tmp_path / 'AGENTS.md'}` は編集禁止です。" in prompt
     assert f"`{tmp_path / '.cmoc'}` は編集禁止です。" in prompt
 
 
@@ -7157,8 +7172,6 @@ def test_apply_implementation_files_at_commit_matches_implementation_files(
 
     assert relative_paths == [
         ".gitignore",
-        "AGENTS.md",
-        "README.md",
         "app.py",
         "docs/memo/note.md",
     ]
@@ -7197,7 +7210,7 @@ def test_apply_files_at_commit_exclude_tracked_root_gitignored_files(
     ]
 
     assert oracle_paths == ["oracles/kept.md"]
-    assert implementation_paths == [".gitignore", "README.md", "kept.py"]
+    assert implementation_paths == [".gitignore", "kept.py"]
 
 
 def test_apply_files_at_commit_use_snapshot_root_gitignore(
@@ -7290,7 +7303,6 @@ def test_apply_files_at_commit_use_snapshot_root_gitignore(
     ]
     assert implementation_paths == [
         ".gitignore",
-        "README.md",
         "kept.py",
         "worktree_ignored.py",
     ]
@@ -7729,7 +7741,7 @@ def test_commit_all_changes_rejects_memo_changes(
 
 @pytest.mark.parametrize(
     "forbidden_file",
-    [".cmoc/state.json"],
+    [".cmoc/state.json", "README.md", "AGENTS.md"],
 )
 def test_commit_all_changes_rejects_root_forbidden_changes(
     tmp_path: Path,
@@ -7765,13 +7777,13 @@ def test_commit_all_changes_rejects_root_forbidden_changes(
         ("AGENTS.md", "changed agents\n"),
     ],
 )
-def test_commit_all_changes_allows_root_doc_implementation_changes(
+def test_commit_all_changes_rejects_root_doc_implementation_changes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     relative_path: str,
     content: str,
 ) -> None:
-    """root の README/AGENTS 変更は apply 実装差分として commit できる。"""
+    """root の README/AGENTS 変更は apply 実装差分として commit しない。"""
     repo = _init_repo(tmp_path)
     target = repo / relative_path
     target.write_text(content, encoding="utf-8")
@@ -7784,12 +7796,12 @@ def test_commit_all_changes_allows_root_doc_implementation_changes(
         lambda *args, **kwargs: "Apply root doc implementation change",
     )
 
-    _commit_all_changes(repo)
+    with pytest.raises(CmocError) as error:
+        _commit_all_changes(repo)
 
-    assert _git(repo, "status", "--porcelain").stdout == ""
-    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
-        "Apply root doc implementation change"
-    )
+    assert "編集禁止パス" in error.value.message
+    assert relative_path in error.value.detail
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
     assert target.read_text(encoding="utf-8") == content
 
 
@@ -8618,48 +8630,35 @@ def test_session_join_allows_clean_auto_merged_root_forbidden_file(
 
 
 @pytest.mark.parametrize("root_doc_path", ["README.md", "AGENTS.md"])
-def test_session_join_resolves_root_doc_file_conflict_with_codex(
+def test_session_join_rejects_root_doc_file_conflict_without_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     root_doc_path: str,
 ) -> None:
-    """README/AGENTS の conflict も marker 解消対象として Codex CLI に渡す。"""
+    """README/AGENTS の conflict は Codex CLI に渡さず手動解決にする。"""
     repo = _repo_with_session_join_root_doc_conflict(tmp_path, root_doc_path)
-    captured_prompt = ""
+    codex_calls: list[str] = []
 
-    def fake_codex(
-        repo_root: Path,
-        prompt: str,
-        **kwargs: object,
-    ) -> None:
-        """本物の Codex CLI なしで root doc conflict を解消する。"""
-        nonlocal captured_prompt
-        del kwargs
-        captured_prompt = prompt
-        (repo_root / root_doc_path).write_text(
-            "resolved root doc\n",
-            encoding="utf-8",
-        )
+    def fake_codex(*args: object, **kwargs: object) -> None:
+        """Codex 呼び出しが誤って発生したことを記録する。"""
+        del args, kwargs
+        codex_calls.append("called")
 
     monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
 
-    cmoc_session_join_impl(repo)
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
 
     state = json.loads(
         (
             repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
         ).read_text(encoding="utf-8")
     )
-    assert state["session"]["state"] == "joined"
-    assert (repo / root_doc_path).read_text(encoding="utf-8") == (
-        "resolved root doc\n"
-    )
-    assert root_doc_path in captured_prompt
-    assert (
-        "root document file は conflict marker 解消に限って編集できます"
-        in captured_prompt
-    )
-    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert "Codex CLI に依頼できない禁止領域" in error.value.message
+    assert root_doc_path in error.value.detail
+    assert codex_calls == []
+    assert state["session"]["state"] == "active"
+    assert (repo / ".git" / "MERGE_HEAD").exists()
 
 
 def test_session_join_ignores_markers_outside_conflict_paths(
@@ -10052,16 +10051,16 @@ def test_bin_cmoc_suppresses_missing_venv_report_for_completion_probe(
 def test_session_join_forbidden_conflict_paths_exclude_root_docs(
     relative_path: str,
 ) -> None:
-    """session join は実行環境上の禁止 path の conflict だけを Codex に渡さない。"""
+    """session join は編集禁止 path の conflict を Codex に渡さない。"""
     assert session_join_module._is_forbidden_conflict_path(relative_path)
 
 
 @pytest.mark.parametrize("relative_path", ["README.md", "AGENTS.md"])
-def test_session_join_root_docs_are_resolvable_conflict_paths(
+def test_session_join_root_docs_are_forbidden_conflict_paths(
     relative_path: str,
 ) -> None:
-    """README/AGENTS の conflict は marker 解消対象にできる。"""
-    assert not session_join_module._is_forbidden_conflict_path(relative_path)
+    """README/AGENTS の conflict は marker 解消対象にしない。"""
+    assert session_join_module._is_forbidden_conflict_path(relative_path)
 
 
 def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
@@ -10074,8 +10073,8 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     assert "cmoc session join" not in prompt
     assert "`/repo/oracles` は編集禁止です。" not in prompt
     assert "`/repo/.cmoc` は編集禁止です。" in prompt
-    assert "`/repo/README.md` は編集禁止です。" not in prompt
-    assert "`/repo/AGENTS.md` は編集禁止です。" not in prompt
+    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
     assert "['/repo/app.py', '/repo/oracles/spec.md']" in prompt
     assert "['app.py" not in prompt
     assert "conflict marker 解消に限って編集できます" in prompt
@@ -10084,17 +10083,17 @@ def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     assert "解決内容と未解決ファイルの有無を報告" in prompt
 
 
-def test_session_join_conflict_prompt_allows_marker_only_root_doc_fix() -> None:
-    """conflict 対象 README/AGENTS は marker 解消に限って編集できる。"""
+def test_session_join_conflict_prompt_keeps_root_docs_forbidden() -> None:
+    """README/AGENTS は conflict prompt でも編集禁止として指示する。"""
     repo = Path("/repo")
 
     prompt = _conflict_prompt(repo, ["README.md", "AGENTS.md"])
 
-    assert "`/repo/README.md` は編集禁止です。" not in prompt
-    assert "`/repo/AGENTS.md` は編集禁止です。" not in prompt
+    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
     assert "['/repo/README.md', '/repo/AGENTS.md']" in prompt
-    assert "root document file は conflict marker 解消に限って編集できます" in prompt
-    assert "conflict 対象外 root document file の編集は禁止" in prompt
+    assert "root document file は conflict marker 解消に限って編集できます" not in prompt
+    assert "conflict 対象外 root document file の編集は禁止" not in prompt
 
 
 def test_files_with_conflict_markers_checks_requested_paths_only(
