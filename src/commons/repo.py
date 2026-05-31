@@ -1121,13 +1121,13 @@ def assert_paths_clean(repo_root: Path, paths: list[str]) -> None:
 
 
 def gitignore_has_cmoc_rule(repo_root: Path) -> bool:
-    """作業ツリーの `.gitignore` が `.cmoc` ignore 保証を満たすか返す。"""
+    """作業ツリーの `.gitignore` が有効な `/.cmoc/` 専用行を持つか返す。"""
     # init 開始前から guarantee 済みの ignore ルールを、init 差分と区別する。
     gitignore = repo_root / ".gitignore"
     if not gitignore.exists():
         return False
     content = _read_gitignore_text(gitignore)
-    return _gitignore_content_ignores_cmoc_probe(content)
+    return _gitignore_content_has_effective_cmoc_rule(content)
 
 
 def staged_diff_from_head(repo_root: Path) -> str:
@@ -2021,7 +2021,7 @@ def _stage_gitignore_with_cmoc_rule_from_head(
     """HEAD の `.gitignore` に `/.cmoc/` だけを足した blob を stage する。"""
     # HEAD 側の内容を基準にすることで、作業ツリーの既存差分を commit から外す。
     head_text = _head_file_text(repo_root, ".gitignore") or ""
-    if _gitignore_content_ignores_cmoc_probe(head_text):
+    if _gitignore_content_has_effective_cmoc_rule(head_text):
         return
 
     # commit 対象にする `.gitignore` 内容を一時ファイル経由で git object 化する。
@@ -2091,10 +2091,10 @@ def _head_file_text(repo_root: Path, relative_path: str) -> str | None:
 
 def _ensure_cmoc_ignore_rule(repo_root: Path) -> bool:
     """`.gitignore` に oracle 指定の `/.cmoc/` 行を追加する。"""
-    # 既存 `.gitignore` を読み、probe が実際に ignore される場合だけ重複を避ける。
+    # broad rule ではなく、oracle 指定の専用行が有効な場合だけ重複を避ける。
     gitignore = repo_root / ".gitignore"
     existing = _read_gitignore_text(gitignore) if gitignore.exists() else ""
-    if _gitignore_content_ignores_cmoc_probe(existing):
+    if _gitignore_content_has_effective_cmoc_rule(existing):
         return False
 
     # 既存内容の末尾改行を整えてから ignore 行を追加する。
@@ -2138,7 +2138,7 @@ def _assert_cmoc_ignore_guarantee(
     """`.cmoc` 追跡対象外保証の完了条件を検証する。"""
     # tracked path と ignore probe の両方で保証状態を確認する。
     tracked = _tracked_cmoc_paths(repo_root, env=env)
-    ignored = _is_root_gitignored(repo_root, CMOC_IGNORE_PROBE_PATH)
+    ignored = _is_cmoc_ignore_probe_ignored(repo_root)
     if tracked or not ignored:
         raise CmocError(
             ".cmoc が git 追跡対象外として初期化されていません。",
@@ -2176,6 +2176,40 @@ def _gitignore_content_ignores_cmoc_probe(gitignore_content: str) -> bool:
             [CMOC_IGNORE_PROBE_PATH],
             gitignore_content,
         )
+    )
+
+
+def _gitignore_content_has_effective_cmoc_rule(gitignore_content: str) -> bool:
+    """root `.gitignore` 内容に有効な `/.cmoc/` 専用行があるか返す。"""
+    return (
+        _gitignore_content_has_cmoc_rule_line(gitignore_content)
+        and _gitignore_content_ignores_cmoc_probe(gitignore_content)
+    )
+
+
+def _gitignore_content_has_cmoc_rule_line(gitignore_content: str) -> bool:
+    """root `.gitignore` 内容に oracle 指定の `/.cmoc/` 行があるか返す。"""
+    return any(line.strip() == "/.cmoc/" for line in gitignore_content.splitlines())
+
+
+def _is_cmoc_ignore_probe_ignored(repo_root: Path) -> bool:
+    """実リポジトリで `.cmoc` probe が ignore 対象か判定する。"""
+    result = run_git(
+        repo_root,
+        ["check-ignore", "-q", "--", CMOC_IGNORE_PROBE_PATH],
+        check=False,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    raise CmocError(
+        ".cmoc ignore probe の評価に失敗しました。",
+        [
+            ".gitignore の構文を確認してからコマンドを再実行してください。",
+            "git check-ignore が実行できる状態にしてから再実行してください。",
+        ],
+        result.stderr.strip(),
     )
 
 

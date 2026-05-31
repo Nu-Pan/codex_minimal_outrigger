@@ -58,6 +58,31 @@ def test_ensure_cmoc_ignored_is_idempotent(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8").count(".cmoc") == 1
 
 
+def test_ensure_cmoc_ignored_adds_dedicated_rule_despite_broad_rule(
+    tmp_path: Path,
+) -> None:
+    """既存 broad rule で ignore 済みでも `/.cmoc/` 専用行を追加する。"""
+    repo = _init_repo(tmp_path)
+    gitignore = repo / ".gitignore"
+    gitignore.write_text("*\n", encoding="utf-8")
+
+    assert gitignore_has_cmoc_rule(repo) is False
+    assert ensure_cmoc_ignored(repo) is True
+
+    assert gitignore.read_text(encoding="utf-8") == "*\n/.cmoc/\n"
+    assert gitignore_has_cmoc_rule(repo) is True
+    assert (
+        _git(
+            repo,
+            "check-ignore",
+            "-q",
+            "--",
+            ".cmoc/.__cmoc_ignore_probe__",
+        ).returncode
+        == 0
+    )
+
+
 def test_ensure_cmoc_ignored_repairs_negated_cmoc_rule(
     tmp_path: Path,
 ) -> None:
@@ -168,11 +193,11 @@ def test_assert_cmoc_ignored_does_not_modify_repository(
     assert _git(repo, "status", "--porcelain").stdout == ""
 
 
-def test_assert_cmoc_ignored_rejects_global_exclude_only(
+def test_assert_cmoc_ignored_uses_real_repository_check_ignore(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """外部 exclude だけで `.cmoc` が ignore されても保証済みにしない。"""
+    """副作用なし検証は実リポジトリの `git check-ignore` 成功を使う。"""
     repo = _init_repo(tmp_path)
     global_ignore = tmp_path / "global-ignore"
     global_ignore.write_text(".cmoc/\n", encoding="utf-8")
@@ -193,10 +218,8 @@ def test_assert_cmoc_ignored_rejects_global_exclude_only(
         ).returncode
         == 0
     )
-    with pytest.raises(CmocError) as error:
-        assert_cmoc_ignored(repo)
 
-    assert "probe が ignore されませんでした" in error.value.detail
+    assert_cmoc_ignored(repo)
     assert not (repo / ".gitignore").exists()
     assert _git(repo, "status", "--porcelain").stdout == ""
 
