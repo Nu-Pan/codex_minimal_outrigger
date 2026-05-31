@@ -177,25 +177,25 @@
 
 ## Summary
 
-- cmoc の Python 実装本体をまとめた `src` ディレクトリです。
-- `main.py` に CLI エントリーポイントがあり、`commons` に共通処理、`sub_commands` に各サブコマンド実装が入っています。
-- このディレクトリは、CLI の起動経路と実装の入口を最初に辿るためのルートです。
+- cmoc の実装本体を置く `src` のルートです。CLI エントリーポイント、共通基盤、各サブコマンド実装への入口をまとめています。
+- 直下の主な要素は `main.py`、`commons/`、`sub_commands/` です。生成物の `__pycache__/` や `codex_minimal_outrigger_cli.egg-info/` は案内対象ではありません。
+- この目次は、どの実装へ進むかを素早く判断するための入口です。
 
 ## Read this when
 
-- cmoc の CLI 入口、共通基盤、サブコマンド実装の配置をざっと把握したいとき。
-- `main.py`、`commons`、`sub_commands` のどこを読めばよいかを切り分けたいとき。
-- `src` ディレクトリ全体の役割を確認してから、個別モジュールやテストに進みたいとき。
+- CLI の起動点やサブコマンド登録を確認したいとき。
+- 共通処理と個別サブコマンドのどちらへ進むべきかを切り分けたいとき。
+- `src` 配下に新しい実装ファイルを追加したときに、案内の基準を整理したいとき。
 
 ## Do not read this when
 
-- `src` 配下の個別モジュールの実装内容や、関数・クラスの詳細だけを確認したいとき。
-- `commons` や `sub_commands` の中身ではなく、各ファイルの具体的な処理を直接追いたいとき。
-- CLI の使い方や正本仕様だけを確認したいときは、`oracles` 側の該当文書を読むべきです。
+- 個別モジュールの実装詳細だけを追いたいときは、`main.py`、`commons/`、`sub_commands/` 配下を直接読むべきです。
+- `tests/` や `oracles/` の仕様を確認したいとき。
+- `__pycache__/` や `*.egg-info/` などの生成物を確認したいとき。
 
 ## hash
 
-- 929ee6f34cda8675fe4365a6ca790b64d5c2ed25e93f165247e84e5e0b47b26d
+- c8bb28c5e6d723b849e78bc93e2918708fa7273f8dffe1e487e91a8795264967
 
 # `test.sh`
 
@@ -224,22 +224,22 @@
 
 ## Summary
 
-- pytest による cmoc の回帰テスト群をまとめたディレクトリです。
-- `conftest.py` で `<cmoc-root>/src` を import path に追加し、テストから本体モジュールを直接参照できるようにします。
-- `test_codex.py`、`test_subcommands.py`、`test_indexing.py`、`test_repo.py`、`test_report_files.py`、`test_timestamps.py`、`test_file_naming.py` が、それぞれ CLI、INDEX 保守、repo 共通処理、保存処理、時間表現、命名規則の回帰を担います。
+- pytest ベースの回帰テスト群をまとめたディレクトリです。
+- `conftest.py` でテスト共通設定を持ち、`test_*.py` で repo / subcommand / indexing / report / timestamp / naming の各観点を検証します。
+- `tests/INDEX.md` はこの配下のテスト入口をたどるためのルーティング文書です。
 
 ## Read this when
 
-- `src/commons` や `src/sub_commands` の変更に対して、どの回帰テストを確認すべきか把握したいとき。
-- pytest 共通設定と、各テストファイルの責務分担を整理したいとき。
-- INDEX 保守、repo 共通処理、Codex 呼び出し、サブコマンド制御、タイムスタンプやレポート保存の観点を横断して確認したいとき。
+- pytest の共通設定や `src` の import path 追加方法を確認したいとき。
+- git リポジトリ共通処理、INDEX 保守、レポート保存、タイムスタンプ、命名規則の回帰テストを確認したいとき。
+- `cmoc` のサブコマンド横断の制御フローやエラーレポートの期待挙動を把握したいとき。
 
 ## Do not read this when
 
-- 個別の `src` 実装や `oracles` の正本仕様だけを確認したいとき。
-- `tests` 配下の特定ファイルだけを直接読めば足りるとき。
-- `INDEX.md` の生成ルールそのものや、他ディレクトリのルーティングだけを確認したいとき。
+- `src` 側の実装ロジックだけを追いたいとき。
+- `oracles` 側の正本仕様断片だけを確認したいとき。
+- 実行時の CLI 仕様やユーザー向け使い方だけを調べたいとき。
 
 ## hash
 
-- 4cfed6e9f925c0f9736e5b028152ae7b30694a38b2922c88f047ef26610d8806
+- 0c8531f7ed58f3bdf4fdc865d8a0ec7fbdf312c3e63fc8a3bb84986797d6f973

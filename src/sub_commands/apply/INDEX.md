@@ -49,28 +49,27 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session branch 上に専用の apply branch と worktree を作成し、要修正点の調査・適用・レポート生成までをまとめて担当するモジュールです。
-- 起動前の state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の遷移、排他ロックと worktree 作成リトライを扱います。
-- Structured Output による不整合調査、修正反映、commit、編集禁止領域の検査、YAML Front Matter 付き report 出力と変更要約生成までを含みます。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session branch 上で専用 apply branch と worktree を作成し、要修正点の調査・適用・レポート生成までを一括で担当するモジュールです。
+- 起動時の session/apply state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の `running` / `completed` / `error` 遷移を扱います。
+- Structured Output による不整合調査、修正適用、commit、編集禁止領域の検査、`INDEX.md` 保守、YAML Front Matter 付き report 出力と変更要約生成まで含みます。
 
 ## Read this when
 
-- `cmoc apply fork` の処理順、状態検証、worktree 作成、調査・修正ループ、report 出力を確認したいとき。
-- `session.state` / `apply.state` の前提条件、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証条件を確認したいとき。
-- apply branch と apply worktree の生成・リトライ・cleanup、`apply.state` の `running` / `completed` / `error` 遷移を確認したいとき。
-- 編集禁止領域の検査、`INDEX.md` の保守、Structured Output を使う不整合調査の仕様を確認したいとき。
-- `src/sub_commands/apply/fork.py` に対応するテスト観点や回帰観点を探したいとき。
+- `cmoc apply fork` の処理順と責務の境界を確認したいとき。
+- session/apply state、scope、反復回数、worktree 作成リトライの挙動を確認したいとき。
+- 要修正点の Structured Output、修正適用、commit、report 生成、禁止領域チェックの実装・修正・レビュー・テストをしたいとき。
+- `apply.state` の `running` / `completed` / `error` 遷移や、`oracles` を除外した `INDEX.md` 保守の方針を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon` の実装・終了処理だけを確認したいとき。
-- `cmoc apply fork` の利用手順や正本仕様だけを確認したいとき。
-- `src/sub_commands/apply` パッケージ全体の入口や、`__init__.py`・`abandon.py`・`join.py` の役割だけを確認したいとき。
-- `INDEX.md` の生成ルールだけを確認したいとき。
+- `cmoc apply join` や `cmoc apply abandon` の終了・破棄手順だけを確認したいとき。
+- `cmoc apply fork` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
+- `src/sub_commands/apply` パッケージの入口だけを確認したいときや、`INDEX.md` の生成ルール全体を調べたいときには向きません。
+- 個別の helper 関数だけを追いたいときは、このファイルよりも該当する小さい単位のコードを読むほうが適しています。
 
 ## hash
 
-- 4edc7e404bbfb0ef61db6618fdbf176e811e9c44e7d64b69664ef93cf531ac17
+- 43b7b616b2eb2bae15b46714882e894ea892a8d58e309bd3feaa295cb304f491
 
 # `join.py`
 
