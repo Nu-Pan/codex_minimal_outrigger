@@ -166,13 +166,13 @@
 
 ## Do not read this when
 
-- 個別の `cmoc apply` / `cmoc session` / `cmoc review oracles` の実装ロジックだけを追いたいとき。
+- 個別の `cmoc init`、`cmoc session`、`cmoc apply`、`cmoc review oracles` の実装ロジックだけを追いたいとき。
 - `src/sub_commands/` 配下の本体実装や共通ユーティリティだけを確認したいとき。
 - pytest の一般的な使い方や、`INDEX.md` 生成ルールそのものだけを確認したいとき。
 
 ## hash
 
-- e0a6937e2e247c7dda3b40f530a142f0c7ac97d4dca099f82499f370dd0b2fcb
+- 6ae8c8a3cf89b5f862b8e0c75947e7a334c5c06b568a0c24329f546578eb424d
 
 # `test_timestamps.py`
 

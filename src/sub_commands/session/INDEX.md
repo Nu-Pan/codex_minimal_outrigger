@@ -31,7 +31,7 @@
 
 - `cmoc session abandon` の実装・修正・レビュー・テストを行うとき。
 - session branch を merge せずに破棄する前提条件や、`session.state` / `apply.state` の検証条件を確認したいとき。
-- .cmoc の ignore 保証、home branch への switch、`session.state=abandoned` の更新、session branch の強制削除の順序を追いたいとき。
+- `.cmoc` の ignore 保証、home branch への switch、`session.state=abandoned` の更新、session branch の強制削除の順序を追いたいとき。
 - cleanup 失敗時の rollback や、再実行前に手動で整合を取るべき箇所を確認したいとき。
 
 ## Do not read this when
@@ -43,7 +43,7 @@
 
 ## hash
 
-- c7c43e136ef9dba82d64c4ebf89d1d4af3b24f40d8de1a6cdd99ffe4843515c4
+- dcae910177c2d8d2812c381aca2c491babf4ef5b50ac7096811835e51c04c5e8
 
 # `fork.py`
 
