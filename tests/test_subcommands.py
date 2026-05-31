@@ -8293,11 +8293,11 @@ def test_session_abandon_reports_rollback_switch_failure(
     assert session_branch in branches
 
 
-def test_session_abandon_restores_branch_when_state_restore_fails(
+def test_session_abandon_reports_state_restore_failure_after_branch_delete_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """state 書き戻し失敗時も既存 state が retryable なら復旧成功と扱う。"""
+    """branch 削除失敗後の active rollback 保存失敗を detail に含める。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     _git(repo, "add", ".gitignore")
@@ -8366,19 +8366,20 @@ def test_session_abandon_restores_branch_when_state_restore_fails(
     assert error.value.message == "session abandon のクリーンアップに失敗しました。"
     assert "cleanup failure" in error.value.detail
     assert "fake branch delete failure" in error.value.detail
-    assert "rollback failure" not in error.value.detail
+    assert "rollback failure" in error.value.detail
+    assert "fake state restore failure" in error.value.detail
     assert "`cmoc session abandon` を再実行" in error.value.actions[0]
     assert restore_switches == [["switch", session_branch]]
     assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
-    assert state["session"]["state"] == "active"
+    assert state["session"]["state"] == "abandoned"
     assert session_branch in branches
 
 
-def test_session_abandon_restores_deleted_branch_when_abandoned_save_fails(
+def test_session_abandon_does_not_delete_branch_when_abandoned_save_fails(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """branch 削除後の state 保存失敗では session branch を再作成する。"""
+    """abandoned 保存失敗時は branch 削除前に停止し、再実行可能に戻す。"""
     repo = _init_repo(tmp_path)
     (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
     _git(repo, "add", ".gitignore")
@@ -8386,7 +8387,30 @@ def test_session_abandon_restores_deleted_branch_when_abandoned_save_fails(
     session_branch = "cmoc/session/2026-05-10_22-21_10_000000123"
     _checkout_session_branch(repo)
     original_session_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    delete_calls: list[list[str]] = []
+    original_run_git = session_abandon_module.run_git
     original_write_session_state = session_abandon_module.write_session_state
+
+    def observe_branch_delete(
+        repo_root: Path,
+        args: list[str],
+        *,
+        check: bool = True,
+        text: bool = True,
+        input_text: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        """state 保存失敗時に branch 削除へ進まないことを観測する。"""
+        if args == ["branch", "-D", session_branch]:
+            delete_calls.append(args)
+        return original_run_git(
+            repo_root,
+            args,
+            check=check,
+            text=text,
+            input_text=input_text,
+            env=env,
+        )
 
     def fail_abandoned_state_save(
         repo_root: Path,
@@ -8399,6 +8423,7 @@ def test_session_abandon_restores_deleted_branch_when_abandoned_save_fails(
             raise OSError("fake abandoned save failure")
         return original_write_session_state(repo_root, session_id, state)
 
+    monkeypatch.setattr(session_abandon_module, "run_git", observe_branch_delete)
     monkeypatch.setattr(
         session_abandon_module,
         "write_session_state",
@@ -8418,6 +8443,7 @@ def test_session_abandon_restores_deleted_branch_when_abandoned_save_fails(
     assert "fake abandoned save failure" in error.value.detail
     assert "rollback failure" not in error.value.detail
     assert "`cmoc session abandon` を再実行" in error.value.actions[0]
+    assert delete_calls == []
     assert _git(repo, "branch", "--show-current").stdout.strip() == session_branch
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == original_session_head
     assert state["session"]["state"] == "active"

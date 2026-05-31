@@ -71,9 +71,9 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
         run_git(repo_root, ["switch", home_branch])
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
-        start_step(timer, 4, 4, "delete session branch and record abandoned session")
-        run_git(repo_root, ["branch", "-D", session_branch])
+        start_step(timer, 4, 4, "record abandoned session and delete session branch")
         _mark_session_abandoned(state_root, session_id, state)
+        run_git(repo_root, ["branch", "-D", session_branch])
     except Exception as error:
         restore_errors = _restore_abandon_state(
             repo_root,
