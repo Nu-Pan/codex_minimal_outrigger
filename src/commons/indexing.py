@@ -94,6 +94,40 @@ def is_maintained_index_path(
     return directory not in gitignored_paths
 
 
+def is_maintained_index_path_at_commit(
+    repo_root: Path,
+    commit_hash: str,
+    relative_path: str,
+    *,
+    excluded_index_roots: Iterable[Path | str] | None = None,
+) -> bool:
+    """指定 commit 時点で `maintain_indexes` が配置し得る `INDEX.md` path か判定する。"""
+    path = Path(relative_path)
+    if path.is_absolute() or path.name != "INDEX.md":
+        return False
+    if any(part in {"", ".", ".."} for part in path.parts):
+        return False
+
+    directory = path.parent
+    excluded_roots = _normalize_excluded_index_roots(
+        repo_root,
+        excluded_index_roots,
+    )
+    if _is_under_any_path(repo_root / directory, excluded_roots):
+        return False
+    if _has_pruned_index_directory_ancestor(repo_root, repo_root / directory):
+        return False
+
+    candidates = [relative_path]
+    if directory.as_posix() != ".":
+        candidates.append(directory.as_posix())
+
+    from .repo import root_gitignored_paths_at_commit
+
+    ignored = root_gitignored_paths_at_commit(repo_root, commit_hash, candidates)
+    return relative_path not in ignored and directory.as_posix() not in ignored
+
+
 def _maintain_indexes_unlocked(
     repo_root: Path,
     *,

@@ -4623,6 +4623,57 @@ def test_apply_join_force_resolve_uses_snapshot_gitignore_for_apply_paths(
     )
 
 
+def test_apply_join_force_resolve_uses_snapshot_gitignore_for_apply_indexes(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """session 側の後続 .gitignore 変更で apply 側 INDEX.md を誤って戻さない。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    _add_oracle_snapshot(repo)
+    docs = repo / "docs"
+    docs.mkdir()
+    (docs / "source.txt").write_text("source\n", encoding="utf-8")
+    _git(repo, "add", "docs/source.txt")
+    _git(repo, "commit", "-m", "add indexed directory")
+    oracle_snapshot = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    apply_docs = apply_worktree / "docs"
+    (apply_docs / "INDEX.md").write_text("apply index\n", encoding="utf-8")
+    _git(apply_worktree, "add", "docs/INDEX.md")
+    _git(apply_worktree, "commit", "-m", "maintain docs index")
+    (repo / ".gitignore").write_text("/docs/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore docs on session")
+
+    cmoc_apply_join_impl(repo, force_resolve=True)
+
+    output = capsys.readouterr().out
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert (repo / "docs" / "INDEX.md").read_text(encoding="utf-8") == (
+        "apply index\n"
+    )
+    assert not (repo / ".gitignore").exists()
+    assert state["apply"]["state"] == "ready"
+    assert (
+        f"- {apply_branch}: "
+        f"{json.dumps((repo / 'docs' / 'INDEX.md').resolve().as_posix())}"
+        not in output
+    )
+    assert (
+        "- cmoc/session/2026-05-10_22-21_10_000000123: "
+        f"{json.dumps((repo / '.gitignore').resolve().as_posix())}"
+        in output
+    )
+
+
 def test_apply_join_force_resolves_apply_branch_rename_from_oracle(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

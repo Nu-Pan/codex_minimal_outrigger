@@ -10,7 +10,7 @@ from typing import Iterator
 
 from commons.command_runner import run_command
 from commons.errors import CmocError
-from commons.indexing import is_maintained_index_path
+from commons.indexing import is_maintained_index_path_at_commit
 from commons.repo import (
     apply_worktree_path_from_branch,
     assert_no_uncommitted_changes,
@@ -492,19 +492,11 @@ def _is_snapshot_index_path(
     path: str,
 ) -> bool:
     """snapshot 時点でも INDEX 配置対象だった path か判定する。"""
-    index_path = Path(path)
-    if not is_maintained_index_path(repo_root, path):
-        return False
-    directory = index_path.parent.as_posix()
-    candidates = [path]
-    if directory != ".":
-        candidates.append(directory)
-    ignored = root_gitignored_paths_at_commit(
+    return is_maintained_index_path_at_commit(
         repo_root,
         oracle_snapshot_commit,
-        candidates,
+        path,
     )
-    return path not in ignored and directory not in ignored
 
 
 def _force_resolve_unexpected_diffs(
