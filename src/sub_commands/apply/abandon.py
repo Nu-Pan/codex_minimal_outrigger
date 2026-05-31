@@ -35,7 +35,7 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("apply abandon")
-    start_step(timer, 1, 4, "validate apply state")
+    start_step(timer, 1, 4, "apply 状態検証")
     branch_name = current_branch(repo_root)
     session_id = session_id_from_branch(branch_name)
     cmoc_root = session_state_repo_root(repo_root, session_id)
@@ -54,10 +54,10 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     if session_worktree is not None:
         assert_no_uncommitted_changes(session_worktree)
 
-    start_step(timer, 2, 4, "stop running apply")
+    start_step(timer, 2, 4, "実行中 apply 停止")
     warnings = _stop_running_apply(abandon_state)
 
-    start_step(timer, 3, 4, "cleanup apply artifacts")
+    start_step(timer, 3, 4, "apply 成果物 cleanup")
     _relocate_from_apply_branch(
         cmoc_root,
         branch_name,
@@ -66,7 +66,7 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     )
     warnings.extend(_cleanup_apply_artifacts(cmoc_root, abandon_state))
 
-    start_step(timer, 4, 4, "record ready apply state")
+    start_step(timer, 4, 4, "apply ready 状態記録")
     _mark_apply_ready(cmoc_root, session_id, state)
 
     print(f"abandoned apply branch: {abandon_state.apply_branch}")

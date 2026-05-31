@@ -189,16 +189,16 @@ def cmoc_review_oracles_impl(
     all_oracle_files_known = False
     oracle_files: list[Path] = []
     evaluations = []
-    failed_stage = "initialize review oracles"
+    failed_stage = "review oracles 初期化"
     try:
         # 評価前に `.cmoc` の ignore 保証を済ませる。
-        failed_stage = "ensure .cmoc is ignored"
-        start_step(timer, 1, 6, "ensure .cmoc is ignored")
+        failed_stage = ".cmoc ignore 確認"
+        start_step(timer, 1, 6, ".cmoc ignore 確認")
         ensure_cmoc_ignored(repo_root)
 
         # branch 状態と `--full` だけから、部分評価か全体評価かを決める。
-        failed_stage = "select oracle files"
-        start_step(timer, 2, 6, "select oracle files")
+        failed_stage = "oracle ファイル選定"
+        start_step(timer, 2, 6, "oracle ファイル選定")
         branch_name = current_branch(repo_root)
         cmoc_branch = is_cmoc_branch(branch_name)
         session_branch = is_session_branch(branch_name)
@@ -223,7 +223,7 @@ def cmoc_review_oracles_impl(
             oracle_files = all_oracle_files
         commit_hash = head_commit(repo_root)
 
-        failed_stage = "create oracle snapshot"
+        failed_stage = "oracle snapshot 作成"
         with tempfile.TemporaryDirectory(
             prefix="cmoc-review-oracles-"
         ) as snapshot_dir:
@@ -235,16 +235,16 @@ def cmoc_review_oracles_impl(
                 Path(snapshot_dir),
             )
 
-            failed_stage = "maintain INDEX.md files"
-            start_step(timer, 3, 6, "maintain INDEX.md files")
+            failed_stage = "INDEX.md メンテナンス"
+            start_step(timer, 3, 6, "INDEX.md メンテナンス")
             _maintain_indexes_after_oracle_snapshot(repo_root)
 
             # oracle ファイルごとに Codex CLI 評価を実行する。
-            failed_stage = "evaluate oracle files"
-            start_step(timer, 4, 6, "evaluate oracle files")
+            failed_stage = "oracle ファイル評価"
+            start_step(timer, 4, 6, "oracle ファイル評価")
             for index, oracle_file in enumerate(oracle_files, start=1):
                 print(
-                    f"evaluate oracle ({index}/{len(oracle_files)}) "
+                    f"oracle 評価 ({index}/{len(oracle_files)}) "
                     f"{oracle_file}"
                 )
             if oracle_files:
@@ -262,8 +262,8 @@ def cmoc_review_oracles_impl(
                     ]
                     _append_evaluation_records_in_order(futures, evaluations)
 
-            failed_stage = "improve issues list"
-            start_step(timer, 5, 6, "improve issues list")
+            failed_stage = "問題点リスト改善"
+            start_step(timer, 5, 6, "問題点リスト改善")
             evaluations = _improve_evaluations(
                 repo_root,
                 evaluations,
@@ -272,8 +272,8 @@ def cmoc_review_oracles_impl(
             )
 
             # 評価結果を 1 つの Markdown レポートとして保存する。
-            failed_stage = "write report"
-            start_step(timer, 6, 6, "write report")
+            failed_stage = "report 書き込み"
+            start_step(timer, 6, 6, "report 書き込み")
             report_path = _write_report(
                 repo_root,
                 mode,
@@ -428,7 +428,7 @@ def _evaluate_oracle_file(
         run_codex_exec(
             repo_root,
             _evaluation_prompt(repo_root, oracle_file, oracle_snapshot),
-            purpose=f"evaluate oracle {oracle_file.relative_to(repo_root)}",
+            purpose=f"oracle 評価 {oracle_file.relative_to(repo_root)}",
             read_only=True,
             expect_json=True,
             output_schema=_EVALUATION_OUTPUT_SCHEMA,
@@ -545,7 +545,7 @@ def _improve_evaluations(
             run_codex_exec(
                 repo_root,
                 _improvement_prompt(repo_root, current_payload, oracle_snapshot),
-                purpose=f"improve oracle issues list {index + 1}",
+                purpose=f"oracle 問題点リスト改善 {index + 1}",
                 read_only=True,
                 expect_json=True,
                 output_schema=_EVALUATION_OUTPUT_SCHEMA,

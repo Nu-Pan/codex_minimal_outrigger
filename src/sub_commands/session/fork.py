@@ -33,7 +33,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("session fork")
-    start_step(timer, 1, 4, "validate repository state")
+    start_step(timer, 1, 4, "repository 状態検証")
     home_branch = _current_local_branch(repo_root)
     if is_cmoc_reserved_branch(home_branch):
         raise CmocError(
@@ -46,7 +46,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
         )
     assert_no_uncommitted_changes(repo_root)
 
-    start_step(timer, 2, 4, "ensure .cmoc is ignored")
+    start_step(timer, 2, 4, ".cmoc ignore 確認")
     ensure_cmoc_ignored_and_committed(repo_root)
     assert_no_uncommitted_changes(repo_root)
 
@@ -57,7 +57,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
     _assert_no_active_session(active_session_ids)
     start_commit = head_commit(repo_root)
 
-    start_step(timer, 3, 4, "create session branch")
+    start_step(timer, 3, 4, "session branch 作成")
     state_root = session_state_root(repo_root)
     with _locked_session_creation(state_root):
         active_session_ids = active_session_ids_for_home_branch(
@@ -67,7 +67,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
         _assert_no_active_session(active_session_ids)
         session_id, branch_name = _create_unique_session_branch(repo_root)
 
-        start_step(timer, 4, 4, "record session state")
+        start_step(timer, 4, 4, "session 状態記録")
         session_state = initial_session_state(home_branch, start_commit)
         try:
             write_session_state(
@@ -157,7 +157,7 @@ def _create_unique_session_branch(repo_root: Path) -> tuple[str, str]:
     for attempt in range(1, 11):
         session_id = make_timestamp()
         branch_name = f"{SESSION_BRANCH_PREFIX}{session_id}"
-        print(f"create session branch attempt ({attempt}/10) {branch_name}")
+        print(f"session branch 作成試行 ({attempt}/10) {branch_name}")
         result = run_git(
             repo_root,
             ["checkout", "-b", branch_name],

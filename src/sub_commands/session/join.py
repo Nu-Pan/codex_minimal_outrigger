@@ -39,7 +39,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
     timer = StepTimer("session join")
     manual_resolution_required = False
     try:
-        start_step(timer, 1, 5, "validate session state")
+        start_step(timer, 1, 5, "session 状態検証")
         session_branch = _current_session_branch(repo_root)
         session_id = session_id_from_branch(session_branch)
         state_root = session_state_root(repo_root)
@@ -53,16 +53,16 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         _assert_local_branch_exists(repo_root, home_branch)
         assert_no_uncommitted_changes_outside_cmoc(repo_root)
 
-        start_step(timer, 2, 5, "ensure .cmoc is ignored")
+        start_step(timer, 2, 5, ".cmoc ignore 確認")
         manual_resolution_required = True
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
         _record_session_home_branch(state_root, session_id, state, home_branch)
 
-        start_step(timer, 3, 5, "switch to session home branch")
+        start_step(timer, 3, 5, "session home branch 切替")
         run_git(repo_root, ["switch", home_branch])
 
-        start_step(timer, 4, 5, "merge session branch")
+        start_step(timer, 4, 5, "session branch merge")
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
         result = run_git(
@@ -76,7 +76,7 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
             else:
                 _raise_unexpected_merge_failure(result)
 
-        start_step(timer, 5, 5, "record joined session")
+        start_step(timer, 5, 5, "session join 記録")
         _mark_session_joined(state_root, session_id, state)
         _delete_branch_if_safe(repo_root, session_branch)
         print(f"joined session branch: {session_branch}")
@@ -219,7 +219,7 @@ def _resolve_conflicts(repo_root: Path) -> None:
     run_codex_exec(
         repo_root,
         _conflict_prompt(repo_root, unmerged),
-        purpose="resolve session join conflict",
+        purpose="session join conflict 解消",
         read_only=False,
         expect_json=False,
         skip_index_maintenance=True,

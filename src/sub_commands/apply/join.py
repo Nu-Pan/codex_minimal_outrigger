@@ -49,7 +49,7 @@ def cmoc_apply_join_impl(
         return
 
     timer = StepTimer("apply join")
-    start_step(timer, 1, 5, "validate apply state")
+    start_step(timer, 1, 5, "apply 状態検証")
     branch_name = current_branch(repo_root)
     session_id = session_id_from_branch(branch_name)
     cmoc_root = session_state_repo_root(repo_root, session_id)
@@ -69,7 +69,7 @@ def cmoc_apply_join_impl(
     if join_state.apply_worktree is not None and join_state.apply_worktree.exists():
         assert_no_uncommitted_changes(join_state.apply_worktree)
 
-    start_step(timer, 2, 5, "inspect unexpected diffs")
+    start_step(timer, 2, 5, "想定外差分確認")
     unexpected = _unexpected_diffs(cmoc_root, join_state)
     if unexpected and not force_resolve:
         raise CmocError(
@@ -81,14 +81,14 @@ def cmoc_apply_join_impl(
             "\n".join(unexpected),
         )
 
-    start_step(timer, 3, 5, "resolve unexpected diffs")
+    start_step(timer, 3, 5, "想定外差分解消")
     if unexpected:
         _force_resolve_unexpected_diffs(cmoc_root, join_state)
         print("force-resolved unexpected diffs:")
         for line in unexpected:
             print(f"- {line}")
 
-    start_step(timer, 4, 5, "merge apply branch")
+    start_step(timer, 4, 5, "apply branch merge")
     run_git(cmoc_root, ["switch", join_state.session_branch])
     merge_result = run_git(
         cmoc_root,
@@ -127,7 +127,7 @@ def cmoc_apply_join_impl(
                 detail,
             )
 
-    start_step(timer, 5, 5, "record ready apply state")
+    start_step(timer, 5, 5, "apply ready 状態記録")
     cleanup_evidence = _snapshot_cleanup_evidence(cmoc_root, join_state)
     _mark_apply_ready(
         cmoc_root,

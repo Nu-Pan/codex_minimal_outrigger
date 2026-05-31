@@ -41,7 +41,7 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
         return
 
     timer = StepTimer("session abandon")
-    start_step(timer, 1, 4, "validate session state")
+    start_step(timer, 1, 4, "session 状態検証")
     session_branch = _current_session_branch(repo_root)
     session_id = session_id_from_branch(session_branch)
     state_root = session_state_root(repo_root)
@@ -62,16 +62,16 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
     )
 
     try:
-        start_step(timer, 2, 4, "ensure .cmoc is ignored")
+        start_step(timer, 2, 4, ".cmoc ignore 確認")
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
         _record_session_home_branch(state_root, session_id, state, home_branch)
 
-        start_step(timer, 3, 4, "switch to session home branch")
+        start_step(timer, 3, 4, "session home branch 切替")
         run_git(repo_root, ["switch", home_branch])
         ensure_cmoc_ignored_and_committed(repo_root)
         assert_no_uncommitted_changes(repo_root)
-        start_step(timer, 4, 4, "record abandoned session and delete session branch")
+        start_step(timer, 4, 4, "session abandon 記録・session branch 削除")
         _mark_session_abandoned(state_root, session_id, state)
         run_git(repo_root, ["branch", "-D", session_branch])
     except Exception as error:

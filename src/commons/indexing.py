@@ -435,7 +435,7 @@ def _entry_for(repo_root: Path, path: Path, digest: str) -> str:
         run_codex_exec(
             repo_root,
             _index_prompt(repo_root, path, digest),
-            purpose=f"generate INDEX entry {_display_index_path(repo_root, path)}",
+            purpose=f"INDEX entry 生成 {_display_index_path(repo_root, path)}",
             read_only=True,
             expect_json=True,
             output_schema=_INDEX_OUTPUT_SCHEMA,

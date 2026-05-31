@@ -470,7 +470,7 @@ def test_run_codex_exec_escapes_control_chars_in_console_notification(
         output = run_codex_exec(
             repo,
             "prompt",
-            purpose="investigate oracle oracles/a\nb%25.md",
+            purpose="oracle 調査 oracles/a\nb%25.md",
             read_only=True,
         )
 
@@ -479,7 +479,7 @@ def test_run_codex_exec_escapes_control_chars_in_console_notification(
     header_index = captured_lines.index("## Codex CLI 呼び出し完了")
     notification_lines = captured_lines[header_index + 1 : header_index + 5]
     assert output == "ok\n"
-    assert notification_lines[0] == "- purpose: investigate oracle oracles/a%0Ab%2525.md"
+    assert notification_lines[0] == "- purpose: oracle 調査 oracles/a%0Ab%2525.md"
     assert notification_lines[1].startswith(f"- log path: {repo}/")
     assert notification_lines[2].startswith("- elapsed: ")
     assert notification_lines[3] == "- returncode: 0"

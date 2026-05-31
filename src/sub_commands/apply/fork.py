@@ -301,7 +301,7 @@ def cmoc_apply_impl(
     )
     _validate_apply_scope(scope)
 
-    start_step(timer, 1, 6, "validate session state")
+    start_step(timer, 1, 6, "session 状態検証")
     state = read_session_state(state_root, session_id)
     session_start_commit = _validate_apply_fork_state(
         state,
@@ -309,13 +309,13 @@ def cmoc_apply_impl(
     )
     assert_no_uncommitted_changes(repo_root)
 
-    start_step(timer, 2, 6, "ensure .cmoc is ignored")
+    start_step(timer, 2, 6, ".cmoc ignore 確認")
     ensure_cmoc_ignored_and_committed(repo_root)
     assert_no_uncommitted_changes(repo_root)
     session_head_at_apply_start = ""
     oracle_snapshot_commit = ""
 
-    failed_stage = "create apply worktree"
+    failed_stage = "apply worktree 作成"
     apply_run_id = ""
     apply_branch = ""
     apply_worktree = state_root / ".cmoc" / "worktrees" / "apply" / session_id
@@ -338,8 +338,8 @@ def cmoc_apply_impl(
             session_head_at_apply_start = head_commit(repo_root)
             oracle_snapshot_commit = session_head_at_apply_start
 
-            failed_stage = "create apply worktree"
-            start_step(timer, 3, 6, "create apply worktree")
+            failed_stage = "apply worktree 作成"
+            start_step(timer, 3, 6, "apply worktree 作成")
             apply_start_needs_error_record = True
             apply_plan = _plan_apply_worktree(state_root, session_id)
             apply_run_id = apply_plan.apply_run_id
@@ -387,8 +387,8 @@ def cmoc_apply_impl(
                 raise
 
         # ユーザー向けステップとして INDEX.md を明示メンテナンスする。
-        failed_stage = "maintain INDEX.md files"
-        start_step(timer, 4, 6, "maintain INDEX.md files")
+        failed_stage = "INDEX.md メンテナンス"
+        start_step(timer, 4, 6, "INDEX.md メンテナンス")
         before_index_head = head_commit(apply_worktree)
         _maintain_apply_indexes(apply_worktree)
         _assert_forbidden_paths_unchanged_since(
@@ -398,8 +398,8 @@ def cmoc_apply_impl(
         )
 
         # 不整合調査と追従作業を指定回数まで反復する。
-        failed_stage = "investigate and apply fixing points"
-        start_step(timer, 5, 6, "investigate and apply fixing points")
+        failed_stage = "要修正点調査・適用"
+        start_step(timer, 5, 6, "要修正点調査・適用")
         completed = False
         dirty_oracle_paths: set[Path] | None = None
         dirty_implementation_paths: set[Path] | None = None
@@ -412,7 +412,7 @@ def cmoc_apply_impl(
                 timer,
                 loop_step_path,
                 None,
-                "investigate and fix loop",
+                "調査・修正ループ",
             )
             discrepancies = _investigate_discrepancies(
                 apply_worktree,
@@ -445,8 +445,8 @@ def cmoc_apply_impl(
             dirty_implementation_paths = next_dirty_implementation_paths
             discrepancy_counts.append(len(discrepancies))
             print(
-                "implementation loop "
-                f"({loop_index}/{repeat_investigate_and_fix}) fixing points: "
+                "実装反復 "
+                f"({loop_index}/{repeat_investigate_and_fix}) 要修正点: "
                 f"{len(discrepancies)}"
             )
             if not discrepancies:
@@ -471,7 +471,7 @@ def cmoc_apply_impl(
             repo_root,
             session_branch,
         )
-        failed_stage = "mark apply completed"
+        failed_stage = "apply 完了記録"
         _mark_apply_completed(
             state_root,
             session_id,
@@ -480,8 +480,8 @@ def cmoc_apply_impl(
         apply_start_needs_error_record = False
 
         # 実行結果を人間向け report に変換する。
-        failed_stage = "write report"
-        start_step(timer, 6, 6, "write report")
+        failed_stage = "report 書き込み"
+        start_step(timer, 6, 6, "report 書き込み")
         report_path = _write_apply_report(
             apply_worktree,
             state_root,
@@ -496,7 +496,7 @@ def cmoc_apply_impl(
             completed,
             discrepancy_counts,
         )
-        failed_stage = "write final output"
+        failed_stage = "final output 書き込み"
         print(f"apply run id: {apply_run_id}")
         print(str(report_path))
         timer.report()
@@ -693,7 +693,7 @@ def _create_apply_worktree(
         )
         last_plan = plan
         print(
-            "create apply worktree attempt "
+            "apply worktree 作成試行 "
             f"({attempt}/10) {plan.apply_branch}"
         )
         branch_result = run_git(
@@ -875,7 +875,7 @@ def _investigate_discrepancies(
         timer,
         (*step_path, (1, 5)),
         None,
-        "select investigation targets",
+        "調査対象選定",
     )
     oracle_targets = _target_oracle_files(
         repo_root,
@@ -909,13 +909,13 @@ def _investigate_discrepancies(
         timer,
         (*step_path, (2, 5)),
         None,
-        "run file-based investigations in parallel",
+        "ファイル別調査を並列実行",
     )
     for job in jobs:
         label = (
-            "oracle investigation"
+            "oracle 調査"
             if job.kind == "oracle"
-            else "implementation investigation"
+            else "実装調査"
         )
         print(f"{label} ({job.index}/{job.total}) {job.target.path}")
     if jobs:
@@ -949,11 +949,11 @@ def _run_investigation_job(
     """1 file 起点の不整合調査を実行し、fixing_points を返す。"""
     if job.kind == "oracle":
         prompt = _investigation_prompt(repo_root, job.target)
-        purpose = f"investigate oracle {job.target.path.relative_to(repo_root)}"
+        purpose = f"oracle 調査 {job.target.path.relative_to(repo_root)}"
     else:
         prompt = _implementation_investigation_prompt(repo_root, job.target)
         purpose = (
-            "investigate implementation "
+            "実装調査 "
             f"{job.target.path.relative_to(repo_root)}"
         )
     payload = parse_json_object(
@@ -1212,7 +1212,7 @@ def _improove_fixing_list(
             timer,
             (*step_path, (loop_index, repeat_improove_fixing_list)),
             None,
-            "improve fixing point list",
+            "要修正点リスト改善",
         )
         next_improved = _organize_discrepancies(
             repo_root,
@@ -1220,8 +1220,8 @@ def _improove_fixing_list(
             base_commit,
         )
         print(
-            "fixing point list improvement loop "
-            f"({loop_index}/{repeat_improove_fixing_list}) fixing points: "
+            "要修正点リスト改善ループ "
+            f"({loop_index}/{repeat_improove_fixing_list}) 要修正点: "
             f"{len(next_improved)}"
         )
         if not next_improved:
@@ -1253,7 +1253,7 @@ def _organize_discrepancies(
                 base_commit,
                 head_commit_hash,
             ),
-            purpose="organize fixing points",
+            purpose="要修正点整理",
             read_only=True,
             expect_json=True,
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
@@ -1377,14 +1377,14 @@ def _apply_discrepancies(
             timer,
             (*step_path, (index, len(discrepancies))),
             None,
-            "apply fixing point",
+            "要修正点適用",
         )
-        print(f"apply fixing point ({index}/{len(discrepancies)})")
+        print(f"要修正点適用 ({index}/{len(discrepancies)})")
         before_head = head_commit(repo_root)
         run_codex_exec(
             repo_root,
             _apply_prompt(repo_root, discrepancy),
-            purpose=f"apply fixing point {index}/{len(discrepancies)}",
+            purpose=f"要修正点適用 {index}/{len(discrepancies)}",
             read_only=False,
             expect_json=False,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
@@ -1425,7 +1425,7 @@ def _commit_all_changes(repo_root: Path) -> None:
     message = run_codex_exec(
         repo_root,
         _commit_message_prompt(repo_root),
-        purpose="generate commit message",
+        purpose="commit message 生成",
         read_only=True,
         expect_json=False,
         model=COMMIT_MESSAGE_MODEL,
@@ -1679,7 +1679,7 @@ def _generate_change_summary(
         run_codex_exec(
             repo_root,
             prompt,
-            purpose="summarize apply changes",
+            purpose="apply 変更要約",
             read_only=True,
             expect_json=True,
             output_schema=_CHANGE_SUMMARY_OUTPUT_SCHEMA,
