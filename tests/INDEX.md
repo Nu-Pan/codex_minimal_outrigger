@@ -155,27 +155,29 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `run_command` と `main` を中心に、cmoc のサブコマンド群と CLI 入口をまたいだ回帰テストを集約する入口です。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、エラーレポート、Structured Output、report 保存までを横断的に検証します。
-- `bin/cmoc`、`test.sh`、補完プローブ、JSONL サブコマンドログ、`.cmoc` の ignore 修復や worktree / branch 復旧も含めて確認します。
+- `tests/test_subcommands.py` は `run_command` と `main` を軸に、cmoc の各サブコマンドと CLI 入口の回帰テストを集約する入口です。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、Structured Output、worktree / branch 復旧まで横断的に扱います。
+- `bin/cmoc`、`test.sh`、JSONL サブコマンドログ、`format_error_report`、`CmocError` など、CLI 周辺の共通挙動も確認します。
 
 ## Read this when
 
 - `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートの挙動を追いたいとき。
-- `cmoc init`、`session`、`apply`、`review oracles` をまたぐ回帰観点をまとめて確認したいとき。
-- `.cmoc` の ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除の境界条件を確認したいとき。
-- `bin/cmoc` や `test.sh`、補完プローブ、JSONL サブコマンドログの意図を把握したいとき。
+- `cmoc init` の `.cmoc` ignore 修復、tracked file の追跡解除、初回コミットの挙動を確認したいとき。
+- `cmoc session fork`、`session join`、`session abandon` のブランチ作成・統合・破棄と state 遷移を確認したいとき。
+- `cmoc apply fork`、`apply join`、`apply abandon` の差分検出、worktree 管理、force resolve、レポート保存を確認したいとき。
+- `cmoc review oracles` の評価、改善、Structured Output、レポート生成の流れを確認したいとき。
+- `bin/cmoc`、`test.sh`、補完プローブ、CLI 登録や completion probe の挙動を確認したいとき。
 
 ## Do not read this when
 
-- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパーの実装だけを追いたいとき。
+- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパー実装だけを追いたいとき。
 - `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別のテスト入口の仕様だけを確認したいとき。
 - `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを確認したいとき。
-- `oracles` 側の正本仕様や `INDEX.md` の生成ルールそのものだけを確認したいとき。
+- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
 
 ## hash
 
-- d6e5662e9326ac1ccf1e78d85d2318b62ca2047c52e3583f837f5c0cfd420b47
+- c38e92198059fe2d4f8bdc5e2f2110335cc63c79ad9856779bccaa549346e995
 
 # `test_timestamps.py`
 

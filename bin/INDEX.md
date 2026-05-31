@@ -11,7 +11,7 @@
 ## Read this when
 
 - `bin/cmoc` がどの Python で `src/main.py` を起動するか確認したいとき。
-- `.venv/bin/python` が無い、または実行できない場合のエラー文面・終了ステータス・復旧手順を確認したいとき。
+- .venv/bin/python` が無い、または実行できない場合のエラー文面・終了ステータス・復旧手順を確認したいとき。
 - シェル製 CLI エントリーポイントとしての挙動を把握したいとき。
 - `bin/cmoc` から `src/main.py` へ引数をそのまま渡す流れを確認したいとき。
 - エラー表示内の Call stack を組み立てる `line_number_of` の役割を確認したいとき。
@@ -26,4 +26,4 @@
 
 ## hash
 
-- a4cf3ae40b19f485ed0761798c1e489b1cb4f77cee7440077d07f09d55ae5ed4
+- ac2aabf33e711763a19dcb56b30cb4e7ecb592a508f3ef1a89f6483490530c87
