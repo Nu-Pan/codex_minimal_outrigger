@@ -127,32 +127,32 @@
 
 ## Summary
 
-- `src/commons/repo.py` は、git リポジトリと cmoc 作業領域を扱う共通基盤モジュールです。
-- repo root の検出、現在 branch / HEAD commit の取得、cmoc 管理 branch の判定をまとめています。
-- session / apply state の保存先・読込・検証、active session の一意性確認、apply worktree からの所有元 repo root 復元を担います。
-- `.cmoc` の ignore 保証、未コミット差分の検査、`cmoc init` 用の内部 commit、`oracles` / 実装ファイルの列挙・差分抽出・削除判定を提供します。
-- git コマンド実行、`.gitignore` 評価、`git status` / `diff` / `ls-files` の解析を支える補助関数も含みます。
+- `src/commons/repo.py` は、git リポジトリと cmoc の作業領域を扱う共通基盤モジュールです。
+- repo root の検出、現在ブランチや HEAD commit の取得、cmoc 管理ブランチの判定をまとめています。
+- session / apply の状態保存先と読み書き、スキーマ検証、active session の整合性確認を担います。
+- apply worktree から所有元 repo root を復元する処理や、`.cmoc` の ignore 保証、未コミット差分の検査も提供します。
+- `oracles` と実装ファイルの列挙、差分抽出、削除判定、`git` コマンド実行の補助関数群も含みます。
 
 ## Read this when
 
-- repo root の検出、`cwd` 固定、現在 branch / HEAD commit の取得を確認したいとき。
-- `cmoc/session/*` と `cmoc/apply/*` の branch 判定や session id 抽出を追いたいとき。
-- session state / apply process id の保存・読込・検証、active session の一意性確認を確認したいとき。
-- apply worktree から所有元 repo root を復元する処理を確認したいとき。
-- `.cmoc` の ignore 保証、`.gitignore` の評価、未コミット差分や削除検出を含むファイル列挙を追いたいとき。
-- `git status` / `diff` / `ls-files` の解析や `run_git()` の共通ラッパーを確認したいとき。
+- `repo root` の検出や `cwd` 固定、現在ブランチ名・HEAD commit の取得を確認したいとき
+- `cmoc/session/*` と `cmoc/apply/*` のブランチ判定や session id 抽出を追いたいとき
+- session state や apply process id の保存・読込・検証、active session の一意性確認を確認したいとき
+- apply worktree から所有元の repo root を復元する処理を確認したいとき
+- `.cmoc` の ignore 保証、`.gitignore` の評価、未コミット差分や削除検出を含むファイル列挙を追いたいとき
+- `git status` / `diff` / `ls-files` の解析や `run_git()` の共通ラッパーを確認したいとき
 
 ## Do not read this when
 
-- サブコマンドの引数解釈や業務フローだけを追いたいとき。
-- エラーレポートの整形仕様だけを確認したいときは `errors.py` を読むべきです。
-- 時間計測やログ出力の挙動だけを確認したいときは `timing.py`、`subcommand_log.py` を読むべきです。
-- `INDEX.md` の生成・更新ルールそのものを追いたいときは `indexing.py` を読むべきです。
-- `codex.py` など他の共通モジュールの実装詳細だけを見たいとき。
+- サブコマンドの引数解釈や業務フローだけを追いたいとき
+- エラーレポートの整形仕様だけを確認したいときは `src/commons/errors.py` を読むべきとき
+- 経過時間やログ出力の挙動だけを確認したいときは `src/commons/timing.py` や `src/commons/subcommand_log.py` を読むべきとき
+- `INDEX.md` の生成・更新ルールそのものを追いたいときは `src/commons/indexing.py` を読むべきとき
+- `codex.py` など他の共通モジュールの実装詳細だけを見たいとき
 
 ## hash
 
-- 0afb0c01590a742e960ea76e8e681085d9e8c7f4b7c86d642f03ae9362bbb05f
+- 7006b1d894cfa9a4694e08674a5ca65ab939785f16d8b1dc4a98c8119c16bca8
 
 # `report_files.py`
 

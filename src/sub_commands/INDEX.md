@@ -32,20 +32,18 @@
 ## Read this when
 
 - `src/sub_commands/apply` ディレクトリ全体の役割と、どの実装ファイルへ進むべきかを把握したいとき。
-- `cmoc apply` 系サブコマンドの入口構造を確認したいとき。
+- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の担当範囲を素早く切り分けたいとき。
 - `__init__.py` がパッケージ宣言のみであることを確認したいとき。
-- `fork.py`、`join.py`、`abandon.py` の担当範囲を素早く切り分けたいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループ、要修正点リスト、レポート生成の詳細だけを確認したいとき。
-- `cmoc apply join` の merge 手順や `--force-resolve` の挙動だけを確認したいとき。
-- `cmoc apply abandon` の破棄手順や cleanup 条件だけを確認したいとき。
-- `src/sub_commands/apply` ではなく、`oracles` 側の正本仕様や他サブコマンドの入口を見たいとき。
+- `cmoc apply` 系の個別実装ではなく、`src/sub_commands` 全体の入口構造だけを確認したいとき。
+- `cmoc session` や `cmoc review` など、`apply` 以外のサブコマンド群を確認したいとき。
+- `oracles` 側の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 97a4b8a50f905468c21004216c278669939c45eda11f5cddb7eff5a2329c06e5
+- 041e45bba56aa58d1faa03eff306b5143fe938765dad6df7d8d3d19c40b7ad93
 
 # `init.py`
 

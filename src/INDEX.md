@@ -3,8 +3,8 @@
 ## Summary
 
 - cmoc の共通基盤モジュール群をまとめたディレクトリです。
-- `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py` など、CLI 全体で再利用する処理が入っています。
-- 個別サブコマンドの実装ではなく、実行制御・エラー処理・リポジトリ操作・ログ・計測・INDEX メンテナンスの入口として読む場所です。
+- `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py` など、CLI 全体で再利用する処理を含みます。
+- 個別サブコマンド本体ではなく、実行制御・エラー処理・リポジトリ操作・ログ・計測・INDEX メンテナンスの入口として参照します。
 
 ## Read this when
 
@@ -20,7 +20,7 @@
 
 ## hash
 
-- c0742348ff00971232aaf4b95e4452b7b6c07b76dc2144484ca30739adacafa1
+- df4551eea243d57db8a9b6bee2738d57e6969cf989311d2b96a10a00e43b1a75
 
 # `main.py`
 
@@ -63,10 +63,10 @@
 
 ## Do not read this when
 
-- `cmoc init` の個別実装や引数・エラー条件だけを確認したいときは、`init.py` を直接読むべきです。
-- `cmoc apply`、`cmoc review`、`cmoc session` のいずれか個別の開始・統合・破棄・評価の詳細だけを確認したいときは、この目次ではなく各サブディレクトリの `INDEX.md` を読むべきです。
-- `src.sub_commands` が Python パッケージとして存在するかどうかだけを確認したいときは、`__init__.py` だけで足ります。
+- `cmoc init` の個別実装や引数・エラー条件だけを確認したいとき。
+- `cmoc apply`、`cmoc review`、`cmoc session` のいずれか個別の開始・統合・破棄・評価の詳細だけを確認したいとき。
+- `src.sub_commands` が Python パッケージとして存在するかどうかだけを確認したいとき。
 
 ## hash
 
-- 9f8d6b2688943ea57cdf40518946c1e6be150fc9e2f3bf3b6b19694b237941f6
+- 7255b7f7e8290fe8ecb4363baa8af6f5ebd663a3329ea7b2298ab1f52628e43d

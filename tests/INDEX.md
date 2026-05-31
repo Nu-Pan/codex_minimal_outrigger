@@ -125,7 +125,7 @@
 
 ## hash
 
-- 5a5f9a816cca70d5beb4f109f272d379a7f2dfcb65011d9cdd0e71f7efc695f7
+- 3bb2002cc19d0fc5686f54f1cb747368882cce704a5e799ee7506f5cb942c815
 
 # `test_report_files.py`
 
@@ -155,29 +155,27 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `run_command` と `main` を中心に、cmoc のサブコマンド群・CLI エントリポイント・補助スクリプトの横断回帰を集約した入口です。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、エラーレポート、レポート保存を広く扱います。
-- `bin/cmoc`、`test.sh`、補完プローブ、JSONL サブコマンドログ、`.cmoc` ignore 修復や worktree / branch 復旧まで含みます。
+- `tests/test_subcommands.py` は `run_command` と `main` を中心に、cmoc のサブコマンド群と CLI 入口をまたいだ回帰テストを集約する入口です。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、エラーレポート、Structured Output、report 保存までを横断的に検証します。
+- `bin/cmoc`、`test.sh`、補完プローブ、JSONL サブコマンドログ、`.cmoc` の ignore 修復や worktree / branch 復旧も含めて確認します。
 
 ## Read this when
 
-- `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートを追いたいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の横断的な回帰観点をまとめて確認したいとき。
-- `.cmoc` の ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
-- oracle 評価の Structured Output、`INDEX.md` メンテナンス、prompt 内容、issue 集約、`--force-resolve`、失敗時の error report 仕様を確認したいとき。
-- 補完プローブ、JSONL サブコマンドログ、`bin/cmoc` と `test.sh` の挙動、テスト helper / repo 構築 helper の意図を把握したいとき。
+- `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートの挙動を追いたいとき。
+- `cmoc init`、`session`、`apply`、`review oracles` をまたぐ回帰観点をまとめて確認したいとき。
+- `.cmoc` の ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除の境界条件を確認したいとき。
+- `bin/cmoc` や `test.sh`、補完プローブ、JSONL サブコマンドログの意図を把握したいとき。
 
 ## Do not read this when
 
-- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパーの実装だけを確認したいとき。
+- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパーの実装だけを追いたいとき。
 - `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別のテスト入口の仕様だけを確認したいとき。
-- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを追いたいとき。
+- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを確認したいとき。
 - `oracles` 側の正本仕様や `INDEX.md` の生成ルールそのものだけを確認したいとき。
-- pytest の共通設定やファイル命名規則だけを確認したいとき。
 
 ## hash
 
-- b58b7ac0cc934831d5790af06672763cce440e00b1545a4afd498f34859deeb6
+- d6e5662e9326ac1ccf1e78d85d2318b62ca2047c52e3583f837f5c0cfd420b47
 
 # `test_timestamps.py`
 
