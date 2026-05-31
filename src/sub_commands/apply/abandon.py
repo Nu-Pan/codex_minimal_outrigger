@@ -75,7 +75,6 @@ def cmoc_apply_abandon_impl(repo_root: Path | None = None) -> None:
     print("current apply.state: ready")
     for warning in warnings:
         print(f"warning: {warning}")
-    timer.report()
 
 
 class _AbandonState:

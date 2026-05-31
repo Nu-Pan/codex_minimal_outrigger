@@ -156,7 +156,6 @@ def cmoc_apply_join_impl(
             print(f"- {_display_repo_path(cmoc_root, path)}")
     for warning in warnings:
         print(f"warning: {warning}")
-    timer.report()
 
 
 class _JoinState:

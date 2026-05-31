@@ -1,6 +1,7 @@
 """サブコマンド本体の決定論的な制御ロジックのテスト。"""
 
 import ast
+import builtins
 import inspect
 import json
 import re
@@ -102,6 +103,31 @@ def test_literal_cmoc_error_actions_offer_multiple_choices() -> None:
                 if len(actions.elts) < 2:
                     relative_path = path.relative_to(repo_root)
                     violating_locations.append(f"{relative_path}:{node.lineno}")
+
+    assert violating_locations == []
+
+
+def test_subcommands_do_not_emit_step_timer_report_directly() -> None:
+    """ステップ別経過時間は共通の完了サマリー内だけで出す。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    subcommands_root = repo_root / "src" / "sub_commands"
+    violating_locations: list[str] = []
+
+    for path in subcommands_root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr != "report":
+                continue
+            if not isinstance(node.func.value, ast.Name):
+                continue
+            if node.func.value.id != "timer":
+                continue
+            relative_path = path.relative_to(repo_root)
+            violating_locations.append(f"{relative_path}:{node.lineno}")
 
     assert violating_locations == []
 
@@ -5946,17 +5972,10 @@ def test_apply_marks_error_when_final_output_fails(
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "oracle")
 
-    class FailingReportTimer(apply_module.StepTimer):
-        """最終 timer report だけ失敗させるテスト用 timer。"""
-
-        def report(self) -> None:
-            raise RuntimeError("fake final output failure")
-
     monkeypatch.setattr(
         "sub_commands.apply.fork.maintain_indexes",
         lambda repo_root: False,
     )
-    monkeypatch.setattr(apply_module, "StepTimer", FailingReportTimer)
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査は収束させ、必要なら変更要約を返す。"""
@@ -5967,6 +5986,21 @@ def test_apply_marks_error_when_final_output_fails(
         return "No changes"
 
     monkeypatch.setattr("sub_commands.apply.fork.run_codex_exec", fake_codex)
+    failed_once = False
+
+    def fake_print(*args: object, **kwargs: object) -> None:
+        """収束 report path の最初の出力だけ失敗させる。"""
+        nonlocal failed_once
+        if (
+            not failed_once
+            and len(args) == 1
+            and str(args[0]).endswith(".md")
+        ):
+            failed_once = True
+            raise RuntimeError("fake final output failure")
+        builtins.print(*args, **kwargs)
+
+    monkeypatch.setattr(apply_module, "print", fake_print, raising=False)
 
     with pytest.raises(RuntimeError, match="fake final output failure"):
         cmoc_apply_impl(repo)
@@ -5985,8 +6019,7 @@ def test_apply_marks_error_when_final_output_fails(
     assert state["apply"]["apply_branch"].startswith(
         "cmoc/apply/2026-05-10_22-21_10_000000123/"
     )
-    assert len(reports) == 2
-    assert any('result: "収束"' in text for text in report_texts)
+    assert len(reports) == 1
     assert any('result: "エラー"' in text for text in report_texts)
     assert not (
         repo

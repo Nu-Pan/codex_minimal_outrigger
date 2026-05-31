@@ -83,7 +83,6 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         _delete_branch_if_safe(repo_root, session_branch)
         print(f"joined session branch: {session_branch}")
         print(f"session home branch: {home_branch}")
-        timer.report()
     except Exception:
         # 副作用段階に入った後は rollback せず、手動解決を案内する。
         if manual_resolution_required:

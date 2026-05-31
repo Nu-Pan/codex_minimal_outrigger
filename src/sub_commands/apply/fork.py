@@ -493,7 +493,6 @@ def cmoc_apply_impl(
         failed_stage = "final output 書き込み"
         print(f"apply run id: {apply_run_id}")
         print(str(report_path))
-        timer.report()
         failed_stage = "apply 完了記録"
         _mark_apply_completed(
             state_root,

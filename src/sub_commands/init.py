@@ -37,4 +37,3 @@ def cmoc_init_impl(repo_root: Path | None = None) -> None:
         print("committed initialization changes")
     else:
         print("no initialization changes")
-    timer.report()

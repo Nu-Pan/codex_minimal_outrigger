@@ -333,7 +333,6 @@ def cmoc_review_oracles_impl(
             print(str(report_path))
         raise
     print(str(report_path))
-    timer.report()
 
 
 def _validate_repeat_improve_issues_list(value: int) -> None:

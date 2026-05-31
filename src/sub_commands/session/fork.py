@@ -95,7 +95,6 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
             )
     print(f"created session branch: {branch_name}")
     print(f"session home branch: {home_branch}")
-    timer.report()
 
 
 def _assert_no_active_session(active_session_ids: list[str]) -> None:

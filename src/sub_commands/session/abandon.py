@@ -99,7 +99,6 @@ def cmoc_session_abandon_impl(repo_root: Path | None = None) -> None:
 
     print(f"abandoned session branch: {session_branch}")
     print(f"session home branch: {home_branch}")
-    timer.report()
 
 
 def _current_session_branch(repo_root: Path) -> str:
