@@ -927,7 +927,8 @@ def _safe_index_text(repo_root: Path, value: str) -> str:
 
 
 def _normalize_known_index_routes(repo_root: Path, text: str) -> str:
-    """過去の仕様配置に基づく既知の古い path 表記を実在 path へ寄せる。"""
+    """INDEX.md 用 text に含まれる既知の古い表記を現在の表記へ寄せる。"""
+    text = _normalize_known_command_names(text)
     stale_prefix = "oracles/app_specs/"
     current_prefix = "oracles/docs/app_specs/"
     if stale_prefix not in text:
@@ -937,3 +938,12 @@ def _normalize_known_index_routes(repo_root: Path, text: str) -> str:
     if not (repo_root / "oracles/docs/app_specs").exists():
         return text
     return text.replace(stale_prefix, current_prefix)
+
+
+def _normalize_known_command_names(text: str) -> str:
+    """存在しない過去の cmoc command 名を INDEX.md へ残さない。"""
+    return re.sub(
+        r"(?<![A-Za-z0-9_-])cmo(?=\s+(?:init|session|review|apply)\b)",
+        "cmoc",
+        text,
+    )

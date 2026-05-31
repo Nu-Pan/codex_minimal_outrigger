@@ -1322,6 +1322,40 @@ def test_maintain_indexes_regenerates_known_cmoc_command_typo(
     assert "cmoc apply fork" in content
 
 
+def test_maintain_indexes_normalizes_known_cmoc_command_typo_in_generated_text(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """生成された routing 文の既知 command typo も INDEX.md へ残さない。"""
+    repo = _init_repo(tmp_path)
+    (repo / "apply_join.md").write_text(
+        "cmo apply fork からの合流仕様を扱います。\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "source command typo")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """仕様本文由来の typo を含む routing 文を返す。"""
+        return json.dumps(
+            {
+                "summary": ["cmo apply fork からの合流仕様を扱います。"],
+                "read_this_when": ["cmo apply join を確認するとき。"],
+                "do_not_read_this_when": ["cmo apply 以外の仕様を見るとき。"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+    content = (repo / "INDEX.md").read_text(encoding="utf-8")
+
+    assert changed is True
+    assert "cmo apply" not in content
+    assert "cmoc apply fork" in content
+    assert "cmoc apply join" in content
+
+
 def test_maintain_indexes_regenerates_non_utf8_index(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
