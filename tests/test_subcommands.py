@@ -1238,7 +1238,7 @@ def test_eval_oracles_snapshots_maintained_indexes_before_evaluation(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
     assert maintain_exclusions == [[]]
-    assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
+    assert evaluated_purposes == ["evaluate oracle oracles/original.md"]
     assert snapshot_index_texts == ["maintained oracle index\n"]
     assert f'head_commit: "{review_start_head}"' in report
     assert "oracle_count_total: 1" in report
@@ -1402,9 +1402,9 @@ def test_eval_oracles_runs_file_evaluations_in_parallel(
     ).read_text(encoding="utf-8")
     assert max_active_calls > 1
     assert sorted(purposes) == [
-        "oracle 評価 oracles/a.md",
-        "oracle 評価 oracles/b.md",
-        "oracle 評価 oracles/c.md",
+        "evaluate oracle oracles/a.md",
+        "evaluate oracle oracles/b.md",
+        "evaluate oracle oracles/c.md",
     ]
     assert report.index("| 1 | `oracles/a.md` | 0 |") < report.index(
         "| 2 | `oracles/b.md` | 0 |"
@@ -1445,7 +1445,7 @@ def test_eval_oracles_writes_error_report_when_evaluation_fails(
     assert 'result: "error"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 0" in report
-    assert "- Failed stage: `oracle ファイル評価`" in report
+    assert "- Failed stage: `evaluate oracle files`" in report
     assert "- Exception type: `RuntimeError`" in report
     assert "- Exception message: `fake evaluation failure`" in report
     assert "# cmoc review oracles report" in report
@@ -1659,7 +1659,7 @@ def test_eval_oracles_preserves_original_error_when_error_report_fails(
     captured = capsys.readouterr()
     assert "cmoc review oracles error report generation failed." in captured.err
     assert "- result: error" in captured.err
-    assert "- failed_stage: oracle ファイル評価" in captured.err
+    assert "- failed_stage: evaluate oracle files" in captured.err
     assert "- exception: RuntimeError: primary evaluation failure" in captured.err
     assert "- report_exception: OSError: secondary report failure" in captured.err
 
@@ -1921,7 +1921,7 @@ def test_review_oracles_improves_combined_issue_list(
         purpose = str(kwargs["purpose"])
         calls.append(purpose)
         codex_kwargs.append(kwargs)
-        if "問題点リスト改善" in purpose:
+        if "improve oracle issues list" in purpose:
             return json.dumps(
                 {"issues": [issue("Improved warning")]},
                 ensure_ascii=False,
@@ -1936,15 +1936,17 @@ def test_review_oracles_improves_combined_issue_list(
         (repo / ".cmoc" / "reports" / "review_oracles").glob("*.md")
     ).read_text(encoding="utf-8")
     assert calls == [
-        "oracle 評価 oracles/spec.md",
-        "oracle 問題点リスト改善 1",
-        "oracle 問題点リスト改善 2",
+        "evaluate oracle oracles/spec.md",
+        "improve oracle issues list 1",
+        "improve oracle issues list 2",
     ]
     assert [
         kwargs.get("skip_index_maintenance") for kwargs in codex_kwargs
     ] == [None, None, None]
     improve_kwargs = [
-        kwargs for kwargs in codex_kwargs if "問題点リスト改善" in kwargs["purpose"]
+        kwargs
+        for kwargs in codex_kwargs
+        if "improve oracle issues list" in kwargs["purpose"]
     ]
     assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in improve_kwargs)
     assert all(
@@ -2707,7 +2709,7 @@ def test_apply_returns_complete_when_no_discrepancies(
         """調査なら不整合なし JSON、変更要約なら summary JSON を返す。"""
         codex_kwargs.append(kwargs)
         codex_prompts.append(str(args[1]))
-        if kwargs.get("purpose") == "apply 変更要約":
+        if kwargs.get("purpose") == "summarize apply changes":
             return _change_summary_json()
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
@@ -2782,19 +2784,19 @@ def test_apply_returns_complete_when_no_discrepancies(
     investigation_kwargs = [
         kwargs
         for kwargs in codex_kwargs
-        if str(kwargs.get("purpose", "")).startswith("oracle 調査 ")
-        or str(kwargs.get("purpose", "")).startswith("実装調査 ")
+        if str(kwargs.get("purpose", "")).startswith("investigate oracle ")
+        or str(kwargs.get("purpose", "")).startswith("investigate implementation ")
     ]
     investigation_purposes = [
         str(kwargs.get("purpose", "")) for kwargs in investigation_kwargs
     ]
     assert investigation_kwargs
     assert any(
-        purpose.startswith("oracle 調査 ")
+        purpose.startswith("investigate oracle ")
         for purpose in investigation_purposes
     )
     assert any(
-        purpose.startswith("実装調査 ")
+        purpose.startswith("investigate implementation ")
         for purpose in investigation_purposes
     )
     assert all(
@@ -2817,7 +2819,7 @@ def test_apply_returns_complete_when_no_discrepancies(
     report_kwargs = [
         kwargs
         for kwargs in codex_kwargs
-        if kwargs.get("purpose") == "apply 変更要約"
+        if kwargs.get("purpose") == "summarize apply changes"
     ]
     assert report_kwargs == []
     assert "カテゴリ: 変更なし" in report_text
@@ -2879,8 +2881,11 @@ def test_apply_investigates_file_origin_targets_in_parallel(
     assert discrepancies == []
     assert len(codex_kwargs) >= 2
     assert max_active >= 2
-    assert any(purpose.startswith("oracle 調査 ") for purpose in purposes)
-    assert any(purpose.startswith("実装調査 ") for purpose in purposes)
+    assert any(purpose.startswith("investigate oracle ") for purpose in purposes)
+    assert any(
+        purpose.startswith("investigate implementation ")
+        for purpose in purposes
+    )
     assert all(kwargs["model"] == FRONTIER_MODEL for kwargs in codex_kwargs)
     assert all(
         kwargs["reasoning_effort"] == FRONTIER_REASONING_EFFORT
@@ -2927,7 +2932,7 @@ def test_apply_scope_rolling_uses_last_joined_oracle_snapshot(
     def fake_codex(*args: object, **kwargs: object) -> str:
         purpose = str(kwargs.get("purpose"))
         purposes.append(purpose)
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return '{"git_head_commit_hash": null, "fixing_points": []}'
 
@@ -3054,9 +3059,9 @@ def test_apply_commits_index_changes_when_no_discrepancies(
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査、commit message、変更要約生成を目的別に返す。"""
         codex_kwargs.append(kwargs)
-        if kwargs.get("purpose") == "commit message 生成":
+        if kwargs.get("purpose") == "generate commit message":
             return "Maintain apply indexes"
-        if kwargs.get("purpose") == "apply 変更要約":
+        if kwargs.get("purpose") == "summarize apply changes":
             return _change_summary_json()
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
@@ -3083,7 +3088,7 @@ def test_apply_commits_index_changes_when_no_discrepancies(
     report_kwargs = [
         kwargs
         for kwargs in codex_kwargs
-        if kwargs.get("purpose") == "apply 変更要約"
+        if kwargs.get("purpose") == "summarize apply changes"
     ]
     reports = list(
         (repo / ".cmoc" / "reports" / "apply" / "fork").glob("*.md")
@@ -3153,7 +3158,7 @@ def test_apply_report_records_session_head_at_finish_when_session_advances(
                     _git(repo, "commit", "-m", "advance session during apply")
                     advanced_session = True
             return '{"git_head_commit_hash": null, "fixing_points": []}'
-        if kwargs.get("purpose") == "apply 変更要約":
+        if kwargs.get("purpose") == "summarize apply changes":
             return _change_summary_json()
         return "No changes"
 
@@ -4783,7 +4788,7 @@ def test_apply_uses_investigate_repeat_option_for_loop_limit(
 
     assert exit_code == APPLY_FORK_EXIT_CODE_UNCONVERGED
     assert (
-        "実装ループ (2/2) 要修正点: 1"
+        "implementation loop (2/2) fixing points: 1"
         in capsys.readouterr().out
     )
     reports = list(
@@ -4829,20 +4834,20 @@ def test_apply_reinvestigates_files_changed_by_previous_fix(
         """初回だけ要修正点を返し、修正後の実装調査対象を記録する。"""
         nonlocal apply_ran
         purpose = str(kwargs.get("purpose"))
-        if purpose.startswith("oracle 調査"):
+        if purpose.startswith("investigate oracle"):
             if apply_ran:
                 return '{"git_head_commit_hash": null, "fixing_points": []}'
             return first_discrepancy()
-        if purpose.startswith("実装調査"):
+        if purpose.startswith("investigate implementation"):
             implementation_investigation_purposes.append(purpose)
             return '{"git_head_commit_hash": null, "fixing_points": []}'
-        if purpose.startswith("要修正点適用"):
+        if purpose.startswith("apply fixing point"):
             apply_ran = True
             (Path(args[0]) / "app.py").write_text("fixed\n", encoding="utf-8")
             return ""
-        if purpose == "commit message 生成":
+        if purpose == "generate commit message":
             return "Apply fix"
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -4891,16 +4896,18 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査、改善、修正、レポートの呼び出しを purpose で分岐する。"""
         purpose = str(kwargs.get("purpose"))
-        if purpose.startswith("oracle 調査") or purpose.startswith("実装調査"):
+        if purpose.startswith("investigate oracle") or purpose.startswith(
+            "investigate implementation"
+        ):
             return _discrepancy_json("initial")
-        if purpose == "要修正点整理":
+        if purpose == "organize fixing points":
             organize_prompts.append(str(args[1]))
             organize_kwargs.append(kwargs)
             return organize_results.pop(0)
-        if purpose.startswith("要修正点適用"):
+        if purpose.startswith("apply fixing point"):
             apply_prompts.append(str(args[1]))
             return ""
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -4920,9 +4927,9 @@ def test_apply_improoves_fixing_list_until_same_result_or_limit(
         kwargs["reasoning_effort"] == FRONTIER_HIGH_REASONING_EFFORT
         for kwargs in organize_kwargs
     )
-    assert "(5/6, 1/1, 4/5, 3/3) 要修正点リスト改善" in output
-    assert "(5/6, 1/1, 5/5, 1/1) 要修正点適用" in output
-    assert "要修正点リスト改善ループ (3/3) 要修正点: 1" in output
+    assert "(5/6, 1/1, 4/5, 3/3) improve fixing point list" in output
+    assert "(5/6, 1/1, 5/5, 1/1) apply fixing point" in output
+    assert "fixing point list improvement loop (3/3) fixing points: 1" in output
     assert "second improvement" in apply_prompts[0]
     assert "initial" in organize_prompts[0]
     assert "first improvement" in organize_prompts[1]
@@ -4970,12 +4977,14 @@ def test_apply_improove_fixing_list_uses_oracle_snapshot_base(
         """rolling の調査範囲と整理 prompt の base を記録する。"""
         purpose = str(kwargs.get("purpose"))
         purposes.append(purpose)
-        if purpose.startswith("oracle 調査") or purpose.startswith("実装調査"):
+        if purpose.startswith("investigate oracle") or purpose.startswith(
+            "investigate implementation"
+        ):
             return _discrepancy_json("initial")
-        if purpose == "要修正点整理":
+        if purpose == "organize fixing points":
             organize_prompts.append(str(args[1]))
             return '{"git_head_commit_hash": null, "fixing_points": []}'
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -5028,15 +5037,17 @@ def test_apply_stops_improoving_fixing_list_when_it_becomes_empty(
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査後の整理で空リストを返し、以後の改善を不要にする。"""
         purpose = str(kwargs.get("purpose"))
-        if purpose.startswith("oracle 調査") or purpose.startswith("実装調査"):
+        if purpose.startswith("investigate oracle") or purpose.startswith(
+            "investigate implementation"
+        ):
             return _discrepancy_json("initial")
-        if purpose == "要修正点整理":
+        if purpose == "organize fixing points":
             organize_prompts.append(str(args[1]))
             return '{"git_head_commit_hash": null, "fixing_points": []}'
-        if purpose.startswith("要修正点適用"):
+        if purpose.startswith("apply fixing point"):
             apply_prompts.append(str(args[1]))
             return ""
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -5056,9 +5067,9 @@ def test_apply_stops_improoving_fixing_list_when_it_becomes_empty(
     assert exit_code == 0
     assert len(organize_prompts) == 1
     assert apply_prompts == []
-    assert "要修正点リスト改善ループ (1/3) 要修正点: 0" in output
-    assert "要修正点リスト改善ループ (2/3)" not in output
-    assert "実装ループ (1/1) 要修正点: 0" in output
+    assert "fixing point list improvement loop (1/3) fixing points: 0" in output
+    assert "fixing point list improvement loop (2/3)" not in output
+    assert "implementation loop (1/1) fixing points: 0" in output
     assert "## 作業結果\n収束" in report_text
 
 
@@ -5086,12 +5097,14 @@ def test_apply_fills_discrepancy_head_commit_hash(
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査は null の hash を返し、修正依頼 prompt を記録する。"""
         purpose = str(kwargs.get("purpose"))
-        if purpose.startswith("oracle 調査") or purpose.startswith("実装調査"):
+        if purpose.startswith("investigate oracle") or purpose.startswith(
+            "investigate implementation"
+        ):
             return _discrepancy_json("fill hash")
-        if purpose.startswith("要修正点適用"):
+        if purpose.startswith("apply fixing point"):
             apply_prompts.append(str(args[1]))
             return ""
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -5150,11 +5163,13 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
         nonlocal apply_count
         nonlocal commit_message_count
         purpose = str(kwargs.get("purpose"))
-        if purpose.startswith("oracle 調査") or purpose.startswith("実装調査"):
+        if purpose.startswith("investigate oracle") or purpose.startswith(
+            "investigate implementation"
+        ):
             return two_discrepancies_json
-        if purpose == "要修正点整理":
+        if purpose == "organize fixing points":
             return two_discrepancies_json
-        if purpose.startswith("要修正点適用"):
+        if purpose.startswith("apply fixing point"):
             apply_count += 1
             apply_repos.append(Path(args[0]))
             if apply_count == 2:
@@ -5170,7 +5185,7 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
                 encoding="utf-8",
             )
             return ""
-        if purpose == "commit message 生成":
+        if purpose == "generate commit message":
             commit_message_count += 1
             commit_message_options.append(
                 (
@@ -5179,7 +5194,7 @@ def test_apply_commits_each_discrepancy_before_next_codex_call(
                 )
             )
             return f"Apply fix {commit_message_count}"
-        if purpose == "apply 変更要約":
+        if purpose == "summarize apply changes":
             return _change_summary_json()
         return ""
 
@@ -5409,7 +5424,7 @@ def test_apply_rejects_incomplete_change_summary_from_codex(
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査は収束、変更要約は必須項目不足にする。"""
         nonlocal advanced_session
-        if kwargs.get("purpose") == "apply 変更要約":
+        if kwargs.get("purpose") == "summarize apply changes":
             if not advanced_session:
                 (repo / "session-progress.txt").write_text(
                     "session advanced\n",
@@ -5499,7 +5514,7 @@ def test_apply_marks_error_when_final_output_fails(
 
     def fake_codex(*args: object, **kwargs: object) -> str:
         """調査は収束させ、必要なら変更要約を返す。"""
-        if kwargs.get("purpose") == "apply 変更要約":
+        if kwargs.get("purpose") == "summarize apply changes":
             return _change_summary_json()
         if kwargs.get("expect_json") is True:
             return '{"git_head_commit_hash": null, "fixing_points": []}'
@@ -5782,16 +5797,16 @@ def test_apply_error_report_includes_codex_change_summary(
         oracle_snapshot_commit,
         oracle_snapshot_commit,
         oracle_snapshot_commit,
-        "要修正点適用",
+        "apply fixing point",
         RuntimeError("fake apply failure"),
         [1],
     )
 
     report_text = report_path.read_text(encoding="utf-8")
-    assert codex_purposes == ["apply 変更要約"]
+    assert codex_purposes == ["summarize apply changes"]
     assert "result: \"エラー\"" in report_text
     assert "## エラー詳細" in report_text
-    assert "- Failed stage: `要修正点適用`" in report_text
+    assert "- Failed stage: `apply fixing point`" in report_text
     assert "カテゴリ: 実装修正" in report_text
     assert "テスト用の変更内容を整理しました。" in report_text
     assert "- `app.py`" in report_text
@@ -7152,8 +7167,8 @@ def test_apply_parallel_investigation_records_worker_codex_events(
     ]
     assert result == []
     assert sorted(event["purpose"] for event in codex_events) == [
-        "oracle 調査 oracles/docs/spec.md",
-        "実装調査 src/app.py",
+        "investigate implementation src/app.py",
+        "investigate oracle oracles/docs/spec.md",
     ]
 
 

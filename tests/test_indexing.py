@@ -426,8 +426,8 @@ def test_maintain_indexes_parallelizes_unrelated_indexes_at_same_depth(
         nonlocal active_sibling_entries, max_active_sibling_entries
         purpose = str(kwargs["purpose"])
         is_sibling_entry = purpose in {
-            "INDEX entry 生成 left/note.txt",
-            "INDEX entry 生成 right/note.txt",
+            "generate INDEX entry left/note.txt",
+            "generate INDEX entry right/note.txt",
         }
         if is_sibling_entry:
             with lock:
@@ -1388,8 +1388,8 @@ def test_maintain_indexes_regenerates_non_utf8_index(
     assert changed is True
     assert "# `README.md`" in content
     assert "# `target.txt`" in content
-    assert "INDEX entry 生成 README.md" in purposes
-    assert "INDEX entry 生成 target.txt" in purposes
+    assert "generate INDEX entry README.md" in purposes
+    assert "generate INDEX entry target.txt" in purposes
 
 
 def test_maintain_indexes_retries_invalid_structured_output(
@@ -1607,9 +1607,9 @@ def test_maintain_indexes_regenerates_entry_when_empty_file_becomes_directory(
     content = (repo / "INDEX.md").read_text(encoding="utf-8")
 
     assert changed is True
-    assert purposes == ["INDEX entry 生成 target"]
+    assert purposes == ["generate INDEX entry target"]
     assert "- old file summary" not in content
-    assert "- INDEX entry 生成 target" in content
+    assert "- generate INDEX entry target" in content
     assert "cmoc-index-kind" not in content
 
 
@@ -1775,9 +1775,9 @@ def test_maintain_indexes_regenerates_parent_entry_after_child_rename(
     root_index = (repo / "INDEX.md").read_text(encoding="utf-8")
 
     assert changed is True
-    assert "INDEX entry 生成 folder" in purposes
+    assert "generate INDEX entry folder" in purposes
     assert "# `folder`" in root_index
-    assert "- INDEX entry 生成 folder" in root_index
+    assert "- generate INDEX entry folder" in root_index
 
 
 def test_maintain_indexes_propagates_nested_content_hash_changes(
@@ -1824,9 +1824,9 @@ def test_maintain_indexes_propagates_nested_content_hash_changes(
 
     assert changed is True
     assert purposes == [
-        "INDEX entry 生成 parent/child/leaf.md",
-        "INDEX entry 生成 parent/child",
-        "INDEX entry 生成 parent",
+        "generate INDEX entry parent/child/leaf.md",
+        "generate INDEX entry parent/child",
+        "generate INDEX entry parent",
     ]
     assert f"- {leaf_digest}" in child_index
     assert f"- {child_digest}" in parent_index

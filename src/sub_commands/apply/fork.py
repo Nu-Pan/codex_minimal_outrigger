@@ -395,8 +395,8 @@ def cmoc_apply_impl(
         )
 
         # 不整合調査と追従作業を指定回数まで反復する。
-        failed_stage = "要修正点の調査と適用"
-        start_step(timer, 5, 6, "要修正点の調査と適用")
+        failed_stage = "investigate and apply fixing points"
+        start_step(timer, 5, 6, "investigate and apply fixing points")
         completed = False
         dirty_oracle_paths: set[Path] | None = None
         dirty_implementation_paths: set[Path] | None = None
@@ -409,7 +409,7 @@ def cmoc_apply_impl(
                 timer,
                 loop_step_path,
                 None,
-                "調査・修正ループ",
+                "investigate and fix loop",
             )
             discrepancies = _investigate_discrepancies(
                 apply_worktree,
@@ -442,8 +442,8 @@ def cmoc_apply_impl(
             dirty_implementation_paths = next_dirty_implementation_paths
             discrepancy_counts.append(len(discrepancies))
             print(
-                "実装ループ "
-                f"({loop_index}/{repeat_investigate_and_fix}) 要修正点: "
+                "implementation loop "
+                f"({loop_index}/{repeat_investigate_and_fix}) fixing points: "
                 f"{len(discrepancies)}"
             )
             if not discrepancies:
@@ -872,7 +872,7 @@ def _investigate_discrepancies(
         timer,
         (*step_path, (1, 5)),
         None,
-        "調査対象選択",
+        "select investigation targets",
     )
     oracle_targets = _target_oracle_files(
         repo_root,
@@ -906,10 +906,14 @@ def _investigate_discrepancies(
         timer,
         (*step_path, (2, 5)),
         None,
-        "file 起点調査を並列実行",
+        "run file-based investigations in parallel",
     )
     for job in jobs:
-        label = "oracle 調査" if job.kind == "oracle" else "実装調査"
+        label = (
+            "oracle investigation"
+            if job.kind == "oracle"
+            else "implementation investigation"
+        )
         print(f"{label} ({job.index}/{job.total}) {job.target.path}")
     if jobs:
         with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
@@ -942,10 +946,13 @@ def _run_investigation_job(
     """1 file 起点の不整合調査を実行し、fixing_points を返す。"""
     if job.kind == "oracle":
         prompt = _investigation_prompt(repo_root, job.target)
-        purpose = f"oracle 調査 {job.target.path.relative_to(repo_root)}"
+        purpose = f"investigate oracle {job.target.path.relative_to(repo_root)}"
     else:
         prompt = _implementation_investigation_prompt(repo_root, job.target)
-        purpose = f"実装調査 {job.target.path.relative_to(repo_root)}"
+        purpose = (
+            "investigate implementation "
+            f"{job.target.path.relative_to(repo_root)}"
+        )
     payload = parse_json_object(
         run_codex_exec(
             repo_root,
@@ -1202,7 +1209,7 @@ def _improove_fixing_list(
             timer,
             (*step_path, (loop_index, repeat_improove_fixing_list)),
             None,
-            "要修正点リスト改善",
+            "improve fixing point list",
         )
         next_improved = _organize_discrepancies(
             repo_root,
@@ -1210,8 +1217,8 @@ def _improove_fixing_list(
             base_commit,
         )
         print(
-            "要修正点リスト改善ループ "
-            f"({loop_index}/{repeat_improove_fixing_list}) 要修正点: "
+            "fixing point list improvement loop "
+            f"({loop_index}/{repeat_improove_fixing_list}) fixing points: "
             f"{len(next_improved)}"
         )
         if not next_improved:
@@ -1243,7 +1250,7 @@ def _organize_discrepancies(
                 base_commit,
                 head_commit_hash,
             ),
-            purpose="要修正点整理",
+            purpose="organize fixing points",
             read_only=True,
             expect_json=True,
             output_schema=_DISCREPANCY_OUTPUT_SCHEMA,
@@ -1367,14 +1374,14 @@ def _apply_discrepancies(
             timer,
             (*step_path, (index, len(discrepancies))),
             None,
-            "要修正点適用",
+            "apply fixing point",
         )
-        print(f"要修正点適用 ({index}/{len(discrepancies)})")
+        print(f"apply fixing point ({index}/{len(discrepancies)})")
         before_head = head_commit(repo_root)
         run_codex_exec(
             repo_root,
             _apply_prompt(repo_root, discrepancy),
-            purpose=f"要修正点適用 {index}/{len(discrepancies)}",
+            purpose=f"apply fixing point {index}/{len(discrepancies)}",
             read_only=False,
             expect_json=False,
             index_excluded_roots=_apply_index_excluded_roots(repo_root),
@@ -1411,7 +1418,7 @@ def _commit_all_changes(repo_root: Path) -> None:
     message = run_codex_exec(
         repo_root,
         _commit_message_prompt(repo_root),
-        purpose="commit message 生成",
+        purpose="generate commit message",
         read_only=True,
         expect_json=False,
         model=COMMIT_MESSAGE_MODEL,
@@ -1658,7 +1665,7 @@ def _generate_change_summary(
         run_codex_exec(
             repo_root,
             prompt,
-            purpose="apply 変更要約",
+            purpose="summarize apply changes",
             read_only=True,
             expect_json=True,
             output_schema=_CHANGE_SUMMARY_OUTPUT_SCHEMA,

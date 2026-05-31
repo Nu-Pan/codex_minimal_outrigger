@@ -409,7 +409,7 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
         output = run_codex_exec(
             repo,
             "prompt",
-            purpose="unit test codex 呼び出し",
+            purpose="unit test codex call",
             read_only=True,
         )
 
@@ -423,13 +423,13 @@ def test_run_codex_exec_notifies_console_and_subcommand_log(
     ]
     assert output == "ok\n"
     assert "## Codex CLI 呼び出し完了" in captured
-    assert "- purpose: unit test codex 呼び出し" in captured
+    assert "- purpose: unit test codex call" in captured
     assert f"- log path: {repo}/.cmoc/logs/codex_exec/call/" in captured
     assert "- elapsed:" in captured
     assert "- returncode: 0" in captured
     assert any(
         event["event"] == "codex_exec_call"
-        and event["purpose"] == "unit test codex 呼び出し"
+        and event["purpose"] == "unit test codex call"
         and event["returncode"] == 0
         for event in log_events
     )
@@ -470,7 +470,7 @@ def test_run_codex_exec_escapes_control_chars_in_console_notification(
         output = run_codex_exec(
             repo,
             "prompt",
-            purpose="oracle 調査 oracles/a\nb%25.md",
+            purpose="investigate oracle oracles/a\nb%25.md",
             read_only=True,
         )
 
@@ -479,7 +479,7 @@ def test_run_codex_exec_escapes_control_chars_in_console_notification(
     header_index = captured_lines.index("## Codex CLI 呼び出し完了")
     notification_lines = captured_lines[header_index + 1 : header_index + 5]
     assert output == "ok\n"
-    assert notification_lines[0] == "- purpose: oracle 調査 oracles/a%0Ab%2525.md"
+    assert notification_lines[0] == "- purpose: investigate oracle oracles/a%0Ab%2525.md"
     assert notification_lines[1].startswith(f"- log path: {repo}/")
     assert notification_lines[2].startswith("- elapsed: ")
     assert notification_lines[3] == "- returncode: 0"

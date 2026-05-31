@@ -240,11 +240,11 @@ def cmoc_review_oracles_impl(
             )
 
             # oracle ファイルごとに Codex CLI 評価を実行する。
-            failed_stage = "oracle ファイル評価"
-            start_step(timer, 4, 6, "oracle ファイル評価")
+            failed_stage = "evaluate oracle files"
+            start_step(timer, 4, 6, "evaluate oracle files")
             for index, oracle_file in enumerate(oracle_files, start=1):
                 print(
-                    f"oracle 評価 ({index}/{len(oracle_files)}) "
+                    f"evaluate oracle ({index}/{len(oracle_files)}) "
                     f"{oracle_file}"
                 )
             if oracle_files:
@@ -428,7 +428,7 @@ def _evaluate_oracle_file(
         run_codex_exec(
             repo_root,
             _evaluation_prompt(repo_root, oracle_file, oracle_snapshot),
-            purpose=f"oracle 評価 {oracle_file.relative_to(repo_root)}",
+            purpose=f"evaluate oracle {oracle_file.relative_to(repo_root)}",
             read_only=True,
             expect_json=True,
             output_schema=_EVALUATION_OUTPUT_SCHEMA,
@@ -543,7 +543,7 @@ def _improve_evaluations(
             run_codex_exec(
                 repo_root,
                 _improvement_prompt(repo_root, current_payload, oracle_snapshot),
-                purpose=f"oracle 問題点リスト改善 {index + 1}",
+                purpose=f"improve oracle issues list {index + 1}",
                 read_only=True,
                 expect_json=True,
                 output_schema=_EVALUATION_OUTPUT_SCHEMA,
