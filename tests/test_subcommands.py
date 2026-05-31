@@ -401,6 +401,41 @@ def test_init_adds_cmoc_ignore_and_commits_it(tmp_path: Path) -> None:
     )
 
 
+def test_init_repairs_negated_cmoc_ignore_rule_and_commits_it(
+    tmp_path: Path,
+) -> None:
+    """`cmoc init` は negation で無効な既存 `/.cmoc/` も補修して commit する。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n!/.cmoc/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "add ineffective cmoc ignore")
+
+    cmoc_init_impl(repo)
+
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == (
+        "/.cmoc/\n!/.cmoc/\n/.cmoc/\n"
+    )
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert (
+        _git(
+            repo,
+            "check-ignore",
+            "-q",
+            "--",
+            ".cmoc/.__cmoc_ignore_probe__",
+        ).returncode
+        == 0
+    )
+    assert _git(repo, "show", "HEAD:.gitignore").stdout == (
+        "/.cmoc/\n!/.cmoc/\n/.cmoc/\n"
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert (
+        _git(repo, "log", "-1", "--pretty=%s").stdout.strip()
+        == "Initialize cmoc"
+    )
+
+
 def test_init_untracks_existing_cmoc_file_and_commits_it(
     tmp_path: Path,
 ) -> None:

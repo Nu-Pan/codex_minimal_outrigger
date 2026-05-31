@@ -57,6 +57,33 @@ def test_ensure_cmoc_ignored_is_idempotent(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8").count(".cmoc") == 1
 
 
+def test_ensure_cmoc_ignored_repairs_negated_cmoc_rule(
+    tmp_path: Path,
+) -> None:
+    """後続 negation で打ち消された `/.cmoc/` は末尾追記で補修する。"""
+    repo = _init_repo(tmp_path)
+    gitignore = repo / ".gitignore"
+    gitignore.write_text("/.cmoc/\n!/.cmoc/\n", encoding="utf-8")
+
+    assert gitignore_has_cmoc_rule(repo) is False
+    assert ensure_cmoc_ignored(repo) is True
+
+    assert gitignore.read_text(encoding="utf-8") == (
+        "/.cmoc/\n!/.cmoc/\n/.cmoc/\n"
+    )
+    assert gitignore_has_cmoc_rule(repo) is True
+    assert (
+        _git(
+            repo,
+            "check-ignore",
+            "-q",
+            "--",
+            ".cmoc/.__cmoc_ignore_probe__",
+        ).returncode
+        == 0
+    )
+
+
 def test_ensure_cmoc_ignored_untracks_existing_cmoc_files(
     tmp_path: Path,
 ) -> None:
