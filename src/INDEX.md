@@ -52,21 +52,22 @@
 
 ## Summary
 
-- `src/sub_commands` 配下の実装入口をまとめる目次で、`init.py` と `apply`、`review`、`session` の各実装へ進むための案内です。
-- `__init__.py` はパッケージ宣言のみを担い、他のディレクトリやファイルが各サブコマンド実装の入口になります。
+- `src/sub_commands` は cmoc の個別サブコマンド実装への入口です。
+- apply、session、review、init の各処理をまとめ、どのモジュールへ進むべきかを切り分けます。
+- このディレクトリを起点に、開始・統合・破棄・評価・初期化の実装を追えます。
 
 ## Read this when
 
-- `src/sub_commands` の役割や配下ファイルの担当範囲を整理したいとき。
-- `cmoc init`、`cmoc apply`、`cmoc review`、`cmoc session` のどの実装に進むべきか判断したいとき。
-- 個別モジュールの実装・修正・レビューを始める前に入口を確認したいとき。
+- cmoc の個別サブコマンド実装の入口と役割分担を把握したいとき。
+- apply、session、review、init のどの実装ファイルを読むべきか整理したいとき。
+- サブコマンドごとの処理順、状態遷移、終了条件を俯瞰したいとき。
 
 ## Do not read this when
 
-- 個別のサブコマンド仕様や状態遷移、引数の詳細だけを確認したいとき。
-- `oracles/docs/app_specs/sub_commands/` 側の正本仕様そのものを読みたいとき。
-- `src/commons` や `main.py` の共通処理・CLI 登録だけを見たいとき。
+- 個別サブコマンドの詳細仕様だけを確認したいときは、この目次ではなく対応する実装モジュールや正本仕様を直接読むべきです。
+- 実装コードやテストコードの作業だけで足りるときは、この目次を読む必要はありません。
+- branch model、ログ、エラーハンドリングなど他の共通仕様を確認したいときは、別の入口文書を読むべきです。
 
 ## hash
 
-- 097849df3acc64dff6f51ee170ca8fdfc688a9de8478ba15b07f322fa3ad7920
+- 62d2be4d4a2404aaef9af8d3b3d47eae522c85fd4218ac6ca69a5dc0405e7f61

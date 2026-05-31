@@ -163,13 +163,14 @@
 
 ## Do not read this when
 
-- 個別の実装本体を読みたいときは、`src/sub_commands/...` や `src/main.py`、`bin/cmoc` を直接確認すべきです。
+- 個別の実装本体を確認したいときは、`src/sub_commands/...`、`src/main.py`、`bin/cmoc` を直接読むべきです。
 - `commons.repo`、`commons.command_runner`、`commons.errors` など、単体モジュールの仕様だけを追いたいときはこのファイルは遠回りです。
-- 特定の領域だけの回帰を見たいときは、`tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_codex.py` などの専用テストを読むべきです。
+- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_codex.py` など、特定領域だけの回帰を確認したいときは専用テストを読むべきです。
+- サブコマンド横断ではなく、`cmoc init` や `session`、`apply` の個別仕様だけを知りたいときは各専用テストを優先すべきです。
 
 ## hash
 
-- 929f307f7cfdbcbefeb488ae2f28657c705d37579e4e361abcdcfb87778ab5db
+- d4d13fd639660e72cca68a5ece109bcd0f20bbfdbd52a336260b7bbd1dcca32a
 
 # `test_timestamps.py`
 
