@@ -65,14 +65,14 @@
 
 - `src/sub_commands` 配下のどの実装ファイルを読むべきかを素早く振り分けたいとき。
 - `cmoc` の各サブコマンド実装の入口構造を俯瞰したいとき。
-- `apply`、`session`、`review`、`init` の実装・修正・レビュー・テストを始める前に関連ディレクトリの役割分担を確認したいとき。
+- `apply`、`session`、`review`、`init` の実装・修正・レビュー・テストを始める前に、関連ディレクトリの役割分担を確認したいとき。
 
 ## Do not read this when
 
 - `src/sub_commands/__init__.py` のパッケージ宣言だけを確認したいとき。
-- `cmoc apply`、`cmoc session`、`cmoc review`、`cmoc init` の個別仕様や実装詳細だけを追いたいとき。
+- `cmoc init`、`cmoc apply`、`cmoc review`、`cmoc session` の個別仕様や実装詳細だけを追いたいとき。
 - `oracles/docs/app_specs/` 側の正本仕様だけを読みたいとき。
 
 ## hash
 
-- 18c6dd7ba80bee50de0cbe51a535e6373e1dfc81d27e8647a64612d76a21ee20
+- b98e9817ee725fd6e54c5911f2ebae3394f33babc7bfd5ab66a00f3fdc4e31b7
