@@ -26,7 +26,7 @@
 ## Summary
 
 - `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装入口です。
-- `__init__.py` はパッケージ宣言のみで、本体処理は `fork.py`、`join.py`、`abandon.py` に分かれています。
+- `__init__.py` はパッケージ宣言のみを担い、本体処理は `fork.py`、`join.py`、`abandon.py` に分かれています。
 - この目次は、開始・統合・破棄のどの実装へ進むべきかを素早く案内するためのものです。
 
 ## Read this when
@@ -45,7 +45,7 @@
 
 ## hash
 
-- 1a4ef275375554eeffaf67ea07072dac59fa378ec71f7a31c297c50bd6922836
+- 97a4b8a50f905468c21004216c278669939c45eda11f5cddb7eff5a2329c06e5
 
 # `init.py`
 

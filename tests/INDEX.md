@@ -163,21 +163,21 @@
 
 - `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートを追いたいとき。
 - `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の横断的な回帰観点をまとめて確認したいとき。
-- `.cmoc` ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
+- `.cmoc` の ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
 - oracle 評価の Structured Output、`INDEX.md` メンテナンス、prompt 内容、issue 集約、`--force-resolve`、失敗時の error report 仕様を確認したいとき。
 - 補完プローブ、JSONL サブコマンドログ、`bin/cmoc` と `test.sh` の挙動、テスト helper / repo 構築 helper の意図を把握したいとき。
 
 ## Do not read this when
 
+- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパーの実装だけを確認したいとき。
+- `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別のテスト入口の仕様だけを確認したいとき。
 - `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを追いたいとき。
-- `commons.command_runner`、`commons.errors`、`commons.repo`、`commons.subcommand_log` など、単一の共通ヘルパーだけを確認したいとき。
-- `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別のテスト入口の仕様を調べたいとき。
-- `oracles` 側の正本仕様や `INDEX.md` 生成ルールそのものだけを確認したいとき。
-- pytest 共通設定やファイル命名規則だけを確認したいとき。
+- `oracles` 側の正本仕様や `INDEX.md` の生成ルールそのものだけを確認したいとき。
+- pytest の共通設定やファイル命名規則だけを確認したいとき。
 
 ## hash
 
-- 6d36321b11d93ca720942b348b4ba71513471b893783a92303482de734df0172
+- b58b7ac0cc934831d5790af06672763cce440e00b1545a4afd498f34859deeb6
 
 # `test_timestamps.py`
 

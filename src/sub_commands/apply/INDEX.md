@@ -49,27 +49,30 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session branch 上で専用 apply branch と worktree を作成し、要修正点の調査・適用・レポート生成までを一括で担当するモジュールです。
-- 起動時の session/apply state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の `running` / `completed` / `error` 遷移を扱います。
-- Structured Output による不整合調査、修正適用、commit、編集禁止領域の検査、`INDEX.md` 保守、YAML Front Matter 付き report 出力と変更要約生成まで含みます。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch 上で専用 apply branch と worktree を作成し、調査・修正ループを回して report まで出力するモジュールです。
+- 起動前の session/apply state 検証、` .cmoc` の ignore 保証、apply start のロック、worktree 作成のリトライ、`apply.state` の `running` / `completed` / `error` 更新を扱います。
+- Structured Output による要修正点の収集と改善、scope に応じた対象ファイル選定、dirty path の更新、各修正ごとの禁止領域チェックと commit を含みます。
+- `INDEX.md` の保守、変更要約の生成、YAML Front Matter 付きの apply report / error report の書き込みまで含めて、人間向けに結果をまとめます。
 
 ## Read this when
 
-- `cmoc apply fork` の処理順と責務の境界を確認したいとき。
-- session/apply state、scope、反復回数、worktree 作成リトライの挙動を確認したいとき。
-- 要修正点の Structured Output、修正適用、commit、report 生成、禁止領域チェックの実装・修正・レビュー・テストをしたいとき。
-- `apply.state` の `running` / `completed` / `error` 遷移や、`oracles` を除外した `INDEX.md` 保守の方針を確認したいとき。
+- `cmoc apply fork` の処理順、責務の境界、終了コードを確認したいとき。
+- session/apply state の検証、`--repeat-investigate-and-fix`、`--repeat-improove-fixing-list`、`--scope` の挙動を確認したいとき。
+- 要修正点の Structured Output、調査対象ファイルの選定、改善ループ、修正適用、commit の流れを実装・修正・レビュー・テストしたいとき。
+- apply branch と専用 worktree の作成・再試行・状態更新、`running` / `completed` / `error` 遷移の実装を追いたいとき。
+- 禁止領域の検査、`oracles` を除外した `INDEX.md` 保守、report / error report の生成方針を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon` の終了・破棄手順だけを確認したいとき。
-- `cmoc apply fork` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/apply_fork.md` を直接読むべきです。
-- `src/sub_commands/apply` パッケージの入口だけを確認したいときや、`INDEX.md` の生成ルール全体を調べたいときには向きません。
-- 個別の helper 関数だけを追いたいときは、このファイルよりも該当する小さい単位のコードを読むほうが適しています。
+- `cmoc apply join` や `cmoc apply abandon` の終了・破棄処理だけを確認したいとき。
+- `cmoc apply fork` の利用手順や正本仕様だけを確認したいときは、実装ではなく `oracles/docs/app_specs/sub_commands/apply_fork.md` を読むべきとき。
+- `src/sub_commands/apply` パッケージ全体の入口構造だけを確認したいとき。
+- `INDEX.md` の生成ルール全体や `oracles` のルーティング方針だけを調べたいとき。
+- 個別の helper 関数の細部よりも、まず仕様断片そのものを追いたいとき。
 
 ## hash
 
-- 43b7b616b2eb2bae15b46714882e894ea892a8d58e309bd3feaa295cb304f491
+- 8dcadcf79323022b58103fe7fdb95a6588c7bee61dc5273beeb0f3e141482532
 
 # `join.py`
 
