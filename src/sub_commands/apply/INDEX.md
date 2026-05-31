@@ -50,16 +50,17 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch 上に専用の apply branch と worktree を作成し、要修正点の調査から適用、commit、report 出力までを担当するモジュールです。
-- 起動前の session/apply state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、排他ロックと worktree 作成リトライ、apply.state の遷移をまとめて扱います。
-- 調査結果の Structured Output 検証、差分の整理、編集禁止領域の確認、YAML Front Matter 付きの報告書生成まで含めて、`cmoc apply fork` の完結した実行経路を把握するための入口です。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装です。
+- session branch 上に専用の apply branch と worktree を作成し、要修正点の調査、修正適用、コミット、レポート生成までをまとめて担当します。
+- 起動前の `session.state` / `apply.state` 検証、引数検証、反復回数と `scope` の扱い、失敗時の状態更新を含みます。
+- 調査結果の Structured Output 検証、編集禁止領域の確認、出力レポートの保存条件も扱います。
 
 ## Read this when
 
 - `cmoc apply fork` の処理順と責務の境界を確認したいとき。
 - `session.state` / `apply.state` の検証条件、apply branch と worktree の作成条件、`scope` の扱いを確認したいとき。
-- Structured Output による要修正点の調査、修正適用、commit、report 生成の流れを実装・修正・レビュー・テストしたいとき。
-- 編集禁止領域の検査や、失敗時を含む report 保存条件を確認したいとき。
+- 要修正点リストの Structured Output、差分整理、コミット、レポート生成の流れを実装・修正・レビュー・テストしたいとき。
+- 編集禁止領域の検査や、失敗時を含むレポート保存条件を確認したいとき。
 
 ## Do not read this when
 
@@ -70,7 +71,7 @@
 
 ## hash
 
-- d060d86b7e1fb63e31129abb4b28f2219be2ef0398e178f41d8521afdfe2d63e
+- 45b5dfc9252792d1d28abb88aac9694388b5ae7a83cd213a84af4bc2e21b94d3
 
 # `join.py`
 
