@@ -64,13 +64,13 @@
 ## Do not read this when
 
 - `cmoc apply join` や `cmoc apply abandon` の終了処理だけを確認したいとき。
-- `cmoc apply fork` の利用手順や正本仕様だけを確認したいとき。
+- `cmoc apply fork` の利用手順や仕様断片だけを確認したいとき。
 - `src/sub_commands/apply` パッケージ全体の入口だけを確認したいとき。
 - `INDEX.md` の生成ルールだけを確認したいとき。
 
 ## hash
 
-- 802995a109c6235c4f81b8d80a085ca5728e19a24c978e26976b079f9ba9bbbb
+- e9fb3a072e6ee2ea11b92ee6f309630474833cf68723f9e0c203f56a5d06bfcc
 
 # `join.py`
 

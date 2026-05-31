@@ -178,27 +178,25 @@
 ## Summary
 
 - `src` は cmoc の実装本体を置くディレクトリで、CLI 入口、共通モジュール、サブコマンド実装をまとめる。
-- `main.py` は `cmoc` CLI の起動点で、`session`、`apply`、`review` の各サブアプリと `init` を束ねる。
+- `main.py` は `cmoc` の起動点で、`init` と `session` / `apply` / `review` の各コマンド登録を行う。
 - `commons` はエラー整形、repo 操作、Codex 呼び出し、ログ、計測、`INDEX.md` 生成などの共通基盤を担う。
 - `sub_commands` は `init`、`session`、`apply`、`review` 系の個別実装への入口をまとめる。
 
 ## Read this when
 
-- `cmoc` の CLI 入口がどこにあり、どのサブコマンド群へ分かれるかを確認したいときに読む。
-- `src/commons` の共通基盤として、エラー処理、repo 操作、ログ、時間計測、`INDEX.md` 生成を確認したいときに読む。
-- `src/sub_commands` の下にある `init`、`session`、`apply`、`review` の実装入口を整理したいときに読む。
-- `src/main.py` が Typer のルートアプリとサブアプリをどう組み立てているかを確認したいときに読む。
+- `cmoc` の CLI 実装全体で、入口・共通基盤・サブコマンド群の配置を把握したいとき。
+- `src/main.py` が Typer のルートアプリと `session` / `apply` / `review` をどう束ねているか確認したいとき。
+- `src/commons` の共通処理と、`src/sub_commands` の個別実装への導線を整理したいとき。
 
 ## Do not read this when
 
-- `oracles` 配下の正本仕様だけを追いたいときは、このディレクトリではなく `oracles` 側を読む。
-- 個別サブコマンドの実装詳細だけを確認したいときは、この目次ではなく `src/sub_commands` 配下の各ファイルを読む。
-- 共通基盤ではなく、CLI の使い方や作業フローだけを知りたいときは、`README.md` や該当する案内文書を読む。
-- `src` 配下のパッケージ宣言だけを確認したいときは、各 `__init__.py` を直接読む。
+- `oracles` 配下の正本仕様断片だけを確認したいとき。
+- 個別サブコマンドの引数や状態遷移だけを確認したいとき。
+- `src/commons` や `src/sub_commands` の下位モジュールを直接読む前に、この入口だけで十分なとき。
 
 ## hash
 
-- eb0f86c398883bb82cdc3dd7cafb1ad987be504af7ee19476f300ef1944d6758
+- 7403e0e836701e0073031829eca342cac77b855530285f6b5d7e7ada0cb4360a
 
 # `test.sh`
 
@@ -227,28 +225,35 @@
 
 ## Summary
 
-- `conftest.py` は pytest 実行時に `<cmoc-root>/src` を import path へ追加する共通設定です。
-- `test_codex.py` は `commons.codex.run_codex_exec` と Structured Output、resume、quota 復旧、ログ出力の回帰です。
-- `test_file_naming.py` は `routing.md` と `ROUTING.md` の残存防止を確認する命名規則テストです。
-- `test_indexing.py` は `INDEX.md` の生成、再利用、再生成条件、hash 更新、排他 lock の回帰です。
-- `test_repo.py` は git 共通処理、`.cmoc` ignore 保証、ファイル列挙、session state の回帰です。
-- `test_report_files.py` はタイムスタンプ付きレポート保存で上書きせず別名保存することを確認します。
-- `test_subcommands.py` は共通実行基盤と主要サブコマンド横断の回帰テスト群です。
-- `test_timestamps.py` はタイムスタンプ生成と経過時間表示の仕様を確認します。
+- `tests` は cmoc の回帰テスト群を集めたディレクトリです。
+- `conftest.py` は pytest の import path を調整して `src` 配下の実装を直接読めるようにします。
+- `test_codex.py` は Codex CLI 呼び出し基盤と Structured Output の検証を担います。
+- `test_file_naming.py` は旧ルーティングファイルの残存や命名規則を検証します。
+- `test_indexing.py` は `INDEX.md` メンテナンス処理の生成・更新・再利用・コミットを検証します。
+- `test_repo.py` は repo root 探索、ignore 判定、変更検出、session / apply 状態管理を検証します。
+- `test_report_files.py` はタイムスタンプ付きレポートの排他保存と再試行を検証します。
+- `test_subcommands.py` は cmoc のサブコマンド群と共通実行基盤の横断回帰を検証します。
+- `test_timestamps.py` はタイムスタンプ生成と経過時間表示の仕様を検証します。
 
 ## Read this when
 
-- `tests` 配下のどの回帰がどこを守るか確認したいとき。
-- pytest 共通設定、CLI 実行、repo / INDEX 生成、report 保存、timestamp 仕様を横断的に探したいとき。
-- 個別テストファイルへ入る前に、入口だけ俯瞰したいとき。
+- pytest 実行時に `src` 配下の cmoc 実装モジュールを import できる仕組みを確認したいときは `conftest.py` を読むべきです。
+- `commons.codex` の `run_codex_exec`、Structured Output、再試行、resume、quota 復旧を確認したいときは `test_codex.py` を読むべきです。
+- 旧ルーティングファイル `routing.md` / `ROUTING.md` が残っていないことや、命名規則の回帰を確認したいときは `test_file_naming.py` を読むべきです。
+- `INDEX.md` の自動生成、再利用、更新判定、hash、並列化、lock などの保守挙動を確認したいときは `test_indexing.py` を読むべきです。
+- `src/commons/repo.py` の repo root 検出、`.cmoc` の ignore 保証、変更検出、session / apply state の扱いを確認したいときは `test_repo.py` を読むべきです。
+- タイムスタンプ付きレポートの排他作成、再試行、衝突回避の挙動を確認したいときは `test_report_files.py` を読むべきです。
+- `run_command`、`main`、completion、`bin/cmoc`、各サブコマンドの横断的な制御を確認したいときは `test_subcommands.py` を読むべきです。
+- `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の出力形式や丸め規則を確認したいときは `test_timestamps.py` を読むべきです。
 
 ## Do not read this when
 
-- 個別テストケースの期待値や実装詳細だけを追いたいとき。
-- `src/commons` や `src/sub_commands` の本体実装だけを確認したいとき。
-- `oracles` 側の正本仕様や `INDEX.md` 全体の生成ルールだけを知りたいとき。
-- `tests` 配下の `__pycache__` や生成物の中身を調べたいとき。
+- 個別テストケースの細部や期待値だけを追いたいときは、このディレクトリ全体ではなく該当するテストファイルを読むべきです。
+- cmoc の本体実装やサブコマンド仕様を確認したいときは、`tests` ではなく `src` 配下の実装と対応する `oracles` 側を読むべきです。
+- `__pycache__` のような生成物やテストの実行結果ファイルを探したいときは、この目次ではなく実ファイル群を直接確認すべきです。
+- `INDEX.md` 自体の生成ルールやメンテナンス仕様だけを知りたいときは、このディレクトリの個別テストではなく `oracles/docs/app_specs/indexing.md` を読むべきです。
+- pytest の共通設定や import path の制御が不要で、個別モジュールの仕様だけを見たいときは `conftest.py` を優先して読む必要はありません。
 
 ## hash
 
-- aebeccf5c52028c95fd2bc54ea787f0f7649f9f295b606c1e767d8b6bcb45cec
+- 24edc29f80387f4252ab203f33c90bdc763aad08d8fd7f53519bdee549ad913b
