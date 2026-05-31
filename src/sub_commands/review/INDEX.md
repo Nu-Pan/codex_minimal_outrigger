@@ -32,14 +32,14 @@
 - `cmoc review oracles` の本体処理を実装・修正・レビューしたいとき。
 - 開始時点の `oracles` スナップショット固定、`INDEX.md` の反映、oracle ファイルごとの並列評価、問題点リスト改善、レポート保存の流れを確認したいとき。
 - Structured Output の検証条件や、参照してよい `oracles` 配下ファイルの制約を確認したいとき。
-- 評価失敗時のエラーレポート生成や、` .cmoc/reports/review_oracles` への出力規則を確認したいとき。
+- 評価失敗時のエラーレポート生成や、`.cmoc/reports/review_oracles` への出力規則を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc review oracles` の利用手順や引数、仕様断片だけを確認したいときは、`oracles/docs/app_specs/sub_commands/review_oracles.md` を読むべきです。
-- `cmoc review` の CLI 登録や隠し別名だけを確認したいときは、`src/main.py` を読むべきです。
+- `cmoc review oracles` の利用手順、引数、出力形式などの仕様断片だけを確認したいときは、`oracles/docs/app_specs/sub_commands/review_oracles.md` を読むべきです。
+- `cmoc review` の CLI 登録や hidden alias だけを確認したいときは、`src/main.py` を読むべきです。
 - `src/sub_commands/review` ディレクトリ全体の入口構造や `__init__.py` だけを確認したいときは、このファイルではなくディレクトリの `INDEX.md` を読むべきです。
 
 ## hash
 
-- dcdfcbeda439e56148eb3d4317d8aae90d9eaa8a4ceffd6d8b3b82175cd6d11a
+- 91ef27bc24e9dcdd250c3fc0772833747174db47da52e005ee8f5e59e7e64349
