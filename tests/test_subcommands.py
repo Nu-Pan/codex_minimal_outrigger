@@ -8459,42 +8459,31 @@ def test_session_join_allows_clean_auto_merged_root_forbidden_file(
 
 
 @pytest.mark.parametrize("root_doc_path", ["README.md", "AGENTS.md"])
-def test_session_join_allows_root_doc_file_conflict(
+def test_session_join_rejects_root_doc_file_conflict_without_codex(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
     root_doc_path: str,
 ) -> None:
-    """README/AGENTS の conflict も Codex に marker 解消を依頼する。"""
+    """README/AGENTS の conflict は編集禁止として手動解決へ止める。"""
     repo = _repo_with_session_join_root_doc_conflict(tmp_path, root_doc_path)
-    codex_prompts: list[str] = []
 
     def fake_codex(
         repo_root: Path,
         prompt: str,
         **kwargs: object,
     ) -> None:
-        """本物の Codex CLI なしで root doc conflict を解消する。"""
-        del kwargs
-        codex_prompts.append(prompt)
-        (repo_root / root_doc_path).write_text("resolved\n", encoding="utf-8")
+        """root doc conflict は Codex CLI に渡さない。"""
+        del repo_root, prompt, kwargs
+        pytest.fail("root doc conflict must stop before Codex CLI")
 
     monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
 
-    cmoc_session_join_impl(repo)
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
 
-    state = json.loads(
-        (
-            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
-        ).read_text(encoding="utf-8")
-    )
-    assert len(codex_prompts) == 1
-    assert f"`{repo / root_doc_path}` は conflict marker 解消に限って編集できます" in (
-        codex_prompts[0]
-    )
-    assert state["session"]["state"] == "joined"
-    assert (repo / root_doc_path).read_text(encoding="utf-8") == "resolved\n"
-    assert not (repo / ".git" / "MERGE_HEAD").exists()
-    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert "Codex CLI に依頼できない禁止領域" in error.value.message
+    assert root_doc_path in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
 
 
 def test_session_join_ignores_markers_outside_conflict_paths(
@@ -9876,19 +9865,37 @@ def test_bin_cmoc_suppresses_missing_venv_report_for_completion_probe(
     assert result.stdout == ""
 
 
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "README.md",
+        "AGENTS.md",
+        ".cmoc/state.json",
+        ".agents/config.json",
+        "memo/note.md",
+    ],
+)
+def test_session_join_forbidden_conflict_paths_include_root_docs(
+    relative_path: str,
+) -> None:
+    """session join は編集禁止 path の conflict を Codex に渡さない。"""
+    assert session_join_module._is_forbidden_conflict_path(relative_path)
+
+
 def test_session_join_conflict_prompt_allows_marker_only_oracle_fix() -> None:
     """conflict 対象 oracle file は marker 解消に限って編集できる。"""
     repo = Path("/repo")
 
-    prompt = _conflict_prompt(repo, ["app.py", "README.md", "oracles/spec.md"])
+    prompt = _conflict_prompt(repo, ["app.py", "oracles/spec.md"])
 
     assert "あなたは merge conflict 解消担当です。" in prompt
     assert "cmoc session join" not in prompt
     assert "`/repo/oracles` は編集禁止です。" not in prompt
-    assert "`/repo/README.md` は編集禁止です。" not in prompt
-    assert "`/repo/README.md` は conflict marker 解消に限って編集できます。" in prompt
+    assert "`/repo/.cmoc` は編集禁止です。" in prompt
+    assert "`/repo/README.md` は編集禁止です。" in prompt
+    assert "`/repo/README.md` は conflict marker 解消に限って編集できます。" not in prompt
     assert "`/repo/AGENTS.md` は編集禁止です。" in prompt
-    assert "['/repo/app.py', '/repo/README.md', '/repo/oracles/spec.md']" in prompt
+    assert "['/repo/app.py', '/repo/oracles/spec.md']" in prompt
     assert "['app.py" not in prompt
     assert "conflict marker 解消に限って編集できます" in prompt
     assert "意味的な仕様改訂" in prompt

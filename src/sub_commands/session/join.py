@@ -418,7 +418,11 @@ def _assert_no_forbidden_conflict_paths(unmerged: list[str]) -> None:
 def _is_forbidden_conflict_path(path: str) -> bool:
     """session join の自動 conflict 解消で編集禁止の path か判定する。"""
     return (
-        path == ".agents"
+        path == "README.md"
+        or path == "AGENTS.md"
+        or path == ".cmoc"
+        or path.startswith(".cmoc/")
+        or path == ".agents"
         or path.startswith(".agents/")
         or path == "memo"
         or path.startswith("memo/")
@@ -551,12 +555,6 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
         for path in unmerged
         if path == "oracles" or path.startswith("oracles/")
     ]
-    root_doc_conflicts = [
-        path
-        for path in unmerged
-        if path in {"README.md", "AGENTS.md"}
-    ]
-    root_doc_conflict_set = set(root_doc_conflicts)
 
     lines = [
         "あなたは merge conflict 解消担当です。",
@@ -565,17 +563,12 @@ def _conflict_prompt(repo_root: Path, unmerged: list[str]) -> str:
         "完了条件は、conflict marker を削除し、解決内容と未解決ファイルの有無を報告することです。",
         "`git add` と `git commit` は実行禁止です。",
         "conflict 対象外のファイルは編集禁止です。",
+        f"`{concrete_repo_root / '.cmoc'}` は編集禁止です。",
         f"`{concrete_repo_root / '.agents'}` は編集禁止です。",
         f"`{concrete_repo_root / 'memo'}` は読み書き禁止です。",
+        f"`{concrete_repo_root / 'README.md'}` は編集禁止です。",
+        f"`{concrete_repo_root / 'AGENTS.md'}` は編集禁止です。",
     ]
-    for root_doc in ("README.md", "AGENTS.md"):
-        concrete_root_doc = concrete_repo_root / root_doc
-        if root_doc in root_doc_conflict_set:
-            lines.append(
-                f"`{concrete_root_doc}` は conflict marker 解消に限って編集できます。"
-            )
-        else:
-            lines.append(f"`{concrete_root_doc}` は編集禁止です。")
     if oracle_conflicts:
         concrete_oracle_conflicts = [
             str((concrete_repo_root / relative_path).resolve())
