@@ -227,8 +227,7 @@ def cmoc_review_oracles_impl(
         with tempfile.TemporaryDirectory(
             prefix="cmoc-review-oracles-"
         ) as snapshot_dir:
-            # Codex CLI が読む oracle / INDEX.md は、メンテナンス前の
-            # review 開始時点 snapshot に固定する。
+            # Codex CLI が読む oracle 本文は review 開始時点 snapshot に固定する。
             oracle_snapshot = _create_oracle_evaluation_snapshot(
                 repo_root,
                 all_oracle_files,
@@ -238,6 +237,10 @@ def cmoc_review_oracles_impl(
             failed_stage = "INDEX.md メンテナンス"
             start_step(timer, 3, 6, "INDEX.md メンテナンス")
             _maintain_indexes_after_oracle_snapshot(repo_root)
+            oracle_snapshot = _sync_maintained_indexes_to_oracle_snapshot(
+                repo_root,
+                oracle_snapshot,
+            )
 
             # oracle ファイルごとに Codex CLI 評価を実行する。
             failed_stage = "oracle ファイル評価"
@@ -375,6 +378,56 @@ def _create_oracle_evaluation_snapshot(
         snapshot_root=snapshot_root.resolve(),
         snapshot_oracle_root=snapshot_oracle_root.resolve(),
         oracle_files=frozenset(path.resolve() for path in oracle_files),
+        reference_files=frozenset(reference_files),
+    )
+
+
+def _sync_maintained_indexes_to_oracle_snapshot(
+    repo_root: Path,
+    snapshot: _OracleEvaluationSnapshot,
+) -> _OracleEvaluationSnapshot:
+    """メンテナンス後の INDEX.md だけを評価 snapshot へ反映する。"""
+    original_oracle_root = (repo_root / "oracles").resolve()
+    snapshot_oracle_root = snapshot.snapshot_oracle_root
+
+    live_index_relatives: set[Path] = set()
+    if original_oracle_root.exists():
+        for original_index_path in original_oracle_root.rglob("INDEX.md"):
+            if not original_index_path.is_file():
+                continue
+            relative_path = original_index_path.relative_to(original_oracle_root)
+            live_index_relatives.add(relative_path)
+            snapshot_index_path = snapshot_oracle_root / relative_path
+            snapshot_index_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(
+                original_index_path,
+                snapshot_index_path,
+                follow_symlinks=True,
+            )
+
+    for snapshot_index_path in snapshot_oracle_root.rglob("INDEX.md"):
+        if not snapshot_index_path.is_file():
+            continue
+        relative_path = snapshot_index_path.relative_to(snapshot_oracle_root)
+        if relative_path not in live_index_relatives:
+            snapshot_index_path.unlink()
+
+    reference_files = set(snapshot.oracle_files)
+    reference_files.update(
+        _original_path_for_snapshot_path(
+            repo_root,
+            snapshot_oracle_root,
+            index_path,
+        )
+        for index_path in snapshot_oracle_root.rglob("INDEX.md")
+        if index_path.is_file()
+    )
+    return _OracleEvaluationSnapshot(
+        original_repo_root=snapshot.original_repo_root,
+        original_oracle_root=snapshot.original_oracle_root,
+        snapshot_root=snapshot.snapshot_root,
+        snapshot_oracle_root=snapshot.snapshot_oracle_root,
+        oracle_files=snapshot.oracle_files,
         reference_files=frozenset(reference_files),
     )
 

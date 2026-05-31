@@ -1270,11 +1270,11 @@ def test_eval_oracles_writes_report_with_fake_codex(
     assert "## Specification-only basis" not in report
 
 
-def test_eval_oracles_snapshots_oracles_before_index_maintenance(
+def test_eval_oracles_snapshots_oracles_with_maintained_indexes(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """評価 snapshot は INDEX.md メンテナンス前の開始時点 tree に固定する。"""
+    """評価 snapshot は開始時点本文とメンテナンス後 INDEX.md を読む。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1343,11 +1343,57 @@ def test_eval_oracles_snapshots_oracles_before_index_maintenance(
     ).read_text(encoding="utf-8")
     assert maintain_exclusions == [[]]
     assert evaluated_purposes == ["oracle 評価 oracles/original.md"]
-    assert snapshot_reads == [("original\n", "initial oracle index\n")]
+    assert snapshot_reads == [("original\n", "maintained oracle index\n")]
     assert f'head_commit: "{review_start_head}"' in report
     assert "oracle_count_total: 1" in report
     assert "oracle_count_evaluated: 1" in report
     assert "oracles/generated.md" not in report
+
+
+def test_eval_oracles_snapshot_gets_missing_oracles_index_after_maintenance(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """元の INDEX.md がなくても評価 prompt の snapshot 側 INDEX.md は存在する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle_file = oracle_root / "spec.md"
+    oracle_file.write_text("spec\n", encoding="utf-8")
+
+    def fake_maintain_indexes(repo_root: Path) -> bool:
+        """欠落していた oracles/INDEX.md がメンテナンスで作られる状況を模擬する。"""
+        (repo_root / "oracles" / "INDEX.md").write_text(
+            "created oracle index\n",
+            encoding="utf-8",
+        )
+        return True
+
+    monkeypatch.setattr(
+        review_oracles_module,
+        "maintain_indexes",
+        fake_maintain_indexes,
+    )
+    snapshot_index_texts: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """評価 prompt が指す snapshot 側 INDEX.md の実在と内容を記録する。"""
+        prompt = str(args[1])
+        index_match = re.search(
+            r"`([^`]+/oracles/INDEX\.md)` から始まる INDEX\.md",
+            prompt,
+        )
+        assert index_match is not None
+        snapshot_index_texts.append(
+            Path(index_match.group(1)).read_text(encoding="utf-8")
+        )
+        return json.dumps({"issues": []}, ensure_ascii=False)
+
+    monkeypatch.setattr(review_oracles_module, "run_codex_exec", fake_codex)
+
+    cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=0)
+
+    assert snapshot_index_texts == ["created oracle index\n"]
 
 
 def test_eval_oracles_reads_fixed_snapshot_after_oracle_tree_changes(
