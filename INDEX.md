@@ -177,24 +177,24 @@
 
 ## Summary
 
-- `cmoc` の Python 実装本体をまとめたソースディレクトリです。
-- CLI 起動点の `main.py`、共通基盤の `commons/`、サブコマンド実装の `sub_commands/` を含みます。
+- cmoc の実装コードをまとめたルートディレクトリです。CLI エントリーポイント、共通基盤ユーティリティ、各サブコマンド実装をここから辿れます。
+- 詳細は `main.py`、`commons/`、`sub_commands/` の各目次に分かれています。
 
 ## Read this when
 
-- `cmoc` の起動点やサブコマンド登録の全体像を確認したいとき。
-- 共通基盤と個別サブコマンド実装の配置場所を整理したいとき。
-- `src` 配下のどの入口を先に読むべきかを俯瞰したいとき。
+- cmoc の実装全体の入口を把握したいとき。
+- `main.py`、`commons/`、`sub_commands/` のどこへ進むべきか整理したいとき。
+- CLI 起動点と各サブコマンド実装の位置関係を確認したいとき。
 
 ## Do not read this when
 
-- 個別の `cmoc` コマンド実装や状態遷移だけを追いたいときは、このディレクトリではなく `sub_commands/` 配下の各モジュールを直接読むべきです。
-- 共通ユーティリティの詳細だけを確認したいときは、このディレクトリ全体ではなく `commons/` 配下を読むべきです。
-- `oracles/` の正本仕様やリポジトリ運用ルールだけを確認したいときには、このソースディレクトリの目次は不要です。
+- 個別サブコマンドの詳細仕様だけを追いたいときは、該当する配下の目次や実装を直接読むべきです。
+- `oracles` 側の正本仕様だけを確認したいときは、このディレクトリではなく `oracles/` 配下を読むべきです。
+- `INDEX.md` の生成ルールそのものを確認したいときは、この目次ではなく共通実装を読むべきです。
 
 ## hash
 
-- f6fb3aa8733844da970ed1b72d757bfc117051096d1b17b1f8b5a52ddf73b070
+- d9db9b468fb3fdab5bb222833f4b0534022bee5cb0d4b30c81c8553838194866
 
 # `test.sh`
 
@@ -223,32 +223,30 @@
 
 ## Summary
 
-- `tests/` は cmoc の pytest 回帰テスト群の入口です。
-- `conftest.py` は `src` を import 可能にする共通設定を提供します。
-- `test_codex.py` は Codex CLI 呼び出しラッパーの回帰を検証します。
-- `test_subcommands.py` は サブコマンド群の制御ロジックとエラー整形を検証します。
-- `test_indexing.py` は `INDEX.md` の生成・再生成・配置判定を検証します。
-- `test_repo.py` は git リポジトリ共通処理と `.cmoc` ignore 周りを検証します。
-- `test_report_files.py` は タイムスタンプ付きレポート保存の挙動を検証します。
-- `test_timestamps.py` は タイムスタンプ生成と時間表示の仕様を検証します。
-- `test_file_naming.py` は 旧ルーティングファイルの不存在と命名規則を検証します。
+- `tests` ディレクトリの pytest 回帰テストをまとめた入口です。
+- `conftest.py` はテスト実行時の import path 設定を担います。
+- `test_codex.py` は Codex 実行ラッパーと Structured Output 周辺を検証します。
+- `test_file_naming.py` は旧ルーティングファイルの不存在と命名規則を検証します。
+- `test_indexing.py` は `INDEX.md` の生成・再生成・排他制御を検証します。
+- `test_repo.py` は git 共通処理と変更検出の境界を検証します。
+- `test_report_files.py` はタイムスタンプ付きレポート保存の上書き防止を検証します。
+- `test_subcommands.py` はサブコマンド横断の制御ロジックとエラー処理を検証します。
+- `test_timestamps.py` はタイムスタンプ形式と経過時間表示を検証します。
 
 ## Read this when
 
-- pytest の共通設定として `conftest.py` が何をしているか確認したいとき。
-- Codex CLI 呼び出し、Structured Output、ログ、resume の回帰を追いたいとき。
-- `INDEX.md` 生成、配置判定、ロック、gitignore まわりの挙動を確認したいとき。
-- git リポジトリ root 検出、`.cmoc` の ignore、変更検出の仕様を確認したいとき。
-- タイムスタンプ形式や経過時間表示の仕様を確認したいとき。
-- ファイル命名規則や旧ルーティングファイルの廃止方針を確認したいとき。
+- pytest の共通設定で `src` を import できる理由を確認したいとき。
+- `commons.codex` の実行制御、再試行、Structured Output、`resume` の挙動を確認したいとき。
+- ファイル命名規則や、旧ルーティングファイルが残っていないことを確認したいとき。
+- INDEX.md メンテナンス、git 共通処理、レポート保存、タイムスタンプ生成の回帰を確認したいとき。
+- サブコマンド全体の状態遷移、補完、エラー整形、`review oracles` の流れを確認したいとき。
 
 ## Do not read this when
 
-- `src/` の実装だけを追いたいとき。
-- `oracles/` 側の正本仕様だけを確認したいとき。
-- テストではなく CLI 本体の実装差分や設計変更を読みたいとき。
-- `README.md`、`AGENTS.md`、`memo` の扱いだけを確認したいとき。
+- `src` 側の実装本体だけを確認したいとき。
+- `oracles` 側の正本仕様だけをたどりたいとき。
+- 個別テストの詳細ではなく、CLI の使用方法や運用手順だけを知りたいとき。
 
 ## hash
 
-- d14f1479700c76eb1c610cc1c7368221c351a5879a239d4f47393ad4da2ff37f
+- 414bce36038419194bcdcd3eb7bf1db30b0ff1b8a8ca7ac70003558f7b59cfde
