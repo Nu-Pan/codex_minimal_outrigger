@@ -1414,6 +1414,7 @@ def test_write_session_state_persists_only_oracle_session_schema(
             "session_home_branch": "main",
             "session_start_commit": "abc123",
             "last_joined_apply_oracle_snapshot_commit": "prev789",
+            "last_joined_apply_result": None,
         },
         "apply": {
             "state": "completed",
@@ -1424,10 +1425,10 @@ def test_write_session_state_persists_only_oracle_session_schema(
             "oracle_snapshot_commit": "def456",
         },
     }
-    assert "last_joined_apply_result" not in read_session_state(
+    assert read_session_state(
         repo,
         session_id,
-    )["session"]
+    )["session"]["last_joined_apply_result"] is None
 
 
 def test_write_session_state_rejects_cross_session_apply_branch(
@@ -1510,7 +1511,7 @@ def test_initial_session_state_starts_with_null_session_home_branch() -> None:
 
     assert state["session"]["session_home_branch"] is None
     assert state["session"]["session_start_commit"] == "abc123"
-    assert "last_joined_apply_result" not in state["session"]
+    assert state["session"]["last_joined_apply_result"] is None
 
 
 def test_read_session_state_allows_null_session_home_branch(
@@ -1685,7 +1686,7 @@ def test_read_session_state_rejects_session_schema_mismatch(
                     "session_home_branch": "main",
                     "session_start_commit": "abc123",
                     "last_joined_apply_oracle_snapshot_commit": None,
-                    "last_joined_apply_result": "収束",
+                    "unexpected_session_note": "収束",
                 },
                 "apply": {
                     "state": "ready",
@@ -1701,7 +1702,7 @@ def test_read_session_state_rejects_session_schema_mismatch(
         read_session_state(repo, session_id)
 
     assert "session セクションの field 集合" in error.value.actions[0]
-    assert "unknown session fields: last_joined_apply_result" in error.value.detail
+    assert "unknown session fields: unexpected_session_note" in error.value.detail
 
 
 def test_read_session_state_rejects_non_string_last_joined_snapshot(
@@ -1742,6 +1743,41 @@ def test_read_session_state_rejects_non_string_last_joined_snapshot(
         "session.last_joined_apply_oracle_snapshot_commit: 123"
         in error.value.detail
     )
+
+
+def test_read_session_state_rejects_non_string_last_joined_apply_result(
+    tmp_path: Path,
+) -> None:
+    """最後に join した apply result は null または文字列に限る。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": "main",
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
+                    "last_joined_apply_result": 123,
+                },
+                "apply": {
+                    "state": "ready",
+                    "apply_branch": None,
+                    "oracle_snapshot_commit": None,
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error:
+        read_session_state(repo, session_id)
+
+    assert "session.last_joined_apply_result" in error.value.actions[0]
+    assert "session.last_joined_apply_result: 123" in error.value.detail
 
 
 def test_write_session_state_rejects_completed_apply_without_run_fields(
