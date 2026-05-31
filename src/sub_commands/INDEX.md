@@ -100,22 +100,22 @@
 
 ## Summary
 
-- `src/sub_commands/session` は `cmoc session` 系サブコマンドの実装をまとめるパッケージで、`__init__.py` と `fork.py`、`join.py`、`abandon.py` を含みます。
-- session の開始・統合・破棄という 3 つの主要フローを、個別モジュールに分けて実装しています。
-- このディレクトリの INDEX は、session 系の実装入口と各モジュールの役割分担を素早く把握するための案内です。
+- `src/sub_commands/session` は `cmoc session` 系サブコマンドをまとめるパッケージです。
+- `__init__.py` はパッケージ宣言のみを担い、`abandon.py`、`fork.py`、`join.py` がそれぞれ `cmoc session abandon`、`cmoc session fork`、`cmoc session join` の本体実装です。
+- session の開始、統合、破棄に関する処理を、このディレクトリ配下で一通り扱います。
 
 ## Read this when
 
-- `cmoc session fork/join/abandon` の実装・修正・レビュー・テストをするとき。
-- `src/sub_commands/session` 配下のモジュール構成と責務分担を確認したいとき。
-- session 系サブコマンドの入口がどのファイルにあるかを素早く把握したいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` の実装や修正を行うとき。
+- `session` サブコマンド群のパッケージ構成と、各実装ファイルの役割を把握したいとき。
+- `cmoc session` の起点となる Python パッケージの中身を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 系や、`session` 以外のサブコマンド実装を確認したいとき。
-- session の利用手順や仕様断片そのものを確認したいときは、`oracles/docs/app_specs/sub_commands/session_*.md` を読むべきです。
-- 一般的な git の操作や `cmoc` 全体の共通仕様だけを確認したいとき。
+- `cmoc apply` 系の実装や状態遷移だけを確認したいとき。
+- `cmoc review oracles` や `cmoc init` など、`session` 以外のサブコマンドの仕様を確認したいとき。
+- `src/sub_commands/session` 配下の個別実装ではなく、`oracles` 側の正本仕様だけを確認したいとき。
 
 ## hash
 
-- f649cb2d0b8928c841bf7f88d6c30e9baf0ae130caaad6ba7fccd5d2cbb532f3
+- 9bed792e17287b8a3555168bd6af83b076231b3dcbfafecba5297707b96adaef

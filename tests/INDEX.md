@@ -170,14 +170,14 @@
 ## Do not read this when
 
 - `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを追いたいとき。
-- `commons.command_runner`、`commons.errors`、`commons.repo` など単一の共通ヘルパーだけを確認したいとき。
-- `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など別領域のテスト入口を見たいとき。
+- `commons.command_runner`、`commons.errors`、`commons.repo` など、単一の共通ヘルパーだけを確認したいとき。
+- `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別領域のテスト入口を確認したいとき。
 - `INDEX.md` の生成ルール全体や `oracles` 側の正本仕様だけを確認したいとき。
 - pytest の共通設定やファイル命名規則だけを確認したいとき。
 
 ## hash
 
-- 378451ed142fda50e7199c34e7de8d1e06729603a5315c1bd8d5b7935a97765d
+- 0025c7f00cc7ddc68a1d9c4c92da6987121b6e53cf39186a2de0134d8bf16695
 
 # `test_timestamps.py`
 
