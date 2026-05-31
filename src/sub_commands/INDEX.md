@@ -73,14 +73,14 @@
 ## Summary
 
 - `src/sub_commands/review` は `cmoc review` 系サブコマンド実装の入口です。
-- `oracles.py` は `cmoc review oracles` の本体実装です。
-- oracles スナップショットの評価対象選定、部分/全体評価の分岐、並列評価、問題点リストの改善反復、Markdown レポート生成までを扱います。
+- `__init__.py` はパッケージ宣言のみを担い、実行ロジックは持ちません。
+- `oracles.py` は `cmoc review oracles` の本体実装で、oracle スナップショット評価の入口です。
 
 ## Read this when
 
-- `cmoc review` 系の実装ファイルを読む前に、どのモジュールへ進むべきか整理したいとき。
-- `cmoc review oracles` の本体実装がコマンド path と対応する配置にあることを確認したいとき。
-- oracle 評価、`INDEX.md` 保守、Structured Output 検証、レポート生成の流れを追いたいとき。
+- `src/sub_commands/review` が Python パッケージとして宣言されていることを確認したいとき。
+- `cmoc review` 系サブコマンドの入口となるパッケージ構造を把握したいとき。
+- `cmoc review oracles` の実行フローや評価ロジックを確認したいときは、この目次から `oracles.py` に進みたいとき。
 
 ## Do not read this when
 
@@ -90,7 +90,7 @@
 
 ## hash
 
-- e0d6b42c66d697f3f26dbc84dba153a12b9a0a90125dc9b5e769cd95dcc6144c
+- 89fe769e9d9e37ab8aaad8df1da8d34bb90670115932fe08f3f66ac93a376d40
 
 # `session`
 
