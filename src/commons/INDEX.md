@@ -185,80 +185,76 @@
 ## Summary
 
 - `src/commons/subcommand_log.py` は、サブコマンド呼び出しごとの JSON Lines ログを管理する共通処理の入口です。
-- `SubcommandLogContext` で現在のログ状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間加算を行います。
-- ログファイルは `repo root` 側の `.cmoc/logs/sub_commands/` に作成され、worktree 配下に出力しないための判定と `git info/exclude` 更新もこのモジュールが担います。
+- `SubcommandLogContext` で現在のログ状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間の加算を行います。
+- ログファイルは repo root 側の `.cmoc/logs/sub_commands/` に作成され、worktree 配下に出力しないための判定と `git info/exclude` 更新もこのモジュールが担います。
 - `subcommand_log()` はログ開始時にコンテキストを設定し、開始イベントとコンソール表示を出したうえで呼び出し本体へ制御を渡します。
 
 ## Read this when
 
-- サブコマンド呼び出し単位の JSON Lines ログをどこに、どのように作るか確認したいとき。
-- 現在実行中のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する実装を確認したいとき。
-- `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の作成、排他生成、即時 flush、ログ追記の流れを実装・修正・レビューしたいとき。
-- `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、worktree での保存先切り替えを確認したいとき。
-- quota 待ち時間の加算と、その記録がサブコマンドログへどう反映されるかを確認したいとき。
+- サブコマンド呼び出し単位の JSON Lines ログをどこに、どう作るか確認したいとき
+- 現在実行中のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する実装を確認したいとき
+- `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の作成、排他生成、即時 flush の流れを実装・修正・レビューしたいとき
+- `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、worktree での保存先切り替えを確認したいとき
+- quota 待ち時間の加算と、その記録がサブコマンドログへどう反映されるかを確認したいとき
 
 ## Do not read this when
 
-- 個別サブコマンドの引数や業務ロジックだけを追いたいときは、この共通ログ処理ではなく該当サブコマンドの実装を読むべきです。
-- コンソール出力の見た目やエラー整形だけを確認したいときは、このファイルではなく `command_runner.py` や `errors.py` を読むべきです。
-- `codex exec` の呼び出し方や quota 待ちの共通規約だけを確認したいときは、このファイルではなく `codex.py` を読むべきです。
-- `INDEX.md` の生成ルールや共通メンテナンスの仕様だけを確認したいときは、このファイルではなく `indexing.py` を読むべきです。
+- 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき
+- コンソール表示やエラーレポートの整形だけを確認したいとき
+- `codex exec` の呼び出し方や Structured Output の仕様だけを確認したいとき
+- `INDEX.md` の生成ルールや他の共通仕様だけを確認したいとき
 
 ## hash
 
-- 76d094da69155ef016204ec51321c1bcf97eb8b8790e48b2c2b604c112a144df
+- e7d00e3d3c4701e80a0c2dcdfa842b3571d02d7b8e29fecd2f66baab847c3c6f
 
 # `timestamps.py`
 
 ## Summary
 
-- `cmoc` 仕様で使う `<time-stamp>` 文字列を生成する共通モジュールです。
-- `make_timestamp(now: datetime | None = None) -> str` は、指定された `datetime` または現在のローカル時刻からタイムスタンプを作ります。
-- aware な `datetime` はローカルタイムゾーンへ変換し、naive な `datetime` はローカル時刻として扱います。
-- 出力形式は `YYYY-MM-DD_HH-MM_SS_mmmmmmmmm` で、年月日時分秒はゼロ埋めし、msec は `microsecond // 1000` を 9 桁ゼロ埋めで表現します。
+- `src/commons/timestamps.py` は cmoc 仕様の `<time-stamp>` 文字列生成と判定をまとめた共通モジュールです。
+- `make_timestamp` はローカル時刻基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式の文字列を返し、`is_timestamp` は正規表現でその形式かを判定します。
+- aware な `datetime` はローカルタイムゾーンへそろえ、naive な `datetime` はローカル時刻として扱います。
 
 ## Read this when
 
-- `<time-stamp>` の文字列生成ルールを確認したいとき
-- ローカル時刻と aware / naive `datetime` の扱いを確認したいとき
-- ログ名やファイル名に使う時刻文字列の生成実装や、そのテストを書きたいとき
+- `make_timestamp` がローカル時刻からどのように `<time-stamp>` を作るか確認したいとき。
+- aware / naive `datetime` をどう扱うか確認したいとき。
+- `is_timestamp` と `TIMESTAMP_PATTERN` による形式検証を確認したいとき。
 
 ## Do not read this when
 
-- cmoc のサブコマンドごとのタイムスタンプ利用箇所や保存先仕様を調べたいとき
-- 日時のパース、UTC 固定、その他の日時ユーティリティを探しているとき
-- `INDEX.md` の自動生成や内容ハッシュの管理方法だけを調べたいとき
-- コンソール出力、Codex CLI 呼び出し、エラー処理など別の共通実行制御を確認したいとき
+- `<time-stamp>` の生成規則そのものではなく、`report_files.py` などの保存処理を確認したいとき。
+- CLI のサブコマンド仕様や `INDEX.md` 生成ルールではなく、日時文字列の形式判定だけを見たいとき。
+- `format_duration` や他の時間計測ロジックを確認したいとき。
 
 ## hash
 
-- d680614f3f0ce38c972594ac81fb8ef06663be408f36e822d9fcccb56d43cc51
+- aab581f443366b827a621cd40045c735b6532fa175937bb19c0d124fb67faaee
 
 # `timing.py`
 
 ## Summary
 
-- サブコマンド実行中のステップ単位の経過時間を管理し、最後に stdout へ集計表示する共通モジュールです。
-- `StepTimer` は開始時刻、現在ステップ、確定済みの各ステップ時間を保持し、`start()` と `finish_current()` で計測区間を区切ります。
-- `start_step()` は flat / hierarchical なステップ番号を整形して `step_start` ログと stdout の開始通知を出します。
-- `current_timer()`、`report_current_timer()`、`clear_current_timer()` は `ContextVar` 上の現在の計測器を取得・出力・解除します。
-- `format_duration()` は秒数を 0.1 秒単位で切り捨て、負値を 0 として固定幅の経過時間文字列に整形します。
+- `src/commons/timing.py` は、サブコマンド実行中のステップ計測と経過時間表示をまとめるモジュールです。
+- `StepTimer` で全体時間と各ステップ時間を保持し、`start_step()` で開始通知とログイベントを出します。
+- `_format_step_index()` は単一階層と階層化の両方のステップ番号を表示用文字列へ整形します。
+- `format_duration()` は oracle 指定の stdout 形式へ経過時間を変換し、`current_timer()` 系で現在の計測器を管理します。
 
 ## Read this when
 
-- サブコマンドのステップ別の経過時間表示や、完了時の総経過時間表示を実装・修正したいとき。
-- `StepTimer` の状態遷移や、`start()`、`finish_current()`、`report()` の関係を確認したいとき。
-- 階層化されたステップ番号を含む開始通知の表示形式を確認したいとき。
-- 現在の計測器を `ContextVar` 経由で参照・出力・解除したいとき。
-- 経過時間の表示フォーマットや、0.1 秒単位への切り捨て、負値の扱いを確認したいとき。
+- サブコマンド全体と各ステップの経過時間の計測方法を確認したいとき。
+- ステップ開始通知の表示形式や、`step_index` の flat / hierarchical 表現を確認したいとき。
+- `current_timer()`、`report_current_timer()`、`clear_current_timer()` などの現在の計測器管理を追いたいとき。
+- `format_duration()` の stdout 向け表示や、0.1 秒単位の切り捨て規則を確認したいとき。
 
 ## Do not read this when
 
-- 各サブコマンドの業務ロジックや引数解析だけを確認したいとき。
-- ログ保存、`subcommand_log`、`repo` 探索など、経過時間計測以外の共通処理を調べたいとき。
-- `INDEX.md` の自動生成や内容ハッシュの規則だけを確認したいとき。
-- Python の一般的な時間計測 API や `perf_counter` の詳細だけを知りたいとき。
+- サブコマンド本体の引数解析や業務ロジックだけを確認したいとき。
+- `codex exec` の起動制御、Structured Output、`INDEX.md` メンテナンスそのものを確認したいとき。
+- タイムスタンプ生成やサブコマンドログ保存だけを調べたいときは、`timestamps.py` や `subcommand_log.py` を読むべきです。
+- `StepTimer` 以外の共通例外、repo 探索、ファイルレポート保存を確認したいとき。
 
 ## hash
 
-- 2dc577ed39e2040ba837ec032afb14e81fd0313520c6969249125b3f858884ea
+- da12b431690040219484b33d51f4d6c45f488289b91d04f383232107820071fd

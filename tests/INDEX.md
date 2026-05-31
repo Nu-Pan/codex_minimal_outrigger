@@ -187,7 +187,7 @@
 ## Summary
 
 - `tests/test_timestamps.py` は `commons.timestamps.make_timestamp` と `commons.timing.format_duration` の仕様を確認するテスト群の入口です。
-- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmmmmmmmm` 形式に整形され、msec が 9 桁ゼロ埋めになることを検証します。
+- タイムスタンプはローカルタイムゾーン基準で `YYYY-MM-DD_HH-MM_SS_mmmmmmmmm` 形式に整形され、ミリ秒が 9 桁ゼロ埋めになることを検証します。
 - `format_duration` の固定幅表示、0.1 秒単位の切り捨て、そして同一ファイル内の補助関数が caller first, callee last で並ぶことを確認します。
 
 ## Read this when
@@ -206,4 +206,4 @@
 
 ## hash
 
-- 11dd52f0ae222154a626c7567449aff80b4ca53d28ed40f54116c98cd70908ed
+- 0989418584dc0a6d9fb77c9bb35cbaa7f2dd559613d2908b9cb7f505cd5d3d16

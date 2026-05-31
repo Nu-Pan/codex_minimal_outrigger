@@ -177,24 +177,24 @@
 
 ## Summary
 
-- cmoc の実装コードをまとめたルートディレクトリです。CLI エントリーポイント、共通基盤ユーティリティ、各サブコマンド実装をここから辿れます。
-- 詳細は `main.py`、`commons/`、`sub_commands/` の各目次に分かれています。
+- `src` は cmoc の実装本体を置くディレクトリで、CLI の起動点と共通基盤、各サブコマンド実装をまとめます。
+- この階層では `main.py`、`commons`、`sub_commands` を中心に追うと、実装の入口と責務分担を把握しやすいです。
 
 ## Read this when
 
-- cmoc の実装全体の入口を把握したいとき。
-- `main.py`、`commons/`、`sub_commands/` のどこへ進むべきか整理したいとき。
-- CLI 起動点と各サブコマンド実装の位置関係を確認したいとき。
+- `src` 配下の全体構成を把握して、どのファイルが CLI の入口か整理したいとき。
+- 共通基盤を扱う `src/commons` と、サブコマンド実装を束ねる `src/sub_commands` の役割分担を確認したいとき。
+- `cmoc` のエントリーポイントやサブコマンド実装へ進む前に、`src` 直下のルーティングを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの詳細仕様だけを追いたいときは、該当する配下の目次や実装を直接読むべきです。
-- `oracles` 側の正本仕様だけを確認したいときは、このディレクトリではなく `oracles/` 配下を読むべきです。
-- `INDEX.md` の生成ルールそのものを確認したいときは、この目次ではなく共通実装を読むべきです。
+- `src/main.py` の起動処理だけを確認したいときは、この目次ではなくそのファイルを直接読むべきです。
+- `src/commons` や `src/sub_commands` の個別実装だけを確認したいときは、この目次ではなく各配下の `INDEX.md` をたどるべきです。
+- `__pycache__` や `codex_minimal_outrigger_cli.egg-info` のような生成物だけを確認したいときは、この目次の対象外です。
 
 ## hash
 
-- d9db9b468fb3fdab5bb222833f4b0534022bee5cb0d4b30c81c8553838194866
+- 51323c0f8a9b3afd94ddd32f0e02daec931dc9559eb977c5a49ea79cbabcfe0a
 
 # `test.sh`
 
@@ -249,4 +249,4 @@
 
 ## hash
 
-- 414bce36038419194bcdcd3eb7bf1db30b0ff1b8a8ca7ac70003558f7b59cfde
+- a3379d1a25d510b6722a0b4223eda9e0a25c989c5ee99058024d1e84874dad26
