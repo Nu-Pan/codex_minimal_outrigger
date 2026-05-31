@@ -22,6 +22,18 @@ def make_timestamp(now: datetime | None = None) -> str:
     )
 
 
+def console_timestamp(now: datetime | None = None) -> str:
+    """コンソールログ用のミリ秒付き日時を返す。"""
+    # ログファイル名用とは別に、人間が読む stdout / JSONL 向けの形式へ整形する。
+    source = now if now is not None else datetime.now()
+    current = source.astimezone()
+    return (
+        f"{current.year:04d}/{current.month:02d}/{current.day:02d} "
+        f"{current.hour:02d}:{current.minute:02d}:{current.second:02d}."
+        f"{current.microsecond // 1000:03d}"
+    )
+
+
 def is_timestamp(value: str) -> bool:
     """cmoc の `<time-stamp>` 形式か判定する。"""
     return bool(TIMESTAMP_PATTERN.fullmatch(value))

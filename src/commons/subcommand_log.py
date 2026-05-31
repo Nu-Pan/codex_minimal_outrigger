@@ -6,13 +6,13 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from dataclasses import field
-from datetime import datetime
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
 from typing import IO, Iterator
 from typing import Any
 
+from .timestamps import console_timestamp
 from .timestamps import make_timestamp
 
 
@@ -64,7 +64,7 @@ def log_event(event: str, payload: dict[str, object]) -> None:
         return
     record = {
         "event": event,
-        "time": _console_timestamp(),
+        "time": console_timestamp(),
         "elapsed_seconds": perf_counter() - context.started,
         **payload,
     }
@@ -210,12 +210,3 @@ def _is_cmoc_managed_worktree_root(repo_root: Path, common_root: Path) -> bool:
         return False
     return True
 
-
-def _console_timestamp() -> str:
-    """コンソールログ用のミリ秒付き日時を返す。"""
-    now = datetime.now().astimezone()
-    return (
-        f"{now.year:04d}/{now.month:02d}/{now.day:02d} "
-        f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}."
-        f"{now.microsecond // 1000:03d}"
-    )
