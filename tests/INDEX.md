@@ -42,13 +42,14 @@
 ## Do not read this when
 
 - `commons.indexing` や `commons.repo` のような別モジュールの実装だけを追いたいとき。
-- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など別領域の回帰を確認したいとき。
+- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など、別領域の回帰を確認したいとき。
 - `INDEX.md` 全体の生成ルールや `oracles` 側の正本仕様だけを知りたいとき。
-- `test_codex.py` 以外の CLI サブコマンドやファイル命名ルールを調べたいとき。
+- `run_codex_exec` 以外の CLI サブコマンドやファイル命名ルールを調べたいとき。
+- codex 呼び出しログや quota/resume ではなく、純粋な git 共通処理や session state だけを確認したいとき。
 
 ## hash
 
-- 928d159cdfd5fe88884b65a523c2f628dd789a55dec1060d93d5e6816ec7dd21
+- 1d3dda0c444cd0a3181e98f775f1b372bb7674ffc81cb5f206264dedc3f08a23
 
 # `test_file_naming.py`
 

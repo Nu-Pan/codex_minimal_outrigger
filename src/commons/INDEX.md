@@ -184,7 +184,7 @@
 
 ## Summary
 
-- `src/commons/subcommand_log.py` は、サブコマンド呼び出し単位の JSON Lines ログを管理する共通処理の入口です。
+- `src/commons/subcommand_log.py` は、サブコマンド呼び出しごとの JSON Lines ログを管理する共通処理の入口です。
 - `SubcommandLogContext` で現在のログ状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間加算を行います。
 - ログファイルは `repo root` 側の `.cmoc/logs/sub_commands/` に作成され、worktree 配下に出力しないための判定と `git info/exclude` 更新もこのモジュールが担います。
 - `subcommand_log()` はログ開始時にコンテキストを設定し、開始イベントとコンソール表示を出したうえで呼び出し本体へ制御を渡します。
@@ -199,14 +199,14 @@
 
 ## Do not read this when
 
-- 個別サブコマンドの引数や状態遷移だけを確認したいときは、この共通ログ処理ではなく該当サブコマンドの実装を読むべきです。
-- `cmoc` のコンソール表示やエラー整形だけを確認したいときは、このファイルではなく `command_runner.py` や `errors.py` を読むべきです。
+- 個別サブコマンドの引数や業務ロジックだけを追いたいときは、この共通ログ処理ではなく該当サブコマンドの実装を読むべきです。
+- コンソール出力の見た目やエラー整形だけを確認したいときは、このファイルではなく `command_runner.py` や `errors.py` を読むべきです。
 - `codex exec` の呼び出し方や quota 待ちの共通規約だけを確認したいときは、このファイルではなく `codex.py` を読むべきです。
 - `INDEX.md` の生成ルールや共通メンテナンスの仕様だけを確認したいときは、このファイルではなく `indexing.py` を読むべきです。
 
 ## hash
 
-- a8392e8695d5228031fa1ccc61da042673427c01d5dbfb7775f7b6250c6e9919
+- 76d094da69155ef016204ec51321c1bcf97eb8b8790e48b2c2b604c112a144df
 
 # `timestamps.py`
 
