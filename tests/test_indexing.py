@@ -820,6 +820,39 @@ def test_maintain_indexes_skips_excluded_index_roots(
     assert not (nested_oracle / "INDEX.md").exists()
 
 
+def test_maintain_indexes_creates_missing_oracles_index(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """oracles 直下の INDEX.md 欠落は通常の配置対象として補正する。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_docs = oracle_root / "docs"
+    oracle_docs.mkdir(parents=True)
+    (oracle_docs / "spec.md").write_text("spec\n", encoding="utf-8")
+    _git(repo, "add", "oracles/docs/spec.md")
+    _git(repo, "commit", "-m", "oracles without index")
+
+    def fake_codex(*args: object, **kwargs: object) -> str:
+        """INDEX 生成用の最小 Structured Output を返す。"""
+        return json.dumps(
+            {
+                "summary": ["summary"],
+                "read_this_when": ["read"],
+                "do_not_read_this_when": ["skip"],
+            }
+        )
+
+    monkeypatch.setattr("commons.indexing.run_codex_exec", fake_codex)
+
+    changed = maintain_indexes(repo)
+
+    assert changed is True
+    assert (oracle_root / "INDEX.md").exists()
+    assert (oracle_docs / "INDEX.md").exists()
+    assert "# `docs`" in (oracle_root / "INDEX.md").read_text(encoding="utf-8")
+
+
 def test_maintain_indexes_includes_build_and_tmp_as_entries(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
