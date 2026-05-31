@@ -210,24 +210,26 @@
 ## Summary
 
 - `src/commons/timestamps.py` は cmoc 仕様の `<time-stamp>` 文字列生成と判定をまとめた共通モジュールです。
-- `make_timestamp` はローカル時刻基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式の文字列を返し、`is_timestamp` は正規表現でその形式かを判定します。
-- aware な `datetime` はローカルタイムゾーンへそろえ、naive な `datetime` はローカル時刻として扱います。
+- `make_timestamp()` はローカル時刻基準で `YYYY-MM-DD_HH-MM_SS_mmm` 形式の文字列を返します。
+- `is_timestamp()` は正規表現と日時の妥当性確認で、その形式かどうかを判定します。
+- `console_timestamp()` はコンソール表示向けの日時文字列を返します。
 
 ## Read this when
 
-- `make_timestamp` がローカル時刻からどのように `<time-stamp>` を作るか確認したいとき。
-- aware / naive `datetime` をどう扱うか確認したいとき。
-- `is_timestamp` と `TIMESTAMP_PATTERN` による形式検証を確認したいとき。
+- `make_timestamp()` がどのような `<time-stamp>` 文字列を返すか確認したいとき。
+- aware / naive の `datetime` をどのように扱うか確認したいとき。
+- `is_timestamp()` と `TIMESTAMP_PATTERN` による形式検証を確認したいとき。
+- コンソールログ用の日時文字列 `console_timestamp()` の形式を確認したいとき。
 
 ## Do not read this when
 
-- `<time-stamp>` の生成規則そのものではなく、`report_files.py` などの保存処理を確認したいとき。
-- CLI のサブコマンド仕様や `INDEX.md` 生成ルールではなく、日時文字列の形式判定だけを見たいとき。
-- `format_duration` や他の時間計測ロジックを確認したいとき。
+- `report_files.py` など、タイムスタンプ文字列を使う保存処理の詳細を確認したいとき。
+- `timing.py` や `format_duration()` など、経過時間の整形ロジックを確認したいとき。
+- CLI のサブコマンド仕様や `INDEX.md` 生成ルールそのものを確認したいとき。
 
 ## hash
 
-- aab581f443366b827a621cd40045c735b6532fa175937bb19c0d124fb67faaee
+- ddd77781ba95fc018f1bbd129860524b7b44d6623222945445aabdbc77e18bc8
 
 # `timing.py`
 

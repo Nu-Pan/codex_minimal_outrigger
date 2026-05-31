@@ -2,27 +2,31 @@
 
 ## Summary
 
-- `src/commons` は cmoc 全体で共有する基盤モジュール群をまとめたディレクトリです。
-- リポジトリ検出、実行制御、Codex CLI 呼び出し、エラー整形、ログ、計測、日時、レポート保存、`INDEX.md` 生成などの横断処理を集約しています。
-- 個別サブコマンド本体ではなく、複数機能から再利用される共通実装を読む入口です。
+- `src/commons` は cmoc で共有する基盤モジュール群をまとめたディレクトリです。
+- `errors.py` は共通例外とエラーレポート整形、`repo.py` は Git リポジトリや cmoc 作業領域の判定と state 管理を担当します。
+- `codex.py` は Codex CLI 実行基盤、`indexing.py` は `INDEX.md` の自動メンテナンス、`subcommand_log.py` はサブコマンド単位のログ管理を担当します。
+- `command_runner.py` と `timing.py` はサブコマンドの実行制御と時間計測を、`timestamps.py` と `report_files.py` はタイムスタンプ生成とレポート保存を担当します。
+- `__init__.py` は `src.commons` を Python パッケージとして宣言します。
 
 ## Read this when
 
-- リポジトリルート探索、branch / commit 判定、session/apply の state 管理を確認したいとき。
-- `codex exec` の起動、Structured Output 検証、quota 待機、再試行、`INDEX.md` メンテナンスの流れを追いたいとき。
-- 共通例外 `CmocError`、利用者向けエラーレポート整形、JSON Lines ログ、ステップ計測、日時文字列、Markdown レポート保存の実装を確認したいとき。
-- `src/commons` 配下の各モジュールを役割ベースで素早く振り分けたいとき。
+- cmoc 全体で共有する基盤処理を把握したいときに読む。
+- repo root 探索、branch / commit 判定、session / apply state、worktree パス復元など Git 周りの共通処理を確認したいときに読む。
+- `codex exec` の呼び出し、Structured Output の検証、quota / capacity の再試行、`INDEX.md` メンテナンスや oracle 保護を確認したいときに読む。
+- サブコマンドの共通実行制御、エラー整形、JSON Lines ログ、ステップ計測、timestamp 生成、タイムスタンプ付きレポート保存の実装を確認したいときに読む。
+- 共通モジュール同士の依存関係や、どの責務をどのファイルが持つかを最短で見たいときに読む。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき。
-- `cmoc session` や `cmoc apply` の使い方、ユーザー向け操作手順だけを確認したいとき。
-- `src/commons` 以外のモジュールやテストの詳細を調べたいとき。
-- 必要な対象ファイルがすでに分かっているなら、このディレクトリの索引ではなく該当モジュールを直接読みたいとき。
+- 個別のサブコマンド実装や引数解析だけを追いたいときは、このディレクトリではなく `src/sub_commands` 側を読む。
+- `codex exec` の詳細な起動・再試行・Structured Output 仕様だけを確認したいときは、`codex.py` だけを読む。
+- Git リポジトリ状態や cmoc の作業ブランチ・state の仕様だけを確認したいときは、`repo.py` を読む。
+- `INDEX.md` の配置ルールやメンテナンス方針の正本仕様だけを確認したいときは、`oracles/docs/app_specs/indexing.md` を読む。
+- テストコードや他のパッケージの実装を探したいときは、このディレクトリではなく対象の `tests` や別モジュールを読む。
 
 ## hash
 
-- 8c047a899e5fcaba10bac7abc31ac0462c9c90c256bf757e976fb939bc326e9a
+- e1dc6b06c7369e21bc2481d8a73423e009f5c88c2eb120ef21c0e8bf261e2d01
 
 # `main.py`
 

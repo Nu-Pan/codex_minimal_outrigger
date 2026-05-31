@@ -103,28 +103,28 @@
 
 ## Summary
 
-- `src/commons/repo.py` の git 共通処理を検証する回帰テスト群の入口です。
-- repo root 検出、`.cmoc` の ignore 保証、実装/正本ファイルの列挙と変更・削除検出を扱います。
-- session state、apply process id、`commit_if_changed`、`cmoc` ブランチ判定、active session 判定の境界条件も押さえます。
+- `src/commons/repo.py` の git 共通処理を検証する回帰テスト群です。
+- repo root 検出、`.cmoc` の ignore 保証、実装/正本ファイルの列挙と変更検出を扱います。
+- session state、apply process id、`cmoc` ブランチ判定、active session 判定の境界条件も押さえます。
 
 ## Read this when
 
-- repo root 検出、`.cmoc` の ignore 保証、`list_implementation_files` / `list_oracle_files` の対象判定を確認したいとき。
-- `changed_paths`、`changed_oracle_files`、`changed_implementation_files`、削除検出の境界条件を調べたいとき。
+- repo root 検出や `.cmoc` の ignore 保証の挙動を確認したいとき。
+- `list_implementation_files` / `list_oracle_files` や変更検出系の境界条件を調べたいとき。
 - `commit_if_changed` のコミット可否や、失敗時に index と HEAD を壊さない挙動を確認したいとき。
 - session state の読み書き、`active_session_ids_for_home_branch`、`is_cmoc_branch` の判定条件を確認したいとき。
 - `.gitignore`、`.git/info/exclude`、`INDEX.md`、`memo` の除外・対象判定の回帰を修正するとき。
 
 ## Do not read this when
 
-- `src/commons/repo.py` の実装そのものを追いたいとき。
-- 個別の git ユーティリティや関数単体の使い方だけを確認したいとき。
+- `src/commons/repo.py` の実装ロジックを直接追いたいとき。
+- 個別の git ユーティリティや単体関数の使い方だけを確認したいとき。
 - `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを知りたいとき。
 - `session` や `apply` など、repo 共通処理以外のサブコマンド仕様を調べたいとき。
 
 ## hash
 
-- 61b9779e6a378d80424ce09af635f7623a7612ac5571e003c3d21a8c4dbda991
+- e7a543402fa97ab31ff50a98a48baac534caac7a16a10f771df6b14623701c83
 
 # `test_report_files.py`
 
@@ -205,4 +205,4 @@
 
 ## hash
 
-- 0989418584dc0a6d9fb77c9bb35cbaa7f2dd559613d2908b9cb7f505cd5d3d16
+- 9a286390e49c3179f26f5f51aa6b3f21faa27a63bce0745a15a0908b98e65372
