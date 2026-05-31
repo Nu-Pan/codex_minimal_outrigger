@@ -36,6 +36,7 @@ from commons.repo import write_session_state
 from commons.subcommand_log import log_event
 from commons.subcommand_log import subcommand_log
 from commons.timing import StepTimer, start_step
+from commons.timestamps import is_timestamp
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.fork import _apply_prompt
 from sub_commands.apply.fork import _apply_index_excluded_roots
@@ -701,6 +702,7 @@ def test_session_fork_creates_session_branch_and_records_state(
     record_path = repo / ".cmoc" / "sessions" / f"{session_id}.json"
     state = json.loads(record_path.read_text(encoding="utf-8"))
     assert branch_name.startswith("cmoc/session/")
+    assert is_timestamp(session_id)
     assert state["session"]["state"] == "active"
     assert state["session"]["session_home_branch"] == home_branch
     assert state["session"]["session_start_commit"] == base_commit
