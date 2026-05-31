@@ -155,29 +155,29 @@
 
 ## Summary
 
-- tests/test_subcommands.py は cmoc の横断回帰テストの入口で、run_command、main、bin/cmoc、format_error_report など共通制御をまとめて検証します。
-- init、session、apply、review oracles の状態遷移、ブランチ操作、エラー表示、終了コード、レポート出力を一括で押さえます。
-- 補完プローブ、.cmoc ignore 修復、作業ツリー復旧、サブコマンドログ、error report の境界条件まで含みます。
+- `tests/test_subcommands.py` は cmoc の横断回帰テストの入口で、`run_command`、`main`、`bin/cmoc`、`format_error_report` など共通制御をまとめて検証します。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、ブランチ操作、エラー表示、終了コード、レポート出力を一括で押さえます。
+- 補完プローブ、`.cmoc` ignore 修復、作業ツリー復旧、サブコマンドログ、error report の境界条件まで含みます。
 
 ## Read this when
 
 - サブコマンド横断の制御フロー、終了コード、エラー表示、レポート出力の回帰を確認したいとき。
-- cmoc init、cmoc session fork/join/abandon、cmoc apply fork/join/abandon、cmoc review oracles の状態遷移や受け入れ条件を整理したいとき。
-- main のコマンド登録、補完プローブ、bin/cmoc の起動前提、format_error_report の整形仕様を確認したいとき。
-- run_command がコンソール出力と JSONL サブコマンドログをどう残すか確認したいとき。
-- tests/test_subcommands.py にまとまっている共通テスト補助関数や、_init_repo、_git などのテスト用セットアップを参照したいとき。
+- `cmoc init`、`cmoc session fork/join/abandon`、`cmoc apply fork/join/abandon`、`cmoc review oracles` の状態遷移や受け入れ条件を整理したいとき。
+- `main` のコマンド登録、補完プローブ、`bin/cmoc` の起動前提、`format_error_report` の整形仕様を確認したいとき。
+- `run_command` がコンソール出力と JSONL サブコマンドログをどう残すか確認したいとき。
+- `tests/test_subcommands.py` にまとまっている共通テスト補助関数や、`_init_repo`、`_git` などのテスト用セットアップを参照したいとき。
 
 ## Do not read this when
 
-- src/sub_commands/apply/*、src/sub_commands/session/*、src/sub_commands/review/* の個別実装だけを追いたいとき。
-- commons.command_runner、commons.errors、commons.repo など単一の共通ヘルパーだけを確認したいとき。
-- tests/test_timestamps.py、tests/test_report_files.py、tests/test_indexing.py のような別領域のテスト入口を見たいとき。
-- INDEX.md の生成ルール全体や oracles 側の正本仕様だけを確認したいとき。
+- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを追いたいとき。
+- `commons.command_runner`、`commons.errors`、`commons.repo` など単一の共通ヘルパーだけを確認したいとき。
+- `tests/test_timestamps.py`、`tests/test_report_files.py`、`tests/test_indexing.py` のような別領域のテスト入口を見たいとき。
+- INDEX.md の生成ルール全体や `oracles` 側の正本仕様だけを確認したいとき。
 - pytest の共通設定やファイル命名規則だけを確認したいとき。
 
 ## hash
 
-- 3b2e5d6c83e6fa0f7206144973df69e3653caf0f180a7dc7023d798e9883c961
+- f2b494665c4ee6b77adf55ceabef63a815b0bb42bb64fae481df7a7f5b591ef8
 
 # `test_timestamps.py`
 

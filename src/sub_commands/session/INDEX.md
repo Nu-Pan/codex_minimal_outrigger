@@ -88,10 +88,11 @@
 
 ## Do not read this when
 
-- `cmoc session fork` や `cmoc session abandon` の挙動を確認したいとき。
-- `cmoc apply` 系の開始・統合・破棄だけを確認したいとき。
+- `cmoc session fork` や `cmoc session abandon` の挙動だけを確認したいとき。
+- `cmoc apply` 系サブコマンドの開始・統合・破棄だけを確認したいとき。
+- `cmoc session join` の利用手順や仕様断片だけを確認したいときは、実装ではなく `oracles/docs/app_specs/sub_commands/session_join.md` を読むべきです。
 - 一般的な `git merge` の説明だけで足り、cmoc 独自の session state 管理や conflict 保護が不要なとき。
 
 ## hash
 
-- 328bf520b5f5e37e8792712faadd4ba214baca934a9344e16b775c2858770e75
+- 8f0c9f70ee5b256ae84b2cb0ce2ab6a53e6066b9031e5051d6b1b686184f1f83
