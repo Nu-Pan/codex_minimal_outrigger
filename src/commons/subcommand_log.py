@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+from _thread import LockType
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -10,7 +11,6 @@ from pathlib import Path
 from threading import Lock
 from time import perf_counter
 from typing import IO, Iterator
-from typing import Any
 
 from .timestamps import console_timestamp
 from .timestamps import make_timestamp
@@ -24,7 +24,7 @@ class SubcommandLogContext:
     path: Path
     started: float
     quota_wait_seconds: float = 0.0
-    lock: Any = field(default_factory=Lock)
+    lock: LockType = field(default_factory=Lock)
 
 
 _CURRENT_LOG: ContextVar[SubcommandLogContext | None] = ContextVar(
@@ -209,4 +209,3 @@ def _is_cmoc_managed_worktree_root(repo_root: Path, common_root: Path) -> bool:
     except ValueError:
         return False
     return True
-

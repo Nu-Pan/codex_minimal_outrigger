@@ -168,6 +168,7 @@ class _JoinState:
         apply_worktree: Path | None,
         oracle_snapshot_commit: str,
     ) -> None:
+        """検証済み state から join 実行に必要な識別子を固定する。"""
         self.session_branch = session_branch
         self.apply_branch = apply_branch
         self.apply_worktree = apply_worktree
@@ -184,6 +185,7 @@ class _CleanupEvidence:
         apply_result: str | None,
         warnings: list[str],
     ) -> None:
+        """cleanup 判断で後続の state 変更前に参照する証跡を固定する。"""
         self.report_saved = report_saved
         self.apply_result = apply_result
         self.warnings = warnings
@@ -193,6 +195,7 @@ class _ChangedPathEntry:
     """1 つの git diff entry が触る path 群。"""
 
     def __init__(self, paths: list[str]) -> None:
+        """rename など複数 path を含む diff entry の比較対象を保持する。"""
         self.paths = paths
 
 

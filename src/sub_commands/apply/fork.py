@@ -93,6 +93,7 @@ class _ApplyWorktreeCreationError(RuntimeError):
     """apply worktree 作成失敗時に、最後に実試行した候補を保持する。"""
 
     def __init__(self, message: str, last_plan: _ApplyWorktreePlan) -> None:
+        """復旧表示で参照する最後の worktree 作成計画を例外へ添付する。"""
         super().__init__(message)
         self.last_plan = last_plan
 
@@ -1594,6 +1595,7 @@ def _write_apply_report(
     )
 
     def build_report(generated_at: str) -> str:
+        """同一内容の report を一貫した front matter 付きで再生成する。"""
         report = _apply_report_with_front_matter(
             report_body=_render_apply_report_body(
                 apply_branch=branch_name,
@@ -1960,6 +1962,7 @@ def _write_apply_error_report(
     body = "\n".join(body_lines).strip()
 
     def build_report(generated_at: str) -> str:
+        """エラー終了 report を衝突回避後の生成時刻で再生成する。"""
         report = _apply_report_with_front_matter(
             report_body=body,
             generated_at=generated_at,

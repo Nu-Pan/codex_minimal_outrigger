@@ -92,6 +92,7 @@ class _AbandonState:
         session_id: str,
         process_record: dict[str, object] | None,
     ) -> None:
+        """検証済み state から abandon の復旧と cleanup に必要な値を固定する。"""
         self.apply_branch = apply_branch
         self.session_branch = session_branch
         self.apply_worktree = apply_worktree
