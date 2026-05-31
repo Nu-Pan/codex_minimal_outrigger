@@ -129,29 +129,29 @@
 
 ## Summary
 
-- Git リポジトリ root の探索と cwd 固定、現在 branch / HEAD commit の取得を行う共通モジュールです。
-- `cmoc/session/*` と `cmoc/apply/*` の branch 判定、session id の復元、apply worktree と所有元 repo root の復元を扱います。
-- .cmoc の ignore 保証、session/apply state JSON と apply process id の保存・読込・検証、active session の整合性確認を担当します。
-- `git status` / `git diff` / `git check-ignore` / pathspec を使った未コミット差分、削除検出、oracle / implementation ファイル列挙、内部 commit 後の index 復元まで含みます。
+- Git リポジトリ root の探索、`cwd` 固定、現在ブランチと HEAD の取得をまとめた共通モジュールです。
+- `cmoc/session/*` と `cmoc/apply/*` のブランチ判定、session/apply state の保存・復元・検証、apply worktree と所有元 repo root の再構成を扱います。
+- .cmoc` の ignore 保証、未コミット差分や pathspec commit の制御、oracle/実装ファイルの列挙・変更検出・削除検出、`git` 出力の解析補助まで含みます。
 
 ## Read this when
 
 - repo root を見つけて `cmoc` の実行基準ディレクトリを揃えたいとき。
-- `session` / `apply` の branch ルール、session id の復元、apply worktree の場所特定を確認したいとき。
-- `.cmoc` の ignore 保証、session state / apply process id の永続化と検証を実装・修正したいとき。
-- `oracles` / 実装ファイルの列挙、変更抽出、削除検出、未コミット差分や pathspec commit の扱いを確認したいとき。
-- 現在の branch 名や HEAD commit を取得する共通処理を確認したいとき。
+- `session` / `apply` ブランチの命名規則、`session_id` の復元、apply worktree の場所特定を確認したいとき。
+- session state / apply process id の読み書き、検証、`active_session_ids_for_home_branch` の判定条件を追いたいとき。
+- `.cmoc` の ignore 保証、`commit_if_changed`、`ensure_cmoc_ignored_and_committed`、未コミット差分の扱いを確認したいとき。
+- oracle ファイルと実装ファイルの列挙、変更抽出、削除検出、`git status` / `git diff` / `git check-ignore` の解釈を確認したいとき。
 
 ## Do not read this when
 
 - `cmoc init` や `session` / `apply` の操作手順、CLI 引数だけを確認したいとき。
 - `INDEX.md` の生成ルールや Structured Output の仕様だけを確認したいとき。
-- エラーレポート整形や共通例外だけを確認したいとき。
-- `timestamps.py`、`subcommand_log.py`、`report_files.py` など他の共通モジュールだけを確認したいとき。
+- エラーレポート整形や共通例外だけを確認したいときは、`errors.py` を読むべきです。
+- Codex CLI の起動制御や Structured Output の実行基盤だけを確認したいときは、`codex.py` を読むべきです。
+- タイミング計測、タイムスタンプ生成、サブコマンドログだけを確認したいときは、`timing.py`、`timestamps.py`、`subcommand_log.py` を読むべきです。
 
 ## hash
 
-- 281cd4007b850be14537c5436588b4e753de31b2400369b86af94bec01a68630
+- 0bad0060fa3de897b7652ea86cdc7fd79864a00280d51e686e84347ffb0ee45f
 
 # `report_files.py`
 

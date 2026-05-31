@@ -172,14 +172,14 @@
 
 - 個別の `cmoc init`、`session`、`apply`、`review oracles` の実装ロジックだけを追いたいとき。
 - `src/sub_commands/` 配下の本体実装や共通ユーティリティのコードを確認したいとき。
-- `run_command`、`format_error_report`、`main`、`bin/cmoc` の実装そのものではなく、別のモジュールの仕様を知りたいとき。
+- `run_command`、`format_error_report`、`main`、`bin/cmoc` の実装そのものではなく、別モジュールの仕様を知りたいとき。
 - pytest の共通設定や一般的なテスト補助だけを確認したいとき。
 - `INDEX.md` の生成ルールや `oracles` 側の正本仕様だけを確認したいとき。
-- サブコマンドごとに局所化された回帰だけを見たいときは、このファイルより専用のテストファイルを読むべきです。
+- サブコマンドごとに局所化された回帰だけを見たいとき。
 
 ## hash
 
-- d79c284a7fe79701458c194cbd1bcf461ec48e4219a1a3313ef0553b77fa6ef4
+- d988e992f5ee57c256005b42c313f6ceff1c2d1c959eb44adf2a67d7341aa5aa
 
 # `test_timestamps.py`
 
