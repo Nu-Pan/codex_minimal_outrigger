@@ -23,28 +23,28 @@
 
 ## Summary
 
-- `Codex CLI` 呼び出しの共通起動基盤で、`codex exec` のコマンド組み立て、実行、再試行、`resume` 再開をまとめるモジュールです。
-- Structured Output の schema 検証、JSON パース、`output-last-message` の読み取り、テキスト/JSON の意味検証を扱います。
-- quota 待機、capacity の指数バックオフ、呼び出しログ保存、`workspace-write` 時の oracle 保護と実行前の `INDEX.md` メンテナンスも含みます。
+- `Codex CLI` 呼び出しの共通処理をまとめるモジュールで、`codex exec` のコマンド組み立て、実行、再試行、`resume` 再開を扱います。
+- Structured Output の検証、`output-last-message` の読み取り、JSON/テキストの意味検査、起動失敗の診断整形を含みます。
+- quota 待機、capacity の指数バックオフ、呼び出しログ保存、`workspace-write` 実行前の oracle 保護と `INDEX.md` メンテナンスも担います。
 
 ## Read this when
 
-- `codex exec` の起動方法、`read-only` / `workspace-write` の切り替え、`--model` や `reasoning_effort` の制約を確認したいとき。
-- Structured Output の JSON Schema 検証、`output-last-message` の保存と読み取り、JSON 応答の意味検証を確認したいとき。
+- `codex exec` の起動方法、`read-only` / `workspace-write` の切り替え、`--model` と `reasoning_effort` の制約を確認したいとき。
+- Structured Output の JSON Schema 検証、JSON パース、`output-last-message` の読み取り、テキスト/JSON の意味検証を確認したいとき。
 - quota 枯渇時の待機と `resume`、capacity 失敗時の指数バックオフ再試行を追いたいとき。
 - 実行前の `INDEX.md` メンテナンスや、workspace-write 時の oracle 保護の挙動を確認したいとき。
-- Codex CLI 呼び出しの Markdown フルログと output schema の保存規則を確認したいとき。
+- Codex CLI 呼び出しの Markdown フルログ、出力スキーマ保存、再試行時の診断情報の扱いを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解析や業務ロジックだけを確認したいとき。
+- 個別サブコマンドの引数解釈や業務ロジックだけを確認したいとき。
 - `INDEX.md` の生成ルールそのものや、`oracles` 全体のルーティング方針だけを確認したいとき。
-- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など他の共通モジュールだけを追いたいとき。
+- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など、他の共通モジュールだけを追いたいとき。
 - `codex exec` 以外の CLI 起動制御や、サブコマンド共通ラッパーだけを見たいとき。
 
 ## hash
 
-- 0254deddb70cd770630f08d6f57e931eab0f7cc3024291a40816a52ef8dc49ce
+- ded5c5d8fb3023216871ed323188c68fb129a739ad05ef55d4479e03b825993f
 
 # `command_runner.py`
 

@@ -2,26 +2,29 @@
 
 ## Summary
 
-- cmoc 全体で共有する共通ユーティリティ群をまとめるディレクトリです。
-- Codex CLI の実行基盤、repo/worktree 解析、例外整形、サブコマンドログ、時間計測、タイムスタンプ、レポート保存、`INDEX.md` メンテナンスを担います。
-- 個別サブコマンド本体ではなく、複数コマンドから再利用する基盤処理が集まっています。
+- `cmoc` のサブコマンド群が共通で使う基盤モジュールをまとめたディレクトリです。
+- `repo.py` が repo root・branch・session/apply state・差分検査・`git` 操作補助を担当します。
+- `codex.py` が `codex exec` 実行、Structured Output 検証、再試行、quota 待機、`INDEX.md` メンテナンス連携を担当します。
+- `command_runner.py`、`errors.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py` が実行ラッパー、エラー整形、ログ、計測、時刻、レポート保存を支えます。
+- `indexing.py` が `INDEX.md` の自動維持と再生成の中心になっています。
 
 ## Read this when
 
-- `codex exec` の呼び出し、Structured Output 検証、再試行、`resume` を追いたいとき。
-- `<repo-root>` 検出、session/apply state、branch や commit の判定、差分抽出を確認したいとき。
-- サブコマンドログ、経過時間表示、レポート保存、タイムスタンプ生成の共通仕様を確認したいとき。
-- `INDEX.md` の自動更新や共通例外 `CmocError` の整形規則を確認したいとき。
+- `cmoc` のサブコマンド群で共通に使う基盤処理を確認したいとき。
+- `repo.py` による repo root 探索、branch 判定、session/apply state、差分検査、`git` 補助の挙動を確認・修正したいとき。
+- `codex.py` の `codex exec` 起動、Structured Output 検証、quota 待機、`INDEX.md` メンテナンス連携を追いたいとき。
+- `command_runner.py`、`errors.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py` のような横断的な共通処理を理解したいとき。
+- このディレクトリ配下の共通モジュールを追加・整理するときに、既存の役割分担を把握したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解釈や業務ロジックだけを追いたいとき。
-- `src/sub_commands` 側の実装や `oracles` の個別仕様を直接確認したいとき。
-- テストや CLI エントリポイント以外の、共有基盤を経由しない処理を確認したいとき。
+- 個別サブコマンドごとの業務ロジック、引数、状態遷移だけを確認したいときは、`src/sub_commands` 側を読むべきです。
+- `oracles` 側のコマンド仕様や利用手順だけを確認したいときは、このディレクトリではなく `oracles/docs/app_specs/sub_commands/` 側を参照すべきです。
+- 共通処理ではなくテスト実装や CLI エントリーポイントだけを追いたいときは、このディレクトリを読む必要はありません。
 
 ## hash
 
-- 937cf452011b901aa13d2b04282a23af6f59d08307b84bfe2cf424481015deb0
+- eedc09290d9f5e35fb9925db75442fb006c0c2929cd8317ab94b0b0f0436d66b
 
 # `main.py`
 

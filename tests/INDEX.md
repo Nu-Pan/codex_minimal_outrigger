@@ -27,29 +27,30 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` と関連ヘルパーの回帰テスト群です。
-- Structured Output の再試行、JSON / テキスト検証、`output_schema` の生成とキャッシュ、`resume` と quota 復旧の分岐を重点的に確認します。
-- 呼び出しログ、コンソール通知、UTF-8 処理、workspace-write 時の oracle 変更検出も含みます。
+- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` とその周辺ヘルパーの回帰テスト群です。
+- Structured Output の再試行、schema 検証、出力ログ、コンソール通知、UTF-8 処理、quota/resume 復旧、workspace-write 時の `oracles` 保護を扱います。
+- `output_schema` の生成・キャッシュ・検証や、セッション ID 抽出、resume コマンド生成、主要な境界条件も確認します。
 
 ## Read this when
 
-- `run_codex_exec` の再試行条件や `json_validator` / `text_validator` の扱いを確認したいとき。
-- `output_schema` の検証、ファイル化、キャッシュ再利用、schema 不一致時の挙動を追いたいとき。
-- `resume`、quota 枯渇時の poll、capacity retry、last message 読み取り失敗の診断を追いたいとき。
-- call log、subcommand log、コンソール進捗表示、prompt preview の整形を確認したいとき。
-- workspace-write 実行時の oracle 変更ガードや `skip_index_maintenance` の境界を調べたいとき。
+- `run_codex_exec` の正常系・失敗系・再試行条件を確認したいとき。
+- `expect_json`、`text_validator`、`json_validator`、Structured Output schema の受け渡しや検証を変更したいとき。
+- `codex exec` 呼び出しログ、コンソール進捗表示、subcommand log の記録内容を確認したいとき。
+- quota 枯渇時の poll/resume、capacity retry、`_extract_session_id`、`_resume_command` の挙動を追いたいとき。
+- workspace-write 実行時の oracle 変更検出、`skip_index_maintenance`、active conflict path の判定を確認したいとき。
+- `_write_output_schema` や `'_prepare_codex_exec_paths'` のファイル生成・再利用・排他制御を確認したいとき。
 
 ## Do not read this when
 
-- `commons.indexing` や `commons.repo` の実装だけを追いたいとき。
-- `tests/test_indexing.py`、`tests/test_repo.py`、`tests/test_subcommands.py` など、別領域の回帰を確認したいとき。
-- `INDEX.md` 全体の生成ルールや `oracles` 側の正本仕様だけを知りたいとき。
-- `run_codex_exec` 以外の CLI サブコマンドやファイル命名ルールを調べたいとき。
-- codex 呼び出しログや quota / resume ではなく、純粋な git 共通処理や session state だけを確認したいとき。
+- `commons.indexing` や `tests/test_indexing.py` の INDEX 保守仕様だけを確認したいとき。
+- `commons.repo` や git 共通処理、ブランチ/セッション管理だけを確認したいとき。
+- `tests/test_subcommands.py` のようなサブコマンド横断の制御フローだけを確認したいとき。
+- `commons.timestamps`、`commons.report_files`、`tests/test_timestamps.py` など別の共通ヘルパーの仕様だけを確認したいとき。
+- `oracles` 全体の正本仕様や `INDEX.md` 生成ルールそのものを確認したいとき。
 
 ## hash
 
-- 894b8c5e8e9742a914b8a4bb799c47f55ee6589dd073c2d52b5a391f19aec7dc
+- 3335be4e2dede3f6f5dcbdc303817cf8f9cfc20b17214f9959f2f92c2034d217
 
 # `test_file_naming.py`
 
