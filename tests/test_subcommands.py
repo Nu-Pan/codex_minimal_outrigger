@@ -9024,6 +9024,55 @@ def test_bin_cmoc_requires_venv_python() -> None:
     assert "} >&2" not in launcher
 
 
+def test_test_sh_uses_own_worktree_bin_before_venv(tmp_path: Path) -> None:
+    """test.sh は自身の worktree の bin/cmoc を PATH で優先する。"""
+    repo_root = Path(__file__).resolve().parents[1]
+    outside = tmp_path / "outside"
+    fake_venv_bin = tmp_path / "fake-venv" / "bin"
+    fake_venv_bin.mkdir(parents=True)
+    outside.mkdir()
+    (fake_venv_bin / "cmoc").write_text(
+        "#!/bin/sh\nprintf '%s\\n' fake-venv-cmoc\n",
+        encoding="utf-8",
+    )
+    (fake_venv_bin / "cmoc").chmod(0o755)
+
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            (
+                "set -eu\n"
+                "cd \"$1\"\n"
+                "PATH=\"$2:$PATH\"\n"
+                ". \"$3/test.sh\"\n"
+                "printf '%s\\n' \"$CMOC_ROOT\"\n"
+                "printf '%s\\n' \"${PATH%%:*}\"\n"
+                "without_first=${PATH#*:}\n"
+                "printf '%s\\n' \"${without_first%%:*}\"\n"
+                "command -v cmoc\n"
+            ),
+            "bash",
+            str(outside),
+            str(fake_venv_bin),
+            str(repo_root),
+        ],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    lines = result.stdout.splitlines()
+    assert result.stderr == ""
+    assert lines == [
+        str(repo_root),
+        str(repo_root / "bin"),
+        str(repo_root / ".venv" / "bin"),
+        str(repo_root / "bin" / "cmoc"),
+    ]
+
+
 def test_bin_cmoc_reports_missing_venv_to_stdout(tmp_path: Path) -> None:
     """仮想環境が無い場合も共通エラーレポートを stdout へ出す。"""
     repo_root = Path(__file__).resolve().parents[1]
