@@ -8170,6 +8170,102 @@ def test_session_join_stops_non_conflict_merge_failure_without_codex(
     assert session_branch in branches
 
 
+def test_session_join_rejects_binary_conflict_without_codex(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """binary conflict は marker 解消対象にせず手動解消にする。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    (repo / "image.bin").write_bytes(b"base\0content\n")
+    _git(repo, "add", ".gitignore", "image.bin")
+    _git(repo, "commit", "-m", "prepare binary session")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "image.bin").write_bytes(b"session\0content\n")
+    _git(repo, "add", "image.bin")
+    _git(repo, "commit", "-m", "session binary change")
+    _git(repo, "switch", home_branch)
+    (repo / "image.bin").write_bytes(b"home\0content\n")
+    _git(repo, "add", "image.bin")
+    _git(repo, "commit", "-m", "home binary change")
+    _git(repo, "switch", session_branch)
+    codex_calls: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> None:
+        """Codex 呼び出しが誤って発生したことを記録する。"""
+        del args, kwargs
+        codex_calls.append("called")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "conflict marker を持たない" in error.value.message
+    assert "image.bin" in error.value.detail
+    assert codex_calls == []
+    assert state["session"]["state"] == "active"
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "diff", "--name-only", "--diff-filter=U").stdout == (
+        "image.bin\n"
+    )
+
+
+def test_session_join_rejects_modify_delete_conflict_without_codex(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """delete/modify conflict は marker 不在なので手動解消にする。"""
+    repo = _init_repo(tmp_path)
+    (repo / ".gitignore").write_text("/.cmoc/\n", encoding="utf-8")
+    (repo / "deleted.txt").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore", "deleted.txt")
+    _git(repo, "commit", "-m", "prepare modify delete session")
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    _checkout_session_branch(repo)
+    session_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / "deleted.txt").write_text("session\n", encoding="utf-8")
+    _git(repo, "add", "deleted.txt")
+    _git(repo, "commit", "-m", "session modifies file")
+    _git(repo, "switch", home_branch)
+    (repo / "deleted.txt").unlink()
+    _git(repo, "rm", "deleted.txt")
+    _git(repo, "commit", "-m", "home deletes file")
+    _git(repo, "switch", session_branch)
+    codex_calls: list[str] = []
+
+    def fake_codex(*args: object, **kwargs: object) -> None:
+        """Codex 呼び出しが誤って発生したことを記録する。"""
+        del args, kwargs
+        codex_calls.append("called")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    state = json.loads(
+        (
+            repo / ".cmoc" / "sessions" / "2026-05-10_22-21_10_000000123.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "conflict marker を持たない" in error.value.message
+    assert "deleted.txt" in error.value.detail
+    assert codex_calls == []
+    assert state["session"]["state"] == "active"
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "diff", "--name-only", "--diff-filter=U").stdout == (
+        "deleted.txt\n"
+    )
+
+
 def test_session_join_rejects_codex_change_outside_conflict_paths(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,

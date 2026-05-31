@@ -213,18 +213,19 @@ def _resolve_conflicts(repo_root: Path) -> None:
             ],
         )
     _assert_no_forbidden_conflict_paths(unmerged)
+    conflict_paths = _auto_resolvable_marker_conflict_paths(repo_root, unmerged)
     merge_state = _merge_state_snapshot(repo_root)
-    protected_snapshot = _protected_conflict_snapshot(repo_root, unmerged)
+    protected_snapshot = _protected_conflict_snapshot(repo_root, conflict_paths)
 
     # conflict 解消用 Codex 呼び出しは INDEX メンテナンス例外として実行する。
     run_codex_exec(
         repo_root,
-        _conflict_prompt(repo_root, unmerged),
+        _conflict_prompt(repo_root, conflict_paths),
         purpose="session join conflict 解消",
         read_only=False,
         expect_json=False,
         skip_index_maintenance=True,
-        allowed_uncommitted_oracle_paths=_oracle_conflict_paths(unmerged),
+        allowed_uncommitted_oracle_paths=_oracle_conflict_paths(conflict_paths),
     )
 
     _assert_merge_state_unchanged(repo_root, merge_state)
@@ -232,12 +233,12 @@ def _resolve_conflicts(repo_root: Path) -> None:
     # conflict 対象外の差分は Codex 呼び出し前と同一でなければならない。
     _assert_protected_conflict_snapshot_unchanged(
         repo_root,
-        unmerged,
+        conflict_paths,
         protected_snapshot,
     )
 
     # conflict 対象に marker が残っていないことを add 前に検出する。
-    marker_files = _files_with_conflict_markers(repo_root, unmerged)
+    marker_files = _files_with_conflict_markers(repo_root, conflict_paths)
     if marker_files:
         raise CmocError(
             "Codex CLI による解消後も conflict marker が残っています。",
@@ -249,7 +250,7 @@ def _resolve_conflicts(repo_root: Path) -> None:
         )
 
     # cmoc の責任で conflict 対象を add し、unmerged path が残らないことを確認する。
-    for path in unmerged:
+    for path in conflict_paths:
         run_git(repo_root, ["add", "--", path])
     if _unmerged_paths(repo_root):
         raise CmocError(
@@ -422,6 +423,33 @@ def _is_forbidden_conflict_path(path: str) -> bool:
         or path == "memo"
         or path.startswith("memo/")
     )
+
+
+def _auto_resolvable_marker_conflict_paths(
+    repo_root: Path,
+    unmerged: list[str],
+) -> list[str]:
+    """Codex に marker 解消を依頼できる conflict path だけを返す。"""
+    marker_paths = set(_files_with_conflict_markers(repo_root, unmerged))
+    unsupported = [
+        path
+        for path in unmerged
+        if path not in marker_paths
+    ]
+    if unsupported:
+        raise CmocError(
+            "conflict marker を持たない unmerged path は自動解消できません。",
+            [
+                "binary conflict や delete/modify conflict は手動で解消してください。",
+                "解消後に `git add` と merge commit を手動で実行してください。",
+            ],
+            "\n".join(unsupported),
+        )
+    return [
+        path
+        for path in unmerged
+        if path in marker_paths
+    ]
 
 
 def _oracle_conflict_paths(unmerged: list[str]) -> list[str]:
