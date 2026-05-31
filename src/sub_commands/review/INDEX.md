@@ -23,22 +23,22 @@
 
 ## Summary
 
-- `cmoc review oracles` の実行本体で、oracles 仕様ファイル群の評価とレポート生成を担当します。
-- 開始時点の oracles ツリーを snapshot として固定し、その後に `INDEX.md` をメンテナンスしてから評価を進めます。
-- 対象 oracle の選定、並列評価、問題点リストの改善反復、Markdown レポート保存、失敗時のエラーレポート出力までをまとめて扱います。
+- `src/sub_commands/review/oracles.py` は `cmoc review oracles` の本体処理を担う実装ファイルです。
+- 開始時点の `oracles` ツリーを snapshot として固定し、`INDEX.md` をメンテナンスしたうえで、対象 oracle ファイルを並列に評価します。
+- 評価結果の問題点リストを改善し、最終レポートまたは失敗時のエラーレポートを `.cmoc/reports/review_oracles` に保存します。
 
 ## Read this when
 
 - `cmoc review oracles` の実行フロー全体を追いたいとき。
-- oracles スナップショットの固定、評価対象の選定、並列評価、Structured Output 検証を確認したいとき。
-- 問題点リストの改善反復や、最終レポート・エラーレポートの生成仕様を確認したいとき。
+- oracles スナップショットの固定、部分評価・全体評価の選定、並列評価の流れを確認したいとき。
+- 問題点リストの改善反復、Structured Output の検証、Markdown レポート保存とエラーレポート出力の仕様を確認したいとき。
 
 ## Do not read this when
 
-- CLI へのコマンド登録や hidden alias だけを確認したいときは、`src/main.py` を読むべきです。
-- パッケージ宣言だけで足りるときは、同ディレクトリの `__init__.py` を読むべきです。
-- `oracles` 配下の個別仕様断片そのものを確認したいときは、このファイルではなく `oracles/docs/app_specs/` 側を読むべきです。
+- `cmoc review` の CLI 登録や hidden alias だけを確認したいときは、このファイルではなく `src/main.py` を読むべきです。
+- `src/sub_commands/review` が Python パッケージとして宣言されていることだけを確認したいときは、同ディレクトリの `__init__.py` を読むべきです。
+- `oracles` 配下の個別仕様断片そのものを確認したいときは、この実装ではなく `oracles/docs/app_specs/` 側を読むべきです。
 
 ## hash
 
-- 964729b33c9d366e132d532dbcbe1851339e1025b795a8b0182bcdc52f4125ba
+- a644a7f70e8366099ba9123850a68f5aaedd9d716e1168c8c25a0503b58a3f6d

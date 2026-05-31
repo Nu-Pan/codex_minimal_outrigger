@@ -24,51 +24,52 @@
 ## Summary
 
 - `src/sub_commands/apply/abandon.py` は `cmoc apply abandon` の本体処理を実装するモジュールです。
-- 現在の session に紐づく未 join の apply run を破棄し、`running` なら子プロセスを停止したうえで、apply branch と worktree を強制削除して `apply.state` を `ready` に戻します。
-- 破棄前後の状態表示と warning 出力を行い、次回の apply 実行に支障が出ないよう session state の補助情報を初期化します。
+- 現在の session に紐づく未 join の apply run を破棄し、必要に応じて実行中の apply プロセスを停止したうえで、apply branch と worktree を強制削除して `apply.state` を `ready` に戻します。
+- 現在の branch から cleanup 基点を session branch に移し、破棄結果と warning を標準出力へ出力し、次回の apply に向けて session state の補助情報を初期化します。
 
 ## Read this when
 
-- `src/sub_commands/apply/abandon.py` の役割と責務を素早く把握したいとき。
+- `cmoc apply abandon` の役割と責務を素早く把握したいとき。
 - `cmoc apply abandon` の実装・修正・レビュー・テストを始める前に入口を確認したいとき。
-- 未 join の apply run を破棄する前提条件や、`session.state` / `apply.state` の検証条件を追いたいとき。
-- `running` 中の apply を停止する挙動や、apply branch / worktree の cleanup 方針を確認したいとき。
-- 破棄結果として標準出力に何を出し、warning をどう扱うかを確認したいとき。
+- 未 join の apply run の破棄条件、`session.state` / `apply.state` の検証、実行中プロセス停止、apply branch / worktree の cleanup 方針を追いたいとき。
+- 破棄後に標準出力へ何が出るか、warning の扱いを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply fork` の調査・修正ループや要修正点整理だけを確認したいとき。
+- `cmoc apply fork` の不整合調査や要修正点整理だけを確認したいとき。
 - `cmoc apply join` や `cmoc session abandon` など、別サブコマンドの終了・統合・破棄手順だけを確認したいとき。
 - `cmoc apply abandon` の仕様断片や利用手順だけを確認したいときは、実装ではなく正本仕様を直接読むべきとき。
 - `src/sub_commands/apply` パッケージ全体の入口だけを確認したいとき。
 
 ## hash
 
-- 62f15798e9638f295e46c5cc870085cfdc0a751b855334cabacac6cdc98b9ed0
+- 55fc71299214989dbb8672c9d047080338b21b1bcce055d4c6bf7a6af3f5d73a
 
 # `fork.py`
 
 ## Summary
 
-- `cmoc apply fork` の本体実装で、session branch 上で専用の apply branch と worktree を作成し、`session.state` / `apply.state` の検証・更新、排他ロック、作業開始・終了の制御をまとめている。
-- oracle ファイルと実装ファイルを対象に、Structured Output で不整合を調査し、要修正点の整理・改善・適用を並列実行しながら、`--repeat-investigate-and-fix`、`--repeat-improove-fixing-list`、`--scope` を扱う。
-- 禁止領域の変更検査、`INDEX.md` の維持、コミット生成、Markdown + YAML Front Matter の apply report / error report 生成、および各種 prompt・validation helper をまとめている。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体で、session branch 上に専用の apply branch と worktree を作成し、要修正点の調査・適用・レポート生成までをまとめて担当する。
+- 起動前の state 検証、`--repeat-investigate-and-fix` / `--repeat-improove-fixing-list` / `--scope` の検証、`apply.state` の遷移、排他ロックと worktree 作成リトライを扱う。
+- Structured Output による不整合調査、修正反映、commit、編集禁止領域の検査、YAML Front Matter 付き report 出力と変更要約生成までを含む。
 
 ## Read this when
 
-- `cmoc apply fork` の開始から report 出力までの全体フローを追いたいとき。
-- `session.state` / `apply.state` の前提条件、`--repeat-investigate-and-fix`、`--repeat-improove-fixing-list`、`--scope` の挙動、または apply branch / worktree の作成リトライを確認したいとき。
-- 不整合調査の Structured Output、要修正点リストの整理、修正の適用、禁止領域チェック、commit / report 生成の実装やテストを確認したいとき。
+- `cmoc apply fork` の処理順と責務の境界を確認したいとき。
+- `session.state` / `apply.state` の検証条件、apply branch と worktree の作成条件、scope ごとの調査対象選定を確認したいとき。
+- Structured Output による不整合調査、要修正点の整理、修正反映、commit、report 生成の流れを追いたいとき。
+- 編集禁止領域の検査や report の検証条件を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply join` や `cmoc apply abandon`、`cmoc session fork/join/abandon` など、別サブコマンドの手順だけを確認したいとき。
-- `cmoc apply fork` の CLI 登録や入口だけを確認したいときは、このファイルではなく `src/main.py` や `src/sub_commands/apply/INDEX.md` を先に読むべきです。
-- `oracles` 配下の正本仕様そのものや、`INDEX.md` の生成ルールだけを確認したいときは、この実装ファイルを読む必要はありません。
+- `cmoc apply join` や `cmoc apply abandon` の実装・終了処理だけを確認したいとき。
+- `cmoc apply fork` の利用手順や正本仕様だけを確認したいとき。
+- `src/sub_commands/apply` パッケージ全体の入口だけを確認したいとき。
+- `INDEX.md` の生成ルールだけを確認したいとき。
 
 ## hash
 
-- 97d354fa21c33b42457c37a4a5bdf7c8f21c69ac53f3e21dc89c3b504673d6d8
+- b199bf6def0a8bef9df2bc42aad0d4ec7a31e9ba7d119e108af953e5df5c2f02
 
 # `join.py`
 
@@ -87,11 +88,11 @@
 
 ## Do not read this when
 
-- `cmoc apply fork` の不整合調査や要修正点の整理だけを確認したいとき。
-- `cmoc apply abandon` の破棄手順や、実行中プロセスの停止処理だけを確認したいとき。
+- `cmoc apply fork` の調査・修正・レビューだけを確認したいとき。
+- `cmoc apply abandon` の破棄手順や、実行中プロセスの停止だけを確認したいとき。
 - `cmoc session join` や `cmoc session abandon` など、session 側の終了・統合・破棄だけを確認したいとき。
 - `cmoc apply join` の利用手順ではなく、仕様断片だけを読みたいときは正本仕様を直接参照したいとき。
 
 ## hash
 
-- 19a1d2634c780c3ec2ad3bd0eea358cb2617db8f5c6c1bf7ab507316933ee65a
+- efbb36d52de7cdaa17e9fcc7c059f46bafa09e25c4cb6b1151d6b48db7af865c
