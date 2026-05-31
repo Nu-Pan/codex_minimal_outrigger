@@ -719,21 +719,31 @@ def test_session_fork_creates_session_branch_and_records_state(
 def test_session_fork_repairs_missing_cmoc_ignore_before_clean_check(
     tmp_path: Path,
 ) -> None:
-    """`.cmoc` ignore 不足は補修し、その差分を通常の未コミット差分として扱う。"""
+    """`.cmoc` ignore 不足は内部初期化 commit として補修して続行する。"""
     repo = _init_repo(tmp_path)
-    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    initial_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
-    with pytest.raises(CmocError) as error:
-        cmoc_session_fork_impl(repo)
+    cmoc_session_fork_impl(repo)
 
-    assert "未コミットの変更" in error.value.message
-    assert ".gitignore" in error.value.detail
-    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
-    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.cmoc/\n"
-    assert _git(repo, "status", "--porcelain", "--", ".gitignore").stdout == (
-        "?? .gitignore\n"
+    branch_name = _git(repo, "branch", "--show-current").stdout.strip()
+    session_id = branch_name.removeprefix("cmoc/session/")
+    state = json.loads(
+        (repo / ".cmoc" / "sessions" / f"{session_id}.json").read_text(
+            encoding="utf-8",
+        )
     )
-    assert _session_state_paths(repo) == []
+    assert branch_name.startswith("cmoc/session/")
+    assert state["session"]["session_start_commit"] != initial_head
+    assert state["session"]["session_start_commit"] == _git(
+        repo,
+        "rev-parse",
+        "HEAD",
+    ).stdout.strip()
+    assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Initialize cmoc"
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_session_fork_ensures_cmoc_ignore_before_active_state_scan(
@@ -5892,27 +5902,34 @@ def test_apply_does_not_commit_preexisting_gitignore_changes(
     )
 
 
-def test_apply_rejects_tracked_cmoc_before_worktree_creation(
+def test_apply_untracks_existing_cmoc_before_worktree_creation(
     tmp_path: Path,
+    monkeypatch: MonkeyPatch,
 ) -> None:
-    """apply fork は state 検証後に `.cmoc` 非追跡を保証する。"""
+    """apply fork は state 検証後に tracked `.cmoc` を初期化 commit で外す。"""
     repo = _init_repo(tmp_path)
     _checkout_session_branch(repo)
     state_path = ".cmoc/sessions/2026-05-10_22-21_10_000000123.json"
     _git(repo, "add", "-f", state_path)
     _git(repo, "commit", "-m", "track session state")
 
-    with pytest.raises(CmocError) as error:
-        cmoc_apply_impl(repo)
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
 
-    assert "未コミットの変更" in error.value.message
-    assert ".gitignore" in error.value.detail
-    assert state_path in error.value.detail
-    assert (repo / ".gitignore").read_text(encoding="utf-8") == "/.cmoc/\n"
-    assert not (repo / ".cmoc" / "worktrees").exists()
+    exit_code = cmoc_apply_impl(repo, repeat_investigate_and_fix=0)
+
+    assert exit_code == APPLY_FORK_EXIT_CODE_UNCONVERGED
+    assert _git(repo, "show", "HEAD:.gitignore").stdout == "/.cmoc/\n"
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Initialize cmoc"
+    )
+    assert (repo / ".cmoc" / "worktrees").exists()
     assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
     branches = _git(repo, "branch", "--format=%(refname:short)").stdout
-    assert "cmoc/apply/" not in branches
+    assert "cmoc/apply/" in branches
+    assert _git(repo, "status", "--porcelain").stdout == ""
 
 
 def test_apply_rejects_broken_session_state_before_cmoc_ignore(

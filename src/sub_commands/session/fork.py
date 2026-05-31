@@ -12,7 +12,7 @@ from commons.repo import (
     SESSION_BRANCH_PREFIX,
     active_session_ids_for_home_branch,
     assert_no_uncommitted_changes,
-    ensure_cmoc_ignored,
+    ensure_cmoc_ignored_and_committed,
     head_commit,
     initial_session_state,
     is_cmoc_branch,
@@ -47,7 +47,7 @@ def cmoc_session_fork_impl(repo_root: Path | None = None) -> None:
     assert_no_uncommitted_changes(repo_root)
 
     start_step(timer, 2, 4, "ensure .cmoc is ignored")
-    ensure_cmoc_ignored(repo_root)
+    ensure_cmoc_ignored_and_committed(repo_root)
     assert_no_uncommitted_changes(repo_root)
 
     active_session_ids = active_session_ids_for_home_branch(

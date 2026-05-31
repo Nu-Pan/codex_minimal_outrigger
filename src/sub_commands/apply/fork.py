@@ -35,7 +35,7 @@ from commons.repo import (
     changed_paths,
     clear_apply_process_id,
     current_branch,
-    ensure_cmoc_ignored,
+    ensure_cmoc_ignored_and_committed,
     filter_apply_implementation_file_paths,
     filter_apply_implementation_file_paths_at_commit,
     filter_oracle_file_paths,
@@ -308,7 +308,7 @@ def cmoc_apply_impl(
     assert_no_uncommitted_changes(repo_root)
 
     start_step(timer, 2, 6, "ensure .cmoc is ignored")
-    ensure_cmoc_ignored(repo_root)
+    ensure_cmoc_ignored_and_committed(repo_root)
     assert_no_uncommitted_changes(repo_root)
     session_head_at_apply_start = ""
     oracle_snapshot_commit = ""
