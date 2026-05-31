@@ -648,11 +648,7 @@ def _redistribute_improved_issues(
         if not isinstance(issue, dict):
             raise ValueError("issues item must be an object.")
         target = str(Path(str(issue["oracle_path"])).resolve())
-        if target not in target_to_index:
-            raise ValueError(
-                "issues item oracle_path must match an evaluated oracle file."
-            )
-        index = target_to_index[target]
+        index = target_to_index.get(target, 0)
         result[index]["issues"].append(issue)
     return [_refresh_evaluation_metadata(evaluation) for evaluation in result]
 
@@ -718,10 +714,6 @@ def _validate_evaluation_payload(
     if set(value) != {"issues"}:
         raise ValueError("Evaluation payload keys do not match schema.")
     _validate_evaluation_issues(value["issues"], repo_root, oracle_snapshot)
-    _validate_issue_oracle_paths_match_targets(
-        value["issues"],
-        {oracle_file.resolve()},
-    )
 
 
 def _validate_issues_payload(
@@ -736,10 +728,6 @@ def _validate_issues_payload(
     if set(value) != {"issues"}:
         raise ValueError("Issues payload keys do not match schema.")
     _validate_evaluation_issues(value["issues"], repo_root, oracle_snapshot)
-    _validate_issue_oracle_paths_match_targets(
-        value["issues"],
-        target_oracle_paths,
-    )
 
 
 def _target_oracle_paths(evaluations: list[dict[str, object]]) -> set[Path]:
@@ -748,24 +736,6 @@ def _target_oracle_paths(evaluations: list[dict[str, object]]) -> set[Path]:
         Path(str(evaluation["target_oracle_path"])).resolve()
         for evaluation in evaluations
     }
-
-
-def _validate_issue_oracle_paths_match_targets(
-    issues: object,
-    target_oracle_paths: set[Path],
-) -> None:
-    """改善後 issue の帰属先が評価対象と一致することを検査する。"""
-    if not isinstance(issues, list):
-        raise ValueError("issues must be a list.")
-    for index, issue in enumerate(issues):
-        if not isinstance(issue, dict):
-            raise ValueError(f"issues[{index}] must be an object.")
-        target = Path(str(issue["oracle_path"])).resolve()
-        if target not in target_oracle_paths:
-            raise ValueError(
-                f"issues[{index}].oracle_path must match an "
-                "evaluated oracle file."
-            )
 
 
 def _write_report(
@@ -1088,12 +1058,7 @@ def _validate_evaluation_issues(
         if item["severity"] not in _SEVERITY_ORDER:
             raise ValueError(f"issues[{index}].severity is invalid.")
         _require_issue_string(item, "title", index)
-        _require_absolute_oracle_path(
-            item["oracle_path"],
-            repo_root,
-            f"issues[{index}].oracle_path",
-            oracle_snapshot,
-        )
+        _require_issue_oracle_path_string(item["oracle_path"], index)
         _validate_issue_lines(item, index)
         _validate_referenced_paths(
             item["referenced_paths"],
@@ -1116,27 +1081,12 @@ def _validate_evaluation_issues(
         )
 
 
-def _require_absolute_oracle_path(
-    value: object,
-    repo_root: Path,
-    label: str,
-    oracle_snapshot: _OracleEvaluationSnapshot | None = None,
-) -> Path:
-    """JSON 値を issue の根拠となる oracle file path として検査する。"""
-    resolved_path = _require_absolute_oracles_file(
-        value,
-        repo_root,
-        label,
-        require_current_existence=oracle_snapshot is None,
-    )
-    oracle_files = (
-        oracle_snapshot.oracle_files
-        if oracle_snapshot is not None
-        else frozenset(path.resolve() for path in list_oracle_files(repo_root))
-    )
-    if resolved_path not in oracle_files:
-        raise ValueError(f"{label} must be an oracle file.")
-    return resolved_path
+def _require_issue_oracle_path_string(value: object, index: int) -> None:
+    """issues[].oracle_path は後処理では oracle file 実在性を要求しない。"""
+    if not isinstance(value, str):
+        raise ValueError(f"issues[{index}].oracle_path must be a string.")
+    if not value.strip():
+        raise ValueError(f"issues[{index}].oracle_path must not be empty.")
 
 
 def _require_absolute_oracle_reference_path(

@@ -1922,10 +1922,10 @@ def test_eval_oracles_rejects_too_many_issue_list_improvements(
         cmoc_review_oracles_impl(repo, full=True, repeat_improve_issues_list=4)
 
 
-def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
+def test_review_oracles_accepts_improved_issue_for_unevaluated_oracle(
     tmp_path: Path,
 ) -> None:
-    """改善後 issue は評価対象外 oracle へ黙って再配布しない。"""
+    """改善後 issue の oracle_path が評価対象外でも後処理エラーにしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -1950,24 +1950,18 @@ def test_review_oracles_rejects_improved_issue_for_unevaluated_oracle(
         1,
     )
 
-    with pytest.raises(
-        ValueError,
-        match="oracle_path must match an evaluated oracle file",
-    ):
-        review_oracles_module._validate_issues_payload(
-            {"issues": [improved_issue]},
-            repo,
-            {evaluated_oracle.resolve()},
-        )
+    review_oracles_module._validate_issues_payload(
+        {"issues": [improved_issue]},
+        repo,
+        {evaluated_oracle.resolve()},
+    )
 
-    with pytest.raises(
-        ValueError,
-        match="oracle_path must match an evaluated oracle file",
-    ):
-        review_oracles_module._redistribute_improved_issues(
-            evaluations,
-            [improved_issue],
-        )
+    redistributed = review_oracles_module._redistribute_improved_issues(
+        evaluations,
+        [improved_issue],
+    )
+
+    assert redistributed[0]["issues"] == [improved_issue]
 
 
 def test_review_oracles_redistribution_uses_only_final_issue_provenance(
@@ -2103,10 +2097,10 @@ def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
     )
 
 
-def test_eval_oracles_payload_rejects_index_as_issue_oracle_path(
+def test_eval_oracles_payload_accepts_index_as_issue_oracle_path(
     tmp_path: Path,
 ) -> None:
-    """issues[].oracle_path は INDEX.md ではなく oracle file に帰属させる。"""
+    """issues[].oracle_path は INDEX.md でも後処理エラーにしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -2123,23 +2117,19 @@ def test_eval_oracles_payload_rejects_index_as_issue_oracle_path(
         [oracle, oracle_index],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="issues\\[0\\]\\.oracle_path must be an oracle file",
-    ):
-        review_oracles_module._validate_evaluation_payload(
-            {
-                "issues": [issue],
-            },
-            repo,
-            oracle,
-        )
+    review_oracles_module._validate_evaluation_payload(
+        {
+            "issues": [issue],
+        },
+        repo,
+        oracle,
+    )
 
 
-def test_eval_oracles_payload_rejects_other_oracle_as_issue_oracle_path(
+def test_eval_oracles_payload_accepts_other_oracle_as_issue_oracle_path(
     tmp_path: Path,
 ) -> None:
-    """1 file 評価の issue は現在評価中の oracle file だけに帰属させる。"""
+    """1 file 評価の issue でも別 oracle への oracle_path をエラーにしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -2156,17 +2146,13 @@ def test_eval_oracles_payload_rejects_other_oracle_as_issue_oracle_path(
         [oracle, other_oracle],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="issues\\[0\\]\\.oracle_path must match an evaluated oracle file",
-    ):
-        review_oracles_module._validate_evaluation_payload(
-            {
-                "issues": [issue],
-            },
-            repo,
-            oracle,
-        )
+    review_oracles_module._validate_evaluation_payload(
+        {
+            "issues": [issue],
+        },
+        repo,
+        oracle,
+    )
 
 
 def test_eval_oracles_payload_rejects_legacy_top_level_metadata(
@@ -2351,26 +2337,53 @@ def test_eval_oracles_payload_rejects_ignored_oracle_path(
         )
 
 
-def test_eval_oracles_payload_rejects_missing_issue_oracle_path(
+def test_eval_oracles_payload_accepts_missing_issue_oracle_path(
     tmp_path: Path,
 ) -> None:
-    """issues[].oracle_path も実在する oracle file として検査する。"""
+    """issues[].oracle_path が存在しない oracle path でも後処理エラーにしない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
     oracle = oracle_root / "spec.md"
     missing_oracle = oracle_root / "missing.md"
     oracle.write_text("spec\n", encoding="utf-8")
-    issue = _eval_oracle_issue("fatal", "fatal", missing_oracle, 1, 1)
+    issue = _eval_oracle_issue("fatal", "fatal", missing_oracle, 1, 1, [oracle])
 
-    with pytest.raises(ValueError, match="issues\\[0\\]\\.oracle_path must exist"):
-        review_oracles_module._validate_evaluation_payload(
-            {
-                "issues": [issue],
-            },
-            repo,
-            oracle,
-        )
+    review_oracles_module._validate_evaluation_payload(
+        {
+            "issues": [issue],
+        },
+        repo,
+        oracle,
+    )
+
+
+def test_eval_oracles_payload_accepts_non_oracles_issue_oracle_path(
+    tmp_path: Path,
+) -> None:
+    """issues[].oracle_path が oracles 外でも後処理エラーにしない。"""
+    repo = _init_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    oracle = oracle_root / "spec.md"
+    implementation_path = repo / "src" / "app.py"
+    oracle.write_text("spec\n", encoding="utf-8")
+    issue = _eval_oracle_issue(
+        "fatal",
+        "fatal",
+        implementation_path,
+        1,
+        1,
+        [oracle],
+    )
+
+    review_oracles_module._validate_evaluation_payload(
+        {
+            "issues": [issue],
+        },
+        repo,
+        oracle,
+    )
 
 
 def test_eval_oracles_verdict_text_distinguishes_error() -> None:
@@ -2563,7 +2576,7 @@ def test_eval_oracles_validation_helpers_are_ordered_caller_first() -> None:
         repo_root / "src" / "sub_commands" / "review" / "oracles.py"
     ).read_text(encoding="utf-8")
 
-    callee = source.index("def _require_absolute_oracle_path(")
+    callee = source.index("def _require_issue_oracle_path_string(")
     assert source.index("def _validate_evaluation_payload(") < callee
     assert source.index("def _validate_referenced_paths(") < callee
     assert source.index("def _validate_evaluation_issues(") < callee
