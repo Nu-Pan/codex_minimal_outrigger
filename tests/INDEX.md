@@ -164,7 +164,7 @@
 - `run_command` と `main` の横断的な制御フロー、終了コード、例外整形、レポート出力を追いたいとき。
 - `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の回帰観点をまとめて確認したいとき。
 - `.cmoc` ignore 修復、tracked ファイルの追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
-- oracle 評価の Structured Output、INDEX.md メンテナンス、prompt 内容、issue 集約、force resolve、失敗時の error report 仕様を確認したいとき。
+- oracle 評価の Structured Output、`INDEX.md` メンテナンス、prompt 内容、issue 集約、force resolve、失敗時の error report 仕様を確認したいとき。
 - 補完プローブ、JSONL サブコマンドログ、テスト用 helper 関数や repo 構築ヘルパーの意図を把握したいとき。
 
 ## Do not read this when
@@ -177,7 +177,7 @@
 
 ## hash
 
-- 7ae7cbabd304709883f83c079a049675e1c22b3871613e229e55b36d6bd26014
+- 9b548936d5a5503352b8fa25b80eb8c5626a4d3ea448468ab7a1b17df0ee23c8
 
 # `test_timestamps.py`
 
