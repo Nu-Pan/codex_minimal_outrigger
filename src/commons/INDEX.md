@@ -131,27 +131,28 @@
 - repo root の検出、現在 branch / HEAD commit の取得、cmoc 管理 branch の判定をまとめています。
 - session / apply state の保存先・読込・検証、active session の一意性確認、apply worktree からの所有元 repo root 復元を担います。
 - `.cmoc` の ignore 保証、未コミット差分の検査、`cmoc init` 用の内部 commit、`oracles` / 実装ファイルの列挙・差分抽出・削除判定を提供します。
-- git コマンド実行、`gitignore` 評価、`git status` / `diff` / `ls-files` などの補助関数も含みます。
+- git コマンド実行、`.gitignore` 評価、`git status` / `diff` / `ls-files` の解析を支える補助関数も含みます。
 
 ## Read this when
 
-- repo root を探して `cwd` を固定したいとき。
-- 現在の branch 名や HEAD commit を取得したいとき。
-- `cmoc/session/*` と `cmoc/apply/*` の判定、session id 復元、apply worktree の配置復元を確認したいとき。
-- session / apply state JSON の保存・読込・検証、active session の整合性確認、apply process id の runtime 保存を確認したいとき。
-- `.cmoc` を追跡対象外にする保証、未コミット差分の検査、`oracles` と実装ファイルの列挙や差分検出を追いたいとき。
-- 内部的な `git` 実行や `.gitignore` 判定の仕組みを確認したいとき。
+- repo root の検出、`cwd` 固定、現在 branch / HEAD commit の取得を確認したいとき。
+- `cmoc/session/*` と `cmoc/apply/*` の branch 判定や session id 抽出を追いたいとき。
+- session state / apply process id の保存・読込・検証、active session の一意性確認を確認したいとき。
+- apply worktree から所有元 repo root を復元する処理を確認したいとき。
+- `.cmoc` の ignore 保証、`.gitignore` の評価、未コミット差分や削除検出を含むファイル列挙を追いたいとき。
+- `git status` / `diff` / `ls-files` の解析や `run_git()` の共通ラッパーを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解析や実行順だけを確認したいときは、`src/sub_commands/...` 側を読むべきです。
-- `codex exec` の起動、ログ、計測、エラー整形、`INDEX.md` 生成の仕様を確認したいときは、別の `commons` モジュールを読むべきです。
-- `session` / `apply` の利用手順や状態遷移の仕様断片だけを見たいときは、`oracles/docs/app_specs/sub_commands/` 側を参照すべきです。
-- `git` の一般的な使い方や歴史的な背景を知りたいだけのときは、このファイルではなく Git の資料を読むべきです。
+- サブコマンドの引数解釈や業務フローだけを追いたいとき。
+- エラーレポートの整形仕様だけを確認したいときは `errors.py` を読むべきです。
+- 時間計測やログ出力の挙動だけを確認したいときは `timing.py`、`subcommand_log.py` を読むべきです。
+- `INDEX.md` の生成・更新ルールそのものを追いたいときは `indexing.py` を読むべきです。
+- `codex.py` など他の共通モジュールの実装詳細だけを見たいとき。
 
 ## hash
 
-- ac5a98191b1b9b8205d29be70a0ea4b12f4dbb12e425ae6e77913694d455527b
+- 0afb0c01590a742e960ea76e8e681085d9e8c7f4b7c86d642f03ae9362bbb05f
 
 # `report_files.py`
 

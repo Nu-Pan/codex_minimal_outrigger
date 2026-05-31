@@ -2,35 +2,25 @@
 
 ## Summary
 
-- `src/commons` は cmoc の共通基盤処理を集約したディレクトリの入口です。
-- `__init__.py` は `src.commons` をパッケージ化するだけの最小モジュールです。
-- `repo.py` は repo root 探索、branch/HEAD 判定、session/apply state、`.cmoc` 配下の保存・検査を担います。
-- `errors.py` は共通例外 `CmocError` と stdout 向けエラーレポート整形を提供します。
-- `command_runner.py` は Typer サブコマンドの共通実行制御、終了コード処理、完了レポートをまとめます。
-- `subcommand_log.py` はサブコマンド呼び出し単位の JSON Lines ログと quota 待ち時間の記録を管理します。
-- `timing.py` はステップ開始通知、経過時間計測、表示用 duration 整形を扱います。
-- `timestamps.py` は cmoc 仕様の `<time-stamp>` とコンソール用日時文字列を生成・検証します。
-- `report_files.py` はタイムスタンプ付き Markdown レポートの排他的生成と保存を担当します。
-- `codex.py` は `codex exec` の起動、再試行、Structured Output 検証、oracle 保護を担います。
-- `indexing.py` は `INDEX.md` の自動生成・更新・再利用判定と必要時の自動コミットを担当します。
+- cmoc の共通基盤モジュール群をまとめたディレクトリです。
+- `codex.py`、`command_runner.py`、`errors.py`、`indexing.py`、`repo.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py` など、CLI 全体で再利用する処理が入っています。
+- 個別サブコマンドの実装ではなく、実行制御・エラー処理・リポジトリ操作・ログ・計測・INDEX メンテナンスの入口として読む場所です。
 
 ## Read this when
 
-- `src/commons` のどの共通モジュールを参照すべきか素早く切り分けたいとき。
-- サブコマンド実装の前に、共有処理・エラー処理・ログ処理の責務分担を確認したいとき。
-- クロスカットな基盤処理を修正する前に、関連モジュールの役割を俯瞰したいとき。
-- このディレクトリ内で `indexing.py` から `INDEX.md` 生成の仕組みをたどりたいとき。
+- `codex exec` の呼び出し、Structured Output 検証、`INDEX.md` メンテナンスの実装を確認したいとき。
+- エラーレポート、repo 探索、branch や worktree の扱い、session/apply 状態管理を確認したいとき。
+- サブコマンドログ、経過時間計測、タイムスタンプ生成、レポート保存などの共通処理を確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの入力仕様や業務ロジックだけを確認したいとき。
-- `src/commons` のうち 1 ファイルだけの実装詳細を知りたいときは、この目次ではなく該当モジュールを直接読むべきです。
-- `oracles` 配下の仕様断片や利用手順だけを確認したいとき。
-- README や運用ルールなど、リポジトリ全体の別文書を探したいとき。
+- 個別サブコマンドの引数や状態遷移、業務ロジックだけを確認したいとき。
+- `oracles` 配下の正本仕様そのものや、`INDEX.md` の生成ルールだけを確認したいとき。
+- 共通基盤ではなく、特定の機能実装やテストコードだけを追いたいとき。
 
 ## hash
 
-- d0dd5991895c59c23373f8e8190c668e1aa4bfcbb078145708dfff343c9051d7
+- c0742348ff00971232aaf4b95e4452b7b6c07b76dc2144484ca30739adacafa1
 
 # `main.py`
 

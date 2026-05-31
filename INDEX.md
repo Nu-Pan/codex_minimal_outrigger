@@ -177,28 +177,25 @@
 
 ## Summary
 
-- `src` は cmoc の Python 実装ルートで、CLI 入口、共通基盤、個別サブコマンド実装をまとめるディレクトリです。
-- `main.py` は CLI の起点で、ルート `app` と各サブコマンド群の組み立てを担います。
-- `commons` は repo 操作、エラー整形、ログ、計測、タイムスタンプ、`INDEX.md` 管理などの共通基盤を集約します。
-- `sub_commands` は `init`、`session`、`apply`、`review` 系の個別コマンド実装を置く入口です。
+- cmoc の Python 実装本体をまとめた `src` ディレクトリです。
+- `main.py` に CLI エントリーポイントがあり、`commons` に共通処理、`sub_commands` に各サブコマンド実装が入っています。
+- このディレクトリは、CLI の起動経路と実装の入口を最初に辿るためのルートです。
 
 ## Read this when
 
-- `src` 配下で、CLI 入口・共通基盤・個別サブコマンドのどこに進むべきかを切り分けたいとき。
-- `main.py` から Typer のルート構成とサブコマンド登録の入口を確認したいとき。
-- `commons` の共通処理群と、`sub_commands` の機能別実装群の役割分担を俯瞰したいとき。
-- `src` ディレクトリ全体の構造を把握して、目的の実装ファイルや下位の目次へ素早く移動したいとき。
+- cmoc の CLI 入口、共通基盤、サブコマンド実装の配置をざっと把握したいとき。
+- `main.py`、`commons`、`sub_commands` のどこを読めばよいかを切り分けたいとき。
+- `src` ディレクトリ全体の役割を確認してから、個別モジュールやテストに進みたいとき。
 
 ## Do not read this when
 
-- `src/main.py` の CLI 登録や例外処理だけを確認したいときは、この目次ではなく該当ファイルを直接読むべきです。
-- `src/commons` の個別モジュールの実装詳細だけを追いたいときは、この目次ではなく各モジュールの `INDEX.md` を読むべきです。
-- `src/sub_commands` 配下の `apply`、`session`、`review`、`init` の個別処理だけを知りたいときは、この目次ではなく該当サブディレクトリへ進むべきです。
-- `INDEX.md` の生成・維持ルールそのものを確認したいときは、この目次ではなく `src/commons/indexing.py` 側を確認すべきです。
+- `src` 配下の個別モジュールの実装内容や、関数・クラスの詳細だけを確認したいとき。
+- `commons` や `sub_commands` の中身ではなく、各ファイルの具体的な処理を直接追いたいとき。
+- CLI の使い方や正本仕様だけを確認したいときは、`oracles` 側の該当文書を読むべきです。
 
 ## hash
 
-- 542c17668fb7b9ede17b4c2ecbf70ff1f4c33e49409cd1f17fbaa79b926a43af
+- 929ee6f34cda8675fe4365a6ca790b64d5c2ed25e93f165247e84e5e0b47b26d
 
 # `test.sh`
 
@@ -228,21 +225,21 @@
 ## Summary
 
 - pytest による cmoc の回帰テスト群をまとめたディレクトリです。
-- `conftest.py` で `<cmoc-root>/src` を import path に追加し、`test_codex.py` と `test_subcommands.py` が CLI と Structured Output の横断回帰を担います。
-- `test_indexing.py`、`test_repo.py`、`test_report_files.py`、`test_timestamps.py`、`test_file_naming.py` が、INDEX 保守、repo 共通処理、レポート保存、時間表現、命名規則をそれぞれ確認します。
+- `conftest.py` で `<cmoc-root>/src` を import path に追加し、テストから本体モジュールを直接参照できるようにします。
+- `test_codex.py`、`test_subcommands.py`、`test_indexing.py`、`test_repo.py`、`test_report_files.py`、`test_timestamps.py`、`test_file_naming.py` が、それぞれ CLI、INDEX 保守、repo 共通処理、保存処理、時間表現、命名規則の回帰を担います。
 
 ## Read this when
 
 - `src/commons` や `src/sub_commands` の変更に対して、どの回帰テストを確認すべきか把握したいとき。
-- `INDEX.md` 生成、repo 共通処理、Codex 呼び出し、サブコマンド制御、タイムスタンプ/レポート保存の観点を横断して確認したいとき。
 - pytest 共通設定と、各テストファイルの責務分担を整理したいとき。
+- INDEX 保守、repo 共通処理、Codex 呼び出し、サブコマンド制御、タイムスタンプやレポート保存の観点を横断して確認したいとき。
 
 ## Do not read this when
 
-- 実装ロジックや `src` 本体の仕様を直接確認したいとき。
-- `oracles` 側の正本仕様や `INDEX.md` 自動生成ルールそのものを確認したいとき。
-- 単一のテストファイルの細部だけを追いたいときは、該当ファイルを直接読むべきです。
+- 個別の `src` 実装や `oracles` の正本仕様だけを確認したいとき。
+- `tests` 配下の特定ファイルだけを直接読めば足りるとき。
+- `INDEX.md` の生成ルールそのものや、他ディレクトリのルーティングだけを確認したいとき。
 
 ## hash
 
-- ed3a9e9b979bf69c5e1e1bacc9da1795e393a645c6fb37693f2a5e1e5e3f1f23
+- 4cfed6e9f925c0f9736e5b028152ae7b30694a38b2922c88f047ef26610d8806

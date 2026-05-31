@@ -105,7 +105,7 @@
 ## Summary
 
 - `src/commons/repo.py` の git 共通処理を検証する回帰テスト群です。
-- repo root 検出、`.cmoc` の ignore 保証、実装/正本ファイルの列挙と変更検出を扱います。
+- .cmoc の ignore 保証、repo root 検出、実装/正本ファイルの列挙と変更検出を扱います。
 - session state、apply process id、`cmoc` ブランチ判定、active session 判定の境界条件も押さえます。
 
 ## Read this when
@@ -125,7 +125,7 @@
 
 ## hash
 
-- 0d44915829434ff15ff4320e0c9043c77393065485ae818e0bdd7b02e3276932
+- 5a5f9a816cca70d5beb4f109f272d379a7f2dfcb65011d9cdd0e71f7efc695f7
 
 # `test_report_files.py`
 
@@ -155,17 +155,17 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `run_command` と `main` を中心に、cmoc の横断回帰をまとめたテスト入口です。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、前提条件、終了コード、エラー報告、レポート保存を広く検証します。
-- 補完プローブ、`.cmoc` ignore 修復、作業ツリーや branch の復旧、Codex 呼び出しの prompt と validation、JSONL サブコマンドログ、テスト用 helper 群まで含みます。
+- `tests/test_subcommands.py` は `run_command` と `main` を中心に、cmoc のサブコマンド群・CLI エントリポイント・補助スクリプトの横断回帰を集約した入口です。
+- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、エラーレポート、レポート保存を広く扱います。
+- `bin/cmoc`、`test.sh`、補完プローブ、JSONL サブコマンドログ、`.cmoc` ignore 修復や worktree / branch 復旧まで含みます。
 
 ## Read this when
 
-- `run_command` と `main` の横断的な制御フロー、終了コード、例外整形、レポート出力を追いたいとき。
-- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の回帰観点をまとめて確認したいとき。
-- `.cmoc` ignore 修復、tracked ファイルの追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
-- oracle 評価の Structured Output、`INDEX.md` メンテナンス、prompt 内容、issue 集約、force resolve、失敗時の error report 仕様を確認したいとき。
-- 補完プローブ、JSONL サブコマンドログ、テスト用 helper 関数や repo 構築ヘルパーの意図を把握したいとき。
+- `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートを追いたいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の横断的な回帰観点をまとめて確認したいとき。
+- `.cmoc` ignore 修復、tracked file の追跡解除、session/apply branch や worktree の復旧・削除・再利用の境界条件を確認したいとき。
+- oracle 評価の Structured Output、`INDEX.md` メンテナンス、prompt 内容、issue 集約、`--force-resolve`、失敗時の error report 仕様を確認したいとき。
+- 補完プローブ、JSONL サブコマンドログ、`bin/cmoc` と `test.sh` の挙動、テスト helper / repo 構築 helper の意図を把握したいとき。
 
 ## Do not read this when
 
@@ -177,7 +177,7 @@
 
 ## hash
 
-- 9b548936d5a5503352b8fa25b80eb8c5626a4d3ea448468ab7a1b17df0ee23c8
+- 274e9b6cd5b2095e1a034f4c9ad85755a6fc1853b32c69dd7b111171faf7cc33
 
 # `test_timestamps.py`
 
