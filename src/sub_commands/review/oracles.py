@@ -495,6 +495,8 @@ def _evaluation_prompt(
             "または INDEX.md に対応する元リポジトリ側の絶対パスをすべて返してください。",
             f"出力する oracle_path / referenced_paths は `{concrete_oracle_root}` "
             "配下の絶対パスにしてください。",
+            "INDEX.md は自動生成されるため評価対象ではありません。",
+            "INDEX.md は関連ファイル選定・参照根拠としてだけ読んでください。",
             "各 issue の specification_only_basis には、評価が仕様ファイルと",
             "INDEX.md だけに基づくことの説明を書いてください。",
             "対象仕様ファイル、関連する仕様ファイル、関連判断に必要な",
@@ -1082,11 +1084,14 @@ def _validate_evaluation_issues(
 
 
 def _require_issue_oracle_path_string(value: object, index: int) -> None:
-    """issues[].oracle_path は後処理では oracle file 実在性を要求しない。"""
+    """issues[].oracle_path は INDEX.md 自体を評価対象にしない。"""
     if not isinstance(value, str):
         raise ValueError(f"issues[{index}].oracle_path must be a string.")
-    if not value.strip():
+    stripped_value = value.strip()
+    if not stripped_value:
         raise ValueError(f"issues[{index}].oracle_path must not be empty.")
+    if Path(stripped_value).name == "INDEX.md":
+        raise ValueError(f"issues[{index}].oracle_path must not be INDEX.md.")
 
 
 def _require_absolute_oracle_reference_path(

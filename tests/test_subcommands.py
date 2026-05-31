@@ -2233,10 +2233,10 @@ def test_eval_oracles_payload_accepts_existing_oracle_and_index_paths(
     )
 
 
-def test_eval_oracles_payload_accepts_index_as_issue_oracle_path(
+def test_eval_oracles_payload_rejects_index_as_issue_oracle_path(
     tmp_path: Path,
 ) -> None:
-    """issues[].oracle_path は INDEX.md でも後処理エラーにしない。"""
+    """issues[].oracle_path は評価対象外の INDEX.md を受理しない。"""
     repo = _init_repo(tmp_path)
     oracle_root = repo / "oracles"
     oracle_root.mkdir()
@@ -2253,13 +2253,17 @@ def test_eval_oracles_payload_accepts_index_as_issue_oracle_path(
         [oracle, oracle_index],
     )
 
-    review_oracles_module._validate_evaluation_payload(
-        {
-            "issues": [issue],
-        },
-        repo,
-        oracle,
-    )
+    with pytest.raises(
+        ValueError,
+        match="issues\\[0\\]\\.oracle_path must not be INDEX.md",
+    ):
+        review_oracles_module._validate_evaluation_payload(
+            {
+                "issues": [issue],
+            },
+            repo,
+            oracle,
+        )
 
 
 def test_eval_oracles_payload_accepts_other_oracle_as_issue_oracle_path(
@@ -2726,6 +2730,8 @@ def test_eval_oracles_prompt_forbids_implementation_references() -> None:
     assert "`/repo/oracles/INDEX.md` から始まる INDEX.md" in prompt
     assert "`oracles` 外のファイルは一切参照禁止です。" not in prompt
     assert "`oracles/INDEX.md`" not in prompt
+    assert "INDEX.md は自動生成されるため評価対象ではありません。" in prompt
+    assert "INDEX.md は関連ファイル選定・参照根拠としてだけ読んでください。" in prompt
     assert "実装ファイル、テストファイル、設定ファイル、ビルド成果物も参照禁止です。" in prompt
     assert "各 issue の referenced_paths には参照した仕様ファイル" in prompt
     assert "Structured Output schema に一致する JSON" in prompt
