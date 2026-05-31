@@ -5,10 +5,13 @@ import subprocess
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from time import perf_counter
 from typing import IO, Iterator
+from typing import Any
 
 from .timestamps import make_timestamp
 
@@ -21,6 +24,7 @@ class SubcommandLogContext:
     path: Path
     started: float
     quota_wait_seconds: float = 0.0
+    lock: Any = field(default_factory=Lock)
 
 
 _CURRENT_LOG: ContextVar[SubcommandLogContext | None] = ContextVar(
@@ -64,10 +68,11 @@ def log_event(event: str, payload: dict[str, object]) -> None:
         "elapsed_seconds": perf_counter() - context.started,
         **payload,
     }
-    with context.path.open("a", encoding="utf-8") as log_file:
-        log_file.write(json.dumps(record, ensure_ascii=False, sort_keys=True))
-        log_file.write("\n")
-        log_file.flush()
+    line = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+    with context.lock:
+        with context.path.open("a", encoding="utf-8") as log_file:
+            log_file.write(line)
+            log_file.flush()
 
 
 def add_quota_wait(duration_seconds: float) -> None:
@@ -75,8 +80,10 @@ def add_quota_wait(duration_seconds: float) -> None:
     context = current_subcommand_log()
     if context is None:
         return
-    context.quota_wait_seconds += max(0.0, duration_seconds)
-    log_event("quota_wait_added", {"duration_seconds": max(0.0, duration_seconds)})
+    duration = max(0.0, duration_seconds)
+    with context.lock:
+        context.quota_wait_seconds += duration
+    log_event("quota_wait_added", {"duration_seconds": duration})
 
 
 def current_subcommand_log() -> SubcommandLogContext | None:

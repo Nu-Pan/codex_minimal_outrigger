@@ -7,6 +7,7 @@ import re
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from contextvars import copy_context
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from pathlib import Path
@@ -913,7 +914,12 @@ def _investigate_discrepancies(
     if jobs:
         with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
             futures = [
-                executor.submit(_run_investigation_job, repo_root, job)
+                executor.submit(
+                    copy_context().run,
+                    _run_investigation_job,
+                    repo_root,
+                    job,
+                )
                 for job in jobs
             ]
             for future in futures:

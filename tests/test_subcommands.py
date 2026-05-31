@@ -33,6 +33,8 @@ from commons.errors import CmocError
 from commons.errors import format_error_report
 from commons.repo import write_apply_process_id
 from commons.repo import write_session_state
+from commons.subcommand_log import log_event
+from commons.subcommand_log import subcommand_log
 from commons.timing import StepTimer, start_step
 from sub_commands.apply.fork import cmoc_apply_impl
 from sub_commands.apply.fork import _apply_prompt
@@ -7052,6 +7054,85 @@ def test_apply_discrepancies_rejects_committed_forbidden_change(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
         "commit forbidden path"
     )
+
+
+def test_apply_parallel_investigation_records_worker_codex_events(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """並列 file 起点調査の worker 内 Codex 呼び出しもサブコマンド JSONL に残す。"""
+    repo = _init_repo(tmp_path)
+    oracle_path = repo / "oracles" / "docs" / "spec.md"
+    implementation_path = repo / "src" / "app.py"
+    oracle_path.parent.mkdir(parents=True)
+    implementation_path.parent.mkdir(parents=True)
+    oracle_path.write_text("# spec\n", encoding="utf-8")
+    implementation_path.write_text("print('app')\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "add investigation targets")
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    monkeypatch.setattr(
+        apply_module,
+        "_target_oracle_files",
+        lambda *args, **kwargs: [
+            apply_module._InvestigationTarget(oracle_path),
+        ],
+    )
+    monkeypatch.setattr(
+        apply_module,
+        "_target_implementation_files",
+        lambda *args, **kwargs: [
+            apply_module._InvestigationTarget(implementation_path),
+        ],
+    )
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        *,
+        purpose: str,
+        **kwargs: object,
+    ) -> str:
+        """run_codex_exec の完了通知と同じイベントだけを worker thread で記録する。"""
+        log_event(
+            "codex_exec_call",
+            {
+                "purpose": purpose,
+                "log_path": str(
+                    repo_root / ".cmoc" / "logs" / "codex_exec" / "fake.log"
+                ),
+                "elapsed_seconds": 0.1,
+                "returncode": 0,
+            },
+        )
+        return json.dumps({"git_head_commit_hash": None, "fixing_points": []})
+
+    monkeypatch.setattr(apply_module, "run_codex_exec", fake_codex)
+
+    with subcommand_log(repo):
+        result = apply_module._investigate_discrepancies(
+            repo,
+            head,
+            head,
+            timer=StepTimer("test"),
+            step_path=((1, 1),),
+            repeat_improove_fixing_list=0,
+            scope="full",
+        )
+
+    log_file = next((repo / ".cmoc" / "logs" / "sub_commands").glob("*.jsonl"))
+    events = [
+        json.loads(line)
+        for line in log_file.read_text(encoding="utf-8").splitlines()
+    ]
+    codex_events = [
+        event for event in events if event["event"] == "codex_exec_call"
+    ]
+    assert result == []
+    assert sorted(event["purpose"] for event in codex_events) == [
+        "oracle 調査 oracles/docs/spec.md",
+        "実装調査 src/app.py",
+    ]
 
 
 def test_apply_discrepancy_schema_rejects_incomplete_items() -> None:
