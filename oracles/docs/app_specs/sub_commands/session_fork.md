@@ -36,7 +36,6 @@
 
 - `<cmoc-session-branch>` はの実際のブランチ名の形式は `cmoc/session/<session-id>` とする。
 ただし `<session-id>` == `<time-stamp>` とする
-- e.g. `cmoc/session/2026-05-24_22-10_15_123`
 
 ## 任意 start point の扱い
 
