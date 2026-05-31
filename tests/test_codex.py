@@ -1109,6 +1109,69 @@ def test_run_codex_exec_rejects_committed_oracle_change_after_workspace_write(
     assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
 
 
+def test_run_codex_exec_rejects_merge_commit_oracle_change_after_workspace_write(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """merge commit 自体に含まれる oracle 変更を commit range から拒否する。"""
+    repo = _init_git_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("initial spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md", "app.py")
+    _git(repo, "commit", "-m", "add oracle and app")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "MAIN=$(git branch --show-current)",
+                "git checkout -b side >/dev/null",
+                "echo 'side' > app.py",
+                "git add app.py",
+                "git commit -m 'side app change' >/dev/null",
+                "git checkout \"$MAIN\" >/dev/null",
+                "echo 'main' > app.py",
+                "git add app.py",
+                "git commit -m 'main app change' >/dev/null",
+                "git merge --no-ff side >/dev/null 2>&1",
+                "echo 'merged' > app.py",
+                "echo 'merge changed oracle' > oracles/spec.md",
+                "git add app.py oracles/spec.md",
+                "git commit -m 'merge side with oracle change' >/dev/null",
+                "echo 'ok' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert "Codex CLI 実行中の commit range 変更:" in error.value.detail
+    assert "oracles/spec.md" in error.value.detail
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+
+
 def test_run_codex_exec_rejects_committed_oracle_hidden_by_changed_gitignore(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -1243,6 +1306,72 @@ def test_run_codex_exec_rejects_hidden_oracle_commit_after_workspace_write(
                 "echo 'hidden by codex' > oracles/spec.md",
                 "git add oracles/spec.md",
                 "git commit -m 'codex hidden oracle change' >/dev/null",
+                f"git reset --hard {before_head} >/dev/null",
+                "echo 'ok' > \"$LAST\"",
+                "echo '{\"event\":\"done\"}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    codex.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(CmocError) as error:
+        run_codex_exec(
+            repo,
+            "prompt",
+            read_only=False,
+            skip_index_maintenance=True,
+        )
+
+    assert "Codex CLI 実行中の commit range 変更:" in error.value.detail
+    assert "oracles/spec.md" in error.value.detail
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == before_head
+    assert _git(repo, "status", "--porcelain", "--", "oracles").stdout == ""
+
+
+def test_run_codex_exec_rejects_hidden_merge_commit_oracle_change(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """oracle 変更 merge commit を reset で隠しても HEAD reflog から拒否する。"""
+    repo = _init_git_repo(tmp_path)
+    oracle_root = repo / "oracles"
+    oracle_root.mkdir()
+    (oracle_root / "spec.md").write_text("initial spec\n", encoding="utf-8")
+    (repo / "app.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "oracles/spec.md", "app.py")
+    _git(repo, "commit", "-m", "add oracle and app")
+    before_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    codex = fake_bin / "codex"
+    codex.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "LAST=''",
+                "PREV=''",
+                "for ARG in \"$@\"; do",
+                "  if [ \"$PREV\" = \"--output-last-message\" ]; then",
+                "    LAST=\"$ARG\"",
+                "  fi",
+                "  PREV=\"$ARG\"",
+                "done",
+                "MAIN=$(git branch --show-current)",
+                "git checkout -b side >/dev/null",
+                "echo 'side' > app.py",
+                "git add app.py",
+                "git commit -m 'side app change' >/dev/null",
+                "git checkout \"$MAIN\" >/dev/null",
+                "echo 'main' > app.py",
+                "git add app.py",
+                "git commit -m 'main app change' >/dev/null",
+                "git merge --no-ff side >/dev/null 2>&1",
+                "echo 'merged' > app.py",
+                "echo 'merge changed oracle' > oracles/spec.md",
+                "git add app.py oracles/spec.md",
+                "git commit -m 'merge side with oracle change' >/dev/null",
                 f"git reset --hard {before_head} >/dev/null",
                 "echo 'ok' > \"$LAST\"",
                 "echo '{\"event\":\"done\"}'",
