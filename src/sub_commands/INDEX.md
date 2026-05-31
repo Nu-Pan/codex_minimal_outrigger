@@ -25,49 +25,49 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装入口です。
-- `__init__.py` はパッケージ宣言のみを担い、本体処理は `fork.py`、`join.py`、`abandon.py` に分かれています。
-- この目次は、開始・統合・破棄のどの実装へ進むべきかを素早く案内するためのものです。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンド実装の入口ディレクトリです。
+- ここには `__init__.py`、`abandon.py`、`fork.py`、`join.py` があり、apply 系のパッケージ宣言、破棄、調査・修正ループ、取り込み処理をまとめています。
+- 個別の apply サブコマンド実装へ進む前に、このディレクトリ全体の責務分担を確認したいときに読む目次です。
 
 ## Read this when
 
-- `src/sub_commands/apply` ディレクトリ全体の役割と、どの実装ファイルへ進むべきかを把握したいとき。
-- `cmoc apply fork`、`cmoc apply join`、`cmoc apply abandon` の担当範囲を素早く切り分けたいとき。
-- `__init__.py` がパッケージ宣言のみであることを確認したいとき。
+- `cmoc apply` 系の実装・修正・レビュー・テストを始める前に、どのモジュールを開くべきか整理したいとき。
+- apply のパッケージ入口と、`abandon` / `fork` / `join` の役割分担を素早く把握したいとき。
+- apply state、worktree、merge 後始末、レポート生成など、`cmoc apply` 周辺の処理を横断して確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 系の個別実装ではなく、`src/sub_commands` 全体の入口構造だけを確認したいとき。
-- `cmoc session` や `cmoc review` など、`apply` 以外のサブコマンド群を確認したいとき。
-- `oracles` 側の正本仕様だけを確認したいとき。
+- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/` 側を読むべきです。
+- 個別の `cmoc apply abandon`、`cmoc apply fork`、`cmoc apply join` の詳細だけを確認したいときは、対応する実装モジュールを直接読むべきです。
+- `cmoc session` や `cmoc review` など、apply 以外のサブコマンドを確認したいときはこのディレクトリは対象外です。
 
 ## hash
 
-- 041e45bba56aa58d1faa03eff306b5143fe938765dad6df7d8d3d19c40b7ad93
+- 94abc904b4bc4594fcf526b8a269dc5fab05e96976fd9e38bf969cec2700274c
 
 # `init.py`
 
 ## Summary
 
-- `cmoc init` の本体処理を定義する Python モジュールです。
-- `run_command()` 経由で repo root を解決し、`.cmoc` の ignore 保証と tracked file の解除を行ったうえで、初期化に伴う変更をコミットします。
-- `StepTimer` と `start_step()` を使って、`.cmoc` の ignore 確認から初期化変更の commit までを 2 段階で実行し、結果を標準出力に表示します。
+- `src/sub_commands/init.py` は `cmoc init` の本体処理を持つモジュールです。
+- `repo_root` が未指定なら `run_command()` に処理を委譲し、指定済みなら `.cmoc ignore 確認` と `初期化変更 commit` の 2 ステップで初期化を進めます。
+- `.cmoc` の ignore 保証、既存 tracked `.cmoc` の追跡解除、初期化に伴う差分の commit と結果表示をまとめて扱います。
 
 ## Read this when
 
 - `cmoc init` の実装・修正・テスト・レビューを行いたいとき。
-- `<repo-root>/.cmoc` を git 追跡対象外にする処理や、`.gitignore` 更新、`git ls-files` / `git check-ignore` による確認仕様を確認したいとき。
-- 初期化後に続く session / apply 系コマンドの前提条件として、リポジトリ初期化の振る舞いを把握したいとき。
+- `.cmoc` を git 追跡対象外にする処理、`.gitignore` 更新、tracked file の解除、初期化差分の commit 規則を確認したいとき。
+- `run_command()` 経由で repo root を解決しつつ、`StepTimer` と `start_step()` で 2 段階の初期化フローをどう実行するかを把握したいとき。
 
 ## Do not read this when
 
-- `cmoc init` 以外のサブコマンドの実装や CLI 登録だけを確認したいとき。
-- `.cmoc` の追跡解除や `.gitignore` 更新が論点に入っていないとき。
+- `cmoc init` 以外のサブコマンドの入口や CLI 登録だけを確認したいとき。
+- `.cmoc` の ignore 保証や初期化 commit の流れが論点に入っていないとき。
 - 初期化後の session / apply の運用仕様だけを追いたいとき。
 
 ## hash
 
-- 49282f4cf811268918e12479be371a9a72bb21ad66319b738e5d27f3a0a4d00c
+- b9f241adfbc212ed6bd5bdbbab857c8655a53319b89c2119409e8c3d14c59733
 
 # `review`
 
@@ -86,13 +86,13 @@
 
 ## Do not read this when
 
-- `cmoc review oracles` の実行手順、引数、評価モードの仕様だけを確認したいときは、`oracles.py` 側の入口ではなく仕様断片を読むべきです。
-- `cmoc review` の CLI 登録や hidden alias の扱いだけを確認したいときは、`src/main.py` を読むべきです。
-- `src/sub_commands/review` ディレクトリ全体の入口構造ではなく、個別の実装ロジックや仕様断片だけを確認したいときは、この目次ではなく該当ファイルを直接読むべきです。
+- このディレクトリ全体の入口構造ではなく、`cmoc review oracles` の利用手順や引数だけを確認したいとき。
+- `cmoc review oracles` ではなく、`cmoc review` の CLI 登録や hidden alias の扱いだけを確認したいとき。
+- `oracles` 側の正本仕様を直接確認したいとき。
 
 ## hash
 
-- 73e808270f2261d242d616c7dc6e57d3bec6a0f0c78b16467409bb2df6297a67
+- 1e63bb590674da7f24778bc2e117c5132d0b50e58f4ce1b3048c368d5edaa25f
 
 # `session`
 
@@ -104,16 +104,16 @@
 
 ## Read this when
 
-- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` の実装や修正を行うとき。
-- `session` サブコマンド群のパッケージ構成と、各実装ファイルの役割を把握したいとき。
-- `cmoc session` の起点となる Python パッケージの中身を確認したいとき。
+- `cmoc session fork`、`cmoc session join`、`cmoc session abandon` の実装や修正、レビュー、テストを行うとき。
+- `src/sub_commands/session` ディレクトリ全体の役割と、どの実装ファイルへ進むべきかを把握したいとき。
+- `cmoc session` 系サブコマンドの入口となる Python パッケージ構造を確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` 系の実装や状態遷移だけを確認したいとき。
-- `cmoc review oracles` や `cmoc init` など、`session` 以外のサブコマンドの仕様を確認したいとき。
-- `src/sub_commands/session` 配下の個別実装ではなく、`oracles` 側の正本仕様だけを確認したいとき。
+- `cmoc session` ではなく、`cmoc apply` や `cmoc review` など別系統のサブコマンド仕様だけを確認したいとき。
+- `session` 配下の個別実装ではなく、`oracles/docs/app_specs/sub_commands/` 側の利用手順や仕様断片を直接確認したいとき。
+- `src/sub_commands/session` の入口構造ではなく、一般的な git の使い方や他ディレクトリの目次だけを確認したいとき。
 
 ## hash
 
-- 9bed792e17287b8a3555168bd6af83b076231b3dcbfafecba5297707b96adaef
+- ed2c7ee7987d83daf4ac9fe867871fa34ebcea43e847e62ffa5af4b802c4ac89

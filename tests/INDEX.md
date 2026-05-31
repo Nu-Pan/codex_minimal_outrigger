@@ -155,29 +155,29 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は `run_command` と `main` を軸に、cmoc の各サブコマンドと CLI 入口の回帰テストを集約する入口です。
-- `init`、`session`、`apply`、`review oracles` の状態遷移、終了コード、Structured Output、worktree / branch 復旧まで横断的に扱います。
-- `bin/cmoc`、`test.sh`、JSONL サブコマンドログ、`format_error_report`、`CmocError` など、CLI 周辺の共通挙動も確認します。
+- `tests/test_subcommands.py` は cmoc のサブコマンド群と CLI 入口まわりの決定論的な制御を検証する統合回帰テスト集約です。
+- `run_command` の共通実行制御、`src/main.py` のコマンド登録、`bin/cmoc` の起動ラッパー、`format_error_report()` の表示仕様まで広く扱います。
+- `init`、`session`、`apply`、`review oracles` の主要な状態遷移・エラー処理・補助ヘルパーの回帰をここで守ります。
 
 ## Read this when
 
-- `run_command` と `main` の制御フロー、終了コード、例外整形、完了レポートの挙動を追いたいとき。
-- `cmoc init` の `.cmoc` ignore 修復、tracked file の追跡解除、初回コミットの挙動を確認したいとき。
-- `cmoc session fork`、`session join`、`session abandon` のブランチ作成・統合・破棄と state 遷移を確認したいとき。
-- `cmoc apply fork`、`apply join`、`apply abandon` の差分検出、worktree 管理、force resolve、レポート保存を確認したいとき。
-- `cmoc review oracles` の評価、改善、Structured Output、レポート生成の流れを確認したいとき。
-- `bin/cmoc`、`test.sh`、補完プローブ、CLI 登録や completion probe の挙動を確認したいとき。
+- `tests/test_subcommands.py` がどのサブコマンドや共通処理をまたいで回帰を守っているか確認したいとき。
+- `run_command` の終了コード、標準出力の要約、例外時のエラーレポート、実行ログ出力の挙動を確認したいとき。
+- `cmoc init`、`session fork/join/abandon`、`apply fork/join/abandon`、`review oracles` の状態遷移や副作用をテスト観点から把握したいとき。
+- `src/main.py` の Typer 登録、補完プローブ処理、コマンド群の委譲関係を確認したいとき。
+- `format_error_report()` や `bin/cmoc` の起動失敗時メッセージなど、CLI 周辺の利用者向け表示を回帰テストで追いたいとき。
 
 ## Do not read this when
 
-- `commons.command_runner` や `commons.errors` など、単一の共通ヘルパー実装だけを追いたいとき。
-- `tests/test_indexing.py`、`tests/test_report_files.py`、`tests/test_timestamps.py` など、別のテスト入口の仕様だけを確認したいとき。
-- `src/sub_commands/apply/*`、`src/sub_commands/session/*`、`src/sub_commands/review/*` の個別実装だけを確認したいとき。
-- `INDEX.md` の生成ルールや `oracles` 全体のルーティング方針だけを確認したいとき。
+- 個別サブコマンドの仕様断片だけを確認したいときは、このテストファイルではなく対応する `oracles/app_specs/sub_commands/` 側の仕様を読むべきです。
+- `src/commons` の各モジュールの実装詳細だけを追いたいときは、このテストではなく `src/commons/` 配下の実装を直接読むべきです。
+- `src/sub_commands` の各本体実装だけを確認したいときは、このテストではなく `src/sub_commands/init.py`、`src/sub_commands/apply/`、`src/sub_commands/session/`、`src/sub_commands/eval_oracles.py` を読むべきです。
+- CLI の登録や補完ではなく、エラー整形そのものだけを確認したいときは `src/commons/errors.py` を読むべきです。
+- `bin/cmoc` の起動条件や仮想環境の扱いだけを確認したいときは、このテストではなく `bin/INDEX.md` 側の案内を読むべきです。
 
 ## hash
 
-- c38e92198059fe2d4f8bdc5e2f2110335cc63c79ad9856779bccaa549346e995
+- 43e67aebaabaa8392fbf886279864f03b7f8d2afcd50abb93d3ae6574d2d6eae
 
 # `test_timestamps.py`
 

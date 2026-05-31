@@ -61,18 +61,19 @@
 - 各サブコマンドが `<repo-root>` の `Path` をどう受け取るか確認したいとき。
 - 例外時のエラー表示、終了コード、`typer.Exit` への変換規則を見直したいとき。
 - 実行ログ、経過時間、待機時間、戻り値の集計出力の流れを追いたいとき。
+- `init`、`session`、`apply`、`review` 系のサブコマンドが共通の実行ラッパーをどう使うか確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの業務ロジックや CLI 引数定義だけを確認したいとき。
-- `<repo-root>` 探索や `.cmoc` の扱いの詳細を追いたいときは、このファイルではなく `repo.py` を読むべきです。
-- エラーメッセージ本文の整形や共通例外の定義そのものを確認したいときは、このファイルではなく `errors.py` を読むべきです。
-- サブコマンドログやタイミング計測の実装だけを調べたいときは、このファイルではなく `subcommand_log.py` と `timing.py` を直接読むべきです。
-- Codex CLI 呼び出し、Structured Output、`INDEX.md` 生成など別機能を調べたいとき。
+- `<repo-root>` の探索や `.cmoc` の扱いの詳細だけを追いたいときは、このファイルではなく `src/commons/repo.py` を読むべきです。
+- エラーメッセージ本文の整形や共通例外の定義そのものを確認したいときは、このファイルではなく `src/commons/errors.py` を読むべきです。
+- サブコマンドログや経過時間計測の実装だけを調べたいときは、このファイルではなく `src/commons/subcommand_log.py` と `src/commons/timing.py` を直接読むべきです。
+- Codex 呼び出しや `INDEX.md` 生成など、別機能の仕様だけを確認したいとき。
 
 ## hash
 
-- f6c3e3dae642201633c4aadec4687379e18003feb60548f3f243313e39fdf86e
+- 3d90637d9d530863775254d70d4717df41b0f29b19d6b046d60632ce18e5e22e
 
 # `errors.py`
 
@@ -187,29 +188,29 @@
 
 ## Summary
 
-- `src/commons/subcommand_log.py` は、サブコマンド呼び出しごとの JSON Lines ログを管理する共通処理の入口です。
-- `SubcommandLogContext` で現在のログ状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間の加算を行います。
-- ログファイルは repo root 側の `.cmoc/logs/sub_commands/` に作成され、worktree 配下に出力しないための判定と `git info/exclude` 更新もこのモジュールが担います。
-- `subcommand_log()` はログ開始時にコンテキストを設定し、開始イベントとコンソール表示を出したうえで呼び出し本体へ制御を渡します。
+- `src/commons/subcommand_log.py` は、サブコマンド呼び出し単位の JSON Lines ログを管理する共通処理の入口です。
+- `SubcommandLogContext` で現在状態を保持し、`log_event()` と `add_quota_wait()` でイベント追記と quota 待ち時間の記録を行います。
+- ログファイルは `<repo-root>/.cmoc/logs/sub_commands/` 配下に排他的に作成され、apply worktree や linked worktree では保存先の repo root を解決して集約します。
+- `subcommand_log()` は開始イベントを書き込み、コンソールに開始メッセージを出したうえで呼び出し本体へ制御を渡します。
 
 ## Read this when
 
-- サブコマンド呼び出し単位の JSON Lines ログをどこに、どう作るか確認したいとき
-- 現在実行中のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する実装を確認したいとき
-- `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の作成、排他生成、即時 flush の流れを実装・修正・レビューしたいとき
-- `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、worktree での保存先切り替えを確認したいとき
-- quota 待ち時間の加算と、その記録がサブコマンドログへどう反映されるかを確認したいとき
+- サブコマンド呼び出しごとの JSON Lines ログをどこに、どう作るか確認したいとき。
+- 現在のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する流れを追いたいとき。
+- `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の排他的作成、即時 flush、開始イベント出力を確認したいとき。
+- `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、apply worktree からの保存先切り替えを確認したいとき。
+- quota 待ち時間の加算がログへどう反映されるか確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき
-- `codex exec` の呼び出し方や Structured Output の仕様だけを確認したいとき
-- コンソール表示やエラーレポートの整形だけを確認したいとき
-- `INDEX.md` の生成ルールや他の共通仕様だけを確認したいとき
+- 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき。
+- `codex exec` の呼び出し方法や Structured Output の仕様だけを確認したいとき。
+- エラーレポートの整形や `CmocError` の出力形式だけを確認したいとき。
+- `INDEX.md` の生成・更新ルールや、他の共通モジュールの仕様だけを見たいとき。
 
 ## hash
 
-- a9328edb9d0f301d27767a791e92a023f953cbde99ddd5eba89375998e145bc3
+- 1ddbe918d0fbc7c65e6ff8d3a935be20d20d0a460f7a8824e35721ba54d00b4f
 
 # `timestamps.py`
 
