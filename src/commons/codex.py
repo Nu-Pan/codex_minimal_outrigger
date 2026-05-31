@@ -503,9 +503,10 @@ def _retry_after_capacity_if_needed(
     for retry_index in range(1, _CAPACITY_RETRY_LIMIT + 1):
         if not _stdout_jsonl_indicates_capacity(current_run.result.stdout):
             return current_run
+        formatted_delay = format_duration(float(delay_seconds))
         print(
             "選択された model が capacity 上限に達しています。"
-            f"{delay_seconds} sec 後に codex exec を再試行します "
+            f"{formatted_delay} 後に codex exec を再試行します "
             f"({retry_index}/{_CAPACITY_RETRY_LIMIT})"
         )
         time.sleep(delay_seconds)

@@ -2709,6 +2709,7 @@ def test_resume_command_fails_when_resume_id_is_missing() -> None:
 def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """0 終了でも stdout JSONL が capacity なら同じ条件で再実行する。"""
     repo = tmp_path / "repo"
@@ -2763,11 +2764,14 @@ def test_run_codex_exec_retries_zero_exit_capacity_stdout_jsonl(
     monkeypatch.setattr("commons.indexing.maintain_indexes", fake_maintain)
 
     output = run_codex_exec(repo, "prompt", read_only=True)
+    captured = capsys.readouterr().out
 
     log_files = sorted(
         (repo / ".cmoc" / "logs" / "codex_exec" / "call").glob("*.md")
     )
     assert output.strip() == "done"
+    assert " 0h  0m  5.0s 後に codex exec を再試行します (1/8)" in captured
+    assert "5 sec 後" not in captured
     assert state.read_text(encoding="utf-8").strip() == "2"
     assert sleeps == [5]
     assert calls == [repo, repo]
