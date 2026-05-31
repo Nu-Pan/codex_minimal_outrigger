@@ -63,6 +63,8 @@ def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
         run_git(repo_root, ["switch", home_branch])
 
         start_step(timer, 4, 5, "merge session branch")
+        ensure_cmoc_ignored_and_committed(repo_root)
+        assert_no_uncommitted_changes(repo_root)
         result = run_git(
             repo_root,
             ["merge", "--no-ff", session_branch],

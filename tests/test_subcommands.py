@@ -7200,6 +7200,33 @@ def test_session_join_ensures_cmoc_ignored_before_switch(
     assert home_branch in _git(repo, "branch", "--format=%(refname:short)").stdout
 
 
+def test_session_join_ensures_cmoc_ignored_after_switch_to_home_branch(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """home branch 側の tracked `.cmoc` も merge 前に補修する。"""
+    repo = _init_repo(tmp_path)
+    home_branch = _git(repo, "branch", "--show-current").stdout.strip()
+    (repo / ".cmoc").mkdir()
+    (repo / ".cmoc" / "home.log").write_text("home log\n", encoding="utf-8")
+    _git(repo, "add", "-f", ".cmoc/home.log")
+    _git(repo, "commit", "-m", "track home cmoc log")
+    _checkout_session_branch(repo)
+    (repo / "feature.txt").write_text("feature\n", encoding="utf-8")
+    _git(repo, "add", "feature.txt")
+    _git(repo, "commit", "-m", "feature")
+
+    cmoc_session_join_impl(repo)
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert _git(repo, "branch", "--show-current").stdout.strip() == home_branch
+    assert (repo / "feature.txt").read_text(encoding="utf-8") == "feature\n"
+    assert "/.cmoc/" in (repo / ".gitignore").read_text(encoding="utf-8")
+    assert _git(repo, "ls-files", "--", ".cmoc").stdout == ""
+    assert _git(repo, "status", "--porcelain").stdout == ""
+
+
 def test_session_join_rejects_non_session_branch_before_git_merge(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
