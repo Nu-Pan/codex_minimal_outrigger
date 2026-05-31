@@ -23,28 +23,28 @@
 
 ## Summary
 
-- `Codex CLI` 呼び出しの共通処理をまとめるモジュールで、`codex exec` のコマンド組み立て、実行、再試行、`resume` 再開を扱います。
-- Structured Output の検証、`output-last-message` の読み取り、JSON/テキストの意味検査、起動失敗の診断整形を含みます。
-- quota 待機、capacity の指数バックオフ、呼び出しログ保存、`workspace-write` 実行前の oracle 保護と `INDEX.md` メンテナンスも担います。
+- `src/commons/codex.py` は、Codex CLI 呼び出しの共通処理をまとめるモジュールで、`codex exec` のコマンド組み立て、実行、再試行、`resume` 再開を扱います。
+- Structured Output の JSON Schema 検証、`output-last-message` の読み取り、JSON/text の意味検査、起動失敗の診断整形を含みます。
+- quota 待機、capacity の指数バックオフ、呼び出しログ保存、`workspace-write` 実行前の oracle 保護と `INDEX.md` メンテナンス前処理も担います。
 
 ## Read this when
 
-- `codex exec` の起動方法、`read-only` / `workspace-write` の切り替え、`--model` と `reasoning_effort` の制約を確認したいとき。
-- Structured Output の JSON Schema 検証、JSON パース、`output-last-message` の読み取り、テキスト/JSON の意味検証を確認したいとき。
+- `codex exec` の起動オプション、`read-only` / `workspace-write` の切り替え、`--model` と `reasoning_effort` の制約を確認したいとき。
+- Structured Output の JSON Schema 検証、JSON パース、`output-last-message` の読み取り、JSON/text の意味検証を確認したいとき。
 - quota 枯渇時の待機と `resume`、capacity 失敗時の指数バックオフ再試行を追いたいとき。
 - 実行前の `INDEX.md` メンテナンスや、workspace-write 時の oracle 保護の挙動を確認したいとき。
 - Codex CLI 呼び出しの Markdown フルログ、出力スキーマ保存、再試行時の診断情報の扱いを確認したいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの引数解釈や業務ロジックだけを確認したいとき。
-- `INDEX.md` の生成ルールそのものや、`oracles` 全体のルーティング方針だけを確認したいとき。
-- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など、他の共通モジュールだけを追いたいとき。
+- 個別サブコマンドの引数や業務ロジックだけを確認したいとき。
+- `repo.py`、`errors.py`、`timing.py`、`timestamps.py` など他の共通モジュールだけを確認したいとき。
+- `INDEX.md` の生成・更新ルールそのものや、`oracles` 全体のルーティング方針だけを確認したいとき。
 - `codex exec` 以外の CLI 起動制御や、サブコマンド共通ラッパーだけを見たいとき。
 
 ## hash
 
-- ded5c5d8fb3023216871ed323188c68fb129a739ad05ef55d4479e03b825993f
+- ec6bd4936dfcc6f9dd8931210a1c0d846ad3bfa12d5d171ea5132ec363be38c4
 
 # `command_runner.py`
 
@@ -195,20 +195,20 @@
 
 - サブコマンド呼び出しごとの JSON Lines ログをどこに、どう作るか確認したいとき。
 - 現在のサブコマンドログ状態を `ContextVar` で保持し、イベントを追記する流れを追いたいとき。
-- `.cmoc/logs/sub_commands/<time-stamp>.jsonl` の排他的作成、即時 flush、開始イベント出力を確認したいとき。
+- `.cmoc/logs/sub_commands/` の排他的作成、即時 flush、開始イベント出力を確認したいとき。
 - `.cmoc/logs/` を git の未コミット差分にしないための `info/exclude` 更新や、apply worktree からの保存先切り替えを確認したいとき。
 - quota 待ち時間の加算がログへどう反映されるか確認したいとき。
 
 ## Do not read this when
 
 - 個別サブコマンドの引数解析や業務ロジックだけを追いたいとき。
-- `codex exec` の呼び出し方法や Structured Output の仕様だけを確認したいとき。
-- エラーレポートの整形や `CmocError` の出力形式だけを確認したいとき。
-- `INDEX.md` の生成・更新ルールや、他の共通モジュールの仕様だけを見たいとき。
+- `codex exec` の起動方法や Structured Output の仕様だけを確認したいとき。
+- `CmocError` の整形や stdout 向けエラーレポートだけを確認したいとき。
+- `INDEX.md` の生成・更新ルールそのものを確認したいとき。
 
 ## hash
 
-- 1ddbe918d0fbc7c65e6ff8d3a935be20d20d0a460f7a8824e35721ba54d00b4f
+- 68e41a9f635de7573e5fe1ad2dd151b91028f14c16ef8fe30499925cfdf01b7f
 
 # `timestamps.py`
 

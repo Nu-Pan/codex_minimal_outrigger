@@ -27,8 +27,8 @@
 
 ## Summary
 
-- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` とその周辺ヘルパーの回帰テスト群です。
-- Structured Output の再試行、schema 検証、出力ログ、コンソール通知、UTF-8 処理、quota/resume 復旧、workspace-write 時の `oracles` 保護を扱います。
+- `tests/test_codex.py` は `commons.codex` の `run_codex_exec` と周辺ヘルパーの回帰テスト群です。
+- Structured Output の再試行、schema 検証、出力ログ、コンソール通知、UTF-8 処理、quota / resume 復旧、workspace-write 時の oracle 保護を扱います。
 - `output_schema` の生成・キャッシュ・検証や、セッション ID 抽出、resume コマンド生成、主要な境界条件も確認します。
 
 ## Read this when
@@ -36,21 +36,20 @@
 - `run_codex_exec` の正常系・失敗系・再試行条件を確認したいとき。
 - `expect_json`、`text_validator`、`json_validator`、Structured Output schema の受け渡しや検証を変更したいとき。
 - `codex exec` 呼び出しログ、コンソール進捗表示、subcommand log の記録内容を確認したいとき。
-- quota 枯渇時の poll/resume、capacity retry、`_extract_session_id`、`_resume_command` の挙動を追いたいとき。
-- workspace-write 実行時の oracle 変更検出、`skip_index_maintenance`、active conflict path の判定を確認したいとき。
-- `_write_output_schema` や `'_prepare_codex_exec_paths'` のファイル生成・再利用・排他制御を確認したいとき。
+- quota 枯渇時の poll / resume、capacity retry、`_extract_session_id`、`_resume_command` の挙動を追いたいとき。
+- workspace-write 実行時の oracle 保護、`skip_index_maintenance`、active conflict path の判定を確認したいとき。
+- `_write_output_schema` や `_prepare_codex_exec_paths` のファイル生成・再利用・排他制御を確認したいとき。
 
 ## Do not read this when
 
 - `commons.indexing` や `tests/test_indexing.py` の INDEX 保守仕様だけを確認したいとき。
-- `commons.repo` や git 共通処理、ブランチ/セッション管理だけを確認したいとき。
+- `commons.repo` の git 共通処理、ブランチ / セッション管理、`.cmoc` の差分検査だけを追いたいとき。
 - `tests/test_subcommands.py` のようなサブコマンド横断の制御フローだけを確認したいとき。
 - `commons.timestamps`、`commons.report_files`、`tests/test_timestamps.py` など別の共通ヘルパーの仕様だけを確認したいとき。
-- `oracles` 全体の正本仕様や `INDEX.md` 生成ルールそのものを確認したいとき。
 
 ## hash
 
-- 3335be4e2dede3f6f5dcbdc303817cf8f9cfc20b17214f9959f2f92c2034d217
+- c7624c7afd39217f0d49db0361e089d497509e303e38b6a6431b2e46655f4056
 
 # `test_file_naming.py`
 
