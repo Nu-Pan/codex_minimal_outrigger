@@ -3874,8 +3874,6 @@ def test_apply_join_stops_on_apply_branch_non_implementation_diff(
 @pytest.mark.parametrize(
     ("relative_path", "content"),
     [
-        ("README.md", "joined readme\n"),
-        ("AGENTS.md", "joined agents\n"),
         (".agents/note.txt", "joined agents note\n"),
         (".cmoc/state.json", "{}\n"),
         ("memo/note.md", "joined memo note\n"),
@@ -3916,6 +3914,36 @@ def test_apply_join_stops_on_apply_branch_forbidden_diff(
         assert repo_target.read_text(encoding="utf-8") == before_content
     assert _git(repo, "branch", "--list", apply_branch).stdout.strip()
     assert apply_worktree.exists()
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "content"),
+    [
+        ("README.md", "joined readme\n"),
+        ("AGENTS.md", "joined agents\n"),
+    ],
+)
+def test_apply_join_allows_root_doc_implementation_diff(
+    tmp_path: Path,
+    relative_path: str,
+    content: str,
+) -> None:
+    """root の README/AGENTS は実装ファイルとして apply join できる。"""
+    repo = _init_repo(tmp_path)
+    _checkout_session_branch(repo)
+    oracle_snapshot = _add_oracle_snapshot(repo)
+    _apply_branch, apply_worktree, _report_path = _create_completed_apply_run(
+        repo,
+        oracle_snapshot,
+    )
+    target = apply_worktree / relative_path
+    target.write_text(content, encoding="utf-8")
+    _git(apply_worktree, "add", relative_path)
+    _git(apply_worktree, "commit", "-m", "edit root doc implementation file")
+
+    cmoc_apply_join_impl(repo)
+
+    assert (repo / relative_path).read_text(encoding="utf-8") == content
 
 
 def test_apply_join_reports_unexpected_diff_with_control_chars(
@@ -5756,8 +5784,8 @@ def test_apply_prompt_treats_discrepancy_as_optional_hint(
     assert "無視してかまいません" in prompt
     assert "ベストエフォート" in prompt
     assert "目的を達成した保証は不要" in prompt
-    assert f"`{tmp_path / 'README.md'}` は編集禁止です。" in prompt
-    assert f"`{tmp_path / 'AGENTS.md'}` は編集禁止です。" in prompt
+    assert f"`{tmp_path / 'README.md'}` は編集禁止です。" not in prompt
+    assert f"`{tmp_path / 'AGENTS.md'}` は編集禁止です。" not in prompt
     assert f"`{tmp_path / '.cmoc'}` は編集禁止です。" in prompt
 
 
@@ -7601,7 +7629,7 @@ def test_commit_all_changes_rejects_memo_changes(
 
 @pytest.mark.parametrize(
     "forbidden_file",
-    ["README.md", "AGENTS.md", ".cmoc/state.json"],
+    [".cmoc/state.json"],
 )
 def test_commit_all_changes_rejects_root_forbidden_changes(
     tmp_path: Path,
@@ -7630,6 +7658,41 @@ def test_commit_all_changes_rejects_root_forbidden_changes(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "initial"
 
 
+@pytest.mark.parametrize(
+    ("relative_path", "content"),
+    [
+        ("README.md", "changed readme\n"),
+        ("AGENTS.md", "changed agents\n"),
+    ],
+)
+def test_commit_all_changes_allows_root_doc_implementation_changes(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    relative_path: str,
+    content: str,
+) -> None:
+    """root の README/AGENTS 変更は apply 実装差分として commit できる。"""
+    repo = _init_repo(tmp_path)
+    target = repo / relative_path
+    target.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.maintain_indexes",
+        lambda repo_root: False,
+    )
+    monkeypatch.setattr(
+        "sub_commands.apply.fork.run_codex_exec",
+        lambda *args, **kwargs: "Apply root doc implementation change",
+    )
+
+    _commit_all_changes(repo)
+
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
+        "Apply root doc implementation change"
+    )
+    assert target.read_text(encoding="utf-8") == content
+
+
 def test_apply_discrepancies_rejects_committed_forbidden_change(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -7646,8 +7709,10 @@ def test_apply_discrepancies_rejects_committed_forbidden_change(
 
     def fake_codex(repo_root: Path, *args: object, **kwargs: object) -> str:
         """workspace-write Codex 実行中の禁止 path commit を模擬する。"""
-        (repo_root / "README.md").write_text("forbidden\n", encoding="utf-8")
-        _git(repo_root, "add", "README.md")
+        target = repo_root / ".agents" / "skill.md"
+        target.parent.mkdir()
+        target.write_text("forbidden\n", encoding="utf-8")
+        _git(repo_root, "add", ".agents/skill.md")
         _git(repo_root, "commit", "-m", "commit forbidden path")
         return ""
 
@@ -7674,7 +7739,7 @@ def test_apply_discrepancies_rejects_committed_forbidden_change(
         )
 
     assert "編集禁止パス" in error.value.message
-    assert "README.md" in error.value.detail
+    assert ".agents/skill.md" in error.value.detail
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == (
         "commit forbidden path"
     )
