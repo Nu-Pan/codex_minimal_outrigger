@@ -2,41 +2,25 @@
 
 ## Summary
 
-- `src/commons` は cmoc 全体で共有する基盤モジュール群で、CLI 起動、エラー処理、リポジトリ操作、ログ、タイムスタンプ、計測、レポート保存を担う。
-- `__init__.py` は `src.commons` パッケージを宣言するだけの最小モジュール。
-- `codex.py` は `codex exec` のコマンド組み立て、Structured Output の検証、再試行、実行ログ保存、`INDEX.md` 事前メンテナンスを扱う。
-- `command_runner.py` は Typer サブコマンドの共通実行制御とエラー表示、終了コード処理をまとめる。
-- `errors.py` は `CmocError` と stdout 向けの標準エラーレポート整形を提供する。
-- `indexing.py` は `INDEX.md` の自動生成・再生成・更新判定・自動コミットを担う。
-- `repo.py` は repo root 探索、branch/HEAD 取得、session/apply 状態、差分・削除検出の共通処理を担当する。
-- `report_files.py` は timestamp 付き Markdown レポートを排他的に作成して保存する。
-- `subcommand_log.py` はサブコマンド単位の JSON Lines ログと quota 待ち時間の管理を行う。
-- `timestamps.py` は cmoc 仕様の `<time-stamp>` 文字列を生成・判定する。
-- `timing.py` はサブコマンドと各ステップの経過時間計測と表示を担当する。
+- `src/commons` は cmoc 全体で共有する基盤処理の集約先で、`__init__.py` と共通モジュールをまとめています。
+- `codex.py`、`command_runner.py`、`errors.py` は Codex CLI 呼び出し、共通実行制御、共通例外とエラー表示を担当します。
+- `repo.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py`、`indexing.py` は repo root と状態管理、ログ、経過時間、タイムスタンプ、レポート保存、`INDEX.md` メンテナンスを扱います。
 
 ## Read this when
 
-- 共通実装の入口を探したいときは `src/commons` 全体を読む。
-- `codex exec` の起動、Structured Output の検証、再試行、`INDEX.md` 事前処理を確認したいときは `codex.py` を読む。
-- Typer サブコマンドの共通ラッパーや終了コード処理を確認したいときは `command_runner.py` を読む。
-- 共通例外や利用者向けのエラーレポート形式を確認したいときは `errors.py` を読む。
-- `INDEX.md` の自動生成ロジックや更新条件を確認したいときは `indexing.py` を読む。
-- repo root 探索、branch 判定、session/apply 状態、git 差分操作を確認したいときは `repo.py` を読む。
-- サブコマンドの JSON Lines ログや quota 待ち時間を確認したいときは `subcommand_log.py` を読む。
-- タイムスタンプ生成・判定や step 時間計測を確認したいときは `timestamps.py` と `timing.py` を読む。
-- タイムスタンプ付き Markdown レポートの保存だけを確認したいときは `report_files.py` を読む。
+- cmoc 全体で使う共通基盤の役割分担を把握したいとき。
+- `codex.py`、`command_runner.py`、`repo.py`、`errors.py`、`subcommand_log.py`、`timing.py`、`timestamps.py`、`report_files.py`、`indexing.py` のどれに何があるかを整理したいとき。
+- 共通処理の入口を確認してから、実装やテストの対象モジュールへ進みたいとき。
 
 ## Do not read this when
 
-- 個別サブコマンドの業務ロジックだけを追いたいときは、この共通層ではなく `src/sub_commands` を読む。
-- `oracles` の個別仕様や操作手順を直接確認したいときは、`src/commons` ではなく該当する oracle 文書を読む。
-- 実装コードの細部ではなく、CLI の使い方や作業フローだけを知りたいときは、別の案内文書を優先する。
-- テストだけを修正したいときは、ここでなく `tests` 側の対象モジュールを読む。
-- package 入口だけを確認したいときは `__init__.py` 以外を読む必要はない。
+- `src/sub_commands` 側の個別サブコマンドの業務ロジックや CLI 引数だけを確認したいとき。
+- `oracles` の正本仕様や `INDEX.md` の生成ルールだけを確認したいとき。
+- 特定の共通モジュール 1 つだけの詳細実装を追いたいとき。
 
 ## hash
 
-- 1483bfa49beb674d5b9fc0c7e5f3419bcd3638acdc7cd5c9de12e5c86aaa1a21
+- 1ba1fce91f8152e96eb3b0bb4bcebbefe6d76b064655ee562d9a5cf3fd96d81c
 
 # `main.py`
 

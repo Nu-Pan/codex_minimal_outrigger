@@ -131,7 +131,7 @@
 
 - Git リポジトリ root の探索と cwd 固定、現在 branch / HEAD commit の取得を行う共通モジュールです。
 - `cmoc/session/*` と `cmoc/apply/*` の branch 判定、session id の復元、apply worktree と所有元 repo root の復元を扱います。
-- `.cmoc` の ignore 保証、session/apply state JSON と apply process id の保存・読込・検証、active session の整合性確認を担当します。
+- .cmoc の ignore 保証、session/apply state JSON と apply process id の保存・読込・検証、active session の整合性確認を担当します。
 - `git status` / `git diff` / `git check-ignore` / pathspec を使った未コミット差分、削除検出、oracle / implementation ファイル列挙、内部 commit 後の index 復元まで含みます。
 
 ## Read this when
@@ -151,7 +151,7 @@
 
 ## hash
 
-- 45cf782e36de52bd107d0c4087da432ecde1c4633a7f6545e00caf5f9ae3fa09
+- 281cd4007b850be14537c5436588b4e753de31b2400369b86af94bec01a68630
 
 # `report_files.py`
 
