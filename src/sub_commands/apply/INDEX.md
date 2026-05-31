@@ -75,22 +75,22 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンド実装の入口ディレクトリです。
-- ここには `__init__.py`、`abandon.py`、`fork.py`、`join.py` があり、パッケージ宣言、破棄、調査・修正ループ、取り込み処理をまとめています。
-- 個別の `cmoc apply` 実装へ進む前に、このディレクトリ全体の責務分担を確認するための目次です。
+- `/home/happy/codex_minimal_outrigger_cli_stage1/.cmoc/worktrees/apply/2026-05-31_08-51_06_000000872/2026-05-31_08-52_22_000000612/src/sub_commands/apply/join.py` は `cmoc apply join` の本体実装です。
+- 完了済みの apply branch を session branch へ `git merge --no-ff` で取り込み、state 検証、想定外差分の判定、`INDEX.md` conflict の扱いまでまとめて実行します。
+- merge 後は session state を `ready` に戻し、最後に joined した snapshot の記録、apply branch / worktree の安全な削除、warning の出力を行います。
 
 ## Read this when
 
-- `src/sub_commands/apply` 配下のどのモジュールを開くべきか、入口構造を確認したいとき。
-- `cmoc apply` 系の破棄・調査修正・取り込みの責務分担を俯瞰したいとき。
-- `cmoc apply` 系サブコマンドの実装・修正・テスト・レビューの前に、ディレクトリ全体の役割を整理したいとき。
+- `cmoc apply join` の merge 手順、前提 state、現在 branch の検証を確認したいとき。
+- 想定外差分の検出、`--force-resolve` による revert、`INDEX.md` conflict の自動解消条件を追いたいとき。
+- join 後の session state 更新、apply branch / worktree の cleanup 条件、警告出力の流れを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` の個別サブコマンド `abandon` / `fork` / `join` の実装詳細だけを確認したいときは、対応するモジュールを直接読むべきです。
-- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/` 側を参照すべきです。
-- `src/sub_commands/apply` のパッケージ宣言だけで足りるときは、`__init__.py` だけを確認すれば十分です。
+- `/home/happy/codex_minimal_outrigger_cli_stage1/.cmoc/worktrees/apply/2026-05-31_08-51_06_000000872/2026-05-31_08-52_22_000000612/src/sub_commands/apply/join.py` ではなく、`src/sub_commands/apply/__init__.py` だけで十分なとき。
+- `cmoc apply fork` や `cmoc apply abandon` の実装だけを追いたいとき。
+- 実装ではなく、`oracles/docs/app_specs/sub_commands/` 側の `cmoc apply join` 仕様断片だけを確認したいとき。
 
 ## hash
 
-- 74bb0729c59be3763e62ed38de51dc709793ee0e7dead37aee8432a57e147c12
+- f1f4573b646b46e0ea797e1f435ae2fd61d83a97c86c2c1a204cf4291c2fbf93

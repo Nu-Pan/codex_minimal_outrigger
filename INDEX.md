@@ -178,25 +178,26 @@
 
 ## Summary
 
-- `src/main.py` は cmoc CLI のエントリーポイントです。
-- `src/commons` には repo root 解決、共通エラー整形、Codex 呼び出し、`INDEX.md` メンテナンスなどの横断的な基盤モジュールがまとまっています。
-- `src/sub_commands` には `init`、`apply`、`session`、`review` の各サブコマンド実装の入口と本体がまとまっています。
+- `src` は cmoc の実装本体を置くルートで、CLI エントリーポイント、共通基盤、個別サブコマンド実装をまとめています。
+- 直接の配下は `main.py`、`commons/`、`sub_commands/` で、`main.py` が起点、`commons/` が共通部品、`sub_commands/` が各コマンド本体です。
+- この階層の `INDEX.md` は、個別モジュールに入る前に責務の境界を確認するための目次です。
 
 ## Read this when
 
-- `cmoc` の CLI エントリーポイントやサブコマンド登録の全体像を確認したいとき。
-- `src/commons` の共通基盤と `src/sub_commands` の個別サブコマンド実装のどちらを開くべきか判断したいとき。
-- `cmoc` の起動処理、共通処理、サブコマンド群の役割分担をまとめて把握したいとき。
+- `src` 配下の全体構成と役割分担を把握したいとき。
+- どの入口ファイルから `commons` や `sub_commands` に進むべきか迷っているとき。
+- `cmoc` の実装全体を俯瞰して、共通基盤と各サブコマンドの境界を確認したいとき。
 
 ## Do not read this when
 
-- `src/commons` の個別ユーティリティや `src/sub_commands` の各サブコマンド実装を直接確認したいとき。
-- テストコードだけ、または `oracles/docs/app_specs/` の利用手順や仕様断片だけを確認したいとき。
-- `src` 全体の入口ではなく、特定の 1 ファイルや 1 パッケージの詳細だけを追いたいとき。
+- `src/main.py` だけの CLI 登録や例外処理を確認したいとき。
+- `src/commons/` の個別モジュールだけを追いたいとき。
+- `src/sub_commands/` の個別サブコマンド実装だけを追いたいとき。
+- `oracles/docs/app_specs/` 側の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 0394efef585699b19cbbf7ed8dced760a7caafac726858faacfcb804f3308072
+- fba2e6319a0a807c4688b988806ade0727576432438f0f5d780c35f697e4ad8b
 
 # `test.sh`
 
@@ -249,4 +250,4 @@
 
 ## hash
 
-- b1224fca22a18a2f3db6ec7afab6eedb4273e17be38933e48d1ac2b69781afea
+- 0bc8f1a9a0ca67c16723c4d9862d1aa09a15906a1cf79e6ee7b9adc454ee245d
