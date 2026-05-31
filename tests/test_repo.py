@@ -1367,10 +1367,10 @@ def test_read_apply_process_id_rejects_non_utf8_pid_file(
     assert str(path) in error.value.detail
 
 
-def test_write_session_state_persists_durable_session_result(
+def test_write_session_state_persists_only_oracle_session_schema(
     tmp_path: Path,
 ) -> None:
-    """join 結果は永続化し、runtime-only field は落とす。"""
+    """session section は oracle schema の field だけを永続化する。"""
     repo = _init_repo(tmp_path)
     session_id = "2026-05-10_22-21_10_000000123"
 
@@ -1383,7 +1383,6 @@ def test_write_session_state_persists_durable_session_result(
                 "session_home_branch": "main",
                 "session_start_commit": "abc123",
                 "last_joined_apply_oracle_snapshot_commit": "prev789",
-                "last_joined_apply_result": "収束",
                 "runtime_note": "not durable",
             },
             "apply": {
@@ -1407,7 +1406,6 @@ def test_write_session_state_persists_durable_session_result(
             "session_home_branch": "main",
             "session_start_commit": "abc123",
             "last_joined_apply_oracle_snapshot_commit": "prev789",
-            "last_joined_apply_result": "収束",
         },
         "apply": {
             "state": "completed",
@@ -1418,9 +1416,10 @@ def test_write_session_state_persists_durable_session_result(
             "oracle_snapshot_commit": "def456",
         },
     }
-    assert read_session_state(repo, session_id)["session"][
-        "last_joined_apply_result"
-    ] == "収束"
+    assert "last_joined_apply_result" not in read_session_state(
+        repo,
+        session_id,
+    )["session"]
 
 
 def test_write_session_state_rejects_cross_session_apply_branch(
@@ -1660,6 +1659,41 @@ def test_read_session_state_rejects_apply_schema_mismatch(
     assert "apply セクションの field 集合" in error.value.actions[0]
     assert "missing apply fields: apply_branch" in error.value.detail
     assert "unknown apply fields: process_id" in error.value.detail
+
+
+def test_read_session_state_rejects_session_schema_mismatch(
+    tmp_path: Path,
+) -> None:
+    """永続 session state の session field 集合は oracle schema と一致させる。"""
+    repo = _init_repo(tmp_path)
+    session_id = "2026-05-10_22-21_10_000000123"
+    state_path = session_state_path(repo, session_id)
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "session": {
+                    "state": "active",
+                    "session_home_branch": "main",
+                    "session_start_commit": "abc123",
+                    "last_joined_apply_oracle_snapshot_commit": None,
+                    "last_joined_apply_result": "収束",
+                },
+                "apply": {
+                    "state": "ready",
+                    "apply_branch": None,
+                    "oracle_snapshot_commit": None,
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CmocError) as error:
+        read_session_state(repo, session_id)
+
+    assert "session セクションの field 集合" in error.value.actions[0]
+    assert "unknown session fields: last_joined_apply_result" in error.value.detail
 
 
 def test_read_session_state_rejects_non_string_last_joined_snapshot(

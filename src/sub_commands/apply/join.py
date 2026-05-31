@@ -141,7 +141,6 @@ def cmoc_apply_join_impl(
             state,
             join_state.session_branch,
         ),
-        cleanup_evidence.apply_result,
     )
     warnings = _cleanup_apply_artifacts(
         cmoc_root,
@@ -713,7 +712,6 @@ def _mark_apply_ready(
     state: dict[str, object],
     oracle_snapshot_commit: str,
     session_home_branch: str,
-    apply_result: str | None,
 ) -> None:
     """最後に join した snapshot を記録し、apply セクションを ready に戻す。"""
     session = state.get("session")
@@ -728,10 +726,6 @@ def _mark_apply_ready(
         )
     session["session_home_branch"] = session_home_branch
     session["last_joined_apply_oracle_snapshot_commit"] = oracle_snapshot_commit
-    if apply_result is not None and apply_result.strip() != "":
-        session["last_joined_apply_result"] = apply_result
-    else:
-        session.pop("last_joined_apply_result", None)
     state["apply"] = {
         "state": "ready",
         "apply_branch": None,
@@ -895,10 +889,12 @@ def _cleanup_preconditions_hold(
         return False
     if not cleanup_evidence.report_saved:
         return False
-    result = session.get("last_joined_apply_result")
-    if not isinstance(result, str) or result.strip() == "":
+    if (
+        cleanup_evidence.apply_result is None
+        or cleanup_evidence.apply_result.strip() == ""
+    ):
         warnings.append(
-            "apply cleanup skipped: apply result was not saved in session state"
+            "apply cleanup skipped: saved apply report does not contain result metadata"
         )
         return False
     ancestor = run_git(
