@@ -104,13 +104,13 @@
 ## Summary
 
 - `tests/test_repo.py` は `src/commons/repo.py` の git 共通処理を検証する回帰テスト群です。
-- .cmoc の ignore 保証、repo root 検出、実装/正本ファイルの列挙と変更検出を扱います。
+- .cmoc の ignore 保証、repo root 検出、実装 / 正本ファイルの列挙と変更検出を扱います。
 - session state、apply process id、`cmoc` ブランチ判定、active session 判定の境界条件も押さえます。
 
 ## Read this when
 
 - repo root 検出や `.cmoc` の ignore 保証の挙動を確認したいとき。
-- `list_implementation_files` / `list_oracle_files` や変更検出系の境界条件を調べたいとき。
+- `list_oracle_files` / `list_implementation_files` や変更検出系の境界条件を調べたいとき。
 - `commit_if_changed` のコミット可否や、失敗時に index と HEAD を壊さない挙動を確認したいとき。
 - session state の読み書き、`active_session_ids_for_home_branch`、`is_cmoc_branch` の判定条件を確認したいとき。
 
@@ -123,7 +123,7 @@
 
 ## hash
 
-- 6eafaec38aafba6d8332051dc3a85167f8b4c03df63274474cf8682a7965bdc9
+- 6882f93a0a128af642f31cb7d765eafee93ae2e0c6db7fcf2bc05f1fc850cebb
 
 # `test_report_files.py`
 
@@ -153,27 +153,27 @@
 
 ## Summary
 
-- `tests/test_subcommands.py` は、`cmoc` のサブコマンド横断の決定論的な制御ロジックと CLI 配線を守る統合回帰テスト群の入口です。
-- `init` / `session` / `apply` / `review oracles` の状態遷移、エラー処理、報告出力、Structured Output まわりの境界条件を一つのファイルで確認します。
-- `main.py`、`bin/cmoc`、`test.sh` の起動経路や、`run_command()` まわりの共通実行制御も対象です。
+- `tests/test_subcommands.py` は、`cmoc` のサブコマンド群に対する決定論的な制御ロジックを検証する pytest テストの集約です。
+- `run_command` の標準出力 tee、エラー報告、終了集計、`repo` ルート解決失敗時の扱いを広く押さえます。
+- `init`、`session`、`apply`、`eval_oracles` の状態遷移と副作用、CLI 登録、completion、`main` の例外変換まで回帰対象に含みます。
 
 ## Read this when
 
-- `init` / `session` / `apply` / `review oracles` を横断する起動フロー、終了コード、共通エラーレポートを確認したいとき。
-- `run_command()`、`StepTimer`、`start_step()`、`format_error_report()` の回帰や境界条件を見たいとき。
-- `main.py` の Typer 登録、`bin/cmoc`、`test.sh` の起動経路、互換 alias を確認したいとき。
-- prompt / payload / report schema の検証や、階層 step index、並列実行、エラー時 report 保存の挙動を確認したいとき。
+- `cmoc` のサブコマンド全体に対する決定論的な制御ロジックのテスト範囲を把握したいとき。
+- `run_command` のログ出力、終了コード、例外時レポート、経過時間集計の挙動を確認したいとき。
+- `init`、`session`、`apply`、`eval_oracles` の状態遷移、副作用、回帰テストの観点を追いたいとき。
+- CLI エントリポイントの登録、`main` のエラー変換、completion、バイナリ起動ラッパーの検証範囲を知りたいとき。
 
 ## Do not read this when
 
-- `tests/test_timestamps.py`、`tests/test_indexing.py`、`tests/test_repo.py` など、別系統の共通処理や回帰観点だけを確認したいとき。
-- `src/commons` や `src/sub_commands/...` の実装そのものを直接追いたいとき。
-- 単一サブコマンドだけの仕様や、個別ヘルパー 1 つの挙動だけを見たいとき。
-- `oracles` 側の正本仕様や `INDEX.md` 生成ルールだけを確認したいとき。
+- 個別の `cmoc init`、`cmoc session`、`cmoc apply`、`cmoc review oracles` の手順や引数仕様だけを確認したいとき。
+- `src/sub_commands/` 側の実装ロジックを直接追いたいとき。
+- `oracles` 配下の個別仕様断片や、`INDEX.md` 生成ルールそのものだけを確認したいとき。
+- コマンド制御やエラー処理ではなく、一般的な pytest の書き方やテスト規約だけを見たいとき。
 
 ## hash
 
-- 04fd6739ffe48a530e236f584044ece338bfb776f160234ab576d9759f2938b9
+- 745808c05732c33c0c5529b58979070ee469b399cbd6c80997eeb53e334e1f18
 
 # `test_timestamps.py`
 

@@ -130,29 +130,29 @@
 ## Summary
 
 - `src/commons/repo.py` は、git リポジトリと cmoc の作業領域を扱う共通基盤モジュールです。
-- repo root の探索、現在ブランチ名と HEAD commit の取得、cmoc 管理ブランチの判定と session id 抽出をまとめています。
+- repo root の探索、ブランチ名と HEAD commit の取得、cmoc 管理ブランチの判定と session id 抽出をまとめています。
 - session / apply の状態ファイルと apply process id の保存・読込・検証、active session の整合性確認を担います。
-- `.cmoc` の ignore 保証、未コミット差分の検査、`oracles` と実装ファイルの列挙・差分抽出・削除判定、`run_git()` を含む git 共通ラッパーを提供します。
+- .cmoc の ignore 保証、未コミット差分の検査、`oracles` と実装ファイルの列挙・差分抽出・削除判定、`run_git()` を含む git 共通ラッパーを提供します。
 
 ## Read this when
 
 - repo root の検出、現在ブランチ名、HEAD commit の取得方法を確認したいとき。
-- `cmoc/session/*` と `cmoc/apply/*` のブランチ命名規則や、session id の抽出処理を追いたいとき。
+- `cmoc/session/*` と `cmoc/apply/*` のブランチ命名規則や session id の抽出処理を追いたいとき。
 - session state と apply process id の保存・読込・検証、active session の整合性確認を確認したいとき。
 - apply worktree から所有元 repo root を復元する処理や、`.cmoc` の ignore 保証を確認したいとき。
 - root `.gitignore` と git index を使った未コミット差分・削除検出、`oracles` と実装ファイルの列挙やフィルタリングを追いたいとき。
 
 ## Do not read this when
 
-- `src/commons/repo.py` の個々の関数実装や細部の例外メッセージを確認したいときは、本文を直接読むべきです。
-- `INDEX.md` の生成・更新ルールそのものを確認したいときは、`src/commons/indexing.py` を読むべきです。
-- `CmocError` の整形や stdout 向けエラーレポートだけを確認したいときは、`src/commons/errors.py` を読むべきです。
-- 経過時間計測やサブコマンドログだけを追いたいときは、`timing.py` や `subcommand_log.py` を読むべきです。
-- `codex exec` の起動や Structured Output の扱いだけを確認したいときは、この文書の範囲外です。
+- `src/commons/repo.py` の個々の関数実装や細かな例外メッセージだけを確認したいとき。
+- `INDEX.md` の生成・更新ルールそのものを確認したいとき。
+- `CmocError` の整形や stdout 向けエラーレポートだけを確認したいとき。
+- 経過時間計測やサブコマンドログだけを追いたいとき。
+- `codex exec` の起動や Structured Output の扱いだけを確認したいとき。
 
 ## hash
 
-- fc5052391ab23aa18cd4e4ef0d5658c02f1afa869173bcbab7a9057af7f384b4
+- 9af3a7fa3d4ad70c1128877acb5b6a318944db3388181866678c921bce8c058d
 
 # `report_files.py`
 

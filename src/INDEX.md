@@ -21,7 +21,7 @@
 
 ## hash
 
-- cc77e1f1628a8421251cc26fb601e595d2f7829c9c534ca0fffc8ef7597cde20
+- f984483d41e2fe9d0c935eb2051baab75571828b83af014cc1813181197c2cef
 
 # `main.py`
 
@@ -54,26 +54,24 @@
 
 ## Summary
 
-- `src/sub_commands` は cmoc の個別サブコマンド実装の入口ディレクトリです。
-- `__init__.py` はパッケージ宣言のみを担い、`init.py` は `cmoc init` の本体です。
-- `apply/` は `cmoc apply` 系、`session/` は `cmoc session` 系、`review/` は `cmoc review` 系の実装入口です。
-- この `INDEX.md` は、個別モジュールへ進む前に責務分担を把握するための目次です。
+- `src/sub_commands` は `cmoc` のサブコマンド実装をまとめる入口ディレクトリです。
+- 直下には最小のパッケージ宣言 `__init__.py`、`cmoc init` 本体の `init.py`、および `apply/`、`session/`、`review/` の各サブパッケージがあります。
+- 各下位ディレクトリはそれぞれ独自の `INDEX.md` を持ち、個別サブコマンド実装へ進むためのルーティング先になっています。
 
 ## Read this when
 
-- `src/sub_commands` 配下で、どのモジュールやサブディレクトリを開くべきか迷っているとき。
-- `cmoc init`、`cmoc apply`、`cmoc session`、`cmoc review` の実装入口を俯瞰したいとき。
-- `src/sub_commands` 配下の責務分担を整理してから、個別実装やテストに進みたいとき。
-- `src/sub_commands` が Python パッケージとして成立していることと、各サブコマンド本体の入口を確認したいとき。
+- `cmoc` のサブコマンド群全体の入口構造と、どの実装へ進むべきかを整理したいとき。
+- `init.py` と `apply/`、`session/`、`review/` の責務分担を俯瞰して、修正・テスト・レビュー先を選びたいとき。
+- CLI の配線や各サブコマンドの位置関係を把握してから、個別モジュールへ入る前の導線が欲しいとき。
+- `src/sub_commands` 配下にある直接の子要素が何で、それぞれがどの系統の実装かを確認したいとき。
 
 ## Do not read this when
 
-- `cmoc init` だけの仕様や実装を確認したいときは、`src/sub_commands/init.py` を直接読むべきです。
-- `cmoc apply` 系だけを追いたいときは、`src/sub_commands/apply/INDEX.md` を起点に読むべきです。
-- `cmoc session` 系だけを追いたいときは、`src/sub_commands/session/INDEX.md` を起点に読むべきです。
-- `cmoc review` 系だけを追いたいときは、`src/sub_commands/review/INDEX.md` を起点に読むべきです。
-- `oracles/docs/app_specs/sub_commands/` 側の正本仕様だけを確認したいときは、この実装目次ではなく仕様側の INDEX を読むべきです。
+- 個別の `cmoc` サブコマンド 1 つだけの引数や終了条件を確認したいときは、この入口ではなく該当モジュールを直接読むべきです。
+- `apply`、`session`、`review` のうち特定の系統だけを追いたいときは、このディレクトリ全体ではなく各下位ディレクトリの `INDEX.md` を読むべきです。
+- `oracles` 側の正本仕様断片や利用手順だけを確認したいときは、実装側のこのディレクトリではなく該当する仕様文書を読むべきです。
+- `src/sub_commands` のパッケージ宣言だけを確認したいときは、この目次ではなく `__init__.py` を見るだけで足ります。
 
 ## hash
 
-- de5894b8b9ae02816177d8085710004eaa76c769a26efc97f522ff5a509426e9
+- 72f144e6881fa6744f359c3baf99eb62acda7c47d1377f4dbf4d39ca051e821b

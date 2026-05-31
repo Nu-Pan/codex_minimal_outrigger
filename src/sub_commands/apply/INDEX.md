@@ -50,7 +50,7 @@
 
 ## Summary
 
-- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch 上で apply run を開始し、不整合調査から修正反復、報告書作成までを担当します。
+- `src/sub_commands/apply/fork.py` は `cmoc apply fork` の本体実装で、session branch 上で apply run を開始し、不整合調査から修正反復、報告書作成までを担当するモジュールです。
 - state 検証、apply worktree 作成、scope に応じた調査対象の絞り込み、Codex CLI への file 起点調査、修正適用、INDEX 保守、終了コード分岐をまとめています。
 
 ## Read this when
@@ -69,7 +69,7 @@
 
 ## hash
 
-- 37ac5341488de18ae59771e4b9e5912312b48d3d00306f943cb484c646d2b64f
+- 32d6a8303e10a035e0d204854cb69837fcb4a290225661f459c13ac7655a8305
 
 # `join.py`
 

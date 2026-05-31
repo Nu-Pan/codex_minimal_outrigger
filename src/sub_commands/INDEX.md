@@ -25,27 +25,25 @@
 
 ## Summary
 
-- `src/sub_commands/apply` は `cmoc apply` 系サブコマンド実装の入口ディレクトリです。
-- `__init__.py` はパッケージ宣言だけを担う最小モジュールです。
-- `abandon.py` は未 join の apply run を破棄して `apply.state` を `ready` に戻す本体実装です。
-- `fork.py` は `cmoc apply fork` の調査・修正ループ、レポート作成、`INDEX.md` 保守を担う本体実装です。
-- `join.py` は完了済み apply branch を session branch に merge し、cleanup と state 更新を行う本体実装です。
+- `src/sub_commands/apply` は `cmoc apply` 系サブコマンドの実装をまとめた Python パッケージです。
+- `__init__.py` のパッケージ宣言と、`abandon.py` / `fork.py` / `join.py` の各本体実装を含みます。
+- apply の開始・修正反復・取り消し・統合の処理順と共通補助を確認するための入口です。
 
 ## Read this when
 
-- `src/sub_commands/apply` のどのモジュールを開くべきか、入口構造を確認したいとき。
-- apply 系の破棄・調査修正・取り込みの責務分担を俯瞰したいとき。
-- `cmoc apply fork` / `join` / `abandon` の実装・修正・レビュー・テストの前に、全体像を整理したいとき。
+- `cmoc apply` の入口構造や各モジュールの役割分担を把握したいとき。
+- apply run の開始、取り消し、merge 取り込みの実装位置を素早く選びたいとき。
+- どのモジュールを修正・テスト・レビューすべきかを判断したいとき。
 
 ## Do not read this when
 
-- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/` 側を読むべきです。
-- `src/sub_commands/apply/__init__.py` だけで十分なときは、この目次ではなく該当モジュールだけを確認すれば足ります。
-- 個別の merge conflict 解消や state 遷移の詳細だけを追いたいときは、対応する実装モジュールを直接読むべきです。
+- `cmoc session` や `cmoc review` の実装だけを追いたいとき。
+- `cmoc apply` の利用手順や正本仕様だけを確認したいときは、`oracles/docs/app_specs/sub_commands/` 側を読むべきとき。
+- `src/sub_commands/apply` 配下の個別挙動ではなく、共通開発ルールや `INDEX.md` 生成ルールだけを確認したいとき。
 
 ## hash
 
-- 01908686a73e933c60503e3bc79a1537c1abc2dc9f4dc6ff443fe4eb7f067c68
+- 20b1b3be3968501e19bb84769cdf6cb700401a1af14bf1e52f1aa2fe55336593
 
 # `init.py`
 
@@ -99,26 +97,22 @@
 
 ## Summary
 
-- `src/sub_commands/session` は `cmoc session` 系サブコマンドの実装入口です。
+- `src/sub_commands/session` は `cmoc session` 系サブコマンド実装の入口ディレクトリです。
 - `__init__.py` はパッケージ宣言だけを担う最小モジュールです。
-- `abandon.py` は session branch を merge せず破棄して home branch へ戻す本体実装です。
-- `fork.py` は local branch から session branch を作成し、session state を記録する本体実装です。
-- `join.py` は session branch を home branch へ `git merge --no-ff` で取り込み、session を完了する本体実装です。
+- `abandon.py` は session branch の破棄、`fork.py` は session branch の作成、`join.py` は session branch の統合を担います。
 
 ## Read this when
 
-- `src/sub_commands/session` が Python パッケージとして宣言されていることを確認したいとき。
-- `cmoc session abandon` の前提条件、cleanup 順序、rollback を確認したいとき。
-- `cmoc session fork` の作成条件、branch 名、state 保存、retry を確認したいとき。
-- `cmoc session join` の merge 手順、state 検証、conflict 解消、後始末を確認したいとき。
+- `src/sub_commands/session` 配下の入口構造と、どのモジュールを開くべきかを把握したいとき。
+- `cmoc session fork` / `join` / `abandon` の責務分担や、各実装モジュールの役割を確認したいとき。
+- session 系の実装・修正・レビュー・テストに入る前に、パッケージ全体の目次を整理したいとき。
 
 ## Do not read this when
 
-- `cmoc session` 以外の `cmoc` サブコマンドの実装だけを確認したいとき。
-- `cmoc apply` 側の破棄や取り込みの仕様だけを確認したいとき。
-- `oracles/docs/app_specs/sub_commands/` 側の正本仕様だけを確認したいとき。
-- パッケージ宣言だけ、または一般的な git branch 操作だけを確認したいとき。
+- `cmoc session` 以外のサブコマンドの実装や CLI 登録だけを確認したいとき。
+- `cmoc apply` 系や `cmoc review` 系の仕様・実装を追いたいとき。
+- `oracles` 側の正本仕様だけを確認したいとき。
 
 ## hash
 
-- 8abe880028a57337b24282d378c5dfa41d632400551b61888b63c54ff9589522
+- 92a4881bdb0a53d39acb955bd2f2b695b91c7332cb32fc52ab8c5771bd25536a

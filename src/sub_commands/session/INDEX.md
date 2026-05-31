@@ -88,9 +88,10 @@
 ## Do not read this when
 
 - `cmoc session fork` や `cmoc session abandon` の開始・破棄フローだけを確認したいとき。
-- `cmoc apply` 系の実行条件、想定外差分、`apply.state` の扱いだけを確認したいとき。
+- `cmoc apply` 系の実装や状態遷移だけを確認したいとき。
 - `src/sub_commands/session` ディレクトリ全体の入口構造だけを確認したいとき。
+- `cmoc session join` の正本仕様断片だけを確認したいときは、`oracles/docs/app_specs/sub_commands/session_join.md` を読むべきとき。
 
 ## hash
 
-- 3138699869e4d0f4759c5d6f0a67c2a5c8dd99a27f878413b3d4b6ebff73f723
+- 269614e01176dbff82033544cd0cdf233ba03e618f49f262d6e2e6fb1492e5ee
