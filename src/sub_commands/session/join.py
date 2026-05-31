@@ -28,6 +28,8 @@ _MANUAL_RESOLUTION_MESSAGE: str = (
     "手動解消が必要です。cmoc は repository 状態をロールバックしていません。"
 )
 
+_ProtectedConflictSnapshot = dict[str, tuple[str, bytes | None, str]]
+
 
 def cmoc_session_join_impl(repo_root: Path | None = None) -> None:
     """現在の session branch を記録済み home branch へ merge する。"""
@@ -435,21 +437,25 @@ def _oracle_conflict_paths(unmerged: list[str]) -> list[str]:
 def _protected_conflict_snapshot(
     repo_root: Path,
     unmerged: list[str],
-) -> dict[str, tuple[str, bytes | None]]:
+) -> _ProtectedConflictSnapshot:
     """conflict 対象外の未コミット状態と作業ツリー内容を保存する。"""
     unmerged_set = set(unmerged)
-    snapshot: dict[str, tuple[str, bytes | None]] = {}
+    snapshot: _ProtectedConflictSnapshot = {}
     for status, path in _porcelain_status_entries(repo_root):
         if path in unmerged_set:
             continue
-        snapshot[path] = (status, _read_snapshot_bytes(repo_root, path))
+        snapshot[path] = (
+            status,
+            _read_snapshot_bytes(repo_root, path),
+            _index_snapshot_entry(repo_root, path),
+        )
     return snapshot
 
 
 def _assert_protected_conflict_snapshot_unchanged(
     repo_root: Path,
     unmerged: list[str],
-    before: dict[str, tuple[str, bytes | None]],
+    before: _ProtectedConflictSnapshot,
 ) -> None:
     """Codex が conflict 対象外 path を変更していないことを確認する。"""
     after = _protected_conflict_snapshot(repo_root, unmerged)
@@ -490,6 +496,12 @@ def _read_snapshot_bytes(repo_root: Path, relative_path: str) -> bytes | None:
     if not path.exists() or not path.is_file():
         return None
     return path.read_bytes()
+
+
+def _index_snapshot_entry(repo_root: Path, relative_path: str) -> str:
+    """path の index stage/blob 情報を snapshot 用に保存する。"""
+    result = run_git(repo_root, ["ls-files", "-s", "-z", "--", relative_path])
+    return result.stdout
 
 
 def _unmerged_paths(repo_root: Path) -> list[str]:

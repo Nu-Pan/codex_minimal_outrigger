@@ -8002,6 +8002,38 @@ def test_session_join_rejects_codex_rewrite_of_auto_merged_special_path(
     assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
 
 
+def test_session_join_rejects_codex_staged_rewrite_of_auto_merged_memo(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """memo 内容を読まずに staged auto merge の書き換えを検出する。"""
+    repo = _repo_with_session_join_conflict(tmp_path, auto_path="memo/note.md")
+
+    def fake_codex(
+        repo_root: Path,
+        prompt: str,
+        **kwargs: object,
+    ) -> None:
+        """禁止違反として memo を変更し、git add で status を戻す。"""
+        del prompt, kwargs
+        (repo_root / "conflict.txt").write_text("resolved\n", encoding="utf-8")
+        (repo_root / "memo" / "note.md").write_text(
+            "tampered\n",
+            encoding="utf-8",
+        )
+        _git(repo_root, "add", "memo/note.md")
+
+    monkeypatch.setattr(session_join_module, "run_codex_exec", fake_codex)
+
+    with pytest.raises(CmocError) as error:
+        cmoc_session_join_impl(repo)
+
+    assert "conflict 対象外" in error.value.message
+    assert "memo/note.md" in error.value.detail
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    assert _git(repo, "log", "-1", "--pretty=%s").stdout.strip() == "home change"
+
+
 def test_session_join_allows_oracle_conflict_path_in_codex_guard(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
